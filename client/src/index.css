@@ -1,0 +1,76 @@
+/**
+ * Tailwind v4. The whole framework is one import, and the theme is configured
+ * here in CSS rather than in a tailwind.config.js file, which v4 no longer
+ * needs. If you go looking for tailwind.config.js, that is why there is not one.
+ *
+ * These tokens are the palette in docs/DESIGN-SYSTEM.md. Read that file before
+ * building a screen. A raw hex in a component is a bug.
+ */
+@import 'tailwindcss';
+
+@theme {
+  /* The surface. The only background colour in the product. */
+  --color-paper: #fafaf7;
+
+  /* Primary text and primary borders. The stamp's 3px edge. */
+  --color-ink: #1c1b19;
+
+  /* Secondary text, dividers, disabled state. */
+  --color-steel: #56606b;
+
+  /*
+   * The three below are FUNCTIONAL colour, not brand colour.
+   *
+   * chana means "this button commits the action". mirch means destructive or
+   * out of stock. patta means available or succeeded. Reaching for one of them
+   * to make something pop is decoration wearing a function's colour, and every
+   * time it happens the real signals get harder to read.
+   */
+  --color-chana: #c99a2e;
+  --color-mirch: #b23a2e;
+  --color-patta: #3f7d58;
+
+  /* Derived: patta over paper, flattened opaque. The available stamp fill. */
+  --color-patta-tint: #d5e1d7;
+
+  /*
+   * Mono is for numbers: prices, tax rates, quantities, the stamp label.
+   * Sans is for everything else. The test is "is this a number?".
+   */
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+}
+
+/*
+ * M0 shipped with placeholder brand-* tokens and its screens still reference
+ * them. Pointing them at chana means those buttons pick up the real primary
+ * without touching M0 component code, which M1 is not scoped to restyle.
+ * Remove these when the M0 screens are migrated to the token names.
+ */
+@theme {
+  --color-brand-50: #f7f0dd;
+  --color-brand-500: #c99a2e;
+  --color-brand-600: #c99a2e;
+  --color-brand-700: #a67f22;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* The press-and-settle on the stamp. Instant for anyone who asked for that. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

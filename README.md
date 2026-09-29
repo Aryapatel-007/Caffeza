@@ -1,0 +1,76 @@
+# Restaurant ERP
+
+A multi-tenant SaaS restaurant ERP for independent restaurants in Ahmedabad.
+MongoDB, Express, React, Node. The API is REST.
+
+Start here: [`docs/PROJECT-STATE.md`](docs/PROJECT-STATE.md). It says where the
+project actually stands. Read it before writing anything, and update it before
+you stop.
+
+| Document | What it is for |
+|----------|----------------|
+| [`docs/PROJECT-STATE.md`](docs/PROJECT-STATE.md) | Current status, decisions, open questions, known problems |
+| [`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md) | Scope, security requirements, the problems teams like ours miss |
+| [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) | Folder layout, naming, response envelope, error codes, middleware order |
+
+## Running it
+
+Node 20.19 or newer.
+
+```bash
+npm install
+cp .env.example .env    # then fill in real values
+npm run dev             # server on :5000, client on :5173
+```
+
+The server validates every environment variable at boot. If one is missing or
+malformed it prints exactly which, and exits. It will not start half configured,
+and it will not listen before the database is up.
+
+Check it is alive:
+
+```bash
+curl http://localhost:5000/api/v1/health
+```
+
+## Running tests
+
+```bash
+cp .env.example .env
+cp server/.env.test.example server/.env.test
+npm test
+```
+
+The server validates `.env` at boot, tests included, and rejects the
+placeholder JWT secrets. Set `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` to two
+different values from `openssl rand -base64 48` first. Tests run against an
+in-memory MongoDB, not a real cluster.
+
+## Scripts
+
+| Command | What it does |
+|---------|--------------|
+| `npm run dev` | Server and client together |
+| `npm run dev:server` | Server only, with reload |
+| `npm run dev:client` | Client only |
+| `npm test` | Server test suite |
+| `npm run lint` | ESLint across both workspaces |
+| `npm run build` | Production client build |
+
+## The rules that are not negotiable
+
+These are set out in full in `docs/BUILD-PLAN.md` section 6. The short version:
+
+- Every record has a `restaurantId`. Every query filters by it. Build filters
+  with `scoped(req)`, and every model applies `tenantGuardPlugin` so a query
+  that forgets throws instead of leaking.
+- All money is a whole number of paise. Never a decimal, never a float.
+  Arithmetic lives in `server/utils/money.js` and nowhere else.
+- Permissions are checked on the server for every endpoint. Hiding a button in
+  React is a hint, not security.
+- A record belonging to another restaurant returns 404, never 403. A 403
+  confirms the record exists.
+- Nothing is hard deleted. It is voided, with a reason and the user who did it.
+- Timestamps are stored in UTC and converted only for display.
+- Secrets live in `.env`, which is gitignored. A committed secret is rotated,
+  not just deleted from the next commit.

@@ -1,0 +1,384 @@
+/**
+ * M2 request schemas: tables, orders and kitchen tickets.
+ *
+ * Built on the primitives in common.js. Nothing here re-derives what an
+ * ObjectId or a phone number is.
+ *
+ * Business rules are not here, and cannot be. A Zod refinement always surfaces
+ * as a 400 through the validate middleware, and most M2 rules have to be 422 or
+ * 409, so they are thrown in the controller. The other half of that line is
+ * that Zod cannot see stored state: whether a line is already fired, whether an
+ * order is still open. Those checks need the document.
+ */
+import { z } from 'zod';
+
+import {
+  MAX_GUEST_COUNT,
+  MAX_LINE_QUANTITY,
+  MIN_GUEST_COUNT,
+  MIN_LINE_QUANTITY,
+  CANCEL_REASON_MAX_LENGTH,
+  CUSTOMER_NAME_MAX_LENGTH,
+  LINE_NOTES_MAX_LENGTH,
+  ORDER_STATUS_VALUES,
+  ORDER_TYPES,
+} from '../models/Order.js';
+import { MAX_SEATS, MIN_SEATS, TABLE_NAME_MAX_LENGTH, TABLE_SECTION_MAX_LENGTH } from '../models/Table.js';
+import { nonEmptyString, objectId, paginationQuery, phoneIndia } from './common.js';
+
+/**
+ * A boolean that arrived in a query string, matched literally.
+ *
+ * z.coerce.boolean() turns the string "false" into true, which is the wrong
+ * answer in the most confusing possible way. Logged as a decision from M0-C.
+ */
+const queryBoolean = z
+  .enum(['true', 'false'], { error: 'Must be true or false.' })
+  .default('false')
+  .transform((value) => value === 'true');
+
+/** The same, but genuinely optional: absent means "do not filter on this". */
+const optionalQueryBoolean = z
+  .enum(['true', 'false'], { error: 'Must be true or false.' })
+  .optional()
+  .transform((value) => (value === undefined ? undefined : value === 'true'));
+
+const displayOrder = z
+  .number({ error: 'Must be a number.' })
+  .int('Must be a whole number.')
+  .min(0, 'Cannot be negative.');
+
+const isActiveBody = z
+  .object({ isActive: z.boolean({ error: 'Must be true or false.' }) })
+  .strict('Is not a field you can set here.');
+
+// ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
+
+const tableIdParam = z.object({ tableId: objectId });
+
+const tableName = nonEmptyString.max(
+  TABLE_NAME_MAX_LENGTH,
+  `Cannot be longer than ${TABLE_NAME_MAX_LENGTH} characters.`,
+);
+
+const section = z
+  .union([
+    z
+      .string()
+      .trim()
+      .max(TABLE_SECTION_MAX_LENGTH, `Cannot be longer than ${TABLE_SECTION_MAX_LENGTH} characters.`),
+    z.null(),
+  ])
+  .optional();
+
+const seats = z
+  .number({ error: 'Must be a number.' })
+  .int('Must be a whole number.')
+  .min(MIN_SEATS, `Must seat at least ${MIN_SEATS}.`)
+  .max(MAX_SEATS, `Cannot seat more than ${MAX_SEATS}.`);
+
+export const createTableSchema = z.object({
+  body: z
+    .object({
+      name: tableName,
+      section,
+      seats: seats.optional(),
+      displayOrder: displayOrder.optional(),
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+/**
+ * `isOccupied` filters on a value that is not stored anywhere.
+ *
+ * Occupancy is derived from open orders at request time, so the filter is
+ * applied in memory after the derivation rather than in the database query.
+ * Absent means no filter at all, which is why it is not the defaulting
+ * queryBoolean used elsewhere.
+ *
+ * `includeInactive` is not in Part 4's URL example. It is here for the same
+ * reason GET /categories has one: without it a deactivated table cannot be seen
+ * and therefore cannot be switched back on, and the table management screen
+ * exists to do exactly that. Defaults to false so the floor view, which is the
+ * other caller, does not have to ask.
+ */
+export const listTablesSchema = z.object({
+  query: z.object({
+    section: z.string().trim().max(TABLE_SECTION_MAX_LENGTH).optional(),
+    isOccupied: optionalQueryBoolean,
+    includeInactive: queryBoolean,
+  }),
+});
+
+/** `isActive` is refused rather than ignored: it has its own endpoint. */
+export const updateTableSchema = z.object({
+  params: tableIdParam,
+  body: z
+    .object({
+      name: tableName.optional(),
+      section,
+      seats: seats.optional(),
+      displayOrder: displayOrder.optional(),
+      isActive: z.never({ error: 'Has its own endpoint: PATCH /tables/:tableId/status' }).optional(),
+    })
+    .strict('Is not a field you can change here.')
+    .refine((body) => Object.keys(body).length > 0, 'Send at least one field to change.'),
+});
+
+export const setTableStatusSchema = z.object({
+  params: tableIdParam,
+  body: isActiveBody,
+});
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+const orderIdParam = z.object({ orderId: objectId });
+const orderLineParams = z.object({ orderId: objectId, lineId: objectId });
+
+/**
+ * The version the client last read. Required on every write to an order.
+ *
+ * Not optional and not defaulted. A client that does not send one has not read
+ * the order, and letting it write anyway is the lost update this field exists
+ * to prevent.
+ */
+const version = z
+  .number({ error: 'Is required. Send the version you last read.' })
+  .int('Must be a whole number.')
+  .min(1, 'Must be 1 or more.');
+
+const notes = z
+  .union([
+    z.string().trim().max(LINE_NOTES_MAX_LENGTH, `Cannot be longer than ${LINE_NOTES_MAX_LENGTH} characters.`),
+    z.null(),
+  ])
+  .optional();
+
+/**
+ * One line as the client is allowed to describe it: ids and a quantity.
+ *
+ * `.strict()` is the security control on this object, not a tidiness
+ * preference. The server looks the menu item up and writes every price itself,
+ * so a body carrying unitPriceInPaise or taxRateBps is either a bug or
+ * someone pricing their own dinner. Either way it fails loudly with a 400
+ * naming the field, rather than being quietly stripped and looking like it
+ * worked.
+ */
+const lineRequest = z
+  .object({
+    menuItemId: objectId,
+    variantId: objectId.optional(),
+    quantity: z
+      .number({ error: 'Must be a number.' })
+      .int('Must be a whole number.')
+      .min(MIN_LINE_QUANTITY, 'Must be at least 1.')
+      .max(MAX_LINE_QUANTITY, `Cannot be more than ${MAX_LINE_QUANTITY}.`),
+    addOnIds: z.array(objectId).optional(),
+    notes,
+  })
+  .strict('Is not a field you can set on a line. The server prices the line itself.');
+
+const lines = z.array(lineRequest);
+
+/**
+ * Create, as a discriminated union so the conditional fields are enforced by
+ * the schema rather than by an if-statement in the controller.
+ *
+ * A dine-in order names a table and may count guests. A takeaway names neither
+ * and may carry a customer instead. Each branch refuses the other's fields
+ * outright, so "TAKEAWAY with a tableId" is a validation error naming the
+ * field, not a silently ignored value that leaves the caller thinking they
+ * booked a table.
+ */
+export const createOrderSchema = z.object({
+  body: z.discriminatedUnion('orderType', [
+    z
+      .object({
+        orderType: z.literal(ORDER_TYPES.DINE_IN),
+        tableId: objectId,
+        guestCount: z
+          .number({ error: 'Must be a number.' })
+          .int('Must be a whole number.')
+          .min(MIN_GUEST_COUNT, 'Must be at least 1.')
+          .max(MAX_GUEST_COUNT, `Cannot be more than ${MAX_GUEST_COUNT}.`)
+          .optional(),
+        customerName: z.never({ error: 'Only a takeaway order has a customer name.' }).optional(),
+        customerPhone: z.never({ error: 'Only a takeaway order has a customer phone.' }).optional(),
+        lines: lines.optional(),
+      })
+      .strict('Is not a field you can set here.'),
+
+    z
+      .object({
+        orderType: z.literal(ORDER_TYPES.TAKEAWAY),
+        tableId: z.never({ error: 'A takeaway order has no table.' }).optional(),
+        guestCount: z.never({ error: 'A takeaway order has no guest count.' }).optional(),
+        customerName: nonEmptyString
+          .max(CUSTOMER_NAME_MAX_LENGTH, `Cannot be longer than ${CUSTOMER_NAME_MAX_LENGTH} characters.`)
+          .optional(),
+        customerPhone: phoneIndia.optional(),
+        lines: lines.optional(),
+      })
+      .strict('Is not a field you can set here.'),
+  ]),
+});
+
+/**
+ * `status` accepts a comma-separated list, for example "OPEN,READY_TO_BILL".
+ *
+ * Split here rather than in the controller so the controller receives an array
+ * of checked values and never sees the raw string. An unknown value fails
+ * rather than being dropped: a client asking for a status that does not exist
+ * has a bug, and quietly returning everything would hide it.
+ */
+const orderStatusList = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) =>
+    value === undefined || value === '' ? undefined : value.split(',').map((part) => part.trim()),
+  )
+  .pipe(z.array(z.enum(ORDER_STATUS_VALUES, { error: 'Is not an order status.' })).min(1).optional());
+
+export const listOrdersSchema = z.object({
+  query: paginationQuery.extend({
+    status: orderStatusList,
+    orderType: z.enum(Object.values(ORDER_TYPES), { error: 'Is not an order type.' }).optional(),
+    tableId: objectId.optional(),
+  }),
+});
+
+export const readOrderSchema = z.object({ params: orderIdParam });
+
+export const addOrderLinesSchema = z.object({
+  params: orderIdParam,
+  body: z
+    .object({
+      version,
+      lines: lines.min(1, 'Send at least one line.'),
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+/**
+ * Only quantity and notes. Changing what was ordered is a cancel plus a new
+ * line, not an edit, because the snapshot on a line has to stay the thing that
+ * was actually ordered.
+ */
+export const editOrderLineSchema = z.object({
+  params: orderLineParams,
+  body: z
+    .object({
+      version,
+      quantity: z
+        .number({ error: 'Must be a number.' })
+        .int('Must be a whole number.')
+        .min(MIN_LINE_QUANTITY, 'Must be at least 1.')
+        .max(MAX_LINE_QUANTITY, `Cannot be more than ${MAX_LINE_QUANTITY}.`)
+        .optional(),
+      notes,
+    })
+    .strict('Is not a field you can change on a line.')
+    .refine(
+      (body) => body.quantity !== undefined || body.notes !== undefined,
+      'Send a quantity or a note to change.',
+    ),
+});
+
+const cancelReason = nonEmptyString.max(
+  CANCEL_REASON_MAX_LENGTH,
+  `Cannot be longer than ${CANCEL_REASON_MAX_LENGTH} characters.`,
+);
+
+/**
+ * `wasPrepared` is optional here and conditionally required in the controller.
+ *
+ * Whether it is required depends on the line's stored status, which Zod cannot
+ * see. A PENDING line was never sent to the kitchen so the question does not
+ * arise; a FIRED one has to be answered. See services/orderService.js.
+ */
+export const cancelOrderLineSchema = z.object({
+  params: orderLineParams,
+  body: z
+    .object({
+      version,
+      reason: cancelReason,
+      wasPrepared: z.boolean({ error: 'Must be true or false.' }).optional(),
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+export const fireOrderSchema = z.object({
+  params: orderIdParam,
+  body: z.object({ version }).strict('Is not a field you can set here.'),
+});
+
+export const markLineServedSchema = z.object({
+  params: orderLineParams,
+  body: z.object({ version }).strict('Is not a field you can set here.'),
+});
+
+export const moveOrderTableSchema = z.object({
+  params: orderIdParam,
+  body: z.object({ version, tableId: objectId }).strict('Is not a field you can set here.'),
+});
+
+export const cancelOrderSchema = z.object({
+  params: orderIdParam,
+  body: z
+    .object({
+      version,
+      reason: cancelReason,
+      wasPrepared: z.boolean({ error: 'Must be true or false.' }).optional(),
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+// ---------------------------------------------------------------------------
+// Kitchen tickets
+// ---------------------------------------------------------------------------
+
+/**
+ * The derived KOT statuses. Not stored on the document, so this list lives
+ * here rather than on the model: it describes what a caller may ask for, and
+ * the model has no field to hold it.
+ */
+export const KOT_STATUSES = Object.freeze({
+  PENDING: 'PENDING',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+});
+export const KOT_STATUS_VALUES = Object.freeze(Object.values(KOT_STATUSES));
+
+const kotIdParam = z.object({ kotId: objectId });
+const kotLineParams = z.object({ kotId: objectId, lineId: objectId });
+
+const kotStatusList = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) =>
+    value === undefined || value === '' ? undefined : value.split(',').map((part) => part.trim()),
+  )
+  .pipe(z.array(z.enum(KOT_STATUS_VALUES, { error: 'Is not a ticket status.' })).min(1).optional());
+
+export const listKotsSchema = z.object({
+  query: paginationQuery.extend({ status: kotStatusList }),
+});
+
+export const readKotSchema = z.object({ params: kotIdParam });
+
+/**
+ * No `version` on either ready endpoint, deliberately.
+ *
+ * A kitchen ticket is append-only from the kitchen's side and two cooks marking
+ * the same dish ready is harmless: the second one finds it already READY and is
+ * told so. Asking the person at the pass to hold a version number would be
+ * optimistic concurrency solving a problem the kitchen does not have.
+ */
+export const markKotLineReadySchema = z.object({ params: kotLineParams });
+export const markKotReadySchema = z.object({ params: kotIdParam });

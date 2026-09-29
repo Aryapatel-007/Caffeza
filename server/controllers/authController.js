@@ -1,0 +1,259 @@
+/**
+ * Authentication.
+ *
+ * The shapes returned here are fixed by docs/API-CONTRACT.md sections 1.1 to
+ * 1.6. Nothing in this file touches the stored credential. services/
+ * authService.js owns it, so a grep of this folder for the field name comes
+ * back empty and stays that way.
+ */
+import { logger } from '../config/logger.js';
+import { Branch } from '../models/Branch.js';
+import { REVOKE_REASONS } from '../models/RefreshToken.js';
+import { Restaurant } from '../models/Restaurant.js';
+import { User } from '../models/User.js';
+import {
+  setPassword,
+  verifyCredentials,
+  verifyPasswordFor,
+} from '../services/authService.js';
+import {
+  accessTokenLifetimeSeconds,
+  issueAccessToken,
+  issueRefreshToken,
+  revokeAllForUser,
+  revokeOne,
+  rotateRefreshToken,
+} from '../services/tokenService.js';
+import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from '../utils/authCookie.js';
+import {
+  BusinessRuleError,
+  InvalidCredentialsError,
+  InvalidRefreshTokenError,
+} from '../utils/errors.js';
+import { sendSuccess } from '../utils/response.js';
+import { nowUtc } from '../utils/time.js';
+
+function presentUser(user, { includeLastLoginAt = false } = {}) {
+  const shape = {
+    id: String(user._id),
+    name: user.name,
+    phone: user.phone,
+    email: user.email ?? null,
+    role: user.role,
+    restaurantId: String(user.restaurantId),
+    branchId: String(user.branchId),
+  };
+  if (includeLastLoginAt) shape.lastLoginAt = user.lastLoginAt ?? null;
+  return shape;
+}
+
+function presentRestaurant(restaurant, { includeGstin = false } = {}) {
+  const shape = { id: String(restaurant._id), name: restaurant.name };
+  if (includeGstin) shape.gstin = restaurant.gstin ?? null;
+  return shape;
+}
+
+function presentBranch(branch) {
+  return { id: String(branch._id), name: branch.name };
+}
+
+function requestContext(req) {
+  return { userAgent: req.get('user-agent'), ipAddress: req.ip };
+}
+
+/**
+ * POST /auth/login
+ *
+ * The body carries exactly one of `phone` or `email`, plus the password. Every
+ * failure produces one identical response. The order below matters: the dummy
+ * comparison on the not-found path is what keeps the response time the same
+ * whether or not the identifier is registered.
+ */
+export async function login(req, res) {
+  const { phone, email, password } = req.body;
+
+  const { user, failure } = await verifyCredentials({ phone, email }, password);
+
+  if (failure) {
+    req.log?.warn(
+      { reason: failure, by: email ? 'email' : 'phone', userId: user ? String(user._id) : null },
+      'Login failed.',
+    );
+    throw new InvalidCredentialsError();
+  }
+
+  // Legitimate unguarded query pattern 1: lookup by _id from a trusted record.
+  const restaurant = await Restaurant.findById(user.restaurantId);
+
+  if (!restaurant || restaurant.isActive === false) {
+    req.log?.warn(
+      { reason: 'RESTAURANT_INACTIVE', userId: String(user._id), restaurantId: String(user.restaurantId) },
+      'Login failed.',
+    );
+    throw new InvalidCredentialsError();
+  }
+
+  const branch = await Branch.findOne({ _id: user.branchId, restaurantId: user.restaurantId });
+  if (!branch) {
+    req.log?.error(
+      { reason: 'BRANCH_MISSING', userId: String(user._id), restaurantId: String(user.restaurantId) },
+      'Login failed: user points at a branch that does not exist.',
+    );
+    throw new InvalidCredentialsError();
+  }
+
+  const accessToken = issueAccessToken(user);
+  const refreshToken = await issueRefreshToken(user, requestContext(req));
+
+  user.lastLoginAt = nowUtc();
+  await user.save();
+
+  // The refresh token leaves the server once, in an httpOnly cookie the browser
+  // stores and JavaScript cannot read. It is never in the response body.
+  setRefreshCookie(res, refreshToken);
+
+  return sendSuccess(res, {
+    accessToken,
+    expiresInSeconds: accessTokenLifetimeSeconds(accessToken),
+    user: presentUser(user),
+    restaurant: presentRestaurant(restaurant),
+    branch: presentBranch(branch),
+  });
+}
+
+/**
+ * POST /auth/refresh
+ *
+ * The credential is the `refreshToken` cookie. Rotation and reuse detection
+ * both live in the token service, which throws InvalidRefreshTokenError for a
+ * missing, unknown, expired or revoked token. On any of those the cookie is
+ * cleared as well, so the browser stops re-sending a dead credential.
+ *
+ * The `X-Requested-With` header is enforced by requireCsrfHeader on the route.
+ */
+export async function refresh(req, res) {
+  try {
+    const rawToken = readRefreshCookie(req);
+    if (!rawToken) throw new InvalidRefreshTokenError();
+
+    const { stored, refreshToken } = await rotateRefreshToken(rawToken, requestContext(req));
+
+    const user = await User.findOne({ _id: stored.userId, restaurantId: stored.restaurantId });
+
+    if (!user || user.isActive === false) {
+      await revokeAllForUser(
+        { restaurantId: stored.restaurantId, userId: stored.userId },
+        REVOKE_REASONS.USER_DEACTIVATED,
+      );
+      throw new InvalidRefreshTokenError();
+    }
+
+    const accessToken = issueAccessToken(user);
+
+    setRefreshCookie(res, refreshToken);
+
+    return sendSuccess(res, {
+      accessToken,
+      expiresInSeconds: accessTokenLifetimeSeconds(accessToken),
+    });
+  } catch (error) {
+    if (error instanceof InvalidRefreshTokenError) clearRefreshCookie(res);
+    throw error;
+  }
+}
+
+/**
+ * POST /auth/logout
+ *
+ * Revokes the session named by the `refreshToken` cookie, then clears the
+ * cookie. Always 200, even for a missing cookie or a token that was unknown or
+ * already revoked. Logout must never fail in a way that strands someone on a
+ * POS screen mid-service.
+ */
+export async function logout(req, res) {
+  const rawToken = readRefreshCookie(req);
+  if (rawToken) await revokeOne(rawToken, REVOKE_REASONS.LOGOUT);
+  clearRefreshCookie(res);
+  return sendSuccess(res, { loggedOut: true });
+}
+
+/** POST /auth/logout-all */
+export async function logoutAll(req, res) {
+  const sessionsRevoked = await revokeAllForUser(
+    { restaurantId: req.restaurantId, userId: req.user.id },
+    REVOKE_REASONS.LOGOUT_ALL,
+  );
+
+  // This device's cookie points at one of the sessions just revoked.
+  clearRefreshCookie(res);
+
+  return sendSuccess(res, { sessionsRevoked });
+}
+
+/**
+ * GET /auth/me
+ *
+ * Reads live, so a role changed five minutes ago shows here rather than
+ * whatever the token was minted with. The authenticate middleware already
+ * loaded the user and the restaurant on this request, so this reuses them
+ * instead of reading the same two documents twice.
+ */
+export async function me(req, res) {
+  const branch = await Branch.findOne({
+    _id: req.branchId,
+    restaurantId: req.restaurantId,
+  });
+
+  return sendSuccess(res, {
+    user: presentUser(req.currentUser, { includeLastLoginAt: true }),
+    restaurant: presentRestaurant(req.currentRestaurant, { includeGstin: true }),
+    branch: branch ? presentBranch(branch) : null,
+  });
+}
+
+/**
+ * PATCH /auth/password
+ *
+ * The "new password is the same as the old one" check lives here rather than
+ * in the Zod schema. docs/API-CONTRACT.md section 1.6 wants 422
+ * BUSINESS_RULE_VIOLATED for it, and every failure raised inside a schema
+ * comes back as 400 VALIDATION_FAILED through the validate middleware. It is a
+ * business rule, not a malformed request.
+ */
+export async function changePassword(req, res) {
+  const { currentPassword, newPassword } = req.body;
+
+  if (newPassword === currentPassword) {
+    throw new BusinessRuleError('The new password must be different from the current one.');
+  }
+
+  const { matches, user } = await verifyPasswordFor(
+    { userId: req.user.id, restaurantId: req.restaurantId },
+    currentPassword,
+  );
+
+  if (!matches) {
+    req.log?.warn({ reason: 'WRONG_CURRENT_PASSWORD', userId: req.user.id }, 'Password change failed.');
+    throw new InvalidCredentialsError();
+  }
+
+  // The service stamps passwordChangedAt in the same save, which is what makes
+  // the old 15 minute access token stop working.
+  await setPassword(user, newPassword);
+
+  /**
+   * Every session ends, including the one that made this request. A password
+   * change that leaves old sessions alive is not a password change: the whole
+   * reason someone changes a password is that they think someone else has it.
+   */
+  const sessionsRevoked = await revokeAllForUser(
+    { restaurantId: req.restaurantId, userId: req.user.id },
+    REVOKE_REASONS.PASSWORD_CHANGED,
+  );
+
+  clearRefreshCookie(res);
+
+  logger.info({ userId: req.user.id, restaurantId: req.restaurantId, sessionsRevoked }, 'Password changed.');
+
+  return sendSuccess(res, { passwordChanged: true });
+}

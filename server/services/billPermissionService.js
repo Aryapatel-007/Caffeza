@@ -1,0 +1,136 @@
+/**
+ * Who may do what to a bill, in one file.
+ *
+ * The same shape as services/userPermissionService.js, and for the same
+ * reason: anyone asking "what may a cashier do" should read one file, not four
+ * route handlers.
+ *
+ * Two kinds of rule live here, and the split is the one M0-C established.
+ *
+ * Permission rules are about who the caller is and fail with 403 FORBIDDEN.
+ * Business rules are about the state of the bill or the order and fail with
+ * 422. 403 means "not you"; 422 means "not this, by anyone".
+ *
+ * The route table already refuses the wrong role before a controller runs, so
+ * the assertions here are the second line rather than the only one. They exist
+ * because a route table is a list of strings that can be edited without anyone
+ * reading the reasoning, and the reasoning is what this file holds.
+ */
+import { ROLES } from '../config/roles.js';
+import { ORDER_STATUSES } from '../models/Order.js';
+import { BusinessRuleError, EntryVoidedError, ForbiddenError } from '../utils/errors.js';
+
+/** Discounting and voiding are manager work. Everything else a cashier can do. */
+const MANAGER_ROLES = Object.freeze([ROLES.OWNER, ROLES.MANAGER]);
+
+const isManagerOrAbove = (role) => MANAGER_ROLES.includes(role);
+
+/**
+ * Applying a discount.
+ *
+ * A cashier cannot, and this is the single most deliberate permission in M3.
+ * BUILD-PLAN section 7 names discounts and voids as the events an owner is
+ * losing money to, and the audit trail only means something if the person who
+ * can trigger it is the person accountable for it. Widening this to CASHIER
+ * would remove the control this module exists to provide.
+ */
+export function assertCanDiscount(actor) {
+  if (!isManagerOrAbove(actor.role)) {
+    throw new ForbiddenError('Only an owner or a manager can discount a bill.');
+  }
+}
+
+/** Voiding a bill. Same reasoning as a discount, and the same roles. */
+export function assertCanVoid(actor) {
+  if (!isManagerOrAbove(actor.role)) {
+    throw new ForbiddenError('Only an owner or a manager can void a bill.');
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Business rules. These bind everyone, including an owner.
+ * ----------------------------------------------------------------------- */
+
+/**
+ * An order is billable only from READY_TO_BILL.
+ *
+ * Not from OPEN: a bill printed while the kitchen is still cooking is a bill
+ * that will be wrong. Not from BILLED or CANCELLED for the obvious reasons.
+ */
+export function assertOrderIsBillable(order) {
+  if (order.status !== ORDER_STATUSES.READY_TO_BILL) {
+    throw new BusinessRuleError(
+      order.status === ORDER_STATUSES.OPEN
+        ? 'This order is still open. Serve everything on it before billing.'
+        : 'This order cannot be billed.',
+    );
+  }
+}
+
+/** A bill with nothing on it is not a bill. */
+export function assertBillHasLines(lines) {
+  if (lines.length === 0) {
+    throw new BusinessRuleError(
+      'Every line on this order was cancelled, so there is nothing to bill.',
+    );
+  }
+}
+
+/** Nothing is changed on a voided bill, by anyone. */
+export function assertNotVoided(bill) {
+  if (bill.isVoided) throw new EntryVoidedError('This bill is voided and cannot be changed.');
+}
+
+/**
+ * A paid bill is closed.
+ *
+ * Discounting after payment would mean the amount collected no longer matches
+ * the bill, and the difference has to be handed back in cash, which this
+ * system does not model. Void it and re-issue instead.
+ */
+export function assertNotPaid(bill, action = 'changed') {
+  if (bill.amountPaidInPaise > 0) {
+    throw new BusinessRuleError(
+      `Money has already been collected against this bill, so it cannot be ${action}. ` +
+        'Void it and bill again.',
+    );
+  }
+}
+
+/** A discount cannot exceed what is being discounted. */
+export function assertDiscountFits(discountAmountInPaise, subtotalInPaise) {
+  if (discountAmountInPaise > subtotalInPaise) {
+    throw new BusinessRuleError('A discount cannot be more than the bill itself.');
+  }
+}
+
+/**
+ * Overpayment is refused rather than stored.
+ *
+ * Change given in cash is not a payment, and recording it would break the
+ * reconciliation between amountPaidInPaise and grandTotalInPaise that every
+ * report downstream relies on.
+ */
+export function assertPaymentFits(bill, amountInPaise) {
+  const outstanding = bill.grandTotalInPaise - bill.amountPaidInPaise;
+
+  if (outstanding <= 0) {
+    throw new BusinessRuleError('This bill is already paid in full.');
+  }
+  if (amountInPaise > outstanding) {
+    throw new BusinessRuleError(
+      'That is more than the amount outstanding. Record what was collected against the bill.',
+    );
+  }
+}
+
+export default {
+  assertBillHasLines,
+  assertCanDiscount,
+  assertCanVoid,
+  assertDiscountFits,
+  assertNotPaid,
+  assertNotVoided,
+  assertOrderIsBillable,
+  assertPaymentFits,
+};

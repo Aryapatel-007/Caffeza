@@ -1,0 +1,50 @@
+# Secrets. Never commit these.
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Builds
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime and cache
+.cache/
+.temp/
+coverage/
+.nyc_output/
+
+# Editor and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Local database dumps and uploads
+/dumps/
+/uploads/
+# Local throwaway scripts. Never pushed.
+/scratch/
+
+# Added for the public snapshot: every env file except the example
+.env.*
+!.env.example
+!.env.test.example

@@ -1,0 +1,3338 @@
+# API CONTRACT
+
+Base URL: `/api/v1`
+
+Every response uses the envelope defined in `docs/CONVENTIONS.md` section 3. Status codes and error codes come from the same place.
+
+`restaurantId` and `branchId` are never sent by the client. The server reads them from the access token. If a client sends them, they are stripped silently.
+
+Last updated: [DATE] by [NAME]
+
+---
+
+# M0 Foundation
+
+Owner: Rishi.
+
+Split into three build tasks:
+
+M0-A, plumbing. Done.
+M0-B, authentication and provisioning. This document, sections 1 and 2.
+M0-C, user management. This document, section 3.
+
+---
+
+## Token model
+
+Access token. Lifetime 15 minutes. Sent as `Authorization: Bearer <token>`.
+
+Payload, locked by M0-A and not changeable without touching the tenant middleware:
+
+```json
+{
+  "sub": "<userId>",
+  "role": "OWNER",
+  "restaurantId": "<restaurantId>",
+  "branchId": "<branchId>",
+  "iat": 0,
+  "exp": 0
+}
+```
+
+Refresh token. Lifetime 30 days. Opaque random string, 64 bytes, base64url. Not a JWT.
+
+Only the SHA-256 hash of a refresh token is stored. The raw value is delivered once, as an `httpOnly` cookie, and is never returned in a response body, never readable by JavaScript, and never recoverable from the database. M0-D moved it from the body to a cookie; before that a single cross-site scripting hole handed over a 30-day credential.
+
+The cookie, set on login and re-set on every refresh:
+
+```
+Set-Cookie: refreshToken=<opaque>; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth; Max-Age=2592000
+```
+
+`Path=/api/v1/auth` so the browser only sends it to the four auth endpoints that need it, never on a `/api/v1/menu` call. `Secure` is always set; `http://localhost` counts as a secure context, so this still works in local development.
+
+Refresh tokens rotate. Every successful refresh issues a new one, revokes the old one, and overwrites the cookie.
+
+**CSRF defence on refresh and logout.** `POST /auth/refresh` and `POST /auth/logout` read the credential from a cookie the browser attaches automatically, so they need protection a body-borne token did not. Two independent checks, and **both** are load-bearing:
+
+1. `SameSite=Lax` keeps the cookie off a cross-site `POST` and off most cross-site sub-requests, but it still rides along on a top-level cross-site navigation.
+2. Both endpoints require a custom request header, `X-Requested-With` (any value). A cross-site `<form>` submit or an `<img>` cannot set one; a cross-origin `fetch` that sets one triggers a CORS preflight, which this API's origin allowlist rejects.
+
+A later cleanup must not remove one on the assumption the other covers it. It does not.
+
+---
+
+## 1. Authentication endpoints
+
+### 1.1 Login
+
+```
+POST /api/v1/auth/login
+```
+
+No authentication. Strict rate limiter applies.
+
+Request. Exactly one of `phone` or `email`, plus `password`:
+
+```json
+{
+  "phone": "9876543210",
+  "password": "correct horse battery"
+}
+```
+
+```json
+{
+  "email": "owner@example.com",
+  "password": "correct horse battery"
+}
+```
+
+`email` is matched case-insensitively and is globally unique (DB-SCHEMA.md section 3), so it names exactly one account, the same as `phone`. Sending both, or neither, is `400 VALIDATION_FAILED`.
+
+Response 200:
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOi...",
+    "expiresInSeconds": 900,
+    "user": {
+      "id": "652f...",
+      "name": "Rishi Patel",
+      "phone": "9876543210",
+      "email": null,
+      "role": "OWNER",
+      "restaurantId": "652a...",
+      "branchId": "652b..."
+    },
+    "restaurant": {
+      "id": "652a...",
+      "name": "Shreeji Dining Hall"
+    },
+    "branch": {
+      "id": "652b...",
+      "name": "Main"
+    }
+  }
+}
+```
+
+The refresh token is **not** in the body. It is set as the `refreshToken` cookie described under "Token model" above.
+
+Failure 401, error code `INVALID_CREDENTIALS`:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "Phone number or password is incorrect."
+  }
+}
+```
+
+This exact response is returned for all of these cases, with no difference in body, status, or response time:
+
+The phone number, or the email, does not exist.
+The password is wrong.
+The user has `isActive: false`.
+The user's restaurant has `isActive: false`.
+
+Never tell the caller which one it was. A different message for a deactivated account confirms the account exists. The real reason is written to the server log.
+
+Password comparison runs even when the identifier is not found, against a dummy hash, so that response timing does not reveal whether a phone number or an email is registered. The message stays "Phone number or password is incorrect." for both identifier types, on purpose.
+
+### 1.2 Refresh
+
+```
+POST /api/v1/auth/refresh
+```
+
+No access token required. The credential is the `refreshToken` cookie, sent automatically by the browser. Strict rate limiter applies.
+
+No request body. The `X-Requested-With` header is required (see "Token model", CSRF defence). A request without it is `403 FORBIDDEN`.
+
+Response 200:
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOi...",
+    "expiresInSeconds": 900
+  }
+}
+```
+
+The rotated refresh token is set as a fresh `refreshToken` cookie. It is not in the body.
+
+Failure 401, code `INVALID_REFRESH_TOKEN`, for a missing, unknown, expired, or already revoked cookie. On any of these the cookie is also cleared, so the browser stops sending a dead credential.
+
+**Reuse detection.** If a refresh token that has already been revoked is presented, that means either a stolen token or a replayed one. Revoke every refresh token belonging to that user immediately, log at warn level, and return 401. The user is forced to log in again everywhere. This is intended.
+
+### 1.3 Logout
+
+```
+POST /api/v1/auth/logout
+```
+
+Access token required. Any role. The `X-Requested-With` header is required; a request without it is `403 FORBIDDEN`.
+
+No request body. The session revoked is the one named by the `refreshToken` cookie.
+
+Response 200:
+
+```json
+{ "success": true, "data": { "loggedOut": true } }
+```
+
+Revokes only that one session. Other devices stay logged in. The `refreshToken` cookie is cleared on this device.
+
+Returns 200 even if the cookie is missing, or the token was already revoked or unknown. Logout must never fail in a way that leaves a user stuck on a POS screen.
+
+### 1.4 Logout everywhere
+
+```
+POST /api/v1/auth/logout-all
+```
+
+Access token required. Any role.
+
+No request body.
+
+Response 200:
+
+```json
+{ "success": true, "data": { "sessionsRevoked": 3 } }
+```
+
+Revokes every refresh token for the calling user, and clears the `refreshToken` cookie on this device.
+
+Does not require `X-Requested-With`: it is authenticated by the access token and cannot be driven by a cross-site request that lacks one.
+
+### 1.5 Current user
+
+```
+GET /api/v1/auth/me
+```
+
+Access token required. Any role.
+
+Response 200:
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "652f...",
+      "name": "Rishi Patel",
+      "phone": "9876543210",
+      "email": null,
+      "role": "OWNER",
+      "restaurantId": "652a...",
+      "branchId": "652b...",
+      "lastLoginAt": "2026-08-28T14:22:11.000Z"
+    },
+    "restaurant": {
+      "id": "652a...",
+      "name": "Shreeji Dining Hall",
+      "gstin": "24AAACS1234A1Z5"
+    },
+    "branch": {
+      "id": "652b...",
+      "name": "Main"
+    }
+  }
+}
+```
+
+Reads live from the database, not from the token. A role changed five minutes ago must show here.
+
+### 1.6 Change own password
+
+```
+PATCH /api/v1/auth/password
+```
+
+Access token required. Any role.
+
+Request:
+
+```json
+{
+  "currentPassword": "old one",
+  "newPassword": "new one"
+}
+```
+
+Response 200:
+
+```json
+{ "success": true, "data": { "passwordChanged": true } }
+```
+
+Failure 401 `INVALID_CREDENTIALS` if `currentPassword` is wrong.
+Failure 422 `BUSINESS_RULE_VIOLATED` if `newPassword` equals `currentPassword`.
+
+On success, revoke every refresh token for this user and clear the `refreshToken` cookie on this device. The caller must log in again. A password change that leaves old sessions alive is not a password change.
+
+---
+
+## 2. Restaurant and branch endpoints
+
+### 2.1 Read own restaurant
+
+```
+GET /api/v1/restaurant
+```
+
+Access token required. Any role.
+
+No ID in the URL. The restaurant is the one in the token. There is no endpoint that takes a restaurant ID, because there is no legitimate reason for a client to name a restaurant other than its own.
+
+Response 200 returns the full restaurant document minus internal fields. It includes `settings.businessDayStartsAtMinutes` (added for M5, decision log D1).
+
+### 2.2 Update own restaurant
+
+```
+PATCH /api/v1/restaurant
+```
+
+Access token required. Role: `OWNER` only.
+
+Request, all fields optional, at least one required:
+
+```json
+{
+  "name": "Shreeji Dining Hall",
+  "legalName": "Shreeji Foods Private Limited",
+  "gstin": "24AAACS1234A1Z5",
+  "fssaiLicenseNumber": "12345678901234",
+  "contactPhone": "9876543210",
+  "contactEmail": "owner@example.com",
+  "address": {
+    "line1": "12 CG Road",
+    "line2": "Navrangpura",
+    "city": "Ahmedabad",
+    "state": "Gujarat",
+    "pincode": "380009"
+  },
+  "settings": {
+    "businessDayStartsAtMinutes": 300
+  }
+}
+```
+
+Response 200 returns the updated restaurant.
+
+`isActive` cannot be changed through this endpoint. Deactivating a restaurant is a platform operation, not a customer one.
+
+`settings.businessDayStartsAtMinutes` is an integer from 0 to 1439, the minutes past midnight IST at which the business day rolls over. It was added for M5 (decision log D1). A value outside that range is 400 `VALIDATION_FAILED`.
+
+### 2.3 List branches
+
+```
+GET /api/v1/branches
+```
+
+Access token required. Any role.
+
+Response 200 returns an array. In version 1 it always contains exactly one branch.
+
+There is no create, update, or delete branch endpoint in version 1. Branches are created by the provisioning script only. The field exists on every record so that multi-outlet works later without a migration, but the feature is not built.
+
+---
+
+## 3. User management endpoints (M0-C, not part of M0-B)
+
+Written here so the contract is complete. Do not build these in M0-B.
+
+### 3.1 Create staff user
+
+```
+POST /api/v1/users
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+A `MANAGER` cannot create an `OWNER`. Only an `OWNER` can create another `OWNER`.
+
+Request:
+
+```json
+{
+  "name": "Arya Shah",
+  "phone": "9876543211",
+  "email": "arya@example.com",
+  "role": "CASHIER",
+  "password": "initial password"
+}
+```
+
+Response 201 returns the created user without `passwordHash`.
+
+Failure 409 `DUPLICATE` if the phone number is already registered anywhere on the platform.
+
+### 3.2 List staff
+
+```
+GET /api/v1/users?page=1&limit=50&role=CASHIER&isActive=true
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Returns the paginated list envelope. Never includes `passwordHash`.
+
+### 3.3 Read one staff user
+
+```
+GET /api/v1/users/:userId
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+404 `NOT_FOUND` if the user belongs to another restaurant. Never 403.
+
+### 3.4 Update staff user
+
+```
+PATCH /api/v1/users/:userId
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Updatable: `name`, `email`, `role`.
+
+`phone` is not updatable, because it is the login identity and is globally unique. A phone change is a new user record plus a deactivation.
+
+A `MANAGER` cannot set a role to `OWNER` and cannot edit an `OWNER`.
+
+Nobody can change their own role, including an `OWNER`. This prevents the only owner from accidentally demoting themselves and locking everyone out.
+
+### 3.5 Activate or deactivate staff user
+
+```
+PATCH /api/v1/users/:userId/status
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request:
+
+```json
+{ "isActive": false }
+```
+
+There is no delete endpoint for a user. Attendance history must survive staff turnover.
+
+On deactivation, revoke every refresh token for that user immediately.
+
+Failure 422 if this would deactivate the last active `OWNER` of the restaurant.
+
+### 3.6 Reset a staff password
+
+```
+PATCH /api/v1/users/:userId/password
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request:
+
+```json
+{ "newPassword": "temporary one" }
+```
+
+The current password is not required. This is a manager resetting a password for someone who forgot it.
+
+A `MANAGER` cannot reset an `OWNER` password.
+
+Revokes every refresh token for the target user.
+
+### 3.7 Set or reset a staff PIN
+
+```
+PATCH /api/v1/users/:userId/pin
+```
+
+Roles: `OWNER`, `MANAGER`. A `MANAGER` cannot set an `OWNER`'s PIN, the same rule as resetting a password.
+
+Request:
+
+```json
+{ "pin": "4821" }
+```
+
+The PIN is a string of 4 to 6 digits. Response 200:
+
+```json
+{ "success": true, "data": { "pinSet": true } }
+```
+
+The PIN is never echoed back. Setting a PIN clears any lock on it and resets the failed-attempt count to zero.
+
+This is the only endpoint that touches a PIN. There is no endpoint that returns one, or that says whether a user has one. A wrong PIN and a user with no PIN both fail verification identically.
+
+**What the PIN is for.** M5's shared-tablet attendance clock, `POST /api/v1/attendance/station/clock`, verifies a PIN through `authService.verifyPin` and records a clock event. That verification issues **no token of any kind**, access or refresh — see DB-SCHEMA.md section 3 for why. Its failure codes are `INVALID_PIN` (401) and `PIN_LOCKED` (429), after five consecutive wrong attempts. They are listed here because M0-D owns the credential; M5 raises them.
+
+---
+
+## Permission summary for M0
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| POST /auth/login | public | public | public | public | public | public |
+| POST /auth/refresh | public | public | public | public | public | public |
+| POST /auth/logout | yes | yes | yes | yes | yes | yes |
+| POST /auth/logout-all | yes | yes | yes | yes | yes | yes |
+| GET /auth/me | yes | yes | yes | yes | yes | yes |
+| PATCH /auth/password | yes | yes | yes | yes | yes | yes |
+| GET /restaurant | yes | yes | yes | yes | yes | yes |
+| PATCH /restaurant | yes | no | no | no | no | no |
+| GET /branches | yes | yes | yes | yes | yes | yes |
+| POST /users | yes | yes* | no | no | no | no |
+| GET /users | yes | yes | no | no | no | no |
+| GET /users/:id | yes | yes | no | no | no | no |
+| PATCH /users/:id | yes | yes* | no | no | no | no |
+| PATCH /users/:id/status | yes | yes* | no | no | no | no |
+| PATCH /users/:id/password | yes | yes* | no | no | no | no |
+| PATCH /users/:id/pin | yes | yes* | no | no | no | no |
+
+`yes*` means yes, except on a user whose role is `OWNER`, and except when setting a role to `OWNER`.
+
+`POST /auth/refresh` and `POST /auth/logout` additionally require the `X-Requested-With` header, because both act on a credential the browser sends automatically. See "Token model".
+
+---
+
+# M1 Menu Management
+
+Owner: Arya.
+
+The single source of truth for what the restaurant sells and what it costs.
+
+M2 copies item name, price and tax rate onto an order line at the moment the
+line is created. M3 prints those copied values on the bill. M4 attaches a recipe
+to a `menuItemId` plus an optional `variantId`. Nothing downstream reads a price
+from here at bill time.
+
+Two consequences run through every endpoint below:
+
+Nothing is ever hard deleted. There is no `DELETE` verb in M1. `isActive: false`
+is the delete, because a bill from M3 references an item by id forever.
+
+Variant and add-on ids are permanent once issued. See section 4.8.
+
+---
+
+## 4. Category endpoints
+
+### 4.1 Create category
+
+```
+POST /api/v1/categories
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request:
+
+```json
+{ "name": "Starters", "displayOrder": 10 }
+```
+
+`displayOrder` is optional and defaults to 0.
+
+Response 201:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "652c...",
+    "name": "Starters",
+    "displayOrder": 10,
+    "isActive": true,
+    "restaurantId": "652a...",
+    "branchId": "652b...",
+    "createdAt": "2026-08-29T09:14:02.000Z",
+    "updatedAt": "2026-08-29T09:14:02.000Z"
+  }
+}
+```
+
+Failure 409 `DUPLICATE_CATEGORY_NAME` if the name is already taken in this
+branch, compared case-insensitively. "Starters" and "starters" are the same name.
+
+### 4.2 List categories
+
+```
+GET /api/v1/categories?includeInactive=false
+```
+
+Roles: all six.
+
+`includeInactive` defaults to false.
+
+Response 200 returns an array sorted by `displayOrder` ascending, then `name`
+ascending. Not paginated: a restaurant has tens of categories, not thousands.
+
+### 4.3 Update category
+
+```
+PATCH /api/v1/categories/:categoryId
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request, both optional, at least one required:
+
+```json
+{ "name": "Veg Starters", "displayOrder": 20 }
+```
+
+Response 200 returns the updated category.
+
+400 if the body is empty. 404 `NOT_FOUND` if it does not exist or belongs to
+another restaurant. 409 `DUPLICATE_CATEGORY_NAME` on a name clash.
+
+`isActive` cannot be changed here. It has its own endpoint.
+
+### 4.4 Activate or deactivate category
+
+```
+PATCH /api/v1/categories/:categoryId/active
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request:
+
+```json
+{ "isActive": false }
+```
+
+Response 200 returns the updated category.
+
+**This does not cascade.** Deactivating a category leaves the `isActive` of
+every item inside it untouched. Those items disappear from `GET /menu` and from
+the default `GET /menu-items` list because their category is off, not because
+they were changed. Reactivating the category brings them back exactly as they
+were. Nothing is written to the items and nothing is deleted.
+
+---
+
+## 5. Menu item endpoints
+
+### 5.1 Create menu item
+
+```
+POST /api/v1/menu-items
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request:
+
+```json
+{
+  "categoryId": "652c...",
+  "name": "Paneer Tikka",
+  "description": "Char-grilled cottage cheese",
+  "priceInPaise": 24000,
+  "taxRateBps": 500,
+  "displayOrder": 10,
+  "variants": [
+    { "name": "Half", "priceInPaise": 14000 },
+    { "name": "Full", "priceInPaise": 24000 }
+  ],
+  "addOns": [
+    { "name": "Extra cheese", "priceInPaise": 4000 }
+  ]
+}
+```
+
+`description`, `displayOrder`, `variants` and `addOns` are optional.
+
+A variant `priceInPaise` is the **absolute price of that variant**, not a delta
+from the item's base price. "Half" at 14000 costs 140 rupees, full stop.
+
+Response 201 returns the created item, with `variants` and `addOns` carrying
+their newly assigned ids.
+
+404 `NOT_FOUND` if `categoryId` does not exist in this restaurant and branch.
+422 `BUSINESS_RULE_VIOLATED` if the category exists but is inactive.
+409 `DUPLICATE_MENU_ITEM_NAME` on a name clash in this branch.
+
+### 5.2 List menu items
+
+```
+GET /api/v1/menu-items?categoryId=&search=&availableOnly=false&includeInactive=false&page=1&limit=50
+```
+
+Roles: all six.
+
+All query parameters optional. `availableOnly` and `includeInactive` default to
+false. Paging is the standard envelope from CONVENTIONS section 3.
+
+`search` matches the item name as a case-insensitive substring, capped at 60
+characters. The value is escaped before it becomes a regular expression, so
+`search=.*` matches items whose name literally contains ".*" and nothing else.
+
+`includeInactive=false` also excludes items whose **category** is inactive, not
+only items that are themselves inactive.
+
+Response 200 returns the list envelope, sorted by `displayOrder` then `name`.
+
+### 5.3 Read one menu item
+
+```
+GET /api/v1/menu-items/:menuItemId
+```
+
+Roles: all six.
+
+Response 200 returns the item with its variants and add-ons.
+
+404 `NOT_FOUND` if it does not exist or belongs to another restaurant. Never 403.
+
+### 5.4 Update menu item
+
+```
+PATCH /api/v1/menu-items/:menuItemId
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request, all optional, at least one required: `categoryId`, `name`,
+`description`, `priceInPaise`, `taxRateBps`, `displayOrder`, `variants`,
+`addOns`.
+
+`isActive` and `isAvailable` are refused here with 400. Each has its own
+endpoint.
+
+**Variant and add-on ids are permanent.** When `variants` or `addOns` is
+supplied it replaces the whole array, but not by regenerating it:
+
+An entry carrying an `id` that exists on this item updates that subdocument in
+place and **keeps its `_id` unchanged**.
+
+An entry carrying no `id` becomes a new subdocument with a new `_id`.
+
+An entry carrying an `id` that is not on this item is 404 `VARIANT_NOT_FOUND`
+for variants, `ADDON_NOT_FOUND` for add-ons. It is never silently created, and
+nothing else in the request is applied.
+
+An existing subdocument whose id is absent from the incoming array is removed
+from the array.
+
+This rule exists because M4 attaches recipes to a `variantId` and M2 stores a
+`variantId` on an open order line. If a plain array replacement regenerated every
+`_id` on every edit, a manager renaming "Half" to "Half Plate" would silently
+detach the recipe from the variant, and the damage would not surface until M4.
+
+Response 200 returns the updated item.
+
+### 5.5 Toggle availability
+
+```
+PATCH /api/v1/menu-items/:menuItemId/availability
+```
+
+Roles: **all six**.
+
+Request:
+
+```json
+{ "isAvailable": false, "variantId": null }
+```
+
+`variantId` null or absent sets the item's `isAvailable`. A supplied `variantId`
+sets that variant's `isAvailable` and leaves the item alone, answering 404
+`VARIANT_NOT_FOUND` if the variant is not on this item.
+
+Any other field in the body is 400. `priceInPaise` sent here is rejected, not
+ignored.
+
+This is the one write in M1 open to a `CASHIER`, `WAITER`, `KITCHEN` or
+`STOREKEEPER`, and it is deliberate. A kitchen that runs out of paneer at 8pm
+cannot wait for the owner to unlock a phone. The endpoint changes one boolean
+and cannot change a price, so the worst it can do is make a dish disappear from
+the ordering screen.
+
+### 5.6 Activate or deactivate menu item
+
+```
+PATCH /api/v1/menu-items/:menuItemId/active
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request:
+
+```json
+{ "isActive": false }
+```
+
+**This is the delete.** There is no `DELETE /menu-items/:id` and there will not
+be one. A bill from M3 references the item by id forever, so the document has to
+survive.
+
+`isActive` is "on the menu at all". `isAvailable` from 5.5 is "in stock right
+now". They are different questions and are answered by different endpoints with
+different permissions.
+
+---
+
+## 6. The menu tree
+
+### 6.1 Read the whole menu
+
+```
+GET /api/v1/menu?includeUnavailable=false
+```
+
+Roles: all six.
+
+The read the POS ordering screen calls. One request, the whole sellable menu.
+
+Response 200:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "652c...",
+      "name": "Starters",
+      "displayOrder": 10,
+      "items": [
+        {
+          "id": "652d...",
+          "name": "Paneer Tikka",
+          "description": "Char-grilled cottage cheese",
+          "priceInPaise": 24000,
+          "taxRateBps": 500,
+          "displayOrder": 10,
+          "isAvailable": true,
+          "variants": [
+            { "id": "652e...", "name": "Half", "priceInPaise": 14000, "isAvailable": true }
+          ],
+          "addOns": []
+        }
+      ]
+    }
+  ]
+}
+```
+
+Active categories in `displayOrder` order, each with its active items nested in
+`displayOrder` order.
+
+`includeUnavailable` defaults to false, so by default an item with
+`isAvailable: false` is not in the response at all. The ordering screen shows
+only what can actually be sold.
+
+**Inactive categories and inactive items never appear here under any query.**
+`includeUnavailable` controls availability only. There is no query parameter
+that reveals an inactive record on this endpoint.
+
+Not paginated. A category with no visible items is still returned, with an empty
+`items` array, so the screen keeps a stable set of tabs.
+
+---
+
+## Permission summary for M1
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| POST /categories | yes | yes | no | no | no | no |
+| GET /categories | yes | yes | yes | yes | yes | yes |
+| PATCH /categories/:id | yes | yes | no | no | no | no |
+| PATCH /categories/:id/active | yes | yes | no | no | no | no |
+| POST /menu-items | yes | yes | no | no | no | no |
+| GET /menu-items | yes | yes | yes | yes | yes | yes |
+| GET /menu-items/:id | yes | yes | yes | yes | yes | yes |
+| PATCH /menu-items/:id | yes | yes | no | no | no | no |
+| PATCH /menu-items/:id/availability | yes | yes | yes | yes | yes | yes |
+| PATCH /menu-items/:id/active | yes | yes | no | no | no | no |
+| GET /menu | yes | yes | yes | yes | yes | yes |
+
+Reads are open to all six roles because a waiter taking an order and a cook
+reading a ticket both need to see the menu. Writes are `OWNER` and `MANAGER`,
+with the single deliberate exception in 5.5.
+
+---
+
+## Error codes added by M1
+
+| Code | Status | When |
+|---|---|---|
+| `DUPLICATE_CATEGORY_NAME` | 409 | A category with that name already exists in this branch |
+| `DUPLICATE_MENU_ITEM_NAME` | 409 | A menu item with that name already exists in this branch |
+| `VARIANT_NOT_FOUND` | 404 | A `variantId` that is not on this item |
+| `ADDON_NOT_FOUND` | 404 | An add-on id that is not on this item |
+
+Everything else reuses the existing codes. `BUSINESS_RULE_VIOLATED` for creating
+an item under an inactive category, `NOT_FOUND` for a plain 404,
+`VALIDATION_FAILED` for a 400.
+
+---
+
+## What M1 deliberately does not contain
+
+Combos and meal bundles. Cut on purpose, not missing.
+
+A shared or global add-on library. Add-ons are typed per item.
+
+Item images and file upload.
+
+Price history and scheduled price changes. Changing a price overwrites the old
+one. The 7pm order keeps the 7pm price because M2 copies it, not because M1
+remembers it.
+
+Happy-hour or any time-based pricing.
+
+---
+
+# M5 Employee Attendance
+
+Owner: Arya.
+
+Staff clock in and out on a shared tablet. The system stores exact minutes
+worked. A manager can correct an entry, and the correction is recorded with who,
+when and why, never applied silently.
+
+M5 hangs off M0 alone. It does not read the menu, an order or a bill, which is
+why BUILD-PLAN section 5 allows it to be built in parallel with the M1 to M3
+chain.
+
+Four things run through every endpoint below.
+
+Timestamps are the server's clock. A tablet with a wrong system time must not be
+able to write a shift boundary. The only times a client supplies are on the two
+manager endpoints that reconstruct a missed or mistaken entry.
+
+The business day is not the calendar day. Every entry stores a `businessDate`
+derived at clock-in from `restaurants.settings.businessDayStartsAtMinutes`
+(default 300, meaning 05:00 IST). A shift from 18:00 to 01:30 belongs to the day
+it started. See DB-SCHEMA.md section 7.
+
+Nothing is hard deleted. A wrong entry is voided with a reason and a user. There
+is no `DELETE` verb in M5.
+
+Minutes, not hours. `workedMinutes` is a whole integer, recomputed from the
+timestamps on every write, never sent by a client.
+
+---
+
+## 7. Clock endpoints
+
+The self-service pair, plus the "what is my status" read. All three act on the
+caller identified by the access token and are open to all six roles.
+
+### 7.1 Clock in
+
+```
+POST /api/v1/attendance/clock-in
+```
+
+Roles: all six. Acts on the caller.
+
+No request body.
+
+Response 201:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "6530...",
+    "userId": "652f...",
+    "userName": "Arya Shah",
+    "clockInAt": "2026-08-29T03:30:00.000Z",
+    "clockOutAt": null,
+    "workedMinutes": null,
+    "businessDate": "2026-08-29",
+    "clockInSource": "SELF",
+    "clockOutSource": null,
+    "isVoided": false,
+    "corrections": [],
+    "createdAt": "2026-08-29T03:30:00.000Z",
+    "updatedAt": "2026-08-29T03:30:00.000Z"
+  }
+}
+```
+
+`userName` is a read-time convenience so the register and the clock screen do not
+each fetch the user list. It is never stored on the entry.
+
+Failure 409 `ALREADY_CLOCKED_IN` if the caller already has an open shift. The
+partial unique index in DB-SCHEMA.md section 7 is the backstop; this is the
+friendly error.
+
+### 7.2 Clock out
+
+```
+POST /api/v1/attendance/clock-out
+```
+
+Roles: all six. Acts on the caller.
+
+No request body.
+
+Response 200 returns the now-closed entry, with `clockOutAt` set to the server's
+clock, `clockOutSource: "SELF"`, and `workedMinutes` computed.
+
+Failure 409 `NOT_CLOCKED_IN` if the caller has no open shift.
+
+### 7.3 My attendance
+
+```
+GET /api/v1/attendance/me
+```
+
+Roles: all six. Reads the caller's own entries only. No parameters.
+
+Response 200:
+
+```json
+{
+  "success": true,
+  "data": {
+    "openShift": {
+      "id": "6530...",
+      "clockInAt": "2026-08-29T03:30:00.000Z",
+      "openMinutes": 126,
+      "businessDate": "2026-08-29"
+    },
+    "recent": [
+      {
+        "id": "652e...",
+        "clockInAt": "2026-08-28T04:00:00.000Z",
+        "clockOutAt": "2026-08-28T12:45:00.000Z",
+        "workedMinutes": 525,
+        "businessDate": "2026-08-28",
+        "clockInSource": "STATION",
+        "clockOutSource": "STATION"
+      }
+    ],
+    "rangeMinutes": 2280,
+    "rangeFrom": "2026-08-23",
+    "rangeTo": "2026-08-29"
+  }
+}
+```
+
+`openShift` is `null` when the caller is clocked out. `recent` is the caller's
+non-voided **closed** entries whose `businessDate` falls in the last seven days
+including today, newest first; the open shift, if any, is in `openShift` and not
+repeated here. `rangeMinutes` sums `workedMinutes` over those entries. Read
+only: the only write paths are 7.1 and 7.2.
+
+---
+
+## 8. The station endpoint
+
+```
+POST /api/v1/attendance/station/clock
+```
+
+Roles: all six, for the tablet's own logged-in session. The clock event is
+recorded against the **target** user named in the body, after their PIN is
+verified within the caller's restaurant and branch.
+
+This is the shared-tablet path. One tablet holds one ordinary session. A staff
+member taps their tile and enters a PIN. The server verifies the PIN and records
+the clock event. No access token, no refresh token, nothing that outlives the
+request is returned to the person who typed the PIN. This endpoint is the only
+thing a PIN can reach.
+
+The strict login rate limiter does not apply here. The per-user PIN limiter
+does, because forty staff share one tablet and one IP.
+
+Request:
+
+```json
+{
+  "userId": "652f...",
+  "pin": "4821",
+  "action": "clock"
+}
+```
+
+`action` is `"clock"` (default) or `"undo"`.
+
+`action: "clock"` toggles: if the target has no open shift it clocks them in, if
+they have one it clocks them out. `clockInSource` / `clockOutSource` is
+`"STATION"`.
+
+Response 200:
+
+```json
+{
+  "success": true,
+  "data": {
+    "event": "CLOCK_IN",
+    "userName": "Arya Shah",
+    "at": "2026-08-29T03:30:00.000Z",
+    "entryId": "6530...",
+    "openMinutes": 0,
+    "undoUntil": "2026-08-29T03:30:05.000Z"
+  }
+}
+```
+
+`event` is `CLOCK_IN`, `CLOCK_OUT` or `UNDO`. On a `CLOCK_OUT`, `openMinutes` is
+replaced by `workedMinutes`. `undoUntil` is the instant after which `action:
+"undo"` is refused for this event; the window is about 5 seconds, a server
+constant.
+
+`action: "undo"` reverses the caller's own most recent station event on their
+current entry, if `undoUntil` has not passed:
+
+An undo of a `CLOCK_IN` voids the just-created entry with `voidReason:
+"MIS_TAP"`. Nothing is hard deleted.
+
+An undo of a `CLOCK_OUT` reopens the entry: `clockOutAt` back to `null`,
+`workedMinutes` back to `null`, `clockOutSource` back to `null`, and one
+`corrections[]` entry appended with `field: "clockOutAt"`, `newValue: null`,
+`reason: "MIS_TAP"`, `correctedBy` the target user.
+
+The undo is the single exception to "nobody corrects their own entry"
+(section 9.4). It is safe because it is PIN-authenticated, expires in seconds,
+and can only reverse the caller's own last station action. Past `undoUntil` the
+fix is a manager correction.
+
+Failures. The body and the response time are identical whether the cause is an
+unknown user, a user with no PIN set, or a wrong PIN, so the response never
+reveals which:
+
+401 `INVALID_PIN` for a bad or missing PIN, or an unknown `userId`. The real
+reason is written to the server log. A dummy bcrypt comparison runs on the
+not-found path so timing does not leak.
+
+429 `PIN_LOCKED` after 5 consecutive failures for that user. Cleared by an OWNER
+or MANAGER reset (M0-D). Rate limiting is per target user, not only per IP.
+
+409 `ALREADY_CLOCKED_IN` / `NOT_CLOCKED_IN` surface only on `action: "undo"`,
+when the entry state no longer matches the event being undone because someone
+else already corrected it. A plain `action: "clock"` toggles and cannot hit
+these.
+
+422 `ENTRY_VOIDED` on an undo whose entry has since been voided.
+
+400 `VALIDATION_FAILED` if `pin` is not 4 to 6 digits.
+
+This endpoint uses the per-user PIN credential from M0-D. `verifyPin` issues no
+token of any kind (DB-SCHEMA.md section 3), so nothing that outlives the request
+reaches the person who typed the PIN. The undo window is a server constant of
+about 8 seconds; `undoUntil` in the response is the exact cutoff.
+
+---
+
+## 9. Attendance register and corrections
+
+Manager reads and writes. `OWNER` and `MANAGER` only. Everything here is audited.
+
+### 9.1 The register
+
+```
+GET /api/v1/attendance?from=2026-08-01&to=2026-08-29&openOnly=false&includeVoided=false&page=1&limit=50
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+`from` and `to` are `"YYYY-MM-DD"` business dates, inclusive, matched against
+`businessDate`. Both optional; the default is today only. `openOnly=true` returns
+every currently open shift and ignores the date range. `includeVoided` defaults
+to false. Standard paging envelope from CONVENTIONS section 3, sorted by
+`clockInAt` descending.
+
+Each entry carries the fields from DB-SCHEMA.md section 7 plus three read-time
+extras:
+
+`userName` and `userRole`, so the screen does not join against the user list.
+
+`openMinutes` on an open entry, so the screen can show "14h 20m open".
+
+`requiresAttention`, `true` when the shift is still open and started more than 12
+hours ago. The client sorts these to the top. The server never closes them
+(decision log D5).
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "6530...",
+      "userId": "652f...",
+      "userName": "Arya Shah",
+      "userRole": "CASHIER",
+      "clockInAt": "2026-08-29T03:30:00.000Z",
+      "clockOutAt": null,
+      "workedMinutes": null,
+      "openMinutes": 126,
+      "businessDate": "2026-08-29",
+      "clockInSource": "STATION",
+      "clockOutSource": null,
+      "requiresAttention": false,
+      "isVoided": false,
+      "corrections": [],
+      "createdAt": "2026-08-29T03:30:00.000Z",
+      "updatedAt": "2026-08-29T03:30:00.000Z"
+    }
+  ],
+  "meta": { "page": 1, "limit": 50, "total": 12 }
+}
+```
+
+### 9.2 One person's history
+
+```
+GET /api/v1/users/:userId/attendance?from=&to=&page=1&limit=50
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Same shape as 9.1, filtered to one user. It is a path under `/users/:userId`,
+matching `GET /users/:userId`, and **not** `GET /attendance?userId=`, because
+CONVENTIONS section 3 keeps a person's identifier out of the query string: query
+strings land in server logs, browser history and analytics, and BUILD-PLAN
+section 7 keeps personal data out of all three. Keeping it a path segment also
+matches the existing user endpoints. Do not "simplify" this into a query
+parameter.
+
+404 `NOT_FOUND` if the user belongs to another restaurant. Never 403.
+
+### 9.3 Create a missed entry
+
+```
+POST /api/v1/attendance
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+For a shift that was never clocked because someone forgot. The times are supplied
+by the manager here, the one place a client-supplied time is trusted.
+
+Request:
+
+```json
+{
+  "userId": "652f...",
+  "clockInAt": "2026-08-29T03:30:00.000Z",
+  "clockOutAt": "2026-08-29T11:30:00.000Z",
+  "reason": "Forgot to clock in; confirmed with the shift lead"
+}
+```
+
+`clockOutAt` is optional. Omit it to create an already-open shift, which a
+manager fixing a forgotten clock-in mid-shift needs. `reason` is required.
+
+The created entry has `clockInSource: "MANAGER"`, `clockOutSource: "MANAGER"`
+when closed, `businessDate` derived from `clockInAt`, and one `corrections[]`
+entry with `field: "CREATION"` carrying the reason.
+
+Response 201 returns the entry.
+
+Failure 404 `NOT_FOUND` if `userId` is in another restaurant.
+Failure 422 `CLOCK_OUT_BEFORE_CLOCK_IN` if `clockOutAt` is at or before
+`clockInAt`.
+Failure 409 `ALREADY_CLOCKED_IN` if the entry is left open and the user already
+has an open shift.
+Failure 422 `SELF_CORRECTION_FORBIDDEN` if `userId` is the caller.
+
+### 9.4 Correct an entry
+
+```
+PATCH /api/v1/attendance/:entryId
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request. `reason` required, at least one of `clockInAt` / `clockOutAt` required:
+
+```json
+{
+  "clockOutAt": "2026-08-29T11:15:00.000Z",
+  "reason": "Clock-out was 20 minutes late; corrected to the CCTV time"
+}
+```
+
+Setting `clockOutAt` on an open entry is how a manager closes a forgotten
+clock-out. Each changed field appends one `corrections[]` entry with its previous
+and new value and the reason. `workedMinutes` is recomputed. `businessDate` is
+**not** recomputed from a changed `clockInAt`; move an entry to another day by
+voiding it and recreating it, so a day already reported on stays stable.
+
+Response 200 returns the updated entry.
+
+Failure 404 `NOT_FOUND` if the entry is in another restaurant.
+Failure 422 `ENTRY_VOIDED` if the entry is voided.
+Failure 422 `SELF_CORRECTION_FORBIDDEN` if the entry's `userId` is the caller,
+including an OWNER (decision log D4).
+Failure 422 `CLOCK_OUT_BEFORE_CLOCK_IN` if the result would have `clockOutAt` at
+or before `clockInAt`.
+Failure 400 `VALIDATION_FAILED` if `reason` is missing, empty or whitespace. It
+is never defaulted to `""`.
+
+A `MANAGER` may correct an `OWNER`'s attendance entry, unlike the M0-C user
+endpoints where a manager cannot touch an owner. Attendance is operational data,
+every change is on the audit trail, and a single-owner shop still needs its
+owner's forgotten clock-out fixed by someone. Only the self-correction rule
+applies here.
+
+### 9.5 Void an entry
+
+```
+PATCH /api/v1/attendance/:entryId/void
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request:
+
+```json
+{ "reason": "Duplicate - clocked in on two tablets" }
+```
+
+Sets `isVoided`, `voidedAt`, `voidedBy`, `voidReason`. A voided entry is excluded
+from the summary and from `GET /attendance/me`, and hidden from the register
+unless `includeVoided=true`. It is never removed.
+
+Response 200 returns the voided entry.
+
+Failure 422 `ENTRY_VOIDED` if it is already voided.
+Failure 422 `SELF_CORRECTION_FORBIDDEN` if the entry's `userId` is the caller.
+Failure 404 `NOT_FOUND` if the entry is in another restaurant.
+
+---
+
+## 10. The hours-worked summary
+
+```
+GET /api/v1/attendance/summary?from=2026-08-01&to=2026-08-29
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+`from` and `to` are `"YYYY-MM-DD"` business dates, inclusive, both required.
+Minutes worked per user across that range of business days.
+
+Response 200:
+
+```json
+{
+  "success": true,
+  "data": {
+    "from": "2026-08-01",
+    "to": "2026-08-29",
+    "rows": [
+      {
+        "userId": "652f...",
+        "userName": "Arya Shah",
+        "userRole": "CASHIER",
+        "isActive": true,
+        "totalMinutes": 9240,
+        "entryCount": 22,
+        "openEntryCount": 0
+      }
+    ]
+  }
+}
+```
+
+One row per user with at least one non-voided entry in the range, sorted by
+`userName`. `totalMinutes` sums closed entries only. `openEntryCount` is how many
+entries in the range are still open and therefore contribute nothing yet, so a
+manager can see the total is provisional. Voided entries are in no count.
+
+This is the endpoint M6 reads for its hours-worked report. It is M5, owned by M5,
+and is not part of M6. When M6 is built it aggregates from here rather than
+re-implementing the arithmetic. Not paginated: a restaurant has tens of staff.
+
+---
+
+## Permission summary for M5
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| POST /attendance/clock-in | yes | yes | yes | yes | yes | yes |
+| POST /attendance/clock-out | yes | yes | yes | yes | yes | yes |
+| GET /attendance/me | yes | yes | yes | yes | yes | yes |
+| POST /attendance/station/clock | yes | yes | yes | yes | yes | yes |
+| GET /attendance | yes | yes | no | no | no | no |
+| GET /users/:userId/attendance | yes | yes | no | no | no | no |
+| POST /attendance | yes | yes | no | no | no | no |
+| PATCH /attendance/:entryId | yes | yes | no | no | no | no |
+| PATCH /attendance/:entryId/void | yes | yes | no | no | no | no |
+| GET /attendance/summary | yes | yes | no | no | no | no |
+
+The clock endpoints are open to all six roles because every staff member clocks
+their own shift. `POST /attendance/station/clock` needs any valid session for the
+tablet plus the target user's PIN; the PIN, not the role, is the control on whose
+shift is written. The register, corrections and summary are `OWNER` and `MANAGER`
+only. There is no `yes*` row: a manager may correct an owner's entry here
+(section 9.4). The one rule that binds everyone, including an owner, is
+`SELF_CORRECTION_FORBIDDEN`, which is a 422 business rule, not a permission.
+
+---
+
+## Error codes added by M5
+
+| Code | Status | When |
+|---|---|---|
+| `ALREADY_CLOCKED_IN` | 409 | Clock-in while the caller, or the target, already has an open shift |
+| `NOT_CLOCKED_IN` | 409 | Clock-out with no open shift |
+| `CLOCK_OUT_BEFORE_CLOCK_IN` | 422 | A resulting `clockOutAt` at or before `clockInAt` |
+| `ENTRY_VOIDED` | 422 | A correction to, or a void of, an already-voided entry |
+| `SELF_CORRECTION_FORBIDDEN` | 422 | Correcting, voiding or manually creating your own entry |
+| `INVALID_PIN` | 401 | Station clock: bad PIN, no PIN set, or unknown user. Identical body and timing for all three |
+| `PIN_LOCKED` | 429 | Station clock: 5 consecutive PIN failures for that user. Needs a manager reset |
+
+`INVALID_PIN` and `PIN_LOCKED` are shared with M0-D, which owns the PIN
+credential itself. They are listed here because `POST /attendance/station/clock`
+is the endpoint that raises them. `PIN_LOCKED` reuses status 429 rather than
+adding 423 to CONVENTIONS section 3; M0-D confirms the choice when it wires the
+lockout.
+
+Everything else reuses existing codes: `NOT_FOUND` for a plain 404 (including an
+entry or user in another restaurant), `VALIDATION_FAILED` for a 400 such as a
+missing correction reason, `FORBIDDEN` for a wrong role, `UNAUTHENTICATED` for no
+token.
+
+---
+
+## What M5 deliberately does not contain
+
+No payroll, no pay rates, no money field of any kind. Attendance produces minutes
+worked. BUILD-PLAN excludes payroll from version 1.
+
+No scheduled shifts, rosters or "expected hours". This module records what
+happened, not what was planned.
+
+No break tracking. A break is a clock-out and a later clock-in in version 1.
+
+No geofencing, selfie capture or device binding on a clock event. The PIN plus
+the tablet's own session is the control that was chosen.
+
+No overtime calculation or daily / weekly caps. Those are payroll rules and need
+a CA, like the rest of payroll.
+
+No i18n layer. The clock screen carries English-primary, Hindi-secondary label
+pairs from one hardcoded file, and nothing else in the product is translated
+(decision log D6). This is a screen decision, recorded here so the absence of a
+translation system is not read as an omission.
+
+---
+
+## Open questions still unanswered
+
+These belong to later modules but are recorded here so they are not forgotten.
+
+Simultaneous table access by two waiters. Affects M2.
+
+Recipe unit conversion. Affects M4.
+
+Resolved since this list was written:
+
+Business day start time - decided 2026-08-29 (decision log D1). It is
+`restaurants.settings.businessDayStartsAtMinutes`, default 300 (05:00 IST),
+configurable through `PATCH /api/v1/restaurant`. M3 and M6 consume it; M5 derives
+and stores `businessDate` from it.
+
+PIN-based quick login for shift staff - decided 2026-08-29 (decision log D2). It
+returns as a per-user PIN credential, not a second user, exactly as this note
+predicted. It never issues a session and reaches only
+`POST /api/v1/attendance/station/clock`. Delivered by M0-D.
+
+---
+
+# M2 Order Taking and KOT
+
+Owner: Rishi.
+
+**On the section numbers.** These are 11 to 13 even though M2 was built before
+M5, because this section was written *after* M5's. M2 shipped without an
+API-CONTRACT section at all, which broke the precedent M1 and M5 both set, and
+this is the backfill. It documents the endpoints exactly as they were built,
+merged and tested; nothing here is a proposal.
+
+An order is created against a table or as a takeaway, lines are added and
+removed before it is fired, the kitchen sees a ticket, and the kitchen marks
+items ready. M3 turns a finished order into a bill.
+
+Five things run through every endpoint below.
+
+**Every line is a snapshot.** When a line is added, the server looks up the menu
+item and writes `itemName`, `unitPriceInPaise` and `taxRateBps` onto the
+line itself. The client never sends a price. A body carrying one is a 400 naming
+the field, not a silently stripped value.
+
+**Every write carries a `version`.** The client sends the version it last read;
+the server puts it in the update filter and increments it. A stale version is
+`409 VERSION_CONFLICT` carrying the version the order actually has. This is the
+two waiters problem from BUILD-PLAN section 8 and it is answered here, not in
+the client.
+
+**One open order per table**, enforced by a partial unique index, not by a
+check in a controller. The `409 TABLE_OCCUPIED` carries the winning order's id
+so the second waiter joins that order rather than hitting a dead end.
+
+**Nothing is hard deleted.** There is no `DELETE` verb anywhere in M2. A line is
+cancelled with a reason and keeps every snapshot value, because a cancelled line
+is evidence.
+
+**Totals are derived on read and stored nowhere.** Line totals, order subtotals,
+table occupancy and KOT status are all computed from their parts, so they cannot
+silently disagree with them.
+
+---
+
+## 11. Table endpoints
+
+### 11.1 Create table
+
+```
+POST /api/v1/tables
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Request. `section`, `seats` and `displayOrder` optional:
+
+```json
+{ "name": "T1", "section": "Garden", "seats": 4, "displayOrder": 10 }
+```
+
+Response 201 returns the created table.
+
+409 `DUPLICATE` if the name is already taken in this restaurant, compared
+case-insensitively.
+
+### 11.2 List tables
+
+```
+GET /api/v1/tables?section=Garden&isOccupied=true&includeInactive=false
+```
+
+Roles: all six. All parameters optional.
+
+Response 200 returns an array sorted by `displayOrder` then `name`. Not
+paginated: a restaurant has tens of tables.
+
+Each table carries an `isOccupied` boolean and, when occupied, the id and number
+of the order sitting on it. **Occupancy is derived on read**, never stored: a
+table is occupied when an order with status `OPEN` or `READY_TO_BILL` points at
+it.
+
+`includeInactive` exists for the same reason M1's does: without it a deactivated
+table cannot be seen and so can never be switched back on.
+
+### 11.3 Update table
+
+```
+PATCH /api/v1/tables/:tableId
+```
+
+Roles: `OWNER`, `MANAGER`. Updatable: `name`, `section`, `seats`, `displayOrder`.
+
+`isActive` is refused here with 400. It has its own endpoint.
+
+### 11.4 Activate or deactivate table
+
+```
+PATCH /api/v1/tables/:tableId/status
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+```json
+{ "isActive": false }
+```
+
+**This is the delete.** 422 `BUSINESS_RULE_VIOLATED` if an order currently
+occupies the table. Deactivating a table out from under a seated party is how a
+bill goes missing.
+
+---
+
+## 12. Order endpoints
+
+### 12.1 Create order
+
+```
+POST /api/v1/orders
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
+
+The body is a discriminated union on `orderType`, so the conditional fields are
+enforced by the schema rather than by an if-statement in a controller. Each
+branch refuses the other's fields outright: a `TAKEAWAY` carrying a `tableId` is
+a validation error naming the field, not a silently ignored value that leaves
+the caller believing they booked a table.
+
+Dine-in:
+
+```json
+{ "orderType": "DINE_IN", "tableId": "652f...", "guestCount": 4, "lines": [] }
+```
+
+Takeaway:
+
+```json
+{
+  "orderType": "TAKEAWAY",
+  "customerName": "Rishi",
+  "customerPhone": "9876543210",
+  "lines": [{ "menuItemId": "652d...", "quantity": 2 }]
+}
+```
+
+`lines` is optional at creation; an order may be opened empty and filled in.
+
+Response 201 returns the order with `orderNumber`, `version: 1`, and every line
+priced by the server.
+
+409 `TABLE_OCCUPIED` if an order is already open on that table. The error
+carries `existingOrderId` at the top level of `error`, beside `code` and
+`message`, so the client can open that order instead:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "TABLE_OCCUPIED",
+    "message": "An order is already open on this table.",
+    "existingOrderId": "6530..."
+  }
+}
+```
+
+404 `NOT_FOUND` if the table is in another restaurant.
+422 `BUSINESS_RULE_VIOLATED` if the table is inactive, or a menu item is
+inactive or unavailable.
+
+### 12.2 List orders
+
+```
+GET /api/v1/orders?status=OPEN&orderType=DINE_IN&tableId=&page=1&limit=50
+```
+
+Roles: all six. Standard paging envelope, sorted by `createdAt` descending.
+
+### 12.3 Read one order
+
+```
+GET /api/v1/orders/:orderId
+```
+
+Roles: all six. Returns the order with its lines and its current `version`.
+
+**Read this before every write.** The `version` in the response is what the next
+write must send back.
+
+404 `NOT_FOUND` if it belongs to another restaurant. Never 403.
+
+### 12.4 Add lines
+
+```
+POST /api/v1/orders/:orderId/lines
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
+
+```json
+{
+  "version": 3,
+  "lines": [
+    { "menuItemId": "652d...", "variantId": "652e...", "quantity": 2,
+      "addOnIds": ["652g..."], "notes": "No onion" }
+  ]
+}
+```
+
+A line is described by ids and a quantity and nothing else. The object is
+`.strict()`, and that is a security control rather than a tidiness preference:
+a body carrying `unitPriceInPaise` or `taxRateBps` is either a bug or
+someone pricing their own dinner, and it fails loudly with a 400 naming the
+field.
+
+This is the partial order problem from BUILD-PLAN section 8: a table orders
+starters, then mains twenty minutes later, on the same order. Lines may be added
+to an `OPEN` order at any time, including after an earlier KOT has been fired.
+
+422 `BUSINESS_RULE_VIOLATED` if the order is not `OPEN`.
+
+### 12.5 Edit a line
+
+```
+PATCH /api/v1/orders/:orderId/lines/:lineId
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
+
+```json
+{ "version": 4, "quantity": 3, "notes": "Extra spicy" }
+```
+
+**Only `quantity` and `notes`.** Changing what was ordered is a cancel plus a
+new line, not an edit, because the snapshot on a line has to stay the thing that
+was actually ordered.
+
+422 `BUSINESS_RULE_VIOLATED` if the line has already been fired.
+
+### 12.6 Cancel a line
+
+```
+POST /api/v1/orders/:orderId/lines/:lineId/cancel
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
+
+```json
+{ "version": 5, "reason": "Customer changed their mind", "wasPrepared": true }
+```
+
+`reason` is required. `wasPrepared` is **the cancelled-item answer** from
+BUILD-PLAN section 8, and its handling is deliberately asymmetric:
+
+Sending it for a line that never reached the kitchen is `400`. The question does
+not arise, and recording an answer would give M4 something meaningless to read.
+
+Omitting it for a line the kitchen has (`FIRED`, `READY` or `SERVED`) is `422`.
+The request is well formed and breaks a business rule. The rule depends on the
+line's stored status, so it cannot be a schema refinement.
+
+M2 records the answer and does nothing else with it. M4 reads it to decide
+whether the ingredients are gone.
+
+Cancelling a fired line also cancels its matching KOT line, so the kitchen stops
+cooking a dish the floor already voided.
+
+### 12.7 Mark a line served
+
+```
+PATCH /api/v1/orders/:orderId/lines/:lineId/served
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
+
+```json
+{ "version": 6 }
+```
+
+When the last non-cancelled line reaches `SERVED`, the order moves to
+`READY_TO_BILL` on its own and `readyToBillAt` is stamped. **The table stays
+occupied**, because the customers are still sitting there until a bill exists.
+
+### 12.8 Fire the order
+
+```
+POST /api/v1/orders/:orderId/fire
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
+
+```json
+{ "version": 7 }
+```
+
+Sends every `PENDING` line to the kitchen. Creates one `kots` document holding
+exactly those lines and sets each line to `FIRED` with its `kotId` and
+`firedAt`.
+
+Response 200 is **both** records, because the caller needs the new ticket and
+the moved-on order together:
+
+```json
+{ "success": true, "data": { "kot": { }, "order": { } } }
+```
+
+This is the one M2 endpoint whose `data` is not a single record. A client
+reading `data.id` here gets `undefined`; read `data.order.id`.
+
+Firing twice is not an error: the second call fires whatever is `PENDING` now,
+which is how a table that ordered mains later gets a second ticket. If nothing
+is pending it is `422 BUSINESS_RULE_VIOLATED`.
+
+**This is the moment M4 deducts stock**, because it is the moment the
+ingredients physically leave the shelf.
+
+### 12.9 Move an order to another table
+
+```
+PATCH /api/v1/orders/:orderId/table
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
+
+```json
+{ "version": 8, "tableId": "652h..." }
+```
+
+409 `TABLE_OCCUPIED` if the destination already has an order.
+
+### 12.10 Cancel the whole order
+
+```
+POST /api/v1/orders/:orderId/cancel
+```
+
+Roles: **`OWNER` and `MANAGER` only.**
+
+```json
+{ "version": 9, "reason": "Walked out", "wasPrepared": true }
+```
+
+Sets `isCancelled`, `cancelledAt`, `cancelledBy`, `cancelReason`, moves the
+order to `CANCELLED`, cancels every open line, and frees the table.
+
+**The narrower permission here is deliberate and is not an inconsistency to tidy
+up.** Cancelling one line is open to all four floor roles; cancelling a whole
+order is not. A whole-order cancel is how a table disappears, and a table
+disappearing is how cash walks out of a restaurant. It is the exact gap owners
+lose money to today. Do not widen it to match 12.6.
+
+---
+
+## 13. Kitchen ticket endpoints
+
+There is no `POST /kots`. A ticket is created by firing an order and never
+directly, because a ticket with no order behind it is food cooked for nobody.
+
+### 13.1 List tickets
+
+```
+GET /api/v1/kots?status=PENDING&page=1&limit=50
+```
+
+Roles: all six. Sorted oldest first: the kitchen works the queue in order.
+
+A ticket's status is **derived from its lines**, not stored, so the `status`
+filter is applied after the rollup is computed rather than in the database
+query. This is noted in the known problems table.
+
+### 13.2 Read one ticket
+
+```
+GET /api/v1/kots/:kotId
+```
+
+Roles: all six.
+
+### 13.3 Mark one ticket line ready
+
+```
+PATCH /api/v1/kots/:kotId/lines/:lineId/ready
+```
+
+Roles: all six. No request body.
+
+Sets the KOT line to `READY` with `readyAt`, and the matching order line to
+`READY`.
+
+### 13.4 Mark a whole ticket ready
+
+```
+PATCH /api/v1/kots/:kotId/ready
+```
+
+Roles: all six. No request body. Marks every `PENDING` line on the ticket ready.
+
+**Both ready endpoints are open to all six roles, including `STOREKEEPER`, and
+that is on purpose.** Whoever is standing at the pass marks the food ready.
+Asking someone their job title while a dish goes cold helps nobody, and the
+worst this endpoint can do is say a dish is ready when it is not, which the
+person carrying the plate discovers immediately.
+
+The KOT endpoints take no `version`. A ticket is not edited by two people racing
+to change the same value; marking an already-ready line ready again is a no-op,
+not a conflict.
+
+**A ticket carries no money.** No price, no tax rate, no total. A ticket that
+carries prices is a ticket that can disagree with the bill.
+
+---
+
+## Permission summary for M2
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| POST /tables | yes | yes | no | no | no | no |
+| GET /tables | yes | yes | yes | yes | yes | yes |
+| PATCH /tables/:id | yes | yes | no | no | no | no |
+| PATCH /tables/:id/status | yes | yes | no | no | no | no |
+| POST /orders | yes | yes | yes | yes | no | no |
+| GET /orders | yes | yes | yes | yes | yes | yes |
+| GET /orders/:id | yes | yes | yes | yes | yes | yes |
+| POST /orders/:id/lines | yes | yes | yes | yes | no | no |
+| PATCH /orders/:id/lines/:lineId | yes | yes | yes | yes | no | no |
+| POST /orders/:id/lines/:lineId/cancel | yes | yes | yes | yes | no | no |
+| PATCH /orders/:id/lines/:lineId/served | yes | yes | yes | yes | no | no |
+| POST /orders/:id/fire | yes | yes | yes | yes | no | no |
+| PATCH /orders/:id/table | yes | yes | yes | yes | no | no |
+| POST /orders/:id/cancel | yes | yes | **no** | **no** | no | no |
+| GET /kots | yes | yes | yes | yes | yes | yes |
+| GET /kots/:id | yes | yes | yes | yes | yes | yes |
+| PATCH /kots/:id/lines/:lineId/ready | yes | yes | yes | yes | yes | yes |
+| PATCH /kots/:id/ready | yes | yes | yes | yes | yes | yes |
+
+Reads are open to all six. Order taking is the four floor roles; the kitchen and
+the storekeeper are kept out of writing orders. Marking food ready is open to
+all six. The one asymmetry in the table is whole-order cancel, explained in
+12.10.
+
+---
+
+## Error codes added by M2
+
+| Code | Status | When |
+|---|---|---|
+| `TABLE_OCCUPIED` | 409 | An order is already open on this table. Carries `existingOrderId`. |
+| `VERSION_CONFLICT` | 409 | The order changed between the client reading it and writing to it. Carries `currentVersion`. |
+
+Both carry an extra field at the top level of `error`, beside `code` and
+`message`, because the client acts on the value rather than displaying it.
+`AppError` gained a `details` option for exactly these two, and the error
+handler merges it into the envelope. It is not a second `fields`, which is a
+per-field message map for validation errors, and nothing internal ever goes in
+it: whatever it holds is sent to the browser.
+
+Everything else reuses existing codes. `BUSINESS_RULE_VIOLATED` for firing an
+order with nothing pending or opening one on an inactive table, `NOT_FOUND` for
+a plain 404 including a record in another restaurant, `VALIDATION_FAILED` for a
+400 such as sending a price on a line.
+
+---
+
+## What M2 deliberately does not contain
+
+No split bills, item transfers between tables, or merging two tables onto one
+bill. One order, one table, and M3 bills one order.
+
+No floor plan or table coordinates. A table is a name, a section and a seat
+count.
+
+No course timings or "hold the mains" scheduling.
+
+No realtime push. The kitchen display polls every ten seconds. At one
+restaurant's scale that is enough, and a dropped websocket that silently stops
+delivering tickets is a far worse failure than a ten second delay, because
+nobody notices it.
+
+No printed-ticket record. Firing produces a `kots` document; whether paper came
+out of a printer is not tracked.
+
+---
+
+# M3 Billing with GST
+
+Owner: Rishi.
+
+**Menu prices are tax-exclusive.** `priceInPaise` is the price before tax and
+GST is added on top (decision D1). This is the one assumption in this module a
+chartered accountant must confirm on a real printed bill before a pilot.
+
+A finished order becomes a bill. The bill carries GST split per rate slab, an
+optional discount, the payment method used, and a printed number that is
+sequential and never reused.
+
+Five things run through every endpoint below.
+
+**A bill copies from the order line, never from the menu.** `itemName`,
+`unitPriceInPaise` and `taxRateBps` come off `orders.lines[]`, which copied them
+from `menuitems` when the line was added. Nothing here reads `menuitems`. The
+7pm order bills at the 7pm price.
+
+**A bill is frozen once created.** Its lines are a snapshot and there is no
+endpoint that edits them. A wrong bill is voided and re-issued.
+
+**Nothing is hard deleted, and a number is never reused.** Voiding sets
+`isVoided` with a reason and an actor. The number stays spent.
+
+**Voided bills are excluded from every total.** The list endpoint's running
+total, the day's summary, and every M6 read. BUILD-PLAN section 8 calls this the
+soft delete leak and it is the easiest way to ship a wrong sales figure.
+
+**Every money-or-trust event is audited.** Applying a discount and voiding a
+bill each write an `auditlogs` row with who, when, why and how much.
+
+---
+
+## 14. Bill endpoints
+
+### 14.1 Create a bill
+
+```
+POST /api/v1/bills
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`.
+
+```json
+{ "orderId": "652f...", "version": 9 }
+```
+
+`version` is the order's optimistic-concurrency version, sent for the same
+reason every M2 write sends it: a waiter adding a line while the cashier is
+billing must not be silently overwritten.
+
+Creates the bill from the order's **non-cancelled** lines, computes the tax
+breakdown, reserves the bill number inside the same transaction, and sets
+`orders.billId`. The order stays `READY_TO_BILL` and **the table stays
+occupied**: the customers are still sitting there until they have paid.
+
+Response 201 returns the bill, `status: "UNPAID"`.
+
+422 `BUSINESS_RULE_VIOLATED` if the order is not `READY_TO_BILL`, or has no
+live lines. A zero-line bill is not a bill.
+409 `DUPLICATE` if a live bill already exists for that order; the existing
+bill's id travels with it as `existingBillId`, the same shape M2's
+`TABLE_OCCUPIED` uses, so the client opens that bill instead of making a second.
+409 `VERSION_CONFLICT` on a stale order version.
+404 `NOT_FOUND` if the order is in another restaurant.
+503 `TRANSACTION_REQUIRED` if the connection cannot start a transaction. Bill
+creation is the one write in this project that refuses to degrade, because a
+gap-free sequence has no degraded mode; see DB-SCHEMA.md section 12.
+
+### 14.2 Read one bill
+
+```
+GET /api/v1/bills/:billId
+```
+
+Roles: all six. A waiter needs to read the bill they are carrying to a table.
+
+404 `NOT_FOUND` if it belongs to another restaurant. Never 403.
+
+### 14.3 List bills
+
+```
+GET /api/v1/bills?from=2026-08-30&to=2026-08-30&status=UNPAID&includeVoided=false&page=1&limit=50
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`.
+
+`from` and `to` are `"YYYY-MM-DD"` **business dates**, inclusive, matched
+against `businessDate`. Both optional; the default is today's business day only,
+which is what the cashier's screen wants.
+
+Standard paging envelope, sorted by `billedAt` descending, plus a `meta.totals`
+block for the running total the screen shows:
+
+```json
+{
+  "success": true,
+  "data": [ ],
+  "meta": {
+    "page": 1, "limit": 50, "total": 37,
+    "totals": {
+      "grandTotalInPaise": 4820000,
+      "amountPaidInPaise": 4520000,
+      "billCount": 37,
+      "voidedCount": 2
+    }
+  }
+}
+```
+
+`totals` covers the **whole matched range, not the current page**, and excludes
+voided bills from every figure except `voidedCount`. A running total that only
+adds up one page is a wrong number on a busy evening.
+
+### 14.4 Apply a discount
+
+```
+POST /api/v1/bills/:billId/discount
+```
+
+Roles: **`OWNER`, `MANAGER` only.** A cashier cannot discount a bill. This is
+the control an owner is buying.
+
+```json
+{ "kind": "PERCENT", "rateBps": 1000, "reason": "Regular customer" }
+```
+
+```json
+{ "kind": "FLAT", "valueInPaise": 5000, "reason": "Service was slow" }
+```
+
+`reason` is required, trimmed, and never defaulted to `""`.
+
+Replaces any existing discount rather than stacking, and **recomputes the whole
+tax breakdown**, because a discount reduces taxable value and therefore reduces
+tax. The apportionment across slabs is in DB-SCHEMA.md section 12.
+
+Response 200 returns the recomputed bill. Writes one `auditlogs` row,
+`DISCOUNT_APPLIED`, carrying the amount.
+
+422 `BUSINESS_RULE_VIOLATED` if the bill is `PAID`, if it is voided, or if the
+discount is greater than the subtotal. 400 if `rateBps` is outside 1 to 10000 or
+`valueInPaise` is not a positive integer.
+
+There is no approval ceiling in version 1 — a manager may discount any amount
+up to the subtotal. Every one is on the audit trail with a name against it,
+which is the version 1 control. A ceiling with an owner approval step is a
+deferred idea, not a missing feature.
+
+### 14.5 Record a payment
+
+```
+POST /api/v1/bills/:billId/payments
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`.
+
+```json
+{ "method": "UPI", "amountInPaise": 48200, "reference": "42XXXX9911" }
+```
+
+Appends to `payments[]` and adds to `amountPaidInPaise`. When the paid amount
+first reaches `grandTotalInPaise` the bill becomes `PAID`, `paidAt` is stamped,
+the order moves to `BILLED`, and **the table frees**.
+
+Response 200 returns the bill.
+
+The array exists so a split payment works without a migration; the screen
+defaults to one payment for the full amount. No gateway and no money movement:
+we record which method was used (BUILD-PLAN section 4).
+
+422 `BUSINESS_RULE_VIOLATED` if the bill is voided, already `PAID`, or the
+payment would take the paid amount above the grand total. Overpayment is
+refused rather than stored, because change given in cash is not a payment.
+
+### 14.6 Void a bill
+
+```
+POST /api/v1/bills/:billId/void
+```
+
+Roles: **`OWNER`, `MANAGER` only.**
+
+```json
+{ "reason": "Wrong table billed" }
+```
+
+Sets `isVoided`, `voidedAt`, `voidedBy`, `voidReason`. Returns the order to
+`READY_TO_BILL`, clears `orders.billId`, and **re-occupies the table**, so the
+order can be billed again correctly.
+
+**The bill number stays spent.** It is never reissued, not to the replacement
+bill and not to anything else. A gap in what a customer holds is fine; a
+duplicate number is not.
+
+Response 200 returns the voided bill. Writes one `auditlogs` row, `BILL_VOIDED`,
+carrying the grand total that was voided.
+
+422 `ENTRY_VOIDED` if it is already voided.
+404 `NOT_FOUND` if it is in another restaurant.
+
+**Voiding does not restock.** The food was made and eaten. See DB-SCHEMA.md
+section 16.
+
+### 14.7 The day's summary
+
+```
+GET /api/v1/bills/summary?from=2026-08-30&to=2026-08-30
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Business dates, inclusive, both required. Sales, tax collected per slab,
+discount given away, and a split by payment method, over that range.
+
+```json
+{
+  "success": true,
+  "data": {
+    "from": "2026-08-30", "to": "2026-08-30",
+    "billCount": 37,
+    "grossInPaise": 4400000,
+    "discountInPaise": 120000,
+    "taxInPaise": 214000,
+    "netInPaise": 4494000,
+    "roundOffInPaise": -1400,
+    "byTaxSlab": [
+      { "taxRateBps": 500, "taxableInPaise": 3800000, "cgstInPaise": 95000, "sgstInPaise": 95000 }
+    ],
+    "byPaymentMethod": [
+      { "method": "CASH", "amountInPaise": 1800000, "billCount": 15 },
+      { "method": "UPI", "amountInPaise": 2694000, "billCount": 22 }
+    ],
+    "voidedCount": 2,
+    "voidedInPaise": 340000
+  }
+}
+```
+
+Voided bills are in `voidedCount` and `voidedInPaise` and in **no** other
+figure. This is the endpoint M6 reads for its sales report; M6 aggregates from
+here rather than re-implementing the arithmetic, the same relationship M5's
+`GET /attendance/summary` has with M6's hours report.
+
+---
+
+## 15. The receipt
+
+```
+GET /api/v1/bills/:billId/receipt?width=32
+```
+
+Roles: all six.
+
+`width` is `32` (58mm paper) or `48` (80mm). Default 32. Any other value is 400.
+
+Response 200:
+
+```json
+{
+  "success": true,
+  "data": { "width": 32, "text": "        SHREEJI DINING HALL\n..." }
+}
+```
+
+**The layout is generated on the server and the client prints what it is
+given.** It does no wrapping, no padding and no column arithmetic of its own.
+
+This is not a preference. A thermal printer has a fixed character width, and
+BUILD-PLAN section 8 names a long dish name wrapping and destroying the layout
+as a thing that bites teams late. One server-side implementation can be snapshot
+tested; a browser and a printer each doing their own layout will disagree, and
+the disagreement only shows up on paper in a restaurant.
+
+A name longer than the column allows is wrapped onto a continuation line
+indented under itself, never truncated and never allowed to push the amount
+column out of alignment. There is a snapshot test with a 60-character dish name.
+
+The payload carries, in this order: restaurant name, `legalName`, GSTIN, FSSAI
+number, address, bill number, business date, the timestamp in IST, each line
+with quantity and amount, subtotal, discount with its reason, CGST and SGST per
+rate slab, round-off, grand total, and the payment method.
+
+Money is rendered by the server in rupees with two decimals. It is the one place
+the server formats money for display, and it is here because the layout depends
+on the exact character count.
+
+---
+
+## Permission summary for M3
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| POST /bills | yes | yes | yes | no | no | no |
+| GET /bills/:id | yes | yes | yes | yes | yes | yes |
+| GET /bills | yes | yes | yes | no | no | no |
+| POST /bills/:id/discount | yes | yes | **no** | no | no | no |
+| POST /bills/:id/payments | yes | yes | yes | no | no | no |
+| POST /bills/:id/void | yes | yes | **no** | no | no | no |
+| GET /bills/summary | yes | yes | no | no | no | no |
+| GET /bills/:id/receipt | yes | yes | yes | yes | yes | yes |
+
+Reading one bill and its receipt is open to all six, because a waiter carries
+the bill to the table. Creating and taking payment is the cashier's job.
+**Discounting and voiding are not**, and that is the whole point: BUILD-PLAN
+section 7 names voids and discounts as the events an owner is losing money to,
+so they need a manager's credentials and they land on the audit trail.
+
+Every rule lives in `services/billPermissionService.js`, one file, the way M0-C
+put staff rules in `userPermissionService.js`. Asking "what may a cashier do"
+is one file to read.
+
+---
+
+## Error codes added by M3
+
+| Code | Status | When |
+|---|---|---|
+| `BILL_ALREADY_EXISTS` | 409 | A live bill already exists for that order. Carries `existingBillId`. |
+| `TRANSACTION_REQUIRED` | 503 | The connection cannot start a transaction, so a gap-free bill number cannot be guaranteed |
+
+`ENTRY_VOIDED` (422) is reused from M5 for voiding an already-voided bill: it is
+the same condition with the same meaning, and a second code for it would be two
+names for one thing. `VERSION_CONFLICT` is reused from M2. Everything else
+reuses `BUSINESS_RULE_VIOLATED`, `NOT_FOUND` and `VALIDATION_FAILED`.
+
+---
+
+# M4 Inventory with recipe deduction
+
+Owner: Arya.
+
+Ingredients with a stock level, a recipe per sellable thing, and automatic
+deduction when a dish is fired to the kitchen.
+
+**Deduction happens at KOT fire**, because that is when the ingredients leave
+the shelf. It is not an endpoint anyone calls: `POST /orders/:orderId/fire`
+triggers it inside the same transaction that writes the KOT. There is no way to
+fire a ticket and not deduct, and no way to deduct twice.
+
+**Nothing here ever blocks a sale.** Not a missing recipe, not negative stock.
+See DB-SCHEMA.md sections 14 and 15 for why.
+
+---
+
+## 16. Ingredient endpoints
+
+### 16.1 Create an ingredient
+
+```
+POST /api/v1/ingredients
+```
+
+Roles: `OWNER`, `MANAGER`, `STOREKEEPER`.
+
+```json
+{
+  "name": "Paneer",
+  "baseUnit": "G",
+  "purchaseUnitName": "kg",
+  "unitsPerBase": 1000,
+  "lowStockThresholdInBase": 2000,
+  "openingQtyInBase": 5000
+}
+```
+
+`openingQtyInBase` is optional and, when given, writes one `RECEIVED` movement
+rather than setting the quantity directly, so the ledger explains the opening
+balance like every other change.
+
+Response 201 returns the ingredient. 409 `DUPLICATE` on a name clash in this
+branch, case-insensitive.
+
+### 16.2 List ingredients
+
+```
+GET /api/v1/ingredients?search=&lowStockOnly=false&includeInactive=false&page=1&limit=50
+```
+
+Roles: all six. Reads are open because a cook needs to see what is out.
+
+`lowStockOnly=true` returns only ingredients where
+`currentQtyInBase <= lowStockThresholdInBase`. **Computed on read**, not stored
+and not maintained by a job: there is no job runner in this project and adding
+one is out of scope.
+
+Each row carries a derived `stockState` of `IN_STOCK`, `LOW` or `OUT`, so the
+three states have one definition on the server rather than one per screen.
+`OUT` is `currentQtyInBase <= 0`, which includes negative.
+
+`search` is escaped before it becomes a regular expression, the same rule every
+other search box in this project follows.
+
+### 16.3 Update an ingredient
+
+```
+PATCH /api/v1/ingredients/:ingredientId
+```
+
+Roles: `OWNER`, `MANAGER`, `STOREKEEPER`.
+
+Updatable: `name`, `purchaseUnitName`, `unitsPerBase`, `lowStockThresholdInBase`.
+
+`baseUnit` is **refused with 422 once any movement exists** for this ingredient,
+and is otherwise updatable. Changing it later would reinterpret every historical
+quantity in the ledger with no way to detect it afterwards.
+
+`currentQtyInBase` is refused with 400 always. Stock changes through a movement,
+never by assignment, or the ledger stops being the truth.
+
+### 16.4 Activate or deactivate
+
+```
+PATCH /api/v1/ingredients/:ingredientId/active
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+```json
+{ "isActive": false }
+```
+
+**This is the delete.** 422 `BUSINESS_RULE_VIOLATED` if any active recipe still
+references it, with the message naming how many recipes do. Deactivating an
+ingredient a live recipe consumes would silently stop deducting it.
+
+---
+
+## 17. Recipe endpoints
+
+### 17.1 Create or replace a recipe
+
+```
+PUT /api/v1/recipes
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+The one `PUT` in this project, and it is deliberate: a recipe is identified by
+what it is attached to rather than by its own id, and writing one is
+idempotent — the same body twice leaves the same single recipe.
+
+```json
+{
+  "menuItemId": "652d...",
+  "variantId": null,
+  "items": [
+    { "ingredientId": "6540...", "qtyInBase": 150 },
+    { "ingredientId": "6541...", "qtyInBase": 30 }
+  ]
+}
+```
+
+`qtyInBase` is in that ingredient's own base unit, per one unit of the dish.
+
+Response 200, or 201 when it did not exist.
+
+404 `NOT_FOUND` if the menu item, the variant, or any ingredient is not in this
+restaurant. 422 `BUSINESS_RULE_VIOLATED` if an ingredient is inactive, or if the
+same `ingredientId` appears twice.
+
+### 17.2 Read recipes
+
+```
+GET /api/v1/recipes?menuItemId=&page=1&limit=50
+```
+
+Roles: `OWNER`, `MANAGER`, `STOREKEEPER`.
+
+Each recipe is returned with its ingredient names and base units resolved, so
+the editor does not fetch the ingredient list separately to render.
+
+### 17.3 Delete a recipe
+
+```
+DELETE /api/v1/recipes/:recipeId
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+**The one `DELETE` in the project.** A recipe is configuration, not a record of
+something that happened: it holds no history, nothing references it, and the
+movements it produced are in `stockmovements` and are untouched by removing it.
+Detaching a recipe is the ordinary way to stop deducting for a dish, and a soft
+delete here would mean carrying an `isActive` that means exactly the same thing
+as the row not existing.
+
+Nothing in CLAUDE.md's no-hard-delete rule is bent: that rule names bills,
+orders and stock entries, and a recipe is none of them.
+
+### 17.4 Dishes selling with no recipe
+
+```
+GET /api/v1/inventory/unmapped?from=&to=
+```
+
+Roles: `OWNER`, `MANAGER`, `STOREKEEPER`.
+
+Menu items that have been fired with no recipe resolvable, newest first, with
+how many times. This is where a half-configured inventory becomes visible
+instead of silently deducting nothing forever, and it is the honest answer to
+the seed data gap in BUILD-PLAN section 8.
+
+---
+
+## 18. Stock movement endpoints
+
+### 18.1 The ledger
+
+```
+GET /api/v1/ingredients/:ingredientId/movements?from=&to=&page=1&limit=50
+```
+
+Roles: `OWNER`, `MANAGER`, `STOREKEEPER`.
+
+One ingredient's movements, newest first, each with its `resultingQtyInBase` so
+the screen reads as a running balance without replaying the ledger.
+
+### 18.2 Adjust stock
+
+```
+POST /api/v1/ingredients/:ingredientId/movements
+```
+
+Roles: `OWNER`, `MANAGER`, `STOREKEEPER`.
+
+```json
+{ "type": "WASTAGE", "qtyInBase": 500, "reason": "Spoiled overnight" }
+```
+
+`type` is one of `RECEIVED`, `WASTAGE`, `SPILLAGE`, `RECOUNT`, `RETURN`. The
+deduction types `DEDUCTION` and `CANCELLATION_RETURN` are refused with 400: they
+are written by the fire and cancel paths and by nothing else.
+
+`qtyInBase` is a positive integer for every type except `RECOUNT`, where it is
+the signed difference and may be negative. The sign is applied by the server
+from the type, so a storekeeper never types a minus sign.
+
+`reason` is required on every manual movement.
+
+Response 201 returns the movement and the ingredient's new quantity. Writes one
+`auditlogs` row, `STOCK_ADJUSTED`.
+
+The quantity is sent in the **base unit**. The screen converts from the
+purchase unit and shows the working; `server/utils/units.js` is the only place
+that multiplies, and the API takes what the ledger stores.
+
+### 18.3 Consumption
+
+```
+GET /api/v1/inventory/consumption?from=2026-08-01&to=2026-08-30
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+Quantity consumed per ingredient over a range of business days, deductions net
+of cancellation returns. Not paginated. This is the read M6's "stock consumed"
+report aggregates from.
+
+---
+
+## Permission summary for M4
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| POST /ingredients | yes | yes | no | no | no | yes |
+| GET /ingredients | yes | yes | yes | yes | yes | yes |
+| PATCH /ingredients/:id | yes | yes | no | no | no | yes |
+| PATCH /ingredients/:id/active | yes | yes | no | no | no | no |
+| PUT /recipes | yes | yes | no | no | no | no |
+| GET /recipes | yes | yes | no | no | no | yes |
+| DELETE /recipes/:id | yes | yes | no | no | no | no |
+| GET /inventory/unmapped | yes | yes | no | no | no | yes |
+| GET /ingredients/:id/movements | yes | yes | no | no | no | yes |
+| POST /ingredients/:id/movements | yes | yes | no | no | no | yes |
+| GET /inventory/consumption | yes | yes | no | no | no | no |
+
+`STOREKEEPER` is the role this module exists for, and it is the first module
+where that role does real work. They receive stock, count it and record wastage,
+so they own movements and can maintain ingredients. They do **not** write
+recipes, because a recipe changes what every future sale deducts, and they do
+not deactivate an ingredient, because that stops deduction silently.
+
+Reading the ingredient list is open to all six: a cook who can see paneer is out
+marks the dish unavailable in M1, which is the loop these two modules close
+together.
+
+---
+
+## Error codes added by M4
+
+| Code | Status | When |
+|---|---|---|
+| `INGREDIENT_IN_USE` | 422 | Deactivating an ingredient an active recipe still consumes |
+| `BASE_UNIT_IMMUTABLE` | 422 | Changing `baseUnit` after a movement exists |
+| `DUPLICATE_RECIPE_INGREDIENT` | 422 | The same `ingredientId` twice in one recipe |
+
+Everything else reuses existing codes. `DUPLICATE` for an ingredient name clash,
+`NOT_FOUND` for a plain 404, `BUSINESS_RULE_VIOLATED` for an inactive
+ingredient in a recipe, `VALIDATION_FAILED` for a bad quantity or a
+server-owned movement type.
+
+---
+
+## What M3 and M4 deliberately do not contain
+
+Service charge, tip, credit note, partial refund, customer GSTIN, B2B invoice
+fields, split-by-cover.
+
+Ingredient cost, stock valuation, margin. Attendance produces minutes, this
+produces quantities, and turning either into money is a separate build.
+
+Suppliers, purchase orders and goods-received notes. BUILD-PLAN section 4 defers
+vendors until inventory numbers are trusted, which is after a pilot.
+
+Batch, expiry, FEFO, or per-storeroom locations.
+
+Any background job. Low stock is computed on read, because this project has no
+job runner and adding one is out of scope.
+
+
+# M6 Reports and Dashboard
+
+Owner: Rishi.
+
+**M6 adds no collections and writes nothing.** Every endpoint is a read. This is the one module in the project with no model file, no `POST`, no `PATCH`, and no soft-delete fields, because it owns no data. It aggregates over `bills`, `orders`, `stockmovements` and `attendanceentries`, all of which are already built and frozen.
+
+Add this to `DB-SCHEMA.md` as its own short section saying exactly that, so a reader looking for M6's collections finds the statement rather than an absence.
+
+---
+
+## Rules every M6 endpoint obeys
+
+**Voided is excluded, everywhere, always.** `bills` with `isVoided: true` count towards no revenue figure, no item count, no tax total, no payment split. `attendanceentries` with `isVoided: true` count towards no minutes. This is the soft-delete leak from BUILD-PLAN section 8, and M6 is where it would first show up as a wrong number an owner acts on.
+
+**Every date range is in business days, not calendar days.** Every endpoint takes `from` and `to` as `"YYYY-MM-DD"` strings and matches them against the stored `businessDate` string on `bills` and `attendanceentries`. No `Date` arithmetic, no timezone conversion, no `$dateToString` in an aggregation. The hard work was done at write time by `businessDateFor`, and M6's job is to not undo it.
+
+**`from` and `to` are both required and both inclusive.** No defaults. A report that silently decides its own range is a report that shows a different number depending on when it was opened.
+
+**Maximum range is 366 days.** A longer range is 422 `RANGE_TOO_LARGE`. Without a cap, one request scans years of bills and takes the database down during service.
+
+**Every aggregation pipeline starts with `$match` on `restaurantId` and `branchId`.** The tenant guard requires this on `aggregate` and throws otherwise, which is the intended behaviour, not an obstacle to work around. Never use `skipTenantGuard` in this module. The count stays at four.
+
+**Money out of M6 is whole paise integers**, same as everywhere. Formatting to rupees happens on the client, in the shared helper.
+
+---
+
+## 1. `GET /api/v1/reports/dashboard`
+
+Roles: `OWNER`, `MANAGER`.
+
+The one call the owner opens every morning. Today's business day only, no parameters.
+
+```json
+{
+  "success": true,
+  "data": {
+    "businessDate": "2026-08-30",
+    "sales": {
+      "grossSalesInPaise": 4820000,
+      "billCount": 62,
+      "averageBillInPaise": 77742,
+      "totalTaxInPaise": 229523,
+      "totalDiscountInPaise": 145000
+    },
+    "openOrders": { "count": 8, "runningValueInPaise": 612000 },
+    "topItems": [
+      { "menuItemId": "664d...", "itemName": "Paneer Tikka", "quantity": 34, "revenueInPaise": 1428000 }
+    ],
+    "lowStock": [
+      { "ingredientId": "667a...", "name": "Paneer", "currentQtyInBase": 400, "baseUnit": "G", "lowStockThresholdInBase": 2000 }
+    ],
+    "staffOnShift": 7,
+    "unpaidBills": { "count": 3, "amountInPaise": 184000 }
+  }
+}
+```
+
+`grossSalesInPaise` is the sum of `grandTotalInPaise` across non-voided bills for today's business date. It is what was billed, not what was collected.
+
+`topItems` is capped at 5. `lowStock` is capped at 10 and lists ingredients where `currentQtyInBase <= lowStockThresholdInBase`.
+
+`staffOnShift` counts attendance entries with `clockOutAt: null` and `isVoided: false`.
+
+Today's business date is computed once, server-side, with `businessDateFor(new Date())`. Never taken from the client.
+
+## 2. `GET /api/v1/reports/sales-summary?from=&to=`
+
+Roles: `OWNER`, `MANAGER`.
+
+Headline totals across a range.
+
+```json
+{
+  "success": true,
+  "data": {
+    "from": "2026-08-01",
+    "to": "2026-08-30",
+    "grossSalesInPaise": 128400000,
+    "subtotalInPaise": 118900000,
+    "totalDiscountInPaise": 3200000,
+    "totalTaxInPaise": 12300000,
+    "totalRoundOffInPaise": -1400,
+    "billCount": 1642,
+    "voidedBillCount": 11,
+    "voidedBillValueInPaise": 84000,
+    "averageBillInPaise": 78197,
+    "dineIn": { "billCount": 1204, "salesInPaise": 104200000 },
+    "takeaway": { "billCount": 438, "salesInPaise": 24200000 }
+  }
+}
+```
+
+`voidedBillCount` and `voidedBillValueInPaise` are the one place voided bills appear, reported separately and never mixed into a revenue figure. An owner wants to see that number rising.
+
+`averageBillInPaise` is integer division, floored. It is not stored and not used for anything but display.
+
+## 3. `GET /api/v1/reports/sales-by-day?from=&to=`
+
+Roles: `OWNER`, `MANAGER`.
+
+One row per business day, in ascending date order.
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "businessDate": "2026-08-01",
+      "grossSalesInPaise": 4120000,
+      "billCount": 54,
+      "averageBillInPaise": 76296,
+      "totalDiscountInPaise": 92000
+    }
+  ]
+}
+```
+
+**Days with no bills are returned with zeros, not omitted.** A chart with missing days draws a misleading line. The server fills the gaps by walking the string dates, which is why `businessDate` being a `"YYYY-MM-DD"` string rather than a `Date` matters here too.
+
+## 4. `GET /api/v1/reports/hourly?from=&to=`
+
+Roles: `OWNER`, `MANAGER`.
+
+Sales grouped by hour of day, IST, across the range. Twenty-four rows always, including empty hours.
+
+```json
+{
+  "success": true,
+  "data": [
+    { "hourIst": 0, "grossSalesInPaise": 0, "billCount": 0 },
+    { "hourIst": 20, "grossSalesInPaise": 18400000, "billCount": 204 }
+  ]
+}
+```
+
+This is the one place a real timestamp is used rather than `businessDate`, because "which hour" is a question about clock time. Group on `billedAt` converted to IST inside the aggregation with `$hour` and `timezone: "Asia/Kolkata"`. Do not convert in JavaScript after fetching every bill.
+
+## 5. `GET /api/v1/reports/top-items?from=&to=&limit=20&sort=quantity`
+
+Roles: `OWNER`, `MANAGER`.
+
+`sort` is `quantity` or `revenue`. `limit` is 1 to 100, default 20.
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "menuItemId": "664d...",
+      "itemName": "Paneer Tikka",
+      "quantity": 842,
+      "revenueInPaise": 35364000,
+      "billCount": 611
+    }
+  ]
+}
+```
+
+Read from `bills.lines`, not from `orders.lines`. Bill lines already exclude cancelled order lines, so grouping over bills gives the sold figure without a filter. Grouping over orders would need one and would eventually be forgotten.
+
+Group by `menuItemId`, but report `itemName` from the most recent bill line, so a renamed dish shows its current name while its history stays joined.
+
+## 6. `GET /api/v1/reports/payment-methods?from=&to=`
+
+Roles: **`OWNER` only.**
+
+```json
+{
+  "success": true,
+  "data": {
+    "methods": [
+      { "method": "CASH", "amountInPaise": 41200000, "paymentCount": 704 },
+      { "method": "UPI", "amountInPaise": 78600000, "paymentCount": 812 },
+      { "method": "CARD", "amountInPaise": 8600000, "paymentCount": 118 },
+      { "method": "OTHER", "amountInPaise": 0, "paymentCount": 0 }
+    ],
+    "totalCollectedInPaise": 128400000,
+    "unpaidInPaise": 420000
+  }
+}
+```
+
+Owner-only because the cash figure is the number a dishonest manager most wants to see and most wants to control. The module catalog names exactly this: only the owner sees the day's total cash.
+
+All four methods are always present, with zeros where unused.
+
+`unpaidInPaise` is the sum of `grandTotalInPaise − amountPaidInPaise` across non-voided bills with `status: UNPAID`.
+
+## 7. `GET /api/v1/reports/tax-summary?from=&to=`
+
+Roles: `OWNER`, `MANAGER`.
+
+The number an accountant files from.
+
+```json
+{
+  "success": true,
+  "data": {
+    "from": "2026-08-01",
+    "to": "2026-08-31",
+    "slabs": [
+      {
+        "taxRateBps": 500,
+        "taxableInPaise": 88400000,
+        "cgstInPaise": 2210000,
+        "sgstInPaise": 2210000,
+        "taxInPaise": 4420000
+      }
+    ],
+    "totalTaxableInPaise": 118900000,
+    "totalCgstInPaise": 6150000,
+    "totalSgstInPaise": 6150000,
+    "totalTaxInPaise": 12300000
+  }
+}
+```
+
+Sum `bills.taxBreakdown` across non-voided bills, grouped by `taxRateBps`. **Sum the stored values. Never recompute tax here.** M3 already computed it per slab with a documented rounding rule, and a second implementation in M6 will disagree with the printed bill by a rupee, which is the exact failure BUILD-PLAN section 8 names.
+
+Slabs are returned ascending by rate. A slab with no sales in the range is omitted.
+
+## 8. `GET /api/v1/reports/discounts?from=&to=&page=&limit=`
+
+Roles: `OWNER`, `MANAGER`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalDiscountInPaise": 3200000,
+    "discountedBillCount": 184,
+    "discountAsPercentOfSubtotalBps": 269,
+    "byUser": [
+      { "userId": "664f...", "name": "Kaival", "amountInPaise": 1840000, "billCount": 96 }
+    ],
+    "recent": [
+      {
+        "billId": "668a...",
+        "billNumber": "2026-27/000148",
+        "businessDate": "2026-08-29",
+        "amountInPaise": 12000,
+        "reason": "Regular customer",
+        "appliedBy": "Kaival",
+        "appliedAt": "2026-08-29T15:04:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+`byUser` is the point of this report. "How much did each person give away" is what an owner actually wants and cannot get today.
+
+`recent` is paginated. Read it from `bills.discount`, not from `auditlogs`, because the bill is the authoritative record and the audit log is the trail. They should agree; if they ever do not, the bill is right.
+
+`discountAsPercentOfSubtotalBps` is basis points, integer, same convention as everywhere else.
+
+## 9. `GET /api/v1/reports/stock-consumption?from=&to=&ingredientId=`
+
+Roles: `OWNER`, `MANAGER`, `STOREKEEPER`.
+
+`ingredientId` is an optional filter.
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "ingredientId": "667a...",
+      "name": "Paneer",
+      "baseUnit": "G",
+      "consumedInBase": 184000,
+      "returnedInBase": 2400,
+      "netConsumedInBase": 181600,
+      "wastageInBase": 3200,
+      "receivedInBase": 200000,
+      "recountAdjustmentInBase": -1400
+    }
+  ]
+}
+```
+
+`consumedInBase` is the absolute value of `DEDUCTION` movements. `returnedInBase` is `CANCELLATION_RETURN`. `netConsumedInBase` is the difference and is the number that answers "how much paneer did we actually use".
+
+`wastageInBase` sums `WASTAGE` and `SPILLAGE` together, absolute. A separate wastage number is what turns "we seem to waste a lot of tomatoes" into something actionable.
+
+`stockmovements` has no `businessDate` field, only `at`. So this endpoint converts the `from` and `to` business dates into a UTC instant range on the server before matching, using the restaurant's `businessDayStartsAtMinutes`. Write that conversion once, in `server/utils/time.js`, as `businessDateRangeToUtc(from, to, startsAtMinutes)`. Do not inline it.
+
+Sorted by `netConsumedInBase` descending. Storekeeper has access because this is the read their job depends on.
+
+## 10. `GET /api/v1/reports/labour-hours?from=&to=&userId=`
+
+Roles: `OWNER`, `MANAGER`.
+
+`userId` is an optional filter.
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalMinutes": 84200,
+    "byUser": [
+      {
+        "userId": "664f...",
+        "name": "Ramesh",
+        "role": "WAITER",
+        "totalMinutes": 12400,
+        "shiftCount": 26,
+        "openShiftCount": 0,
+        "averageShiftMinutes": 476
+      }
+    ],
+    "openShifts": [
+      { "userId": "664g...", "name": "Suresh", "clockInAt": "2026-08-29T06:20:00.000Z", "businessDate": "2026-08-29" }
+    ]
+  }
+}
+```
+
+**Open shifts contribute zero minutes and are listed separately.** `workedMinutes` is null while a shift is open and M5 deliberately never invents a clock-out time. M6 must not invent one either: do not compute elapsed time for an open shift. A number that grows while you look at it is not an hours-worked figure, and this feeds payroll later.
+
+`openShifts` is what surfaces a forgotten clock-out to whoever reads the report.
+
+Excludes `isVoided: true` entries entirely.
+
+---
+
+## Permission summary for M6
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| GET /reports/dashboard | yes | yes | no | no | no | no |
+| GET /reports/sales-summary | yes | yes | no | no | no | no |
+| GET /reports/sales-by-day | yes | yes | no | no | no | no |
+| GET /reports/hourly | yes | yes | no | no | no | no |
+| GET /reports/top-items | yes | yes | no | no | no | no |
+| GET /reports/payment-methods | yes | no | no | no | no | no |
+| GET /reports/tax-summary | yes | yes | no | no | no | no |
+| GET /reports/discounts | yes | yes | no | no | no | no |
+| GET /reports/stock-consumption | yes | yes | no | no | no | yes |
+| GET /reports/labour-hours | yes | yes | no | no | no | no |
+
+---
+
+## Decisions made for M6
+
+**No cached or precomputed report collection.** Every figure is aggregated live. A restaurant does a few hundred bills a day, indexes exist on `{ restaurantId, branchId, businessDate, isVoided }`, and a materialised rollup is a second source of truth that goes stale. Revisit only if a real query is measurably slow on real data.
+
+**No CSV or PDF export in version 1.** The screen is the deliverable. Export is a day of work whenever someone actually asks.
+
+**No comparison-to-previous-period figures.** No "up 12% on last month". They are easy to add later and easy to get subtly wrong now, and the client can compute one from two calls.
+
+**No profit, margin, or food-cost figures.** `ingredients` deliberately has no cost price, so there is no honest way to produce one. This is M13's problem once purchase orders exist.
+
+**Tax is summed from stored values, never recomputed.** See section 7.
+
+# M7 Restaurant Settings
+
+Owner: Rishi.
+
+**M7 adds no collection.** It expands the `settings` object already on `restaurants`, adds two endpoints to read and write it, and gives every other module one typed, defaulted, audited place to read configuration from instead of a constant buried in a service file.
+
+It also adds one value to the `auditlogs` action enum. Nothing else in the database changes.
+
+---
+
+## The rule that makes M7 safe to build alongside M6
+
+`settings.businessDayStartsAtMinutes` already exists. M5 put it there, M3 derives `businessDate` from it, and M6 reads it for every report.
+
+**M7 does not move it, rename it, change its type, change its default, or change its meaning.** It stays exactly where it is, as an integer number of minutes past midnight IST, default 300. M7 only brings it under one editing endpoint alongside the new settings.
+
+Every other setting M7 adds is new. Nothing existing is restructured. That is why M6 and M7 can be built at the same time by two people without a merge conflict that matters.
+
+---
+
+## What lives in settings, and what does not
+
+A setting is a value an owner would reasonably change, that the software must not hardcode.
+
+A constant is a value the software depends on being stable and that an owner changing would break something. The 12-hour open-shift threshold in M5 is a constant, and decision D5 says so explicitly. M7 does not turn it into a setting. Neither does it touch the six-role enum, the three base units, or the counter names, all of which are deliberately closed lists.
+
+---
+
+## 1. The settings object
+
+Added to `restaurants.settings`. Every field has a default, so an existing restaurant document with only `businessDayStartsAtMinutes` reads back a complete settings object without a migration.
+
+### `settings.business`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `businessDayStartsAtMinutes` | Number | 300 | **Pre-existing. Untouched.** Integer 0 to 1439. Minutes past midnight IST at which the business day rolls over. Stays at `settings.businessDayStartsAtMinutes`, not nested under `business`. See the note below. |
+
+**This one field stays at the top level of `settings`, not inside `settings.business`.** Nesting it would be tidier and would break M3, M5 and M6 at once. Tidiness is not worth a migration on a field three modules already read. The `business` group in the API response reads it from the top level and writes it back there.
+
+### `settings.tax`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `pricingMode` | String | `EXCLUSIVE` | Enum `EXCLUSIVE`, `INCLUSIVE`. Whether `menuitems.priceInPaise` is before or after GST. **Stored but not yet consumed. See section 4.** |
+| `defaultTaxRateBps` | Number | 500 | Integer 0 to 10000. Prefilled on a new menu item so an owner does not retype 5% two hundred times. |
+| `roundOffEnabled` | Boolean | true | Whether a bill rounds to the nearest rupee. **Stored but not yet consumed. See section 4.** |
+
+### `settings.receipt`
+
+Nothing consumes these yet. Thermal printing is Phase 2 and will read them.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `headerLine1` | String | `null` | Max 40 characters. Printed above the restaurant name. |
+| `headerLine2` | String | `null` | Max 40 characters. |
+| `footerText` | String | `null` | Max 200 characters. "Thank you, visit again." |
+| `showGstin` | Boolean | true | Print the GSTIN on the bill. |
+| `showFssai` | Boolean | true | Print the FSSAI licence number. |
+| `showServerName` | Boolean | false | Print who took the order. |
+
+Forty characters is not arbitrary. A standard 80mm thermal roll fits roughly 42 characters per line at normal font, and a longer line wraps and destroys the layout, which BUILD-PLAN section 8 names as the printer problem. Enforce it now, before anyone types a 90-character footer and discovers it in a kitchen.
+
+### `settings.inventory`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `lowStockAlertsEnabled` | Boolean | true | Whether the low-stock list appears on the dashboard and in the stock screens. |
+
+---
+
+## 2. `GET /api/v1/settings`
+
+Roles: `OWNER`, `MANAGER`.
+
+No parameters. Returns the full settings object for the restaurant in the token, with every default filled in.
+
+```json
+{
+  "success": true,
+  "data": {
+    "business": { "businessDayStartsAtMinutes": 300 },
+    "tax": { "pricingMode": "EXCLUSIVE", "defaultTaxRateBps": 500, "roundOffEnabled": true },
+    "receipt": {
+      "headerLine1": null,
+      "headerLine2": null,
+      "footerText": "Thank you, visit again.",
+      "showGstin": true,
+      "showFssai": true,
+      "showServerName": false
+    },
+    "inventory": { "lowStockAlertsEnabled": true }
+  }
+}
+```
+
+A restaurant created before M7 has no `settings.tax` object in its document. This endpoint still returns the block above, filled from schema defaults. There is no migration and no seeding step.
+
+## 3. `PATCH /api/v1/settings`
+
+Roles: **`OWNER` only.**
+
+Owner-only because this object contains the GST pricing mode, which is a legally significant choice, and the business day boundary, which silently moves which day every future sale lands on. Neither is a thing a manager should be able to change on a Tuesday afternoon.
+
+Request. Every group optional, every field within a group optional, at least one field present overall. Send only what changes.
+
+```json
+{
+  "tax": { "defaultTaxRateBps": 1800 },
+  "receipt": { "footerText": "GST included. Thank you." }
+}
+```
+
+Response 200 returns the full settings object, same shape as `GET`.
+
+Failure 400 if the body is empty or contains an unknown group or an unknown field. **Reject unknown keys loudly rather than ignoring them.** A settings endpoint that silently drops a typo'd field name is how someone spends an hour wondering why their change did nothing.
+
+### Every change is audited
+
+Each field that actually changes value writes one `auditlogs` document.
+
+```
+action: "SETTINGS_CHANGED"
+entityType: "SETTINGS"
+entityId: the restaurantId
+entityLabel: the dotted path, for example "tax.defaultTaxRateBps"
+reason: from the request body, required
+amountInPaise: null
+details: { "field": "tax.defaultTaxRateBps", "previousValue": "500", "newValue": "1800" }
+```
+
+`reason` is a required string on the request body, 1 to 200 characters, and applies to the whole patch. Not defaulted to `""`. An owner changing the GST pricing mode with no recorded reason is exactly the kind of gap the audit log exists to close.
+
+A field sent with a value identical to the stored one writes no audit line and is not an error.
+
+`auditlogs.action` gains `SETTINGS_CHANGED` and `entityType` gains `SETTINGS`. Both are additive to a closed enum, the same append-only discipline `errors.js` follows.
+
+---
+
+## 4. What is stored but deliberately not yet wired
+
+Two settings are saved, validated, returned, and read by nothing.
+
+`tax.pricingMode` and `tax.roundOffEnabled` both change M3's bill arithmetic. M3's tax code is frozen, tested to the paisa, and carries a documented per-slab rounding rule. Rewiring it from inside a settings module is how billing breaks quietly.
+
+So M7 stores them and stops there. Wiring them into `server/utils/tax.js` is its own task, with its own tests, and must not run before a chartered accountant has confirmed which pricing mode the pilot restaurant actually uses. That question is already in the known problems table as decision D1's open risk.
+
+The settings screen shows both fields with a short note saying they take effect once billing is updated. That is honest, and it is better than hiding a control an owner will ask about.
+
+`settings.receipt.*` is likewise consumed by nothing until Phase 2 printing exists. It is stored now because the values are worth collecting during onboarding, not because anything reads them today.
+
+## 5. What is wired now
+
+`tax.defaultTaxRateBps` — `POST /api/v1/menu-items` uses it as the default when `taxRateBps` is absent from the request body. The field stays required in the schema and required on the stored document; only the API's default changes. An explicitly sent rate always wins.
+
+`inventory.lowStockAlertsEnabled` — when false, `GET /api/v1/reports/dashboard` returns an empty `lowStock` array and the inventory low-stock read returns an empty list. The data is unchanged; only the surfacing is switched off.
+
+Both are one-line reads through `settingsService`. Neither changes stored data or frozen arithmetic.
+
+---
+
+## 6. `settingsService`
+
+`server/services/settingsService.js` is the only place any module reads settings from.
+
+`getSettings(restaurantId)` returns the full object with defaults applied.
+
+`getSetting(restaurantId, path)` returns one value by dotted path.
+
+No controller reads `restaurant.settings` directly. Same discipline as no controller reading `process.env` and no controller touching `passwordHash`. When a setting moves or gains a default, one file changes.
+
+Cache within a single request only, on `req`. Do not add a process-level cache with a time-to-live. A stale settings cache means an owner changes the business day boundary, sees nothing happen, changes it again, and now two servers disagree about which day a sale belongs to.
+
+---
+
+## Permission summary for M7
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| GET /settings | yes | yes | no | no | no | no |
+| PATCH /settings | yes | no | no | no | no | no |
+
+---
+
+## Decisions made for M7
+
+**No settings collection.** Settings live on `restaurants`, which already has a `settings` object and is already read on every authenticated request. A separate collection adds a lookup to gain nothing.
+
+**No per-branch settings.** Version 1 is one branch per restaurant. A `branchId` on a settings document would be dead weight and a decision made without a customer.
+
+**No settings history collection.** The audit log is the history.
+
+**`businessDayStartsAtMinutes` stays at the top level of `settings`.** Nesting it for tidiness would break M3, M5 and M6 at once.
+
+**The M5 open-shift threshold stays a constant.** Decision D5 made it one deliberately and M7 does not reopen it.
+
+**Unknown keys in a PATCH are rejected, not ignored.**
+# M8 Audit Trail
+
+Owner: Rishi.
+
+**M8 adds no collection.** `auditlogs` was built by M3. M8 does three things to it: makes it readable, makes it structurally append-only, and closes the coverage gaps where a trust-relevant action currently leaves no trace.
+
+BUILD-PLAN section 7 calls the audit trail the feature that sells the product to an owner losing money to a dishonest cashier. Right now it is a write-only collection. An audit log nobody can read is not a feature, it is disk usage.
+
+---
+
+## Sequencing
+
+M8 must be built **after M7 is merged.** Both append to `auditlogs.action` and `auditlogs.entityType`, in the same two lines of the same file. Run them in parallel and you get a conflict for no reason.
+
+M8 also uses `businessDateRangeToUtc` from `server/utils/time.js`, which M6 introduces. If M6 has not merged, M8 writes that function itself, in that exact file with that exact signature, and the merge resolves cleanly. Section 9.2 covers this.
+
+---
+
+## 1. What currently writes an audit line
+
+| Action | Entity | Written by |
+|---|---|---|
+| `BILL_VOIDED` | `BILL` | M3 |
+| `DISCOUNT_APPLIED` | `BILL` | M3 |
+| `STOCK_ADJUSTED` | `STOCK` | M4 |
+| `ORDER_CANCELLED` | `ORDER` | M2 via M3 |
+| `SETTINGS_CHANGED` | `SETTINGS` | M7 |
+
+## 2. What M8 adds
+
+Each of these is an action an owner would want to see and which today leaves nothing behind.
+
+| Action | Entity | Written by | Why it matters |
+|---|---|---|---|
+| `USER_DEACTIVATED` | `USER` | M0-C | Someone removing a colleague's access |
+| `USER_REACTIVATED` | `USER` | M0-C | Someone restoring an account that was switched off for a reason |
+| `USER_ROLE_CHANGED` | `USER` | M0-C | A manager promoting an accomplice to a role that can void bills |
+| `USER_PASSWORD_RESET` | `USER` | M0-C | A manager resetting someone's password is a way to use their account |
+| `USER_PIN_RESET` | `USER` | M0-D | Same, for the attendance clock |
+| `MENU_PRICE_CHANGED` | `MENU_ITEM` | M1 | A price quietly moved before or after a shift |
+| `RECIPE_CHANGED` | `RECIPE` | M4 | Changing a recipe changes how much stock a sale deducts. It is the cleanest way to hide theft in this system. |
+
+`entityType` gains `USER`, `MENU_ITEM`, `RECIPE`.
+
+`MENU_PRICE_CHANGED` fires only when `priceInPaise`, a variant's `priceInPaise`, an add-on's `priceInPaise`, or `taxRateBps` changes. Renaming a dish or editing its description writes nothing. An audit log that records every keystroke is one nobody reads.
+
+`RECIPE_CHANGED` fires on any change to `items[]`: an ingredient added, removed, or its `qtyInBase` altered.
+
+## 3. What deliberately does not write an audit line
+
+Normal operation. Taking an order, firing a KOT, marking a dish ready, recording a payment, clocking in. These are the job, not exceptions to it, and burying seven real events in forty thousand routine ones defeats the collection.
+
+Creating a user, creating a menu item, creating an ingredient. Creation is visible in the record itself, with `createdAt` and a creator. It is the later quiet change that needs a trail.
+
+Attendance corrections. See section 6.
+
+---
+
+## 4. `GET /api/v1/audit`
+
+Roles: `OWNER` full access. `MANAGER` restricted, see below.
+
+Query parameters, all optional except the range.
+
+| Parameter | Notes |
+|---|---|
+| `from`, `to` | `"YYYY-MM-DD"` business dates. Both required. Max 366 days. |
+| `action` | One of the enum values, or a comma-separated list |
+| `entityType` | One of the enum values |
+| `actorId` | Filter to one person |
+| `page`, `limit` | Default 50, max 200 |
+
+Sorted by `at` descending. Newest first, because the question is almost always "what happened recently".
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "669a...",
+      "action": "BILL_VOIDED",
+      "entityType": "BILL",
+      "entityId": "668a...",
+      "entityLabel": "2026-27/000148",
+      "actorId": "664f...",
+      "actorName": "Kaival",
+      "actorRole": "CASHIER",
+      "at": "2026-08-29T15:04:00.000Z",
+      "reason": "Wrong table",
+      "amountInPaise": 68400,
+      "details": {},
+      "source": "AUDIT_LOG"
+    }
+  ],
+  "meta": { "page": 1, "limit": 50, "total": 213 }
+}
+```
+
+`actorName` is resolved at read time from `users`, not stored. `actorRole` **is** stored, snapshotted at the time of the action, because roles change and the question is what they were allowed to do then.
+
+If the actor's user record has since been deactivated, `actorName` still resolves. Nothing is hard deleted, so the name is always there.
+
+`source` is either `AUDIT_LOG` or `ATTENDANCE_CORRECTION`. See section 6.
+
+### The manager restriction
+
+A `MANAGER` sees only entries whose action is `ORDER_CANCELLED` or `STOCK_ADJUSTED`. Everything else returns nothing for them.
+
+The reason is plain: this collection exists to catch an insider, and a manager is an insider. A manager who can read the log knows exactly which of their actions were recorded. But a manager investigating a stock discrepancy or a run of cancelled orders is doing their job, so those two stay open.
+
+The filter is applied server-side by injecting it into the query, not by post-filtering the results. A post-filter leaks the true `total` in the pagination block.
+
+## 5. `GET /api/v1/audit/entity/:entityType/:entityId`
+
+Roles: `OWNER` full. `MANAGER` restricted the same way as section 4.
+
+Everything that ever happened to one record, oldest first, so it reads as a history.
+
+No date range, no pagination. One bill has a handful of audit lines, not thousands.
+
+404 if the entity belongs to another restaurant. Never 403.
+
+## 6. Attendance corrections are merged at read time, not copied
+
+M5 embedded its correction trail on the attendance entry as `corrections[]`, decision D3. M3 revisited it and left it there, on the grounds that rewriting live attendance data to move an audit trail gains nothing and risks the one record that exists to be trustworthy.
+
+M8 agrees and does not copy them either. It merges them at read time.
+
+When `GET /audit` runs with no `entityType` filter, or with `entityType=ATTENDANCE`, it also queries `attendanceentries.corrections[]` across the range and maps each one into the same response shape:
+
+```
+action        ATTENDANCE_CORRECTED
+entityType    ATTENDANCE
+entityId      the attendance entry id
+entityLabel   the staff member's name plus the business date
+actorId       corrections[].correctedBy
+actorRole     resolved from users at read time, since M5 did not snapshot it
+at            corrections[].correctedAt
+reason        corrections[].reason
+amountInPaise null
+details       { field, previousValue, newValue }
+source        ATTENDANCE_CORRECTION
+```
+
+`entityType` gains `ATTENDANCE` and `action` gains `ATTENDANCE_CORRECTED` **as read-time values only.** Nothing ever writes them to the `auditlogs` collection. Document this in the model file, because a future reader will otherwise see the enum values and assume something writes them.
+
+`actorRole` on a merged correction is the actor's role **now**, not at the time, because M5 did not snapshot it. Mark this in the response with `actorRoleIsCurrent: true` on merged entries only. Do not silently present a current role as a historical one.
+
+This is `OWNER` only. A manager does not read attendance corrections, because correcting attendance is a manager's own action.
+
+## 7. `GET /api/v1/audit/summary?from=&to=`
+
+Roles: **`OWNER` only.**
+
+This is the report that sells the product.
+
+```json
+{
+  "success": true,
+  "data": {
+    "from": "2026-08-01",
+    "to": "2026-08-31",
+    "byAction": [
+      { "action": "BILL_VOIDED", "count": 34, "amountInPaise": 284000 },
+      { "action": "DISCOUNT_APPLIED", "count": 184, "amountInPaise": 3200000 }
+    ],
+    "byActor": [
+      {
+        "actorId": "664f...",
+        "actorName": "Kaival",
+        "actorRole": "CASHIER",
+        "totalCount": 41,
+        "voidCount": 28,
+        "voidAmountInPaise": 231000,
+        "discountCount": 13,
+        "discountAmountInPaise": 84000
+      }
+    ],
+    "totalEventCount": 267
+  }
+}
+```
+
+`byActor` is sorted by `voidAmountInPaise` descending. The person voiding the most money appears first, which is the whole point.
+
+An owner looking at this sees one cashier who voided twenty-eight bills when everyone else voided two. That is a conversation they cannot currently have, and it is the single most concrete thing in the sales pitch.
+
+`byActor` excludes attendance corrections. Mixing a manager's legitimate timesheet fixes into a money-and-trust ranking makes the ranking useless.
+
+---
+
+## 8. Append-only, enforced structurally
+
+`auditlogs` is append-only by convention today. M8 makes it append-only by construction.
+
+A Mongoose plugin, `appendOnlyGuard`, attaches `pre` hooks to `findOneAndUpdate`, `updateOne`, `updateMany`, `findOneAndDelete`, `deleteOne`, `deleteMany`, and `save` on an existing document. Each throws `AuditLogImmutableError`.
+
+Same spirit as `tenantGuard`: turn the worst possible mistake from a silent data problem into a loud crash on a developer's machine.
+
+There is no escape hatch. `tenantGuard` needed one because three legitimate lookups run before tenant context exists. Nothing legitimately updates an audit line. If a line is wrong, the truth is that a wrong line was written, and the fix is a new line saying so.
+
+**No TTL index.** `refreshtokens` has one because expired session state has no audit value. This collection is the audit value. A few thousand rows a month is nothing, and the moment an owner most needs the log is the moment someone would most want it gone.
+
+---
+
+## Permission summary for M8
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| GET /audit | yes, all | yes, ORDER_CANCELLED and STOCK_ADJUSTED only | no | no | no | no |
+| GET /audit/entity/:type/:id | yes, all | same restriction | no | no | no | no |
+| GET /audit/summary | yes | no | no | no | no | no |
+
+---
+
+## Decisions made for M8
+
+**Manager access is restricted to two actions.** The collection exists to catch insiders and a manager is one. Operational investigation stays open; trust and money do not.
+
+**Attendance corrections are merged at read time, never copied.** Two shapes, one feed, no data rewritten. Third module to reach this conclusion; it is settled.
+
+**Creation events are not audited.** Only later quiet changes.
+
+**Renaming a dish is not audited. Changing its price is.**
+
+**Recipe changes are audited**, because a recipe change is the cleanest way to hide stock theft in this system and nothing currently records it.
+
+**No retention limit, no TTL, no archival.**
+
+**No hash chain or cryptographic tamper evidence.** The append-only guard plus no update path is proportionate at this scale. Revisit if a customer ever asks a question this cannot answer.
+
+**No CSV export.** Same call as M6. A day of work whenever someone asks.

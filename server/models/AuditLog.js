@@ -1,0 +1,102 @@
+/**
+ * Who did the thing that involved money or trust, when, and why.
+ *
+ * Shapes come from docs/DB-SCHEMA.md section 13.
+ *
+ * BUILD-PLAN section 7 calls the audit trail the feature that sells this
+ * product to an owner losing money to a dishonest cashier. M5 decision D3
+ * deferred the shared collection to M3 on the grounds that M3 would be the
+ * module to need it. This is that collection.
+ *
+ * APPEND ONLY. There is no update and no delete endpoint, and no code path
+ * writes to an existing document. A tamperable audit log is worse than none,
+ * because it is trusted.
+ */
+import mongoose from 'mongoose';
+
+import { MAX_PAISE } from '../utils/money.js';
+import { baseSchemaPlugin } from './plugins/baseSchema.js';
+import { tenantGuardPlugin } from './plugins/tenantGuard.js';
+
+/**
+ * Closed, like the role list. A new action is a deliberate addition.
+ *
+ * Append only, the same discipline `utils/errors.js` follows. `SETTINGS_CHANGED`
+ * was appended by M7; nothing above it was touched.
+ */
+export const AUDIT_ACTIONS = Object.freeze({
+  BILL_VOIDED: 'BILL_VOIDED',
+  DISCOUNT_APPLIED: 'DISCOUNT_APPLIED',
+  STOCK_ADJUSTED: 'STOCK_ADJUSTED',
+  ORDER_CANCELLED: 'ORDER_CANCELLED',
+  SETTINGS_CHANGED: 'SETTINGS_CHANGED',
+});
+export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
+
+export const AUDIT_ENTITY_TYPES = Object.freeze({
+  BILL: 'BILL',
+  STOCK: 'STOCK',
+  ORDER: 'ORDER',
+  SETTINGS: 'SETTINGS',
+});
+export const AUDIT_ENTITY_TYPE_VALUES = Object.freeze(Object.values(AUDIT_ENTITY_TYPES));
+
+export const AUDIT_REASON_MAX_LENGTH = 500;
+export const AUDIT_LABEL_MAX_LENGTH = 100;
+
+const auditLogSchema = new mongoose.Schema({
+  action: { type: String, required: true, enum: AUDIT_ACTION_VALUES },
+  entityType: { type: String, required: true, enum: AUDIT_ENTITY_TYPE_VALUES },
+  entityId: { type: mongoose.Schema.Types.ObjectId, required: true },
+
+  /** A human handle that survives, such as the bill number, so a line reads without a join. */
+  entityLabel: { type: String, trim: true, maxlength: AUDIT_LABEL_MAX_LENGTH, default: null },
+
+  actorId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
+
+  /** Snapshot of the role at the time, because roles change and the log must not. */
+  actorRole: { type: String, required: true },
+
+  at: { type: Date, required: true },
+
+  reason: {
+    type: String,
+    required: true,
+    trim: true,
+    minlength: 1,
+    maxlength: AUDIT_REASON_MAX_LENGTH,
+  },
+
+  /** The money involved, where there is one: the discount given, the bill voided. */
+  amountInPaise: {
+    type: Number,
+    min: -MAX_PAISE,
+    max: MAX_PAISE,
+    default: null,
+    validate: {
+      validator: (value) => value === null || Number.isInteger(value),
+      message: 'Must be a whole number of paise.',
+    },
+  },
+
+  /**
+   * Small, flat, and free of personal data. Not a dumping ground.
+   *
+   * BUILD-PLAN section 7 keeps staff names and phone numbers out of logs, and
+   * this collection is a log.
+   */
+  details: { type: mongoose.Schema.Types.Mixed, default: null },
+});
+
+auditLogSchema.plugin(baseSchemaPlugin);
+auditLogSchema.plugin(tenantGuardPlugin);
+
+/** The audit read: what happened here lately. */
+auditLogSchema.index({ restaurantId: 1, branchId: 1, at: -1 });
+
+/** Everything that ever happened to this one bill. */
+auditLogSchema.index({ restaurantId: 1, entityType: 1, entityId: 1 });
+
+export const AuditLog = mongoose.model('AuditLog', auditLogSchema);
+
+export default AuditLog;

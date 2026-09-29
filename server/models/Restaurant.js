@@ -1,0 +1,237 @@
+/**
+ * The tenant. One document per customer restaurant.
+ *
+ * THIS MODEL APPLIES NEITHER baseSchema NOR tenantGuard. That is deliberate
+ * and it is the exception documented in docs/DB-SCHEMA.md.
+ *
+ * A restaurant document does not belong to a restaurant. It IS the restaurant.
+ * Its `_id` is the value every other collection stores as `restaurantId`.
+ * Applying the guard here would block every legitimate query, because there is
+ * no `restaurantId` field to filter on.
+ *
+ * The cost of that exemption: every query against this collection is
+ * unguarded, so every one has to be correct by inspection. There are exactly
+ * two legitimate patterns:
+ *
+ *   1. Lookup by `_id` taken from a verified access token.
+ *   2. The provisioning script.
+ *
+ * Any third pattern is a bug. If you are about to write `Restaurant.find()`
+ * with a filter that did not come from a token, stop.
+ */
+import mongoose from 'mongoose';
+
+const addressSchema = new mongoose.Schema(
+  {
+    line1: { type: String, trim: true },
+    line2: { type: String, trim: true },
+    city: { type: String, trim: true },
+    state: { type: String, trim: true },
+    pincode: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
+const wholeNumber = {
+  validator: Number.isInteger,
+  message: 'Must be a whole number.',
+};
+
+/** Whether `menuitems.priceInPaise` is the price before or after GST. */
+export const TAX_PRICING_MODES = Object.freeze({
+  EXCLUSIVE: 'EXCLUSIVE',
+  INCLUSIVE: 'INCLUSIVE',
+});
+export const TAX_PRICING_MODE_VALUES = Object.freeze(Object.values(TAX_PRICING_MODES));
+
+/**
+ * An 80mm thermal roll fits roughly 42 characters per line at normal font. A
+ * longer line wraps and destroys the layout, which BUILD-PLAN section 12 names
+ * as the printer problem. Caught here, at data entry, rather than in a kitchen
+ * during Phase 2.
+ */
+export const RECEIPT_HEADER_MAX_LENGTH = 40;
+export const RECEIPT_FOOTER_MAX_LENGTH = 200;
+
+/**
+ * Tax configuration. Shapes from docs/DB-SCHEMA.md section 17.
+ *
+ * `pricingMode` and `roundOffEnabled` are STORED AND READ BY NOTHING. That is
+ * deliberate, not an oversight. M3's tax arithmetic is frozen, tested to the
+ * paisa, and carries a documented per-slab rounding rule, and rewiring it from
+ * inside a settings module is how billing breaks quietly. Wiring them is its
+ * own task with its own tests, and it must not run before a chartered
+ * accountant has confirmed which pricing mode the pilot actually uses.
+ *
+ * `defaultTaxRateBps` is wired: POST /menu-items fills it in when the request
+ * omits `taxRateBps`. It changes only the API's default. Every stored item
+ * still carries its own rate, so changing this tomorrow moves nothing that
+ * already exists.
+ */
+const taxSettingsSchema = new mongoose.Schema(
+  {
+    pricingMode: {
+      type: String,
+      required: true,
+      enum: TAX_PRICING_MODE_VALUES,
+      default: TAX_PRICING_MODES.EXCLUSIVE,
+    },
+    defaultTaxRateBps: {
+      type: Number,
+      required: true,
+      default: 500,
+      min: 0,
+      max: 10_000,
+      validate: wholeNumber,
+    },
+    roundOffEnabled: { type: Boolean, required: true, default: true },
+  },
+  { _id: false },
+);
+
+/**
+ * Receipt text and print toggles. Consumed by nothing until Phase 2 thermal
+ * printing exists; stored now because these are worth collecting during
+ * onboarding rather than on the morning of a pilot.
+ */
+const receiptSettingsSchema = new mongoose.Schema(
+  {
+    headerLine1: {
+      type: String,
+      trim: true,
+      maxlength: RECEIPT_HEADER_MAX_LENGTH,
+      default: null,
+    },
+    headerLine2: {
+      type: String,
+      trim: true,
+      maxlength: RECEIPT_HEADER_MAX_LENGTH,
+      default: null,
+    },
+    footerText: {
+      type: String,
+      trim: true,
+      maxlength: RECEIPT_FOOTER_MAX_LENGTH,
+      default: null,
+    },
+    showGstin: { type: Boolean, required: true, default: true },
+    showFssai: { type: Boolean, required: true, default: true },
+    showServerName: { type: Boolean, required: true, default: false },
+  },
+  { _id: false },
+);
+
+const inventorySettingsSchema = new mongoose.Schema(
+  {
+    /**
+     * When false the low-stock reads return an empty list and the dashboard
+     * returns an empty `lowStock` array. The quantities themselves are
+     * untouched: this switches off the surfacing, not the data.
+     */
+    lowStockAlertsEnabled: { type: Boolean, required: true, default: true },
+  },
+  { _id: false },
+);
+
+/**
+ * Restaurant-level settings. Every field has a default, which is what makes M7
+ * a no-migration change: a document written before M7 reads back a complete
+ * settings object because Mongoose fills missing paths on read.
+ *
+ * `services/settingsService.js` is the only place any module reads these from.
+ * No controller reaches in here directly, the same discipline as no controller
+ * reading the environment and no controller touching `passwordHash`.
+ */
+const settingsSchema = new mongoose.Schema(
+  {
+    /**
+     * Minutes past midnight IST at which the business day rolls over. 300 is
+     * 05:00. A restaurant that closes after midnight counts those sales and
+     * shifts under the day the service started. See docs/DB-SCHEMA.md section 1
+     * and the decision log, D1. M5 reads this to derive an entry's businessDate.
+     *
+     * DO NOT MOVE THIS FIELD, and in particular do not nest it under
+     * `settings.business` to match the shape of the API response.
+     *
+     * M3 derives every bill's `businessDate` from it, M5 derives every
+     * attendance entry's, and M6 reads it for every report. Nesting it would be
+     * tidier and would break three shipped modules at once, on the one field
+     * that decides which day a sale belongs to, and would need a migration to
+     * do it. Tidiness is not worth that.
+     *
+     * The API groups it under `business` for readability. That mapping lives in
+     * `services/settingsService.js` and nowhere else.
+     */
+    businessDayStartsAtMinutes: {
+      type: Number,
+      required: true,
+      default: 300,
+      min: 0,
+      max: 1439,
+      validate: { validator: Number.isInteger, message: 'Must be a whole number of minutes.' },
+    },
+
+    tax: { type: taxSettingsSchema, default: () => ({}) },
+    receipt: { type: receiptSettingsSchema, default: () => ({}) },
+    inventory: { type: inventorySettingsSchema, default: () => ({}) },
+  },
+  { _id: false },
+);
+
+const restaurantSchema = new mongoose.Schema(
+  {
+    /** Trading name. Shown on screen. */
+    name: { type: String, required: true, trim: true },
+
+    /** Registered company name. Appears on a GST invoice. */
+    legalName: { type: String, trim: true },
+
+    /** 15 characters. Optional because a small restaurant may not be registered. */
+    gstin: { type: String, trim: true, uppercase: true },
+
+    /** 14 digits. */
+    fssaiLicenseNumber: { type: String, trim: true },
+
+    address: { type: addressSchema, default: () => ({}) },
+
+    contactPhone: { type: String, trim: true },
+    contactEmail: { type: String, trim: true, lowercase: true },
+
+    settings: { type: settingsSchema, default: () => ({}) },
+
+    /**
+     * Platform-controlled, not customer-controlled. PATCH /restaurant rejects
+     * this field. Deactivating a restaurant is our operation, not theirs.
+     */
+    isActive: { type: Boolean, required: true, default: true },
+  },
+  {
+    // createdAt and updatedAt as real Date objects, which Mongo stores in UTC.
+    timestamps: true,
+
+    /**
+     * Written out by hand because baseSchema is not applied here. Without it
+     * this collection would answer with `_id` and `__v`, and every M0 response
+     * shape in docs/API-CONTRACT.md says `id`.
+     */
+    toJSON: {
+      versionKey: false,
+      transform(_document, record) {
+        record.id = record._id?.toString();
+        delete record._id;
+        delete record.__v;
+        return record;
+      },
+    },
+  },
+);
+
+/**
+ * No compound index. docs/DB-SCHEMA.md is explicit that `_id` is enough: this
+ * collection holds tens of documents, not millions. An index added "just in
+ * case" here costs writes and buys nothing.
+ */
+
+export const Restaurant = mongoose.model('Restaurant', restaurantSchema);
+
+export default Restaurant;
