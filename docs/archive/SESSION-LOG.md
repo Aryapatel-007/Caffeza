@@ -1,5 +1,99 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-08-30 Rishi, seed data and the end-to-end Atlas verification
+
+**What was built:** `scripts/seedDemo.js`, wired to `npm run seed:demo`, plus a
+full manual verification pass against the real Atlas cluster. This is the
+last piece of the M3 + M4 build; both modules are now feature-complete and
+proven end to end, not just unit tested.
+
+**The seed script**
+
+Drives the real HTTP API -- boots the same `createApp()` the server listens
+with, the way `tests/helpers/testServer.js` already does for tests -- rather
+than writing documents to collections by hand, so seed data cannot
+accidentally disagree with a business rule the API itself enforces.
+
+Refuses outside `development`/`test`, and refuses any `MONGO_URI` host that
+is not localhost and not explicitly named in the new `SEED_DEMO_ALLOWED_HOSTS`
+env var (`.env.example` updated). Idempotent by wiping and rebuilding: two
+fixed-named restaurants, "Demo Restaurant A" and "Demo Restaurant B", looked
+up by name and every collection scoped to that `restaurantId` deleted before
+rebuilding fresh. Verified by running it twice in a row.
+
+What it creates, in Demo Restaurant A: all six roles with a known password,
+printed once; a real Ahmedabad menu across four categories, all three GST
+slabs (5%, 18%, 0% on Masala Chaas) and a 66-character dish name; two items
+with variants and add-ons, one recipe attached at the variant level so the
+half-plate-does-not-over-deduct case is real seeded data, not only a test;
+five ingredients across all three base units, one already below its
+threshold at seed time, one bought in kilograms and used in grams; six
+tables; six bills covering a paid multi-slab order, a 10% discount, a voided
+bill, a cancelled-after-fire line with `wasPrepared:false` (stock returns)
+and one with `wasPrepared:true` (stock stands), a dish fired with no recipe
+attached, and two bills backdated across the 05:00 IST business-day boundary
+(23:45 and 00:30). Demo Restaurant B is minimal: one owner, one item, one
+open order, existing only so a tenant-isolation check has a second restaurant
+to fail against.
+
+`api/client.js`'s `put` addition from the M4 screens session and every
+endpoint built across this whole M3+M4 build are exercised by this script
+firing for real.
+
+**The verification, against the real Atlas cluster, every item on the
+Section 11 checklist**
+
+Order taken, fired, stock deducted: confirmed -- Paneer carries real
+`DEDUCTION` movements with no duplicate `eventKey`s. Item cancelled after
+fire answered "not made": confirmed -- two `CANCELLATION_RETURN` movements
+exist, each the exact negation of the `DEDUCTION` it reverses. Bill
+generated, GST correct per slab: confirmed on all six bills -- `totalTaxInPaise`
+equals the sum of the slabs, every slab's CGST plus SGST equals its tax with
+CGST never the smaller half, every bill reconciles
+`subtotal - discount + tax + roundOff = grandTotal`, every grand total is a
+whole rupee. One bill genuinely spans two slabs; the zero-rated slab appears
+on another. Discount applied and audited: confirmed -- the `DISCOUNT_APPLIED`
+audit row's amount and reason match the bill's own discount exactly. Payment
+recorded: confirmed -- every `PAID` bill has `amountPaidInPaise` equal to its
+`grandTotalInPaise`. Receipt text matches the printer width: confirmed live
+over HTTP at both 32 and 48 columns against the real 66-character seeded dish
+name -- every line fits, the wrap indents under itself, the amount column
+stays aligned. Bill voided with a reason: confirmed, and its
+`BILL_VOIDED` audit row exists. Sales total excludes it: confirmed live
+against `GET /bills/summary` -- the voided bill's amount appears only in
+`voidedInPaise`, never in `netInPaise` or `grossInPaise`. Bill number not
+reused: confirmed -- six unique numbers, sequence 1 through 6 with no gap,
+the voided bill keeping `2026-27/000004` rather than surrendering it. Stock
+ledger reconciles with `currentQty`: confirmed on every one of the five
+seeded ingredients, summing every movement from zero exactly matches the
+cached quantity.
+
+Two more things the checklist did not name but this build's own decisions
+promised, both confirmed live: a bill at 23:45 IST and one at 00:30 IST the
+same night both carry `businessDate: "2026-08-29"` under the default 05:00
+boundary -- the exact business-day case BUILD-PLAN section 8 and M5 D1 exist
+to get right. And `GET /inventory/unmapped` lists Gulab Jamun, fired with no
+recipe attached, by name.
+
+**What the other developer needs to know**
+
+`npm run seed:demo` is safe to run against your own local MongoDB with no
+extra configuration; running it against the shared Atlas cluster needs
+`SEED_DEMO_ALLOWED_HOSTS` set explicitly in `.env`, on purpose. Demo Restaurant
+A and B now live permanently on Atlas as a result of this session's own run,
+logged in the known problems table so nobody mistakes them for real customer
+data or wonders where they came from. Re-running the script resets them
+cleanly.
+
+**Unblocked:** nothing left in this build. M3 and M4 are both
+feature-complete: server, screens, and a verified, realistic demo environment.
+
+**Still open, and none of it closable by more code:** the CA review of the
+GST output and the real-thermal-printer test, both pilot gates BUILD-PLAN
+section 10 names explicitly. Arya's read, now owed on three modules instead
+of two. The Atlas credential purge from git history at `177ed9c`, unrelated
+to this build and still deferred from M0.
+
 ### 2026-08-30 Rishi, M4 screens
 
 **What was built:** the three M4 screens, on `feat/m4/inventory`, on top of

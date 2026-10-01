@@ -4011,6 +4011,9 @@ Each payment freezes `methodName`, `methodKind`, `tallyLedgerCode`,
 `businessDateFor`. Old payments have null frozen fields: readers treat a null
 `methodKind` as `IN_HAND` and a null `businessDate` as the bill's.
 
+A `method` that is not 2 to 20 capital letters, digits and `_` is a 400. A
+well-formed code the restaurant does not have is rule 1, a 422 (P08).
+
 A bill that is `ON_ACCOUNT` takes no payment: 422 `BUSINESS_RULE_VIOLATED`.
 Refused with 409 `DAY_CLOSED` when the bill's business date, or today's, is
 closed (P10).
@@ -4080,6 +4083,19 @@ bill is refused like a paid one.
 | POST /bills/:id/payments | yes | yes | yes | no | no | no |
 | POST /bills/:id/payments/:paymentId/correct | yes | yes | no | no | no | no |
 | POST /bills/:id/discount | yes | yes | platform reasons, when the setting is on | no | no | no |
+
+## Settled while building P08
+
+The discount `reason` stored on the bill is the note; receipts, the M6
+discounts report and the audit line print the reason's label followed by ": "
+and the note, through `discountReasonText` in `server/config/discountReasons.js`.
+A discount from before P08 keeps its free text.
+
+Provisioning creates the four built-in methods inside its transaction; the
+no-transaction fallback removes them again if a later step fails.
+
+`GET /auth/me` returns `discounts.cashierMayApplyPlatformDiscounts`, so the till
+knows whether to show a cashier the discount panel. See section 1.5.
 
 ## Error codes added by M10
 

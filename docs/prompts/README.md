@@ -14,7 +14,7 @@ The full table, with dependencies and owners, is in
 | P05 | Kitchen stations and printing | Done |
 | P06 | Delivery and platform orders | Done |
 | P07 | Settlement spec | Done |
-| P08 | Payment methods, discount reasons and No Charge | Not run |
+| P08 | Payment methods, discount reasons and No Charge | Done |
 | P09 | On Hold accounts and platform payouts | Not run |
 | P10 | Cash drawer and Day Close | Not run |
 | P11 | Caffeza setup and menu import | Not run |

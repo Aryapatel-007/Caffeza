@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P08, payment methods, discount reasons and No Charge.
+Next: P09, On Hold accounts and platform payouts.
 
 ---
 
@@ -42,8 +42,8 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M6 | Reports and Dashboard | Rishi | IN PROGRESS | Server and screens both built on `feat/m6/reports`: ten read-only endpoints, no collection, 34 tests, seven screens. Verified live against the seeded Atlas data, where its figures reconcile exactly with the independent Section 11 verification. Not done under BUILD-PLAN section 13: Arya has not read it. |
 | M7 | Restaurant Settings | Rishi | DONE | Phase 1B's first module. Two endpoints, no new collection: `restaurants.settings` gains `tax`, `receipt` and `inventory`, every field with a schema default so there is no migration. `settingsService` is now the only way any module reads configuration. 27 new tests. Verified live against the Atlas cluster, including a genuine pre-M7 document reading back complete. Not done under BUILD-PLAN section 13: Arya has not read it. P02 added `settings.features` (inventory and attendance switches, enforced by `requireFeature`) and `settings.invoice` (financial-year or prefix numbering). |
 | M8 | Audit Trail | Rishi | NOT STARTED | Specified in API-CONTRACT.md. Pulled forward for Caffeza. Built in P17 part A. |
-| M10 | Payments | Rishi | IN PROGRESS | Specified in P07. Payment methods as a configured list, frozen payment fields, method corrections, discount reasons. Built in P08. |
-| M16 | Settlement and Day Close | Rishi | IN PROGRESS | Specified in P07. No Charge (P08), On Hold accounts (P09), cash drawer and Day Close (P10). |
+| M10 | Payments | Rishi | IN PROGRESS | Specified in P07. Built in P08: configurable payment methods, frozen payment details, method corrections, discount reasons and funding. Arya's read outstanding. |
+| M16 | Settlement and Day Close | Rishi | IN PROGRESS | Specified in P07. No Charge built in P08. On Hold accounts (P09), cash drawer and Day Close (P10) to come. |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders and 0% platform tax built in P06. Payouts come in P09. Built by Rishi, off the listed owner. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | NOT STARTED | Every report in REPORT-SPEC.md. P13 to P18, proven by P21. |
@@ -302,6 +302,13 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | Day figures are computed in one place, `computeDayFigures`, used by Day Close and by the R2 report. A closed day refuses every write that would change it, through one helper, `assertDayOpen`. | The printed close and the report must never disagree, and a closed day must stay closed. |
 | 2026-10-01 | The Day Close cash count is blind for managers by default. | Standard practice against cash going missing. |
 | 2026-10-01 | P07 details settled while writing the spec: the built-in methods `CASH`, `CARD`, `UPI` are created if missing and `OTHER` starts inactive; a method's `code` and `kind` never change; charging a bill to an account is OWNER and MANAGER only until Caffeza says otherwise; collections take `IN_HAND` methods only; a `REOPENED` day is open and can be closed again; expected payout rounds per payment, half away from zero, through `applyBasisPoints`. | Each was a choice the prompt left open. Written down so P08 to P10 build one answer rather than three. |
+| 2026-10-01 | Services read the time only through `nowUtc()`, which tests can set with `setClockForTests`. Token times stay real. | The golden day happens at fixed times, including a payment after midnight. |
+| 2026-10-01 | A test reads every file in `server/services/` and `server/controllers/` and fails on `new Date()` with no argument, except `tokenService.js`. | The same guard shape as P01's time display tests, so a real clock read cannot creep back into a service. |
+| 2026-10-01 | `GET /auth/me` returns `discounts.cashierMayApplyPlatformDiscounts`, beside `features`. Added to the contract in P08. | P08 asked the bill screen to show a cashier the discount panel only when the setting allows, and a cashier cannot read `GET /settings`. The server still decides every discount. |
+| 2026-10-01 | A payment `method` code the restaurant does not have is a 422 `PAYMENT_METHOD_NOT_ALLOWED`; a malformed one is still a 400. The old M3 test expecting a 400 for `CRYPTO` was changed on purpose. | Methods are configured now, so an unknown but well-formed code is the "not an active method of this restaurant" rule, not bad input. |
+| 2026-10-01 | The receipt, the M6 discounts report and the audit line show a discount as its reason's label plus the note, through `discountReasonText`. The M6 test expecting the free text was changed on purpose. | From P08 `discount.reason` holds only the optional note, so printing it alone would print nothing, or `null` on a receipt. |
+| 2026-10-01 | `POST /bills/:id/discount` moved from the managers route list to the till list, and `billPermissionService.assertCanDiscount` decides. | A cashier may apply a platform discount when the owner allows it, and one function, not a route table, holds that rule. |
+| 2026-10-01 | Provisioning's no-transaction rollback now also removes the restaurant's payment methods. | Provisioning creates them, so a failed manual provisioning must not leave them behind. |
 
 ---
 
@@ -324,6 +331,68 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P08 payment methods, discount reasons and No Charge
+
+What was built or decided:
+A test clock: `nowUtc()` reads a replaceable clock, `setClockForTests` and
+`resetClockForTests` refuse outside `NODE_ENV=test`, every business-event
+`new Date()` in services and controllers now reads `nowUtc()`, and a guard test
+keeps it that way. Token times are untouched.
+
+M10: a `paymentmethods` collection. Cash, Card, UPI and an inactive Other are
+created by code when missing: at provisioning, and lazily before a list or a
+payment, so existing restaurants need no migration and a renamed method is never
+overwritten. `GET/POST/PATCH /payment-methods`; code and kind never change.
+Taking a payment checks the four rules (active, order type, a platform bill paid
+only by its platform, a platform method only on its platform's bills) and
+freezes the method's name, kind, Tally code, commission and the payment's own
+business date. `POST /bills/:id/payments/:paymentId/correct` changes only the
+method, keeps a `corrections` history and writes `PAYMENT_METHOD_CORRECTED`.
+
+Discounts take a fixed `reasonCode` from `server/config/discountReasons.js`
+(mirrored on the client), an optional note required for Other, and `fundedBy`.
+The old `reason` field is refused. `settings.discounts.cashierMayApplyPlatformDiscounts`
+lets a cashier give platform discounts only.
+
+M16 No Charge: order status `NO_CHARGE` with a frozen `noCharge` record,
+`POST /orders/:id/no-charge` (OWNER, MANAGER), four rules, one transaction,
+`NO_CHARGE_GIVEN`, the table freed, no bill and no invoice number.
+
+Client: payment buttons from the configured methods (a Swiggy bill shows only
+Swiggy), Change payment method on a paid bill for managers, the discount panel
+with reason buttons and Paid for by, a No Charge panel on the order screen, and
+Payment methods and Discounts sections in Settings.
+
+Golden day B02, B05 and B14 and N01 run through the API at their real times.
+B14's payment at 12:02 AM on 27 September carries business date 2026-09-26.
+
+Tests: 700 before, 730 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `models/PaymentMethod.js`, `services/paymentMethodService.js`,
+`services/noChargeService.js`, payment method controller, routes and
+validators, `config/discountReasons.js`, `config/noChargeReasons.js`, tests
+`clock.test.js` and `payments.test.js`, client `api/paymentMethods.js`,
+`MethodButtons.jsx`, `CorrectPaymentPanel.jsx`, `NoChargePanel.jsx`,
+`PaymentMethodsSection.jsx`. Changed: Bill, Order, Restaurant and AuditLog
+models, bill service, permissions, controller, routes and validators, order
+controller, routes and validators, `authController` (`discounts` on
+`/auth/me`), `receiptService`, `salesReportService`, provisioning,
+`seedDemo.js`, `utils/time.js`.
+Part of this work was committed mid-session as `be63016`.
+
+Anything the other developer needs to know:
+Call `nowUtc()`, never `new Date()`, in a service or controller. A payment's
+`methodKind` null reads as IN_HAND and a null `businessDate` as the bill's.
+The closed-day refusal points for P10 are marked with comments in
+`billService.recordPayment`, `billService.correctPayment` and
+`noChargeService.giveNoCharge`.
+Not done by hand in a browser yet: adding Zomato Gold, a Zomato Gold discount
+and payment corrected to UPI, and No Charge freeing a table on screen.
+
+Anything now blocked or unblocked:
+P09 and P11 can start.
 
 ### 2026-10-01 Rishi, P07 settlement spec
 
@@ -877,100 +946,6 @@ asserts it.
 **Still open:** Arya's read, now owed on four modules. M3's two pilot gates.
 Nothing in Phase 1B has been started, and BUILD-PLAN section 6 is explicit
 that it should not be until the conversation with Anshul and Om happens.
-
-### 2026-08-30 Rishi, seed data and the end-to-end Atlas verification
-
-**What was built:** `scripts/seedDemo.js`, wired to `npm run seed:demo`, plus a
-full manual verification pass against the real Atlas cluster. This is the
-last piece of the M3 + M4 build; both modules are now feature-complete and
-proven end to end, not just unit tested.
-
-**The seed script**
-
-Drives the real HTTP API -- boots the same `createApp()` the server listens
-with, the way `tests/helpers/testServer.js` already does for tests -- rather
-than writing documents to collections by hand, so seed data cannot
-accidentally disagree with a business rule the API itself enforces.
-
-Refuses outside `development`/`test`, and refuses any `MONGO_URI` host that
-is not localhost and not explicitly named in the new `SEED_DEMO_ALLOWED_HOSTS`
-env var (`.env.example` updated). Idempotent by wiping and rebuilding: two
-fixed-named restaurants, "Demo Restaurant A" and "Demo Restaurant B", looked
-up by name and every collection scoped to that `restaurantId` deleted before
-rebuilding fresh. Verified by running it twice in a row.
-
-What it creates, in Demo Restaurant A: all six roles with a known password,
-printed once; a real Ahmedabad menu across four categories, all three GST
-slabs (5%, 18%, 0% on Masala Chaas) and a 66-character dish name; two items
-with variants and add-ons, one recipe attached at the variant level so the
-half-plate-does-not-over-deduct case is real seeded data, not only a test;
-five ingredients across all three base units, one already below its
-threshold at seed time, one bought in kilograms and used in grams; six
-tables; six bills covering a paid multi-slab order, a 10% discount, a voided
-bill, a cancelled-after-fire line with `wasPrepared:false` (stock returns)
-and one with `wasPrepared:true` (stock stands), a dish fired with no recipe
-attached, and two bills backdated across the 05:00 IST business-day boundary
-(23:45 and 00:30). Demo Restaurant B is minimal: one owner, one item, one
-open order, existing only so a tenant-isolation check has a second restaurant
-to fail against.
-
-`api/client.js`'s `put` addition from the M4 screens session and every
-endpoint built across this whole M3+M4 build are exercised by this script
-firing for real.
-
-**The verification, against the real Atlas cluster, every item on the
-Section 11 checklist**
-
-Order taken, fired, stock deducted: confirmed -- Paneer carries real
-`DEDUCTION` movements with no duplicate `eventKey`s. Item cancelled after
-fire answered "not made": confirmed -- two `CANCELLATION_RETURN` movements
-exist, each the exact negation of the `DEDUCTION` it reverses. Bill
-generated, GST correct per slab: confirmed on all six bills -- `totalTaxInPaise`
-equals the sum of the slabs, every slab's CGST plus SGST equals its tax with
-CGST never the smaller half, every bill reconciles
-`subtotal - discount + tax + roundOff = grandTotal`, every grand total is a
-whole rupee. One bill genuinely spans two slabs; the zero-rated slab appears
-on another. Discount applied and audited: confirmed -- the `DISCOUNT_APPLIED`
-audit row's amount and reason match the bill's own discount exactly. Payment
-recorded: confirmed -- every `PAID` bill has `amountPaidInPaise` equal to its
-`grandTotalInPaise`. Receipt text matches the printer width: confirmed live
-over HTTP at both 32 and 48 columns against the real 66-character seeded dish
-name -- every line fits, the wrap indents under itself, the amount column
-stays aligned. Bill voided with a reason: confirmed, and its
-`BILL_VOIDED` audit row exists. Sales total excludes it: confirmed live
-against `GET /bills/summary` -- the voided bill's amount appears only in
-`voidedInPaise`, never in `netInPaise` or `grossInPaise`. Bill number not
-reused: confirmed -- six unique numbers, sequence 1 through 6 with no gap,
-the voided bill keeping `2026-27/000004` rather than surrendering it. Stock
-ledger reconciles with `currentQty`: confirmed on every one of the five
-seeded ingredients, summing every movement from zero exactly matches the
-cached quantity.
-
-Two more things the checklist did not name but this build's own decisions
-promised, both confirmed live: a bill at 23:45 IST and one at 00:30 IST the
-same night both carry `businessDate: "2026-08-29"` under the default 05:00
-boundary -- the exact business-day case BUILD-PLAN section 8 and M5 D1 exist
-to get right. And `GET /inventory/unmapped` lists Gulab Jamun, fired with no
-recipe attached, by name.
-
-**What the other developer needs to know**
-
-`npm run seed:demo` is safe to run against your own local MongoDB with no
-extra configuration; running it against the shared Atlas cluster needs
-`SEED_DEMO_ALLOWED_HOSTS` set explicitly in `.env`, on purpose. Demo Restaurant
-A and B now live permanently on Atlas as a result of this session's own run,
-logged in the known problems table so nobody mistakes them for real customer
-data or wonders where they came from. Re-running the script resets them
-cleanly.
-
-**Unblocked:** nothing left in this build. M3 and M4 are both
-feature-complete: server, screens, and a verified, realistic demo environment.
-
-**Still open, and none of it closable by more code:** the CA review of the
-GST output and the real-thermal-printer test, both pilot gates BUILD-PLAN
-section 10 names explicitly. Arya's read, now owed on three modules instead
-of two. The Atlas credential purge from git history at `177ed9c`, unrelated
-to this build and still deferred from M0.
 
 ---
 
