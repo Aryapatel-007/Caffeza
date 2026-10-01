@@ -68,6 +68,23 @@ const IST_OFFSET_MINUTES = 330;
 const MINUTE_MS = 60_000;
 
 /**
+ * "9:05 PM" in the display time zone. For printed tickets and other places a
+ * person reads a time of day. P05.
+ */
+export function formatTimeIst12(date) {
+  const value = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(value.getTime())) {
+    throw new TypeError('formatTimeIst12 received a value that is not a valid date.');
+  }
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: config.DISPLAY_TIMEZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(value);
+}
+
+/**
  * The business day an instant belongs to, as a "YYYY-MM-DD" string.
  *
  * The instant is shifted into IST wall-clock time and then back past the

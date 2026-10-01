@@ -27,13 +27,13 @@ function money(paise) {
   return paiseToRupees(paise);
 }
 
-function centre(text, width) {
+export function centre(text, width) {
   const trimmed = text.slice(0, width);
   const pad = Math.max(0, Math.floor((width - trimmed.length) / 2));
   return ' '.repeat(pad) + trimmed;
 }
 
-function rule(width, character = RULE) {
+export function rule(width, character = RULE) {
   return character.repeat(width);
 }
 
@@ -57,7 +57,7 @@ function row(label, amount, width) {
  * Never truncates and never lets the name push the amount column out of
  * alignment. This is the function the 60-character snapshot test exists for.
  */
-function wrapName(name, width, indent = 2) {
+export function wrapName(name, width, indent = 2) {
   const words = name.split(/\s+/).filter(Boolean);
   const lines = [];
   let current = '';
