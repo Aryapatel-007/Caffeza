@@ -686,7 +686,8 @@ collection in the project after `menuitems`.
 | `isCancelled` | Boolean | yes | | Default false |
 | `cancelledAt` | Date | no | | UTC |
 | `cancelledBy` | ObjectId | no | `users._id` | |
-| `cancelReason` | String | no | | Trimmed, max 200 characters |
+| `cancelReason` | String | no | | Trimmed, max 200 characters. From P04 it holds the optional note. Older orders keep their free text here. |
+| `cancelReasonCode` | String | no | | Added by P04. Enum from `ORDER_CANCEL_REASONS` in `server/config/cancelReasons.js`. Null on orders cancelled before P04. |
 | `occupiesTable` | Boolean | yes | | Internal, never in a response. See below. |
 | `createdAt` | Date | auto | | UTC |
 | `updatedAt` | Date | auto | | UTC |
@@ -718,7 +719,8 @@ price back out of `menuitems`.
 | `servedAt` | Date | no | UTC |
 | `cancelledAt` | Date | no | UTC |
 | `cancelledBy` | ObjectId | no | `users._id` |
-| `cancelReason` | String | no | Trimmed, max 200 characters |
+| `cancelReason` | String | no | Trimmed, max 200 characters. From P04 it holds the optional note; older lines keep their free text. |
+| `cancelReasonCode` | String | no | Added by P04. Enum from `LINE_CANCEL_REASONS`. Null on lines cancelled before P04. |
 | `wasPrepared` | Boolean | no | **The cancelled-item answer.** Required when cancelling a line that reached the kitchen, refused when cancelling one that did not. M4 reads it to decide whether the ingredients are gone. |
 | `categoryId` | ObjectId | no | Added by P03. `categories._id` of the menu item's category **when the line was added**. Null on lines added before P03. |
 | `categoryName` | String | no | Added by P03. That category's `name` when the line was added. Null on lines added before P03, or if the category could not be found. |
@@ -1025,7 +1027,8 @@ about.
 | `isVoided` | Boolean | yes | | Default false. The CONVENTIONS section 4 void fields. |
 | `voidedAt` | Date | no | | UTC |
 | `voidedBy` | ObjectId | no | `users._id` | |
-| `voidReason` | String | no | | Trimmed, 1 to 500 characters. Required when voiding. |
+| `voidReason` | String | no | | Trimmed, at most 500 characters. From P04 it holds the optional note, required only for `OTHER`. Older bills keep their free text. |
+| `voidReasonCode` | String | no | | Added by P04. Enum from `BILL_VOID_REASONS`. Null on bills voided before P04. |
 | `captainId` | ObjectId | no | `users._id` | Added by P03. `orders.openedBy`, frozen at bill creation. "Captain" is the person who opened the order (GLOSSARY section 8). Null on bills created before P03. |
 | `captainName` | String | no | | Added by P03. The captain's `name`, read when the bill is created, or `"Unknown"` if the user cannot be found. Renaming the user later does not change it. |
 | `guestCount` | Number | no | | Added by P03. `orders.guestCount`, frozen. Covers. Null on a takeaway and on bills created before P03. |
@@ -1280,7 +1283,9 @@ the module that would need it. This is that collection.
 | `updatedAt` | Date | auto | | UTC |
 
 `action` is a closed enum: `BILL_VOIDED`, `DISCOUNT_APPLIED`,
-`STOCK_ADJUSTED`, `ORDER_CANCELLED`, `SETTINGS_CHANGED`.
+`STOCK_ADJUSTED`, `ORDER_CANCELLED`, `SETTINGS_CHANGED`,
+`LINE_CANCELLED_AFTER_PREP`. The last was appended by P04, which is also when
+`ORDER_CANCELLED` was first actually written.
 
 `entityType` gained `SETTINGS` alongside it. Both were appended by M7; see
 section 18 for the shape of a settings audit line.

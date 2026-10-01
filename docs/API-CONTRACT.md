@@ -1695,6 +1695,12 @@ to an `OPEN` order at any time, including after an earlier KOT has been fired.
 
 422 `BUSINESS_RULE_VIOLATED` if the order is not `OPEN`.
 
+422 `BUSINESS_RULE_VIOLATED` (P04) if the chosen variant is marked unavailable,
+with the message `The {variant name} size of "{item name}" is out of stock right
+now.`, or if a chosen add-on is, with `"{add-on name}" is out of stock right
+now.` The same checks apply to lines sent with 12.1. `GET /menu` already returns
+`isAvailable` on every variant and add-on, so the ordering screen greys them out.
+
 ### 12.5 Edit a line
 
 ```
@@ -1722,10 +1728,51 @@ POST /api/v1/orders/:orderId/lines/:lineId/cancel
 Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
 
 ```json
-{ "version": 5, "reason": "Customer changed their mind", "wasPrepared": true }
+{ "version": 5, "reasonCode": "WRONG_ITEM", "note": "Captain tapped the wrong pizza", "wasPrepared": false }
 ```
 
-`reason` is required. `wasPrepared` is **the cancelled-item answer** from
+**Cancel and void reasons (P04).** Reasons are fixed codes from
+`server/config/cancelReasons.js`, mirrored on the client in
+`client/src/features/orders/cancelReasons.js`. They are constants, not settings:
+reports group by code, so a restaurant renaming codes would split its own
+history. A new reason is an append, never a rename.
+
+| `LINE_CANCEL_REASONS` code | Label |
+|---|---|
+| `MODIFICATION` | Guest changed the order |
+| `WRONG_ITEM` | Wrong item entered |
+| `DUPLICATE` | Entered twice |
+| `OUT_OF_STOCK` | Kitchen ran out |
+| `TOO_SLOW` | Took too long |
+| `QUALITY` | Quality complaint |
+| `GUEST_LEFT` | Guest left |
+| `OTHER` | Other |
+
+| `ORDER_CANCEL_REASONS` code | Label |
+|---|---|
+| `GUEST_LEFT` | Guest left |
+| `WRONG_TABLE` | Opened on the wrong table |
+| `DUPLICATE` | Opened twice |
+| `OTHER` | Other |
+
+| Field | Rule |
+|---|---|
+| `reasonCode` | Required. One of the codes in the matching list. Anything else is 400 `VALIDATION_FAILED`, and the field message lists the allowed codes. |
+| `note` | Optional, trimmed, at most 200 characters. Required and non-empty when `reasonCode` is `OTHER`. |
+
+The old `reason` field is no longer accepted; the strict schema refuses it with
+a 400. The code is stored in `cancelReasonCode` and the note in the existing
+`cancelReason` field, which may be null. Every response returns both.
+
+A line cancelled with `wasPrepared: true` writes one `auditlogs` line,
+`LINE_CANCELLED_AFTER_PREP`, inside the same transaction as the cancel:
+`entityType: ORDER`, `entityId` the order, `entityLabel` "Order {orderNumber}",
+`reason` the label followed by ": " and the note when there is one,
+`amountInPaise` the line total, and `details: { lineId, itemName, variantName,
+quantity, reasonCode, tableName }`. A line cancelled before preparation writes
+nothing: that is normal operation.
+
+`wasPrepared` is **the cancelled-item answer** from
 BUILD-PLAN section 8, and its handling is deliberately asymmetric:
 
 Sending it for a line that never reached the kitchen is `400`. The question does
@@ -1813,11 +1860,21 @@ POST /api/v1/orders/:orderId/cancel
 Roles: **`OWNER` and `MANAGER` only.**
 
 ```json
-{ "version": 9, "reason": "Walked out", "wasPrepared": true }
+{ "version": 9, "reasonCode": "GUEST_LEFT", "note": null, "wasPrepared": true }
 ```
 
-Sets `isCancelled`, `cancelledAt`, `cancelledBy`, `cancelReason`, moves the
-order to `CANCELLED`, cancels every open line, and frees the table.
+`reasonCode` comes from `ORDER_CANCEL_REASONS` and `note` follows the same rule
+as 12.6 (P04). The old `reason` field is refused.
+
+Sets `isCancelled`, `cancelledAt`, `cancelledBy`, `cancelReasonCode`,
+`cancelReason` (the note), moves the order to `CANCELLED`, cancels every open
+line with the same code and note, and frees the table.
+
+Every whole-order cancel writes one `auditlogs` line, `ORDER_CANCELLED`, inside
+the same transaction: `entityType: ORDER`, `entityLabel` "Order {orderNumber}",
+`reason` the label plus the note, `amountInPaise` the sum of the line totals of
+every line not already cancelled, and `details: { orderNumber, tableName,
+lineCount, reasonCode, wasPrepared }`.
 
 **The narrower permission here is deliberate and is not an inconsistency to tidy
 up.** Cancelling one line is open to all four floor roles; cancelling a whole
@@ -2190,10 +2247,25 @@ POST /api/v1/bills/:billId/void
 Roles: **`OWNER`, `MANAGER` only.**
 
 ```json
-{ "reason": "Wrong table billed" }
+{ "reasonCode": "WRONG_TABLE", "note": null }
 ```
 
-Sets `isVoided`, `voidedAt`, `voidedBy`, `voidReason`. Returns the order to
+`reasonCode` is required, one of `BILL_VOID_REASONS` (P04):
+
+| Code | Label |
+|---|---|
+| `WRONG_TABLE` | Billed to the wrong table |
+| `ITEMS_CHANGED` | Items need changing |
+| `DISCOUNT_CHANGED` | Discount needs changing |
+| `DUPLICATE` | Billed twice |
+| `GUEST_DISPUTE` | Guest disputed the bill |
+| `OTHER` | Other |
+
+`note` is optional, trimmed, at most 500 characters, and required for `OTHER`.
+The old `reason` field is refused with a 400. The code is stored in
+`voidReasonCode` and the note in `voidReason`.
+
+Sets `isVoided`, `voidedAt`, `voidedBy`, `voidReasonCode`, `voidReason`. Returns the order to
 `READY_TO_BILL`, clears `orders.billId`, and **re-occupies the table**, so the
 order can be billed again correctly.
 
@@ -2202,7 +2274,8 @@ bill and not to anything else. A gap in what a customer holds is fine; a
 duplicate number is not.
 
 Response 200 returns the voided bill. Writes one `auditlogs` row, `BILL_VOIDED`,
-carrying the grand total that was voided.
+carrying the grand total that was voided. Its `reason` is the label followed by
+": " and the note when there is one, and its `details` carry `reasonCode` (P04).
 
 422 `ENTRY_VOIDED` if it is already voided.
 404 `NOT_FOUND` if it is in another restaurant.
@@ -3271,8 +3344,9 @@ M8 also uses `businessDateRangeToUtc` from `server/utils/time.js`, which M6 intr
 | `BILL_VOIDED` | `BILL` | M3 |
 | `DISCOUNT_APPLIED` | `BILL` | M3 |
 | `STOCK_ADJUSTED` | `STOCK` | M4 |
-| `ORDER_CANCELLED` | `ORDER` | M2 via M3 |
+| `ORDER_CANCELLED` | `ORDER` | M2, from P04 onwards. Listed before P04 but never written until then. |
 | `SETTINGS_CHANGED` | `SETTINGS` | M7 |
+| `LINE_CANCELLED_AFTER_PREP` | `ORDER` | M2, from P04. A line cancelled with `wasPrepared: true`. |
 
 ## 2. What M8 adds
 

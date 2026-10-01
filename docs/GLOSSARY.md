@@ -184,6 +184,7 @@ On 26 September theirs was ₹417.33.
 | **Approved by** | The owner or manager who allowed a discount, a No Charge, a void or a reopened day |
 | **Cancelled before preparation** | The item never reached the kitchen, or the kitchen had not started it. `wasPrepared: false`. |
 | **Cancelled after preparation** | The kitchen had made it. `wasPrepared: true`. |
+| **Cancel reason** | Chosen from a fixed list in `server/config/cancelReasons.js`, with an optional note. A note is required for Other. |
 | **Wasted value** | Line total of items cancelled after preparation, at menu price, before GST |
 | **No Charge value** | Line total of a No Charge order at menu price, before GST |
 | **Void** | Cancelling an issued bill. The number stays in the register, marked voided, with a reason. |
