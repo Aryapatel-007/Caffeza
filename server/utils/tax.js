@@ -370,6 +370,67 @@ export function allocateLineShares(lines, totals) {
   return shares;
 }
 
+
+/**
+ * One bill's net sales, CGST and SGST divided across the ways it was settled.
+ * P15, for the Tally export's by-method block (docs/API-CONTRACT.md M19 R9).
+ *
+ * The parts are the bill's payments, then the amount charged to an On Hold
+ * account, then any unpaid remainder. Each of net sales, CGST and SGST is split
+ * across the parts separately, by the largest remainder method, weighted by
+ * each part's amount. The round-off is not split: the export shows it on its
+ * own row. Each split is checked to add back exactly to the bill's own figure
+ * before it is returned, the same discipline as allocateLineShares.
+ *
+ * Caffeza's old export worked the taxable value backwards from the rounded
+ * amount, which is why its two blocks disagreed. This never does.
+ *
+ * Returns `[{ kind, method, methodName, tallyLedgerCode, amountInPaise,
+ * netSalesInPaise, cgstInPaise, sgstInPaise }]`, `kind` one of PAYMENT,
+ * ON_HOLD, UNPAID.
+ */
+export function splitBillAcrossPayments(bill) {
+  const slabs = bill.taxBreakdown ?? [];
+  const netSalesInPaise = slabs.reduce((total, slab) => total + slab.taxableInPaise, 0);
+  const cgstInPaise = slabs.reduce((total, slab) => total + slab.cgstInPaise, 0);
+  const sgstInPaise = slabs.reduce((total, slab) => total + slab.sgstInPaise, 0);
+
+  const parts = (bill.payments ?? []).map((payment) => ({
+    kind: 'PAYMENT',
+    method: payment.method,
+    methodName: payment.methodName ?? payment.method,
+    tallyLedgerCode: payment.tallyLedgerCode ?? null,
+    amountInPaise: payment.amountInPaise,
+  }));
+  const charged = bill.chargedToAccountInPaise ?? 0;
+  if (charged > 0) {
+    parts.push({ kind: 'ON_HOLD', method: null, methodName: null, tallyLedgerCode: null, amountInPaise: charged });
+  }
+  const settled = parts.reduce((total, part) => total + part.amountInPaise, 0);
+  const unpaid = bill.grandTotalInPaise - settled;
+  if (unpaid > 0) {
+    parts.push({ kind: 'UNPAID', method: null, methodName: null, tallyLedgerCode: null, amountInPaise: unpaid });
+  }
+  if (parts.length === 0) return [];
+
+  const weights = parts.map((part) => part.amountInPaise);
+  const net = largestRemainderSplit(netSalesInPaise, weights);
+  const cgst = largestRemainderSplit(cgstInPaise, weights);
+  const sgst = largestRemainderSplit(sgstInPaise, weights);
+
+  const sum = (values) => values.reduce((total, value) => total + value, 0);
+  if (sum(net) !== netSalesInPaise || sum(cgst) !== cgstInPaise || sum(sgst) !== sgstInPaise) {
+    throw new Error(`splitBillAcrossPayments: the parts of bill ${bill.billNumber} do not add back to the bill.`);
+  }
+
+  return parts.map((part, index) => ({
+    ...part,
+    netSalesInPaise: net[index],
+    cgstInPaise: cgst[index],
+    sgstInPaise: sgst[index],
+  }));
+}
+
 export default {
   allocateLineShares,
   computeBillTotals,
@@ -377,5 +438,6 @@ export default {
   proportionalShare,
   resolveDiscountAmount,
   roundOffFor,
+  splitBillAcrossPayments,
   splitCgstSgst,
 };
