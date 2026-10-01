@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P14, the report engine.
+Next: P15, daily, money and GST reports.
 
 ---
 
@@ -341,6 +341,12 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | Reports group people by stored user id. A captain's name is frozen on the bill; for the person who discounted, cancelled, voided or approved, the engine attaches the current name in one step, `personNames`, as a label only. Listed in the contract's section 11 as a field not stored. | No name is frozen for those people, and P13 forbids inventing fields. Names never affect a figure or a grouping. |
 | 2026-10-01 | A new column type, `decimal2`, integer hundredths, for Turns per day. | The six types P13 suggested have no place for a ratio like 2.50 turns. |
 | 2026-10-01 | GLOSSARY gained section 13, the column labels every M19 report uses that it did not yet define. | Every label on a report comes from the glossary, and 37 were missing. |
+| 2026-10-01 | The report engine passes definitions a `ctx.personNames`, and is the only report code that reads `users`. A test fails if any file in `services/reports/definitions/` imports the MenuItem, Category, User or PaymentMethod model. | Names are labels; figures never come from live records. One door for names keeps that rule checkable. |
+| 2026-10-01 | C11 checks live payout batches only, as RECONCILIATION-RULES scopes it, so the golden day, which records none, passes C11. TEST-DATA section 4's checks line is corrected to match. | P14 requires every check but C9 to pass on the golden day; the old TEST-DATA line expected a C11 warning for rate-not-set bills, which R6 lists instead. |
+| 2026-10-01 | C7's break test points one of B13's lines at the cancelled Thecha Paneer Chilli rather than adding a new line. | Adding a line changes B13's totals, which also breaks C1 and C2; pointing an existing line at the cancelled one breaks C7 and nothing else, which is what the test is for. |
+| 2026-10-01 | C12 ignores payment method rows that are zero in both the stored snapshot and the fresh figures. | Section B lists every active method, so adding or retiring a method after a close would otherwise read as a changed day. |
+| 2026-10-01 | Day Close now runs every one-day check: C1 to C4, C5.4, C5.7, C6 to C11. | P14 asked Day Close to run every check that applies to one day. |
+| 2026-10-01 | The client gained `downloadFile` in `api/client.js` for report exports. | Every network call lives in `src/api`, and a file needs the same auth headers and refresh as JSON. |
 
 ---
 
@@ -363,6 +369,60 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P14 report engine
+
+What was built or decided:
+`server/services/reports/`: `engine.js` (`runReport` in the nine contract
+steps, the filter sentence, open days, `personNames`), `labels.js` (88 glossary
+terms, mirrored on the client), `params.js` (every contract filter),
+`registry.js`, `exportXlsx.js` (four sheets, money in rupees with the Indian
+format, the file name rule), and `definitions/bills.js`, R19 with every filter,
+totals across pages and `readBillDetail` with the order's timeline. Routes:
+`GET /api/v1/reports/v2/bills` and `/reports/v2/bills/:billId`; M6 routes
+untouched.
+
+`reconciliationService.js` is complete: C2, C5, C7, C10, C11, C12 added, and
+`runRangeChecks` runs C1, C2, C3, C4, C6, C7, C8, C10, C11 and C12 over a range,
+one result per check. Day Close runs every one-day check.
+
+Five new indexes, each starting with `restaurantId`: payments by business
+date and a series in sequence order on `bills`; cancelled lines by time,
+cancelled orders by time, and No Charge orders by date on `orders`.
+`npm run db:indexes` created them locally, and a second run created none.
+
+Client: `/reports/bills` reads every filter from the address, shows the filter
+sentence, open-day banner, check strip, table, paging and the totals row, and
+has an Excel button; `/reports/bills/:billId` shows lines with shares and the
+timeline. Shared cells, banner and strip in `features/reports/v2/`.
+
+Every row of TEST-DATA section 6 is broken on purpose in
+`tests/reportEngine.test.js` and fails exactly its own check (C3's row also
+fails C4, as TEST-DATA says). The opt-in speed test, `PERF=1`, ran R19 over a
+full year of 66,430 bills with its totals in 233 ms.
+
+Checked by hand in Chrome on a local production build: a Bill List filtered by
+captain opened from its address, and a bill's timeline. The Excel button was
+not clicked in the browser, because that downloads a file; the workbook is
+opened and checked in the test instead.
+
+Tests: 793 before, 820 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `server/services/reports/*`, `routes/reportV2Routes.js`,
+`controllers/reportV2Controller.js`, tests `reportEngine.test.js` and
+`reportPerf.test.js`, client `api/reportsV2.js`, `features/reports/labels.js`,
+`features/reports/v2/*`. Changed: `reconciliationService.js`, Bill and Order
+models (indexes), `tests/helpers/goldenDay.js` (`addNextDay`),
+`api/client.js` (`downloadFile`), `App.jsx`, server `package.json` (exceljs).
+
+Anything the other developer needs to know:
+A new report is one file in `definitions/` plus a line in `registry.js`.
+Port 5000 on this machine was held by another server process during the hand
+check, so the check ran on 5055.
+
+Anything now blocked or unblocked:
+P15, P16 and P17 can start.
 
 ### 2026-10-01 Rishi, P13 reports spec
 
@@ -856,41 +916,6 @@ one commit, not two.
 
 Anything now blocked or unblocked:
 P05 can start. Kitchen cancelling is an open question, deliberately unchanged.
-
-### 2026-10-01 Rishi, P03 bill snapshots and line shares
-
-What was built or decided:
-Order lines now freeze `categoryId` and `categoryName` when added. Bills freeze
-`captainId`, `captainName` ("Unknown" if the user is gone), `guestCount` and
-`orderOpenedAt`. Every bill line stores `discountShareInPaise`,
-`taxableInPaise` and `taxInPaise`.
-
-`largestRemainderSplit` and `allocateLineShares` are new in `server/utils/tax.js`.
-BigInt throughout. The split works inside each tax rate and checks C2 itself
-before returning, throwing if the shares do not add up. `computeBillTotals` is
-untouched. `applyTotals` in `billService.js` now writes the shares, so creating
-a bill and discounting one use the same code.
-
-Tests reproduce every table in `docs/TEST-DATA.md` section 3 (B01, B02, B05,
-B08, B14, B16) to the paisa, and B02 again through the real API: the stored
-shares are 2268/2016/1411/403×4 and GST 2137/1899/1329/380×4, total ₹1,446.00,
-matching Caffeza bill C22276. A property test runs 2,000 seeded random bills
-(seed 20261001) and checks C1 and C2 on every one.
-
-Files or endpoints touched:
-`server/utils/tax.js`, `models/Order.js`, `models/Bill.js`,
-`services/orderService.js`, `services/billService.js`; tests in `tax.test.js`,
-`bills.test.js`, `orders.test.js`. No new endpoint. Responses gain the new
-fields; the strict request schemas still refuse them.
-
-Anything the other developer needs to know:
-Old bills have null shares and null categories, read as "not recorded". Nothing
-is back-filled; rerun `npm run seed:demo` to get demo bills with shares. There is
-no remove-discount endpoint, so test 11's "removing a discount" case does not
-apply.
-
-Anything now blocked or unblocked:
-The M19 reports have frozen values to add up.
 
 ---
 

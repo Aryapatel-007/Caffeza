@@ -1,5 +1,40 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, P03 bill snapshots and line shares
+
+What was built or decided:
+Order lines now freeze `categoryId` and `categoryName` when added. Bills freeze
+`captainId`, `captainName` ("Unknown" if the user is gone), `guestCount` and
+`orderOpenedAt`. Every bill line stores `discountShareInPaise`,
+`taxableInPaise` and `taxInPaise`.
+
+`largestRemainderSplit` and `allocateLineShares` are new in `server/utils/tax.js`.
+BigInt throughout. The split works inside each tax rate and checks C2 itself
+before returning, throwing if the shares do not add up. `computeBillTotals` is
+untouched. `applyTotals` in `billService.js` now writes the shares, so creating
+a bill and discounting one use the same code.
+
+Tests reproduce every table in `docs/TEST-DATA.md` section 3 (B01, B02, B05,
+B08, B14, B16) to the paisa, and B02 again through the real API: the stored
+shares are 2268/2016/1411/403×4 and GST 2137/1899/1329/380×4, total ₹1,446.00,
+matching Caffeza bill C22276. A property test runs 2,000 seeded random bills
+(seed 20261001) and checks C1 and C2 on every one.
+
+Files or endpoints touched:
+`server/utils/tax.js`, `models/Order.js`, `models/Bill.js`,
+`services/orderService.js`, `services/billService.js`; tests in `tax.test.js`,
+`bills.test.js`, `orders.test.js`. No new endpoint. Responses gain the new
+fields; the strict request schemas still refuse them.
+
+Anything the other developer needs to know:
+Old bills have null shares and null categories, read as "not recorded". Nothing
+is back-filled; rerun `npm run seed:demo` to get demo bills with shares. There is
+no remove-discount endpoint, so test 11's "removing a discount" case does not
+apply.
+
+Anything now blocked or unblocked:
+The M19 reports have frozen values to add up.
+
 ### 2026-10-01 Rishi, P02 feature switches and invoice series
 
 What was built or decided:

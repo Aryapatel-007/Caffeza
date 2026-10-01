@@ -4951,7 +4951,7 @@ count), Discounts (count and total), Items cancelled (count and value, by
 dine-in bills: Table, Bills, Covers, Net sales, Turns per day (bills ÷ business
 dates in the range, type `decimal2`), Average table time. Section
 `kitchen`: per `kots.stationName`, Kitchen time (average minutes from
-`kots.createdAt` to its lines' `readyAt`) and the five slowest items. Drill: a
+`kots.firedAt` to its lines' `readyAt`) and the five slowest items. Drill: a
 table to R19 with `table`.
 
 ### R14 Discounts, `discounts`
@@ -5116,3 +5116,25 @@ Listed rather than invented. None blocks a figure; each affects only a label.
 |---|---|---|
 | The name of whoever applied a discount, cancelled a line or an order, voided a bill, or approved a No Charge, as it was at the time | Only the user id is stored | Reports show the person's current name, through `personNames`. Renaming a user renames them on old reports. Freezing names would need new fields on `bills` and `orders`, a schema change to decide in its own prompt. |
 | The captain of an order that was never billed (a cancelled order, a No Charge) | `orders.openedBy`, an id | Shown through `personNames` like the above |
+
+## 12. Settled while building P14
+
+`runReport` returns `{ envelope, meta, params }`; a paged report answers
+`{ success, data: envelope, meta }`. A definition exports `id`, `name`,
+`title`, `roles`, `schema`, `filters`, `dimensions`, `columns`, `query(req,
+baseMatch, params, ctx)` and `checks(req, params, result, ctx)`, and may export
+`includesVoided(params)` and `dateField`.
+
+R19 is sorted by `billedAt`, then `billSequence`. Its `place` column shows the
+table, or the platform and its order number, or the order type. Its `status`
+column is in words: Paid, On Hold, Unpaid, Voided.
+
+C10 is an ERROR when an entry's stored direction disagrees with its type, and
+a WARNING when a balance is below zero. C11 adds the count of payments with no
+commission rate to its message. C12 ignores a payment method row that is zero in
+both the stored and the fresh figures, so adding or retiring a method after a
+close does not count as a change.
+
+The Excel number format for money is
+`[>=10000000]##\,##\,##\,##0.00;[>=100000]##\,##\,##0.00;##,##0.00`.
+

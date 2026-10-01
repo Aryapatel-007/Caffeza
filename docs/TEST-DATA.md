@@ -328,7 +328,7 @@ The shares are rounded for display. They are computed from paise, not from the r
 | Counter | 3 | 0 | ₹1,675.00 | ₹1,697.00 |
 | Total | 15 | 27 | ₹8,886.32 | ₹9,269.00 |
 
-**Checks:** C1 to C8, C10 and C12 pass. C9 raises one warning, for the ₹4.00 cash difference. C11 lists every platform bill as "rate not set" until commission rates are configured.
+**Checks:** C1 to C8, C10, C11 and C12 pass. C9 raises one warning, for the ₹4.00 cash difference. C11 checks live payout batches, and the golden day records none; R6 lists every platform payment as "rate not set" until commission rates are configured.
 
 ---
 

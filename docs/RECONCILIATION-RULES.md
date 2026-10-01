@@ -35,7 +35,7 @@ A link to the bills or records that caused it.
 A check never changes data. It only reads.
 A check never rounds before comparing. It compares whole paise.
 Checks live in one server file, `server/services/reconciliationService.js`, started in P10 with the one-day checks Day Close needs, and completed in P14.
-Built in P10 for one business date: C1, C3, C4, C6, C8 and C9. For C6 and C8 the day's bills include any bill whose `billedAt` falls in the day's hours, so a bill stored on the wrong date fails C8 alone instead of also opening a gap in C6.
+Built in P10 for one business date: C1, C3, C4, C6, C8 and C9. Completed in P14: every check, C1 to C12, is built in `reconciliationService.js`, with range versions in `runRangeChecks` that return one result per check listing every failing day or bill. Day Close runs every check that applies to one day. For C6 and C8 the day's bills include any bill whose `billedAt` falls in the day's hours, so a bill stored on the wrong date fails C8 alone instead of also opening a gap in C6.
 
 ---
 
@@ -179,7 +179,7 @@ Expected payout is worked out per batch, as `docs/API-CONTRACT.md` M17 section 6
 Any difference between received and expected payout is shown for review.
 A bill whose platform has no commission rate set is listed, and no expected payout is invented for it.
 
-Message: "C11 Platform: {platform} paid {received} for {count} bills against {expected} expected. Difference {difference}."
+Message: "C11 Platform: {platform} paid {received} for {count} bills against {expected} expected. Difference {difference}." When payments in the batch have no commission rate, the message adds "{n} payments with no commission rate set."
 
 ### C12 Closed days do not change
 
