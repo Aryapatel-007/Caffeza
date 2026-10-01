@@ -14,7 +14,9 @@ import { describe, it } from 'node:test';
 
 import { applyBasisPoints, sumPaise } from '../utils/money.js';
 import {
+  allocateLineShares,
   computeBillTotals,
+  largestRemainderSplit,
   proportionalShare,
   resolveDiscountAmount,
   roundOffFor,
@@ -334,5 +336,253 @@ describe('computeBillTotals, the whole thing reconciles', () => {
       () => computeBillTotals({ lines: [{ taxRateBps: 500, lineTotalInPaise: 100.5 }] }),
       TypeError,
     );
+  });
+});
+
+/* --------------------------------------------------------------------------
+ * Line shares. P03.
+ * ----------------------------------------------------------------------- */
+
+describe('largestRemainderSplit', () => {
+  it('returns zeros for a zero amount, and for all-zero weights', () => {
+    assert.deepEqual(largestRemainderSplit(0, [5, 7]), [0, 0]);
+    assert.deepEqual(largestRemainderSplit(100, [0, 0, 0]), [0, 0, 0]);
+    assert.deepEqual(largestRemainderSplit(100, []), []);
+  });
+
+  it('gives everything to a single weight', () => {
+    assert.deepEqual(largestRemainderSplit(1234, [99]), [1234]);
+  });
+
+  it('gives leftover paise to the earlier parts when the weights are equal', () => {
+    assert.deepEqual(largestRemainderSplit(10, [1, 1, 1]), [4, 3, 3]);
+    assert.deepEqual(largestRemainderSplit(11, [1, 1, 1]), [4, 4, 3]);
+  });
+
+  it('gives a leftover paisa to a later part when its fraction is bigger', () => {
+    // 10 split 1:2 is 3.33 and 6.67. The later part has the bigger fraction.
+    assert.deepEqual(largestRemainderSplit(10, [1, 2]), [3, 7]);
+  });
+
+  it('stays exact where floating point would not', () => {
+    // amount × weight is 10^16, past Number.MAX_SAFE_INTEGER.
+    const amount = 100_000_000;
+    const weights = [100_000_000, 100_000_000, 100_000_001];
+    const parts = largestRemainderSplit(amount, weights);
+    assert.equal(sumPaise(...parts), amount);
+    assert.deepEqual(parts, [33_333_333, 33_333_333, 33_333_334]);
+  });
+
+  it('refuses a negative amount, a negative weight and a decimal', () => {
+    assert.throws(() => largestRemainderSplit(-1, [1]), RangeError);
+    assert.throws(() => largestRemainderSplit(10, [1, -1]), RangeError);
+    assert.throws(() => largestRemainderSplit(10.5, [1]), TypeError);
+    assert.throws(() => largestRemainderSplit(10, [1.5]), TypeError);
+  });
+});
+
+/** Builds a bill from line totals at one rate, applies a discount, and splits it. */
+function sharesFor(lineTotals, taxRateBps, discount = null) {
+  const lines = lineTotals.map((lineTotalInPaise) => ({ taxRateBps, lineTotalInPaise }));
+  const totals = computeBillTotals({ lines, discount });
+  return { totals, shares: allocateLineShares(lines, totals) };
+}
+
+const asRows = (shares) =>
+  shares.map((share) => [share.discountShareInPaise, share.taxableInPaise, share.taxInPaise]);
+
+describe('allocateLineShares reproduces the golden day, docs/TEST-DATA.md section 3', () => {
+  it('B01, 10% off Rs 530 at 5%', () => {
+    const { totals, shares } = sharesFor([18000, 32000, 3000], 500, { kind: 'PERCENT', rateBps: 1000 });
+    assert.deepEqual(asRows(shares), [
+      [1800, 16200, 810],
+      [3200, 28800, 1440],
+      [300, 2700, 135],
+    ]);
+    assert.equal(totals.taxBreakdown[0].cgstInPaise, 1193);
+    assert.equal(totals.taxBreakdown[0].sgstInPaise, 1192);
+    assert.equal(totals.roundOffInPaise, 15);
+    assert.equal(totals.grandTotalInPaise, 50100);
+  });
+
+  it('B02, flat 7307 off Rs 1450 at 5%, Caffeza bill C22276', () => {
+    const { totals, shares } = sharesFor(
+      [45000, 40000, 28000, 8000, 8000, 8000, 8000],
+      500,
+      { kind: 'FLAT', valueInPaise: 7307 },
+    );
+    assert.deepEqual(asRows(shares), [
+      [2268, 42732, 2137],
+      [2016, 37984, 1899],
+      [1411, 26589, 1329],
+      [403, 7597, 380],
+      [403, 7597, 380],
+      [403, 7597, 380],
+      [403, 7597, 380],
+    ]);
+    assert.equal(totals.taxBreakdown[0].cgstInPaise, 3443);
+    assert.equal(totals.taxBreakdown[0].sgstInPaise, 3442);
+    assert.equal(totals.roundOffInPaise, 22);
+    assert.equal(totals.grandTotalInPaise, 144600);
+  });
+
+  it('B08, flat 20000 off Rs 505 at 0%', () => {
+    const { totals, shares } = sharesFor([33000, 17500], 0, { kind: 'FLAT', valueInPaise: 20000 });
+    assert.deepEqual(asRows(shares), [
+      [13069, 19931, 0],
+      [6931, 10569, 0],
+    ]);
+    assert.equal(totals.grandTotalInPaise, 30500);
+  });
+
+  it('B14, flat 1383 off Rs 540 at 5%', () => {
+    const { totals, shares } = sharesFor([36000, 18000], 500, { kind: 'FLAT', valueInPaise: 1383 });
+    assert.deepEqual(asRows(shares), [
+      [922, 35078, 1754],
+      [461, 17539, 877],
+    ]);
+    assert.equal(totals.taxBreakdown[0].cgstInPaise, 1316);
+    assert.equal(totals.taxBreakdown[0].sgstInPaise, 1315);
+    assert.equal(totals.roundOffInPaise, -48);
+    assert.equal(totals.grandTotalInPaise, 55200);
+  });
+
+  it('B16, flat 3900 off Rs 780 at 5%', () => {
+    const { totals, shares } = sharesFor([45000, 33000], 500, { kind: 'FLAT', valueInPaise: 3900 });
+    assert.deepEqual(asRows(shares), [
+      [2250, 42750, 2138],
+      [1650, 31350, 1567],
+    ]);
+    assert.equal(totals.taxBreakdown[0].cgstInPaise, 1853);
+    assert.equal(totals.taxBreakdown[0].sgstInPaise, 1852);
+    assert.equal(totals.roundOffInPaise, -5);
+    assert.equal(totals.grandTotalInPaise, 77800);
+  });
+
+  it('B05, no discount, Rs 757.61 at 5% with the water bottle at 4761', () => {
+    const { totals, shares } = sharesFor([38000, 33000, 4761], 500);
+    assert.deepEqual(asRows(shares), [
+      [0, 38000, 1900],
+      [0, 33000, 1650],
+      [0, 4761, 238],
+    ]);
+    assert.equal(totals.taxBreakdown[0].cgstInPaise, 1894);
+    assert.equal(totals.taxBreakdown[0].sgstInPaise, 1894);
+    assert.equal(totals.roundOffInPaise, -49);
+    assert.equal(totals.grandTotalInPaise, 79500);
+  });
+});
+
+/** C2 from docs/RECONCILIATION-RULES.md, checked from the outside. Returns a failure or null. */
+function checkC2(lines, totals, shares) {
+  const discountSum = sumPaise(...shares.map((share) => share.discountShareInPaise));
+  if (discountSum !== totals.discountAmountInPaise) {
+    return `C2.1 discount shares ${discountSum} vs bill discount ${totals.discountAmountInPaise}`;
+  }
+  for (const slab of totals.taxBreakdown) {
+    const mine = shares.filter((_, index) => lines[index].taxRateBps === slab.taxRateBps);
+    const taxable = sumPaise(...mine.map((share) => share.taxableInPaise));
+    const tax = sumPaise(...mine.map((share) => share.taxInPaise));
+    if (taxable !== slab.taxableInPaise) return `C2.2 at ${slab.taxRateBps}: ${taxable} vs ${slab.taxableInPaise}`;
+    if (tax !== slab.taxInPaise) return `C2.3 at ${slab.taxRateBps}: ${tax} vs ${slab.taxInPaise}`;
+  }
+  for (const [index, share] of shares.entries()) {
+    if (share.taxableInPaise !== lines[index].lineTotalInPaise - share.discountShareInPaise) {
+      return `line ${index} taxable is not line total minus its discount share`;
+    }
+    if (share.discountShareInPaise < 0 || share.taxInPaise < 0 || share.taxableInPaise < 0) {
+      return `line ${index} has a negative share`;
+    }
+  }
+  return null;
+}
+
+/** C1 from docs/RECONCILIATION-RULES.md. Returns a failure or null. */
+function checkC1(lines, totals) {
+  const itemTotal = sumPaise(...lines.map((line) => line.lineTotalInPaise));
+  if (itemTotal !== totals.subtotalInPaise) return 'C1.1 item total';
+  const slabNet = sumPaise(...totals.taxBreakdown.map((slab) => slab.taxableInPaise));
+  if (totals.subtotalInPaise - totals.discountAmountInPaise !== slabNet) return 'C1.2 net sales';
+  for (const slab of totals.taxBreakdown) {
+    if (slab.cgstInPaise + slab.sgstInPaise !== slab.taxInPaise) return 'C1.3 CGST + SGST';
+  }
+  const gst = sumPaise(...totals.taxBreakdown.map((slab) => slab.taxInPaise));
+  if (gst !== totals.totalTaxInPaise) return 'C1.4 GST';
+  if (slabNet + gst + totals.roundOffInPaise !== totals.grandTotalInPaise) return 'C1.5 bill total';
+  if (totals.roundOffInPaise < -49 || totals.roundOffInPaise > 50) return 'C1.6 round-off';
+  return null;
+}
+
+describe('allocateLineShares across tax rates', () => {
+  it('keeps every share inside its own rate, and C2 holds for each rate', () => {
+    const lines = [
+      { taxRateBps: 500, lineTotalInPaise: 24000 },
+      { taxRateBps: 1800, lineTotalInPaise: 15000 },
+      { taxRateBps: 500, lineTotalInPaise: 9900 },
+      { taxRateBps: 0, lineTotalInPaise: 4000 },
+      { taxRateBps: 1800, lineTotalInPaise: 3333 },
+    ];
+    const totals = computeBillTotals({ lines, discount: { kind: 'FLAT', valueInPaise: 4321 } });
+    const shares = allocateLineShares(lines, totals);
+
+    assert.equal(checkC2(lines, totals, shares), null);
+    assert.equal(shares[3].taxInPaise, 0, 'a 0% line carries no GST share');
+  });
+});
+
+/** mulberry32: a tiny seeded generator, so a failing bill can be replayed exactly. */
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+describe('line shares property test', () => {
+  /**
+   * 2,000 random bills. C1 and C2 must hold for every one, to the paisa.
+   * The seed is fixed so a failure can be repeated; it is printed with the bill.
+   */
+  it('C1 and C2 hold for 2,000 random bills', () => {
+    const SEED = 20261001;
+    const random = seededRandom(SEED);
+    const between = (low, high) => low + Math.floor(random() * (high - low + 1));
+    const RATES = [0, 500, 1200, 1800];
+
+    for (let bill = 0; bill < 2000; bill += 1) {
+      const lines = Array.from({ length: between(1, 15) }, () => {
+        const quantity = between(1, 5);
+        const unitPrice = between(1, 500_000);
+        return { taxRateBps: RATES[between(0, 3)], lineTotalInPaise: quantity * unitPrice };
+      });
+      const subtotal = sumPaise(...lines.map((line) => line.lineTotalInPaise));
+
+      const kind = between(0, 2);
+      const discount =
+        kind === 0
+          ? null
+          : kind === 1
+            ? { kind: 'PERCENT', rateBps: between(1, 10_000) }
+            : { kind: 'FLAT', valueInPaise: between(1, subtotal) };
+
+      let failure;
+      try {
+        const totals = computeBillTotals({ lines, discount });
+        const shares = allocateLineShares(lines, totals);
+        failure = checkC1(lines, totals) ?? checkC2(lines, totals, shares);
+      } catch (error) {
+        failure = error.message;
+      }
+
+      assert.equal(
+        failure,
+        null,
+        `seed ${SEED}, bill ${bill}: ${failure}\n${JSON.stringify({ lines, discount })}`,
+      );
+    }
   });
 });

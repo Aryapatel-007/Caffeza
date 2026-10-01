@@ -990,3 +990,35 @@ describe('the tenant guard', () => {
     assert.equal(response.body.data.restaurantId, String(a.restaurant._id));
   });
 });
+
+describe('the category is frozen onto the line (P03)', () => {
+  it('stores the item category id and name when a line is added', async () => {
+    const { tokens, table } = await seedFloor();
+    const category = (
+      await request('POST', '/api/v1/categories', { token: tokens.OWNER, body: { name: 'Pizzas' } })
+    ).body.data;
+    const pizza = (await createMenuItem(tokens.OWNER, { name: 'Margherita', categoryId: category.id }))
+      .body.data;
+
+    const opened = (await openOrder(tokens.WAITER, { tableId: table.id })).body.data;
+    const added = await addLines(tokens.WAITER, opened.id, {
+      version: opened.version,
+      lines: [{ menuItemId: pizza.id, quantity: 1 }],
+    });
+
+    assert.equal(added.status, 200);
+    assert.equal(added.body.data.lines[0].categoryId, category.id);
+    assert.equal(added.body.data.lines[0].categoryName, 'Pizzas');
+  });
+
+  it('refuses a client sending a category on a line', async () => {
+    const { tokens, table, item } = await seedFloor();
+    const opened = (await openOrder(tokens.WAITER, { tableId: table.id })).body.data;
+
+    const response = await addLines(tokens.WAITER, opened.id, {
+      version: opened.version,
+      lines: [{ menuItemId: item.id, quantity: 1, categoryName: 'Free food' }],
+    });
+    assert.equal(response.status, 400);
+  });
+});

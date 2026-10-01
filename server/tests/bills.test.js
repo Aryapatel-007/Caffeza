@@ -15,6 +15,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import mongoose from 'mongoose';
 
 import { ROLES } from '../config/roles.js';
 import { AuditLog } from '../models/AuditLog.js';
@@ -734,3 +735,227 @@ describe('the order is left consistent', () => {
     assert.equal(afterPayment.occupiesTable, false, 'the hook kept occupancy in step');
   });
 });
+
+/* --------------------------------------------------------------------------
+ * P03. Snapshots and line shares on the bill.
+ * ----------------------------------------------------------------------- */
+
+describe('the bill freezes its captain, covers and categories (P03)', () => {
+  it('stores captainId, captainName, guestCount and orderOpenedAt from the order', async () => {
+    const floor = await seedFloor();
+    const { tokens, table, item } = floor;
+
+    const opened = (
+      await request('POST', '/api/v1/orders', {
+        token: tokens.WAITER,
+        body: {
+          orderType: 'DINE_IN',
+          tableId: table.id,
+          guestCount: 3,
+          lines: [{ menuItemId: item.id, quantity: 1 }],
+        },
+      })
+    ).body.data;
+    const order = await serveEverything(tokens, opened);
+
+    const bill = (await createBill(tokens.CASHIER, { orderId: order.id, version: order.version }))
+      .body.data;
+    const waiter = (await request('GET', '/api/v1/auth/me', { token: tokens.WAITER })).body.data.user;
+
+    assert.equal(bill.captainId, waiter.id);
+    assert.equal(bill.captainName, waiter.name);
+    assert.equal(bill.guestCount, 3);
+    assert.equal(bill.orderOpenedAt, opened.openedAt);
+  });
+
+  it('keeps the captain name it was billed with after the user is renamed', async () => {
+    const { bill, tokens } = await billedFloor();
+    const waiter = (await request('GET', '/api/v1/auth/me', { token: tokens.WAITER })).body.data.user;
+
+    const renamed = await request('PATCH', `/api/v1/users/${waiter.id}`, {
+      token: tokens.OWNER,
+      body: { name: 'Somebody Else' },
+    });
+    assert.equal(renamed.status, 200, JSON.stringify(renamed.body));
+
+    const reread = (await getBill(tokens.OWNER, bill.id)).body.data;
+    assert.equal(reread.captainName, waiter.name);
+  });
+
+  it('keeps the category a line was ordered under after the dish moves', async () => {
+    const floor = await seedFloor();
+    const { tokens, item } = floor;
+    const original = (await request('GET', `/api/v1/menu-items/${item.id}`, { token: tokens.OWNER }))
+      .body.data;
+
+    const opened = (
+      await request('POST', '/api/v1/orders', {
+        token: tokens.WAITER,
+        body: { orderType: 'DINE_IN', tableId: floor.table.id, lines: [{ menuItemId: item.id, quantity: 1 }] },
+      })
+    ).body.data;
+
+    const elsewhere = (
+      await request('POST', '/api/v1/categories', { token: tokens.OWNER, body: { name: 'Moved Here' } })
+    ).body.data;
+    const moved = await request('PATCH', `/api/v1/menu-items/${item.id}`, {
+      token: tokens.OWNER,
+      body: { categoryId: elsewhere.id },
+    });
+    assert.equal(moved.status, 200, JSON.stringify(moved.body));
+
+    const order = await serveEverything(tokens, opened);
+    assert.equal(order.lines[0].categoryId, original.categoryId, 'the order line did not move');
+
+    const bill = (await createBill(tokens.CASHIER, { orderId: order.id, version: order.version }))
+      .body.data;
+    assert.equal(bill.lines[0].categoryId, original.categoryId);
+    assert.notEqual(bill.lines[0].categoryName, 'Moved Here');
+  });
+
+  it('bills an order from before P03, with null categories and correct shares', async () => {
+    const floor = await seedFloor();
+    const order = await readyToBillOrder(floor);
+
+    // Strip the two fields, as an order line written before P03 would have them.
+    await Order.collection.updateOne(
+      { _id: new mongoose.Types.ObjectId(order.id) },
+      { $unset: { 'lines.$[].categoryId': '', 'lines.$[].categoryName': '' } },
+    );
+
+    const response = await createBill(floor.tokens.CASHIER, { orderId: order.id, version: order.version });
+    assert.equal(response.status, 201, JSON.stringify(response.body));
+
+    const [line] = response.body.data.lines;
+    assert.equal(line.categoryId, null);
+    assert.equal(line.categoryName, null);
+    assert.equal(line.discountShareInPaise, 0);
+    assert.equal(line.taxableInPaise, line.lineTotalInPaise);
+    assert.equal(line.taxInPaise, response.body.data.totalTaxInPaise);
+  });
+
+  it('refuses a client sending a share or a captain', async () => {
+    const { bill, order, tokens } = await billedFloor();
+
+    const onCreate = await createBill(tokens.CASHIER, {
+      orderId: order.id,
+      version: order.version,
+      captainName: 'Me',
+    });
+    assert.equal(onCreate.status, 400);
+
+    const onDiscount = await discount(tokens.MANAGER, bill.id, {
+      kind: 'FLAT',
+      valueInPaise: 100,
+      reason: 'Regular',
+      discountShareInPaise: 100,
+    });
+    assert.equal(onDiscount.status, 400);
+  });
+});
+
+describe('line shares on a real bill (P03)', () => {
+  /** B02 from docs/TEST-DATA.md, built through the API. */
+  async function goldenB02() {
+    const floor = await seedFloor();
+    const { tokens } = floor;
+    const make = async (name, priceInPaise) =>
+      (await createMenuItem(tokens.OWNER, { name, priceInPaise, taxRateBps: 500 })).body.data.id;
+
+    const platter = await make('Indian Platters', 45000);
+    const noodles = await make('Chilli Garlic Noodle Bowl', 40000);
+    const mocha = await make('Mocha Flower', 28000);
+    const papad = await make('Roasted Papad', 8000);
+    const paratha = await make('Laccha Tawa Paratha', 8000);
+
+    const order = await readyToBillOrder(
+      floor,
+      [platter, noodles, mocha, papad, paratha, papad, papad].map((menuItemId) => ({
+        menuItemId,
+        quantity: 1,
+      })),
+    );
+    const bill = (await createBill(tokens.CASHIER, { orderId: order.id, version: order.version }))
+      .body.data;
+    return { ...floor, bill };
+  }
+
+  const B02_SHARES = [
+    [2268, 42732, 2137],
+    [2016, 37984, 1899],
+    [1411, 26589, 1329],
+    [403, 7597, 380],
+    [403, 7597, 380],
+    [403, 7597, 380],
+    [403, 7597, 380],
+  ];
+
+  const sharesOf = (bill) =>
+    bill.lines.map((line) => [line.discountShareInPaise, line.taxableInPaise, line.taxInPaise]);
+
+  it('stores B02 exactly as Caffeza split bill C22276', async () => {
+    const { bill, tokens } = await goldenB02();
+
+    const response = await discount(tokens.MANAGER, bill.id, {
+      kind: 'FLAT',
+      valueInPaise: 7307,
+      reason: 'Zomato Gold',
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.body));
+
+    const discounted = response.body.data;
+    assert.deepEqual(sharesOf(discounted), B02_SHARES);
+    assert.equal(discounted.grandTotalInPaise, 144600);
+    assert.equal(discounted.taxBreakdown[0].cgstInPaise, 3443);
+    assert.equal(discounted.taxBreakdown[0].sgstInPaise, 3442);
+
+    // And it is what a later read returns, not just what the write answered.
+    const reread = (await getBill(tokens.OWNER, bill.id)).body.data;
+    assert.deepEqual(sharesOf(reread), B02_SHARES);
+  });
+
+  it('writes shares at creation, before any discount', async () => {
+    const { bill } = await goldenB02();
+    for (const line of bill.lines) {
+      assert.equal(line.discountShareInPaise, 0);
+      assert.equal(line.taxableInPaise, line.lineTotalInPaise);
+    }
+    const tax = bill.lines.reduce((sum, line) => sum + line.taxInPaise, 0);
+    assert.equal(tax, bill.totalTaxInPaise);
+  });
+
+  it('replaces the shares when a second discount replaces the first', async () => {
+    const { bill, tokens } = await goldenB02();
+
+    await discount(tokens.MANAGER, bill.id, { kind: 'PERCENT', rateBps: 1000, reason: 'First' });
+    const second = await discount(tokens.MANAGER, bill.id, {
+      kind: 'FLAT',
+      valueInPaise: 7307,
+      reason: 'Zomato Gold',
+    });
+
+    assert.deepEqual(sharesOf(second.body.data), B02_SHARES);
+  });
+});
+
+/** Fires an opened order, marks it ready, and serves every line. Returns the order. */
+async function serveEverything(tokens, opened) {
+  const fired = (
+    await request('POST', `/api/v1/orders/${opened.id}/fire`, {
+      token: tokens.WAITER,
+      body: { version: opened.version },
+    })
+  ).body.data;
+  await request('PATCH', `/api/v1/kots/${fired.kot.id}/ready`, { token: tokens.KITCHEN });
+
+  let current = (await readOrder(tokens.WAITER, opened.id)).body.data;
+  for (const line of current.lines) {
+    current = (
+      await request('PATCH', `/api/v1/orders/${opened.id}/lines/${line.id}/served`, {
+        token: tokens.WAITER,
+        body: { version: current.version },
+      })
+    ).body.data;
+  }
+  return current;
+}
