@@ -53,6 +53,8 @@ const DEFAULTS = {
   // P02.
   features: { inventory: true, attendance: true },
   invoice: { mode: 'FINANCIAL_YEAR', prefix: null, startingNumber: null },
+  // P06.
+  delivery: { platformCollectsGst: true },
 };
 
 // ---------------------------------------------------------------------------

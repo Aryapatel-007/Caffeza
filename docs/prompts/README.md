@@ -12,7 +12,7 @@ The full table, with dependencies and owners, is in
 | P03 | Bill snapshots and line shares | Done |
 | P04 | Cancel reasons and variant check | Done |
 | P05 | Kitchen stations and printing | Done |
-| P06 | Delivery and platform orders | Not run |
+| P06 | Delivery and platform orders | Done |
 | P07 | Settlement spec | Not run |
 | P08 | Payment methods and No Charge | Not run |
 | P09 | On Hold accounts | Not run |

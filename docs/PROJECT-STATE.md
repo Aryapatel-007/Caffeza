@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P06, delivery and platform orders.
+Next: P07, the settlement spec.
 
 ---
 
@@ -44,7 +44,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M8 | Audit Trail | Rishi | NOT STARTED | Specified in API-CONTRACT.md. Pulled forward for Caffeza. Built in P17 part A. |
 | M10 | Payments | Rishi | NOT STARTED | Pulled forward for Caffeza with an adjusted scope: configurable payment methods including platforms. No UPI QR for go-live. P07, P08. |
 | M16 | Settlement and Day Close | Rishi | NOT STARTED | No Charge, On Hold accounts, cash drawer, Day Close. P07 to P10. |
-| M17 | Delivery and Platform Orders | Arya | NOT STARTED | Entered by hand. 0% tax on platform orders. P06. |
+| M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders and 0% platform tax built in P06. Payouts come in P09. Built by Rishi, off the listed owner. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | NOT STARTED | Every report in REPORT-SPEC.md. P13 to P18, proven by P21. |
 | M20 | Floor Plan and Look | Arya | NOT STARTED | P19, P20. |
@@ -291,6 +291,10 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | Stations are managed on their own page, `/stations`, for OWNER and MANAGER, linked from Settings and the dashboard, rather than as a section inside the Settings page. | The P05 prompt asked for a Stations section on the settings page for OWNER and MANAGER, but that page is OWNER only. A manager runs the kitchen. |
 | 2026-10-01 | The KOT ticket reads the guest count, customer name and the name of whoever fired it from the order and the user at print time, rather than adding fields to `kots`. | The spec froze only `stationId` and `stationName` on the KOT. These are printed, never added up. |
 | 2026-10-01 | P05 was built by Rishi although Arya is its suggested owner, together with P06 to P15, at the user's request in one session. | Recorded so the crossing is not discovered in the git log. Arya's read of M17, M18 and M19 is owed before the next milestone. |
+| 2026-10-01 | Delivery orders carry a platform and its order number, frozen on the order and the bill. A platform order number can be live on only one order at a time. | Orders are typed in by hand from a second screen, and entering one twice is the likeliest mistake. |
+| 2026-10-01 | A platform order's lines are frozen at 0% GST, with the item's own rate kept in `menuTaxRateBps`, when `settings.delivery.platformCollectsGst` is true. The tax arithmetic is untouched. | Section 9(5): the platform pays the GST. Pending CA confirmation, so it is a setting. |
+| 2026-10-01 | An order occupies a table only if it has one: `occupiesTable` is true for OPEN and READY_TO_BILL orders with a `tableId`, and false otherwise. The status-update hook reads the order's `tableId` when moving into an occupying status. | Found while building P06: every open takeaway carried `occupiesTable: true` with `tableId: null`, so a second open takeaway, or a second delivery order, collided on the one-order-per-table index and was refused. Verified against a real index before fixing. |
+| 2026-10-01 | The 409 for a platform order entered twice is `DUPLICATE` with `existingOrderId` beside the message, the same shape `TABLE_OCCUPIED` uses. `DuplicateError` gained an optional `details` argument for it. | The counter opens the order that already exists instead of entering it again. |
 
 ---
 
@@ -311,6 +315,49 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P06 delivery and platform orders
+
+What was built or decided:
+M17's first part. `DELIVERY` order type with `platform: { code, name, orderId }`
+from `server/config/platforms.js` (Zomato, Swiggy; mirrored on the client) and
+`taxTreatment`. A delivery order has no table and no guests; a platform order
+number can be live on only one order, enforced by a partial unique index, and a
+second entry is a 409 naming the existing order. With
+`settings.delivery.platformCollectsGst` on (the default), lines are frozen at
+0% with the item's rate kept in `menuTaxRateBps`; the order keeps its treatment
+for lines added later even if the setting changes. Bills copy `platform` and
+`taxTreatment`. The KOT ticket shows `DELIVERY  SWIGGY {number}`.
+
+A latent M2 bug was fixed on the way: two open orders with no table collided on
+the one-order-per-table index, so a second takeaway or delivery order was
+refused while the first was open. Only an order with a table occupies one now.
+
+Golden day B07 (93000 at 0%) and B08 (30500, shares 13069 and 6931) are
+reproduced through the API in `tests/delivery.test.js`.
+
+Client: a Delivery page at `/orders/delivery` (platform buttons, order number,
+keyboard-friendly, link to the existing order on a duplicate), a Delivery button
+on the floor, and `placeLabel()` naming the order or bill as "Swiggy 2493..."
+on the order screen, bill screen and bills list.
+
+Tests: 679 before, 700 after, 0 failing.
+
+Files or endpoints touched:
+New: `config/platforms.js`, `tests/delivery.test.js`, client
+`features/orders/platforms.js`, `DeliveryOrderPage.jsx`, `orderLabel.js`.
+Changed: Order, Bill and Restaurant models, `orderValidators`,
+`settingsValidators`, `settingsService`, `orderService.buildLineSnapshots`,
+`orderController`, `billService`, `kotTicketService`, `utils/errors.js`.
+
+Anything the other developer needs to know:
+The M6 sales summary still counts only dine-in and takeaway in its per-type
+fields; delivery bills are in its totals. R2 and R3 handle order types properly
+in P10 and P15. Arya's read of M3 was meant to come before P06 and has not
+happened.
+
+Anything now blocked or unblocked:
+P07 can start.
 
 ### 2026-10-01 Rishi, P05 kitchen stations and printing
 
@@ -942,100 +989,6 @@ the end-to-end Atlas verification are what remain of the whole M3+M4 build.
 
 **Still open:** M3's two pilot gates are unchanged. Arya's read is now owed on
 three modules. Seed data (`scripts/seedDemo.js`) has not been written.
-
-### 2026-08-30 Rishi, M4 backend
-
-**What was built:** the M4 Inventory server, on `feat/m4/inventory`, against
-the spec committed on `chore/m3/pre-flight`. Eleven endpoints, three
-collections, 51 new tests. 490 in the suite overall, all passing. Lint clean.
-No React screens yet.
-
-Built by Rishi. M4 is Arya's module on paper; this is the third module built
-off the listed owner, after M1 and M5. Logged plainly, as the other two crossings
-were, in the known problems table.
-
-**Endpoints, eleven, all under `/api/v1`**
-
-`POST /ingredients`, `GET /ingredients`, `PATCH /ingredients/:id`,
-`PATCH /ingredients/:id/active`, `PUT /recipes`, `GET /recipes`,
-`DELETE /recipes/:id`, `GET /inventory/unmapped`,
-`GET /ingredients/:id/movements`, `POST /ingredients/:id/movements`,
-`GET /inventory/consumption`.
-
-**Files created**
-
-Models: `Ingredient.js`, `Recipe.js`, `StockMovement.js`.
-
-`utils/units.js`, before any deduction code, per CONVENTIONS 13. Cannot reuse
-`money.js`'s fixed two-decimal trick because `unitsPerBase` is not always a
-power of ten (a "dozen" purchase unit is 12), so every conversion goes through
-BigInt, exact for any integer ratio and any decimal precision typed.
-
-Services: `stockMovementService.js` (the ledger and its idempotency
-guarantee), `recipeService.js` (the variant fallback, the one PUT, the one
-hard delete, the unmapped-dishes read), `ingredientService.js` (CRUD, the
-derived `stockState`, the deactivation guard, manual adjustments and their
-sign).
-
-Controllers: `ingredientController.js`, `recipeController.js`. Routes:
-`inventoryRoutes.js`. Validators: `inventoryValidators.js`.
-
-Tests: `units.test.js` (12), `stockMovements.test.js` (12),
-`inventory.test.js` (39, but 12 of those were already counted -- 39 total in
-that file). Also touched: `kitchenService.js` and `orderController.js` (M2
-files), `utils/errors.js`, `utils/time.js`, `utils/scopedQuery.js` already had
-`scopedForAggregate` from M3.
-
-**Two real bugs found by the tests before either reached production data**
-
-The idempotency key this module's own Phase 0 spec first proposed,
-`orderLineId:type`, does not discriminate by ingredient. A recipe with more
-than one ingredient -- the ordinary case -- would have its second ingredient's
-movement collide with its first's on the unique index, and the idempotency
-guard would read that collision as a retry and silently skip a real deduction.
-Fixed to `orderLineId:ingredientId:type` before any code ran against the wrong
-version; `docs/DB-SCHEMA.md` section 16 is corrected in place.
-
-`POST /ingredients/:id/movements` was not applying the sign API-CONTRACT.md
-section 18.2 promises: "the sign is applied by the server from the type, so a
-storekeeper never types a minus sign." The first implementation just passed
-the client's positive `qtyInBase` straight through, which meant recording
-`WASTAGE` of 300 g *added* 300 g instead of removing it. Two tests written
-against the correct spec text caught it immediately; fixed with a
-`MANUAL_TYPE_SIGN` map in `ingredientService.adjustStock`.
-
-**What the other developer needs to know**
-
-Deduction happens inside `kitchenService.fireOrder`'s own transaction, right
-after the order is updated to FIRED, not as a separate call anyone makes.
-`orderController.js`'s single-line and whole-order cancel now call
-`returnStockForCancelledLine` when `wasPrepared: false`, keyed on whether a
-`DEDUCTION` movement genuinely exists for the line, not on the flag alone.
-
-`recordMovement` in `stockMovementService.js` is the one function that touches
-both `stockmovements` and `ingredients.currentQtyInBase`. It increments the
-ingredient first, then claims the movement's `eventKey`; a duplicate key
-undoes the increment it just made and hands back what already exists. This is
-safe under real concurrency without needing a transaction, verified by firing
-five genuinely concurrent calls at one `eventKey` and asserting exactly one of
-them actually moved stock.
-
-Negative stock is allowed everywhere and blocks nothing, by design (M4's
-DB-SCHEMA section 14). A missing recipe deducts nothing and the sale still
-succeeds; `GET /inventory/unmapped` is the honest surface for it, recomputed
-against today's recipes on every read rather than remembering a flag from the
-moment of firing.
-
-`skipTenantGuard` count is unchanged: still exactly the four from M0 and
-M0-D. M4 adds zero, and there is a test asserting it, the same tripwire shape
-`tests/bills.test.js` already carries for M3.
-
-**Unblocked:** M4 screens. `GET /inventory/consumption` is the read M6's
-"stock consumed" report will aggregate from, the same relationship M3's bill
-summary has with M6's sales report.
-
-**Still open:** M4 has no React screens yet, and Arya's read is now owed on
-three modules, not two.
 
 ---
 

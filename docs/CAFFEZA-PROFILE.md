@@ -341,6 +341,6 @@ Their own figures, for comparing against ours during the parallel run.
 
 1. CGST and SGST: one rounding per tax rate, or each half rounded per item as today.
 2. Continue the `CFA/C/` series, or start a new one.
-3. Confirm 0% on platform delivery orders under section 9(5).
+3. Confirm 0% on platform delivery orders under section 9(5). Built in P06 as a setting, `settings.delivery.platformCollectsGst`, defaulting to 0% on platform orders.
 4. How No Charge orders should be recorded.
 5. Whether the tagline and legal name layout on the bill is acceptable.

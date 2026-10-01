@@ -1,5 +1,99 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-08-30 Rishi, M4 backend
+
+**What was built:** the M4 Inventory server, on `feat/m4/inventory`, against
+the spec committed on `chore/m3/pre-flight`. Eleven endpoints, three
+collections, 51 new tests. 490 in the suite overall, all passing. Lint clean.
+No React screens yet.
+
+Built by Rishi. M4 is Arya's module on paper; this is the third module built
+off the listed owner, after M1 and M5. Logged plainly, as the other two crossings
+were, in the known problems table.
+
+**Endpoints, eleven, all under `/api/v1`**
+
+`POST /ingredients`, `GET /ingredients`, `PATCH /ingredients/:id`,
+`PATCH /ingredients/:id/active`, `PUT /recipes`, `GET /recipes`,
+`DELETE /recipes/:id`, `GET /inventory/unmapped`,
+`GET /ingredients/:id/movements`, `POST /ingredients/:id/movements`,
+`GET /inventory/consumption`.
+
+**Files created**
+
+Models: `Ingredient.js`, `Recipe.js`, `StockMovement.js`.
+
+`utils/units.js`, before any deduction code, per CONVENTIONS 13. Cannot reuse
+`money.js`'s fixed two-decimal trick because `unitsPerBase` is not always a
+power of ten (a "dozen" purchase unit is 12), so every conversion goes through
+BigInt, exact for any integer ratio and any decimal precision typed.
+
+Services: `stockMovementService.js` (the ledger and its idempotency
+guarantee), `recipeService.js` (the variant fallback, the one PUT, the one
+hard delete, the unmapped-dishes read), `ingredientService.js` (CRUD, the
+derived `stockState`, the deactivation guard, manual adjustments and their
+sign).
+
+Controllers: `ingredientController.js`, `recipeController.js`. Routes:
+`inventoryRoutes.js`. Validators: `inventoryValidators.js`.
+
+Tests: `units.test.js` (12), `stockMovements.test.js` (12),
+`inventory.test.js` (39, but 12 of those were already counted -- 39 total in
+that file). Also touched: `kitchenService.js` and `orderController.js` (M2
+files), `utils/errors.js`, `utils/time.js`, `utils/scopedQuery.js` already had
+`scopedForAggregate` from M3.
+
+**Two real bugs found by the tests before either reached production data**
+
+The idempotency key this module's own Phase 0 spec first proposed,
+`orderLineId:type`, does not discriminate by ingredient. A recipe with more
+than one ingredient -- the ordinary case -- would have its second ingredient's
+movement collide with its first's on the unique index, and the idempotency
+guard would read that collision as a retry and silently skip a real deduction.
+Fixed to `orderLineId:ingredientId:type` before any code ran against the wrong
+version; `docs/DB-SCHEMA.md` section 16 is corrected in place.
+
+`POST /ingredients/:id/movements` was not applying the sign API-CONTRACT.md
+section 18.2 promises: "the sign is applied by the server from the type, so a
+storekeeper never types a minus sign." The first implementation just passed
+the client's positive `qtyInBase` straight through, which meant recording
+`WASTAGE` of 300 g *added* 300 g instead of removing it. Two tests written
+against the correct spec text caught it immediately; fixed with a
+`MANUAL_TYPE_SIGN` map in `ingredientService.adjustStock`.
+
+**What the other developer needs to know**
+
+Deduction happens inside `kitchenService.fireOrder`'s own transaction, right
+after the order is updated to FIRED, not as a separate call anyone makes.
+`orderController.js`'s single-line and whole-order cancel now call
+`returnStockForCancelledLine` when `wasPrepared: false`, keyed on whether a
+`DEDUCTION` movement genuinely exists for the line, not on the flag alone.
+
+`recordMovement` in `stockMovementService.js` is the one function that touches
+both `stockmovements` and `ingredients.currentQtyInBase`. It increments the
+ingredient first, then claims the movement's `eventKey`; a duplicate key
+undoes the increment it just made and hands back what already exists. This is
+safe under real concurrency without needing a transaction, verified by firing
+five genuinely concurrent calls at one `eventKey` and asserting exactly one of
+them actually moved stock.
+
+Negative stock is allowed everywhere and blocks nothing, by design (M4's
+DB-SCHEMA section 14). A missing recipe deducts nothing and the sale still
+succeeds; `GET /inventory/unmapped` is the honest surface for it, recomputed
+against today's recipes on every read rather than remembering a flag from the
+moment of firing.
+
+`skipTenantGuard` count is unchanged: still exactly the four from M0 and
+M0-D. M4 adds zero, and there is a test asserting it, the same tripwire shape
+`tests/bills.test.js` already carries for M3.
+
+**Unblocked:** M4 screens. `GET /inventory/consumption` is the read M6's
+"stock consumed" report will aggregate from, the same relationship M3's bill
+summary has with M6's sales report.
+
+**Still open:** M4 has no React screens yet, and Arya's read is now owed on
+three modules, not two.
+
 ### 2026-08-30 Rishi, M3 screens
 
 **What was built:** the three M3 screens, on `feat/m3/billing`, on top of the
