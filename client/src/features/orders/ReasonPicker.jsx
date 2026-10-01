@@ -31,7 +31,7 @@ export default function ReasonPicker({ reasons, value, onChange, noteMaxLength =
                 aria-pressed={chosen}
                 onClick={() => onChange({ reasonCode: reason.code, note })}
                 className={[
-                  'min-h-[48px] rounded-[10px] border-2 px-3 py-2 text-left text-[15px] leading-5',
+                  'min-h-[48px] rounded-xl border-2 px-3 py-2 text-left text-[15px] leading-5',
                   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
                   chosen ? 'border-ink bg-chana/20 font-semibold' : 'border-steel/40',
                 ].join(' ')}
@@ -53,7 +53,7 @@ export default function ReasonPicker({ reasons, value, onChange, noteMaxLength =
           rows={2}
           maxLength={noteMaxLength}
           placeholder={noteRequired ? 'Say what happened' : 'Anything worth adding'}
-          className="w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
+          className="w-full rounded-xl border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
         />
       </label>
     </div>

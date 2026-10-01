@@ -105,11 +105,11 @@ export default function TodayPage() {
             description="Ingredients at or below their own threshold. Worst first."
           >
             {data.lowStock.length === 0 ? (
-              <p className="rounded-[10px] border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
+              <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
                 Nothing is running low.
               </p>
             ) : (
-              <ul className="divide-y divide-steel/15 border-y-2 border-ink/10">
+              <ul className="divide-y divide-steel/15 border-y border-black/5/10">
                 {data.lowStock.map((row) => (
                   <li key={row.ingredientId} className="flex items-center justify-between gap-3 py-2.5">
                     <span className="text-[14px] leading-[20px]">{row.name}</span>
@@ -129,7 +129,7 @@ export default function TodayPage() {
             )}
             <Link
               to="/inventory"
-              className="mt-3 inline-flex h-11 items-center rounded-[10px] border-2 border-ink px-4 text-[13px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="mt-3 inline-flex h-11 items-center rounded-xl border border-black/5 shadow-card px-4 text-[13px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Open stock
             </Link>

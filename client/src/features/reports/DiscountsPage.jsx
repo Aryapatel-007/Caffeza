@@ -109,7 +109,7 @@ export default function DiscountsPage() {
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setPage((current) => current - 1)}
-                  className="h-11 rounded-[10px] border-2 border-steel/40 px-4 text-[13px] font-medium disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="h-11 rounded-xl border-2 border-steel/40 px-4 text-[13px] font-medium disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   Previous
                 </button>
@@ -120,7 +120,7 @@ export default function DiscountsPage() {
                   type="button"
                   disabled={page >= pageCount}
                   onClick={() => setPage((current) => current + 1)}
-                  className="h-11 rounded-[10px] border-2 border-steel/40 px-4 text-[13px] font-medium disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="h-11 rounded-xl border-2 border-steel/40 px-4 text-[13px] font-medium disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   Next
                 </button>

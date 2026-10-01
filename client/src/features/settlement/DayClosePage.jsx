@@ -180,7 +180,7 @@ export default function DayClosePage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="border-b-2 border-ink px-4 py-3">
+      <header className="border-b border-black/5 px-4 py-3">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold leading-7">Day Close</h1>
@@ -213,7 +213,7 @@ export default function DayClosePage() {
             </p>
 
             {!day.isClosed && day.blockers.length > 0 && (
-              <section className="rounded-[10px] border-2 border-mirch/60 p-3">
+              <section className="rounded-xl border-2 border-mirch/60 p-3">
                 <h2 className="mb-2 text-[15px] font-semibold">Sort these out first</h2>
                 <ul className="grid gap-1 text-[13px] leading-[18px]">
                   {day.blockers.map((blocker) => (
@@ -228,7 +228,7 @@ export default function DayClosePage() {
             )}
 
             {!day.isClosed && (
-              <section className="grid gap-3 rounded-[10px] border-2 border-ink/20 p-3">
+              <section className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
                 <Input
                   label="Cash counted in the drawer"
                   inputMode="decimal"

@@ -33,7 +33,7 @@ export default function MethodButtons({ methods, selected = null, onPick }) {
             aria-pressed={chosen}
             onClick={() => onPick(method)}
             className={[
-              'flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-ink transition-transform duration-100 active:translate-y-0.5',
+              'flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-xl border border-black/5 shadow-card transition-transform duration-100 active:translate-y-0.5',
               'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
               chosen ? 'bg-chana/20' : 'bg-paper',
             ].join(' ')}

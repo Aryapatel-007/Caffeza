@@ -89,7 +89,7 @@ export default function AttendanceRegisterPage() {
 
   return (
     <main className="mx-auto flex min-h-full w-full max-w-4xl flex-col bg-paper">
-      <header className="sticky top-0 z-10 flex flex-wrap items-end justify-between gap-3 border-b-2 border-ink bg-paper px-5 py-4">
+      <header className="sticky top-0 z-10 flex flex-wrap items-end justify-between gap-3 border-b border-black/5 bg-paper px-5 py-4">
         <h1 className="text-xl font-semibold text-ink">Attendance</h1>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col text-[12px] font-medium uppercase tracking-[0.06em] text-steel">

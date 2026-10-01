@@ -40,7 +40,7 @@ export default function RankedBars({
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-[10px] border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
+      <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
         {emptyMessage}
       </p>
     );

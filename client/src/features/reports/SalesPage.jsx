@@ -198,7 +198,7 @@ export default function SalesPage() {
                 'h-10 rounded-full px-3 text-[13px] font-medium',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
                 sort === option.value
-                  ? 'border-2 border-ink bg-chana/20 text-ink'
+                  ? 'border border-black/5 shadow-card bg-chana/20 text-ink'
                   : 'border-2 border-steel/40 text-steel',
               ].join(' ')}
             >

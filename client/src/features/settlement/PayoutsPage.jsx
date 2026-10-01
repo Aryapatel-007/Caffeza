@@ -53,7 +53,7 @@ function PayoutForm({ methods, onDone, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-[10px] border-2 border-ink/20 p-3">
+    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
       <p className="text-[15px] font-semibold leading-6">Record payout</p>
       <Select
         label="Platform"
@@ -106,7 +106,7 @@ export default function PayoutsPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="border-b-2 border-ink px-4 py-3">
+      <header className="border-b border-black/5 px-4 py-3">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold leading-7">Platform payouts</h1>
@@ -126,7 +126,7 @@ export default function PayoutsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-[13px] leading-[18px]">
               <thead>
-                <tr className="border-b-2 border-ink text-left text-[12px] uppercase tracking-[0.06em] text-steel">
+                <tr className="border-b border-black/5 text-left text-[12px] uppercase tracking-[0.06em] text-steel">
                   <th className="py-2 pr-3 font-medium">Platform</th>
                   <th className="py-2 pr-3 font-medium">Period</th>
                   <th className="py-2 pr-3 text-right font-medium">Received payout</th>

@@ -71,7 +71,7 @@ export default function ClockConfirmation({ result, onUndo, onDone, undoBusy = f
         type="button"
         onClick={onUndo}
         disabled={undoBusy || secondsLeft <= 0}
-        className="flex min-h-[72px] min-w-[220px] items-center justify-center gap-2 rounded-xl border-[3px] border-mirch bg-paper px-8 text-xl font-semibold text-mirch active:translate-y-0.5 transition-transform duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-40"
+        className="flex min-h-[72px] min-w-[220px] items-center justify-center gap-2 rounded-full border-[3px] border-mirch bg-paper px-8 text-xl font-semibold text-mirch active:translate-y-0.5 transition-transform duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-40"
       >
         <span>{CLOCK_LABELS.undo.en}</span>
         <span lang="hi" className="text-base font-normal">

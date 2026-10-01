@@ -40,9 +40,9 @@ export default function CancelPanel({
       <aside
         role="dialog"
         aria-label={title}
-        className="flex w-full max-w-md flex-col border-l-2 border-ink bg-paper shadow-[-8px_0_24px_rgba(28,27,25,0.18)]"
+        className="flex w-full max-w-md flex-col border-l border-black/5 bg-paper shadow-[-8px_0_24px_rgba(28,27,25,0.18)]"
       >
-        <header className="border-b-2 border-ink px-4 py-3">
+        <header className="border-b border-black/5 px-4 py-3">
           <h2 className="text-[20px] font-semibold leading-7">{title}</h2>
           {description && (
             <p className="mt-0.5 text-[13px] leading-[18px] text-steel">{description}</p>
@@ -69,7 +69,7 @@ export default function CancelPanel({
                   <label
                     key={String(option.value)}
                     className={[
-                      'flex min-h-[48px] cursor-pointer items-center gap-3 rounded-[10px] border-2 px-3',
+                      'flex min-h-[48px] cursor-pointer items-center gap-3 rounded-xl border-2 px-3',
                       wasPrepared === option.value ? 'border-ink' : 'border-steel/40',
                     ].join(' ')}
                   >
@@ -90,11 +90,11 @@ export default function CancelPanel({
           {error && <p className="mt-4 text-[13px] leading-[18px] text-mirch">{error}</p>}
         </div>
 
-        <footer className="flex gap-2 border-t-2 border-ink px-4 py-3">
+        <footer className="flex gap-2 border-t border-black/5 px-4 py-3">
           <button
             type="button"
             onClick={onCancel}
-            className="h-12 flex-1 rounded-[10px] border-2 border-steel/40 text-[15px] font-semibold text-steel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="h-12 flex-1 rounded-xl border-2 border-steel/40 text-[15px] font-semibold text-steel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             Keep it
           </button>
@@ -107,7 +107,7 @@ export default function CancelPanel({
                 ...(needsWasPrepared ? { wasPrepared } : {}),
               })
             }
-            className="h-12 flex-[2] rounded-[10px] bg-mirch text-[15px] font-semibold text-paper transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-50"
+            className="h-12 flex-[2] rounded-xl bg-mirch text-[15px] font-semibold text-paper transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-50"
           >
             {isBusy ? 'Cancelling…' : 'Cancel it'}
           </button>

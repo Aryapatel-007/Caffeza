@@ -89,7 +89,7 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
               key={reason.type}
               type="button"
               onClick={() => setType(reason.type)}
-              className="flex min-h-[56px] items-center gap-3 rounded-[10px] border-2 border-ink bg-paper px-4 text-left transition-transform duration-100 active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex min-h-[56px] items-center gap-3 rounded-xl border border-black/5 shadow-card bg-white px-4 text-left transition-transform duration-100 active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <span aria-hidden="true" className="font-mono text-xl">
                 {reason.icon}
@@ -116,7 +116,7 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
           <button
             type="button"
             onClick={() => setRecountDirection('MORE')}
-            className="flex min-h-[72px] flex-col items-center justify-center rounded-xl border-2 border-ink bg-paper text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="flex min-h-[72px] flex-col items-center justify-center rounded-xl border border-black/5 shadow-card bg-white text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <span aria-hidden="true" className="font-mono text-2xl">
               +
@@ -126,7 +126,7 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
           <button
             type="button"
             onClick={() => setRecountDirection('LESS')}
-            className="flex min-h-[72px] flex-col items-center justify-center rounded-xl border-2 border-ink bg-paper text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="flex min-h-[72px] flex-col items-center justify-center rounded-xl border border-black/5 shadow-card bg-white text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <span aria-hidden="true" className="font-mono text-2xl">
               −

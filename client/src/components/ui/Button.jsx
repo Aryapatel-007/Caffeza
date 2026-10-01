@@ -10,9 +10,9 @@
 const VARIANTS = {
   primary: 'bg-brand-600 text-white hover:bg-brand-700 focus-visible:outline-brand-600',
   secondary:
-    'bg-white text-slate-800 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline-slate-400',
+    'bg-white text-ink ring-1 ring-inset ring-black/10 hover:bg-linen focus-visible:outline-slate-400',
   danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600',
-  ghost: 'bg-transparent text-slate-700 hover:bg-slate-100 focus-visible:outline-slate-400',
+  ghost: 'bg-transparent text-ink hover:bg-linen-2 focus-visible:outline-slate-400',
 };
 
 const SIZES = {
@@ -40,7 +40,7 @@ export default function Button({
       disabled={isDisabled}
       aria-busy={isLoading || undefined}
       className={[
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium',
+        'inline-flex items-center justify-center gap-2 rounded-full font-semibold active:scale-[0.98]',
         'transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
         'disabled:cursor-not-allowed disabled:opacity-50',
         VARIANTS[variant] ?? VARIANTS.primary,

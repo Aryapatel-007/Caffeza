@@ -27,7 +27,7 @@ export default function BillDetailPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="border-b-2 border-ink px-4 py-3">
+      <header className="border-b border-black/5 px-4 py-3">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
           <div>
             <h1 className="font-mono text-[18px] font-semibold leading-7">{bill.billNumber}</h1>
@@ -47,7 +47,7 @@ export default function BillDetailPage() {
         <section className="overflow-x-auto">
           <table className="w-full text-[13px] leading-[18px]">
             <thead>
-              <tr className="border-b-2 border-ink text-left text-[12px] uppercase tracking-[0.04em] text-steel">
+              <tr className="border-b border-black/5 text-left text-[12px] uppercase tracking-[0.04em] text-steel">
                 <th className="py-2 pr-3 font-medium">{LABELS.ITEM}</th>
                 <th className="py-2 pr-3 font-medium">{LABELS.CATEGORY}</th>
                 <th className="py-2 pr-3 text-right font-medium">{LABELS.LINE_TOTAL}</th>

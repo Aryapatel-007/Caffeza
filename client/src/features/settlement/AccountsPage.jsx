@@ -63,7 +63,7 @@ function CollectionForm({ account, onDone, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-[10px] border-2 border-ink/20 p-3">
+    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
       <p className="text-[15px] font-semibold leading-6">Record collection</p>
       <div className="flex flex-wrap gap-2">
         {inHand.map((entry) => (
@@ -73,7 +73,7 @@ function CollectionForm({ account, onDone, onError }) {
             aria-pressed={method === entry.code}
             onClick={() => setMethod(entry.code)}
             className={[
-              'min-h-12 rounded-[10px] border-2 px-4 text-[15px] font-semibold',
+              'min-h-12 rounded-xl border-2 px-4 text-[15px] font-semibold',
               method === entry.code ? 'border-ink bg-chana/20' : 'border-steel/40 text-steel',
             ].join(' ')}
           >
@@ -110,7 +110,7 @@ function AdjustForm({ account, onDone, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-[10px] border-2 border-ink/20 p-3">
+    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
       <p className="text-[15px] font-semibold leading-6">Adjust balance</p>
       <div className="grid grid-cols-2 gap-2">
         {[
@@ -123,7 +123,7 @@ function AdjustForm({ account, onDone, onError }) {
             aria-pressed={direction === option.value}
             onClick={() => setDirection(option.value)}
             className={[
-              'min-h-12 rounded-[10px] border-2 text-[15px] font-semibold',
+              'min-h-12 rounded-xl border-2 text-[15px] font-semibold',
               direction === option.value ? 'border-ink bg-chana/20' : 'border-steel/40 text-steel',
             ].join(' ')}
           >
@@ -159,7 +159,7 @@ function Statement({ account }) {
     <div className="overflow-x-auto">
       <table className="w-full text-[13px] leading-[18px]">
         <thead>
-          <tr className="border-b-2 border-ink text-left text-[12px] uppercase tracking-[0.06em] text-steel">
+          <tr className="border-b border-black/5 text-left text-[12px] uppercase tracking-[0.06em] text-steel">
             <th className="py-2 pr-3 font-medium">Business date</th>
             <th className="py-2 pr-3 font-medium">Entry</th>
             <th className="py-2 pr-3 text-right font-medium">Amount</th>
@@ -227,7 +227,7 @@ export default function AccountsPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="border-b-2 border-ink px-4 py-3">
+      <header className="border-b border-black/5 px-4 py-3">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold leading-7">On Hold accounts</h1>
@@ -243,7 +243,7 @@ export default function AccountsPage() {
         {query.isPending && <Spinner label="Loading accounts" />}
         {query.isError && <p className="text-[15px] text-mirch">{errorMessage(query.error)}</p>}
 
-        <ul className="divide-y divide-steel/15 border-y-2 border-ink/10">
+        <ul className="divide-y divide-steel/15 border-y border-black/5/10">
           {accounts.map((account) => {
             const open = openId === account.id;
             return (
@@ -289,7 +289,7 @@ export default function AccountsPage() {
         </ul>
 
         {isManager && (
-          <div className="grid gap-3 rounded-[10px] border-2 border-ink/20 p-3">
+          <div className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
             <p className="text-[15px] font-semibold leading-6">Add account</p>
             <Input label="Name" maxLength={40} value={newName} onChange={(e) => setNewName(e.target.value)} />
             <MoneyField label="Opening balance, optional" value={newOpening} onChange={setNewOpening} />

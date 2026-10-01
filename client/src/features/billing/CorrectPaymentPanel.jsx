@@ -41,7 +41,7 @@ export default function CorrectPaymentPanel({ payment, methods, isBusy, error, o
           rows={2}
           maxLength={200}
           placeholder="Guest paid by UPI, not cash"
-          className="w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
+          className="w-full rounded-xl border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
         />
       </label>
 

@@ -14,7 +14,7 @@
 export default function DataTable({ columns, rows, emptyMessage = 'Nothing in this range.', caption }) {
   if (!rows || rows.length === 0) {
     return (
-      <p className="rounded-[10px] border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
+      <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
         {emptyMessage}
       </p>
     );
@@ -27,7 +27,7 @@ export default function DataTable({ columns, rows, emptyMessage = 'Nothing in th
       <table className="w-full border-collapse text-[13px]">
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
-          <tr className="border-b-2 border-ink">
+          <tr className="border-b border-black/5">
             {columns.map((column) => (
               <th
                 key={column.key}

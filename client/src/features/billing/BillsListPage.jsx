@@ -40,12 +40,12 @@ export default function BillsListPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="sticky top-0 z-10 border-b-2 border-ink bg-paper px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
           <h1 className="text-[20px] font-semibold leading-7">Bills</h1>
           <Link
             to="/floor"
-            className="flex h-11 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             Floor
           </Link>
@@ -55,7 +55,7 @@ export default function BillsListPage() {
       <div className="mx-auto max-w-3xl px-4 py-6">
         {/* The running total. The number a cashier or owner opens this screen
             for, so it is the largest thing in this block. */}
-        <div className="mb-6 rounded-[10px] border-2 border-ink px-4 py-4">
+        <div className="mb-6 rounded-xl border border-black/5 shadow-card px-4 py-4">
           <p className="text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
             {from === to ? from : `${from} – ${to}`}
           </p>
@@ -86,7 +86,7 @@ export default function BillsListPage() {
               type="date"
               value={from}
               onChange={(event) => setFrom(event.target.value)}
-              className="h-11 rounded-[10px] border-2 border-steel/40 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none"
+              className="h-11 rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -95,7 +95,7 @@ export default function BillsListPage() {
               type="date"
               value={to}
               onChange={(event) => setTo(event.target.value)}
-              className="h-11 rounded-[10px] border-2 border-steel/40 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none"
+              className="h-11 rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -105,7 +105,7 @@ export default function BillsListPage() {
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value)}
-              className="h-11 rounded-[10px] border-2 border-steel/40 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none"
+              className="h-11 rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none"
             >
               <option value="">All</option>
               <option value="UNPAID">Unpaid</option>
@@ -128,13 +128,13 @@ export default function BillsListPage() {
         {query.isError && <ErrorMessage error={{ message: errorMessage(query.error) }} />}
 
         {query.isSuccess && bills.length === 0 && (
-          <p className="rounded-[10px] border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[15px] text-steel">
+          <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[15px] text-steel">
             No bills in this range.
           </p>
         )}
 
         {bills.length > 0 && (
-          <ul className="divide-y divide-steel/15 border-y-2 border-ink/10">
+          <ul className="divide-y divide-steel/15 border-y border-black/5/10">
             {bills.map((bill) => (
               <li key={bill.id}>
                 <Link

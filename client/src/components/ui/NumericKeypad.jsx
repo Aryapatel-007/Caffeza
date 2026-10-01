@@ -81,7 +81,7 @@ export default function NumericKeypad({
   const displayValue = value === '' ? '0' + (allowDecimal ? '.00' : '') : value;
 
   const keyBase =
-    'flex min-h-[64px] items-center justify-center rounded-xl border-2 border-ink bg-paper ' +
+    'flex min-h-[64px] items-center justify-center rounded-xl border border-black/5 shadow-card bg-white ' +
     'font-mono text-2xl font-medium text-ink transition-transform duration-100 active:translate-y-0.5 ' +
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ' +
     'disabled:opacity-40';
@@ -98,7 +98,7 @@ export default function NumericKeypad({
         The value being typed. This is what "numbers carry the meaning" means
         in practice: it is the largest, plainest thing in this component.
       */}
-      <div className="flex items-baseline justify-center gap-1 rounded-xl border-2 border-ink bg-paper px-4 py-5">
+      <div className="flex items-baseline justify-center gap-1 rounded-xl border border-black/5 shadow-card bg-white px-4 py-5">
         {prefix && <span className="font-mono text-2xl text-steel">{prefix}</span>}
         <span className="font-mono text-[40px] font-semibold leading-none text-ink" aria-live="polite">
           {displayValue}

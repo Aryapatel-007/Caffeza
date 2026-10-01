@@ -36,7 +36,7 @@ export default function MenuPicker({ tree, isPending, isError, onPick, disabled 
 
   return (
     <section aria-label="Menu" className="flex min-h-0 flex-1 flex-col">
-      <div className="border-b-2 border-ink/10 px-4 py-3">
+      <div className="border-b border-black/5/10 px-4 py-3">
         <label className="block">
           <span className="sr-only">Search the menu</span>
           <input
@@ -44,7 +44,7 @@ export default function MenuPicker({ tree, isPending, isError, onPick, disabled 
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search the menu"
-            className="h-12 w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
+            className="h-12 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
           />
         </label>
 

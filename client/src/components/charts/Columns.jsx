@@ -44,7 +44,7 @@ export default function Columns({
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-[10px] border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
+      <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
         {emptyMessage}
       </p>
     );
@@ -125,7 +125,7 @@ export default function Columns({
           {hovered !== null && (
             <div
               role="status"
-              className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[8px] border-2 border-ink bg-paper px-2.5 py-1.5 shadow-[0_4px_12px_rgba(28,27,25,0.18)]"
+              className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[8px] border border-black/5 shadow-card bg-white px-2.5 py-1.5 shadow-[0_4px_12px_rgba(28,27,25,0.18)]"
               style={{
                 left: `${((hovered + 0.5) / rows.length) * 100}%`,
                 bottom: '100%',

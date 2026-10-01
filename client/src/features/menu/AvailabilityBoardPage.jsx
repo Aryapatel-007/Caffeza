@@ -97,12 +97,12 @@ export default function AvailabilityBoardPage() {
   const totalShown = visible.reduce((sum, category) => sum + category.items.length, 0);
   const chipBase =
     'min-h-[44px] rounded-full px-4 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
-  const chipOn = 'border-2 border-ink bg-patta-tint text-ink';
+  const chipOn = 'border border-black/5 shadow-card bg-patta-tint text-ink';
   const chipOff = 'border border-steel/50 text-steel';
 
   return (
     <main className="flex min-h-full flex-col bg-paper">
-      <header className="sticky top-0 z-10 flex flex-col gap-3 border-b-2 border-ink bg-paper px-4 py-4 sm:px-5">
+      <header className="sticky top-0 z-10 flex flex-col gap-3 border-b border-black/5 bg-paper px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-semibold text-ink">Availability</h1>
           <div className="flex items-center gap-3">
@@ -178,7 +178,7 @@ export default function AvailabilityBoardPage() {
               {category.items.map((item) => (
                 <article
                   key={item.id}
-                  className="flex flex-col gap-3 rounded-xl border-2 border-ink bg-paper p-4"
+                  className="flex flex-col gap-3 rounded-xl border border-black/5 shadow-card bg-white p-4"
                 >
                   <h3 className="text-[15px] leading-[22px] text-ink">{item.name}</h3>
 

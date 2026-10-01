@@ -10,7 +10,7 @@ import EmptyState from './ui/EmptyState.jsx';
  */
 export default function NotFoundPage() {
   return (
-    <main className="flex min-h-full items-center justify-center bg-slate-50 p-6">
+    <main className="flex min-h-full items-center justify-center bg-linen p-6">
       <div className="w-full max-w-md">
         <EmptyState
           title="Page not found"

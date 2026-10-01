@@ -12,12 +12,12 @@
 export default function PanelShell({ title, onCancel, children }) {
   return (
     <div className="fixed inset-0 z-30 flex">
-      <button type="button" aria-label="Close" onClick={onCancel} className="flex-1 bg-ink/30" />
+      <button type="button" aria-label="Close" onClick={onCancel} className="flex-1 bg-[#141210]/55" />
 
       <aside
         role="dialog"
         aria-label={title}
-        className="flex w-full max-w-md flex-col overflow-y-auto border-l-2 border-ink bg-paper px-4 py-4 shadow-[-8px_0_24px_rgba(28,27,25,0.18)]"
+        className="flex w-full max-w-md flex-col overflow-y-auto bg-white px-5 py-5 shadow-[-8px_0_30px_rgba(28,27,25,0.18)]"
       >
         <header className="mb-4 flex items-center justify-between">
           <h2 className="text-[20px] font-semibold leading-7">{title}</h2>
@@ -25,7 +25,7 @@ export default function PanelShell({ title, onCancel, children }) {
             type="button"
             onClick={onCancel}
             aria-label="Close"
-            className="flex size-10 items-center justify-center rounded-lg text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="flex size-10 items-center justify-center rounded-full bg-linen-2 text-steel hover:bg-linen-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             ✕
           </button>

@@ -52,46 +52,63 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-full items-center justify-center bg-slate-50 p-6">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Sign in</h1>
-        <p className="mt-1 text-sm text-slate-500">Restaurant ERP</p>
+    <main className="flex min-h-full flex-col bg-white lg:flex-row">
+      <section className="flex min-h-[260px] flex-col justify-between bg-ink p-8 text-paper lg:min-h-full lg:w-[55%] lg:p-14">
+        <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em]">
+          <span className="size-2 rounded-full bg-chana" aria-hidden="true" />
+          Gandhinagar
+        </span>
+        <div>
+          <h1 className="text-[40px] font-semibold leading-[48px] tracking-tight">Caffeza</h1>
+          <p className="mt-2 max-w-md text-base leading-6 text-paper/75">
+            Good coffee, smooth service.
+          </p>
+        </div>
+      </section>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <Input
-            label="Phone or email"
-            name="identifier"
-            type="text"
-            autoComplete="username"
-            required
-            value={identifier}
-            onChange={(event) => setIdentifier(event.target.value)}
-            hint="10-digit mobile number, or the email on your account"
-            disabled={isSubmitting}
-          />
+      <section className="flex flex-1 items-center justify-center bg-white p-6 lg:p-14">
+        <div className="w-full max-w-md">
+          <h2 className="text-[28px] font-semibold leading-8 tracking-tight text-ink">
+            Welcome back
+          </h2>
+          <p className="mt-1 text-sm text-steel">Sign in to start your shift.</p>
 
-          <Input
-            label="Password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            disabled={isSubmitting}
-          />
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <Input
+              label="Phone or email"
+              name="identifier"
+              type="text"
+              autoComplete="username"
+              required
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
+              hint="10-digit mobile number, or the email on your account"
+              disabled={isSubmitting}
+            />
 
-          {error && <ErrorMessage error={error} />}
+            <Input
+              label="Password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={isSubmitting}
+            />
 
-          <Button type="submit" fullWidth isLoading={isSubmitting}>
-            Sign in
-          </Button>
-        </form>
+            {error && <ErrorMessage error={error} />}
 
-        <p className="mt-6 text-center text-xs text-slate-400">
-          Accounts are created by your administrator. There is no self signup.
-        </p>
-      </div>
+            <Button type="submit" size="lg" fullWidth isLoading={isSubmitting}>
+              Sign in
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-xs text-steel">
+            Accounts are created by your administrator. There is no self signup.
+          </p>
+        </div>
+      </section>
     </main>
   );
 }

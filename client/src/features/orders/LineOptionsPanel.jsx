@@ -51,9 +51,9 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
       <aside
         role="dialog"
         aria-label={`Add ${item.name}`}
-        className="flex w-full max-w-md flex-col border-l-2 border-ink bg-paper shadow-[-8px_0_24px_rgba(28,27,25,0.18)]"
+        className="flex w-full max-w-md flex-col border-l border-black/5 bg-paper shadow-[-8px_0_24px_rgba(28,27,25,0.18)]"
       >
-        <header className="border-b-2 border-ink px-4 py-3">
+        <header className="border-b border-black/5 px-4 py-3">
           <h2 className="text-[20px] font-semibold leading-7">{item.name}</h2>
           {item.description && (
             <p className="mt-0.5 text-[13px] leading-[18px] text-steel">{item.description}</p>
@@ -74,7 +74,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
                     <label
                       key={variant.id}
                       className={[
-                        'flex min-h-[48px] items-center justify-between gap-3 rounded-[10px] border-2 px-3',
+                        'flex min-h-[48px] items-center justify-between gap-3 rounded-xl border-2 px-3',
                         out ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
                         variantId === variant.id ? 'border-ink' : 'border-steel/40',
                       ].join(' ')}
@@ -117,7 +117,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
                     <label
                       key={addOn.id}
                       className={[
-                        'flex min-h-[48px] items-center justify-between gap-3 rounded-[10px] border-2 px-3',
+                        'flex min-h-[48px] items-center justify-between gap-3 rounded-xl border-2 px-3',
                         out ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
                         addOnIds.includes(addOn.id) ? 'border-ink' : 'border-steel/40',
                       ].join(' ')}
@@ -163,12 +163,12 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
               rows={2}
               maxLength={200}
               placeholder="less spicy, no onion"
-              className="w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
+              className="w-full rounded-xl border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
             />
           </label>
         </div>
 
-        <footer className="border-t-2 border-ink px-4 py-3">
+        <footer className="border-t border-black/5 px-4 py-3">
           <div className="mb-3 flex items-baseline justify-between">
             <span className="text-[13px] leading-[18px] text-steel">Line total</span>
             <span className="font-mono text-[18px] font-semibold leading-6">
@@ -180,7 +180,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
             <button
               type="button"
               onClick={onCancel}
-              className="h-12 flex-1 rounded-[10px] border-2 border-steel/40 text-[15px] font-semibold text-steel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+              className="h-12 flex-1 rounded-xl border-2 border-steel/40 text-[15px] font-semibold text-steel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
             >
               Cancel
             </button>
@@ -197,7 +197,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
                   ...(notes.trim() ? { notes: notes.trim() } : {}),
                 })
               }
-              className="h-12 flex-[2] rounded-[10px] bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
+              className="h-12 flex-[2] rounded-xl bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
             >
               {isBusy ? 'Adding…' : 'Add to order'}
             </button>
@@ -211,7 +211,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
 /** A stepper, because a number input on a tablet raises the wrong keyboard. */
 export function QuantityStepper({ value, onChange, min = 1, max = 999, disabled }) {
   return (
-    <div className="inline-flex items-center gap-1 rounded-[10px] border-2 border-steel/40">
+    <div className="inline-flex items-center gap-1 rounded-xl border-2 border-steel/40">
       <StepperButton
         label="One fewer"
         symbol="−"

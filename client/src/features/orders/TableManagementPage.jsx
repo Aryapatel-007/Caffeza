@@ -72,12 +72,12 @@ export default function TableManagementPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="border-b-2 border-ink px-4 py-3 sm:px-6">
+      <header className="border-b border-black/5 px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <h1 className="text-[20px] font-semibold leading-7">Tables</h1>
           <Link
             to="/floor"
-            className="flex h-12 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             Floor
           </Link>
@@ -86,7 +86,7 @@ export default function TableManagementPage() {
 
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
         <form
-          className="mb-8 flex flex-wrap items-end gap-3 border-b-2 border-ink/10 pb-6"
+          className="mb-8 flex flex-wrap items-end gap-3 border-b border-black/5/10 pb-6"
           onSubmit={(event) => {
             event.preventDefault();
             if (draft.name.trim()) add.mutate();
@@ -101,7 +101,7 @@ export default function TableManagementPage() {
               maxLength={20}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
               placeholder="T1"
-              className="h-12 w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
+              className="h-12 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
             />
           </label>
 
@@ -114,7 +114,7 @@ export default function TableManagementPage() {
               maxLength={40}
               onChange={(event) => setDraft({ ...draft, section: event.target.value })}
               placeholder="Ground Floor"
-              className="h-12 w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
+              className="h-12 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
             />
           </label>
 
@@ -126,14 +126,14 @@ export default function TableManagementPage() {
               value={draft.seats}
               inputMode="numeric"
               onChange={(event) => setDraft({ ...draft, seats: event.target.value })}
-              className="h-12 w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 font-mono text-[15px] focus:border-ink focus:outline-none"
+              className="h-12 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 font-mono text-[15px] focus:border-ink focus:outline-none"
             />
           </label>
 
           <button
             type="submit"
             disabled={!draft.name.trim() || isBusy}
-            className="h-12 rounded-[10px] bg-chana px-5 text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+            className="h-12 rounded-xl bg-chana px-5 text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
           >
             Add table
           </button>
@@ -177,7 +177,7 @@ function TableRow({ table, isBusy, onRename, onToggle }) {
         maxLength={20}
         onChange={(event) => setName(event.target.value)}
         aria-label={`Name of table ${table.name}`}
-        className="h-12 w-24 rounded-[10px] border-2 border-transparent bg-transparent px-2 text-[15px] leading-[22px] hover:border-steel/30 focus:border-ink focus:outline-none"
+        className="h-12 w-24 rounded-xl border-2 border-transparent bg-transparent px-2 text-[15px] leading-[22px] hover:border-steel/30 focus:border-ink focus:outline-none"
       />
 
       <span className="flex-1 text-[13px] leading-[18px] text-steel">
@@ -193,7 +193,7 @@ function TableRow({ table, isBusy, onRename, onToggle }) {
           type="button"
           disabled={isBusy}
           onClick={() => onRename(name.trim())}
-          className="h-12 rounded-[10px] bg-chana px-4 text-[13px] font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className="h-12 rounded-xl bg-chana px-4 text-[13px] font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
         >
           Save name
         </button>
@@ -204,7 +204,7 @@ function TableRow({ table, isBusy, onRename, onToggle }) {
         disabled={isBusy}
         onClick={onToggle}
         className={[
-          'h-12 rounded-[10px] border-2 px-4 text-[13px] font-medium',
+          'h-12 rounded-xl border-2 px-4 text-[13px] font-medium',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
           'disabled:opacity-50',
           table.isActive

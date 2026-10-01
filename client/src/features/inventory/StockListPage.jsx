@@ -53,7 +53,7 @@ export default function StockListPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="sticky top-0 z-10 border-b-2 border-ink bg-paper px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3">
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold leading-7">Stock</h1>
@@ -67,20 +67,20 @@ export default function StockListPage() {
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="flex h-11 items-center rounded-[10px] border-2 border-ink bg-chana px-4 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="flex h-11 items-center rounded-xl border border-black/5 shadow-card bg-chana px-4 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 + Ingredient
               </button>
             )}
             <Link
               to="/inventory/recipes"
-              className="flex h-11 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+              className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
             >
               Recipes
             </Link>
             <Link
               to="/dashboard"
-              className="flex h-11 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+              className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
             >
               Dashboard
             </Link>
@@ -93,7 +93,7 @@ export default function StockListPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search ingredients"
-            className="h-11 flex-1 rounded-[10px] border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
+            className="h-11 flex-1 rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
           />
           <label className="flex h-11 items-center gap-2 whitespace-nowrap text-[13px]">
             <input
@@ -112,12 +112,12 @@ export default function StockListPage() {
         {query.isError && <p className="text-[15px] text-mirch">{errorMessage(query.error)}</p>}
 
         {query.isSuccess && ingredients.length === 0 && (
-          <p className="rounded-[10px] border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[15px] text-steel">
+          <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[15px] text-steel">
             {lowStockOnly ? 'Nothing is running low.' : 'No ingredients yet.'}
           </p>
         )}
 
-        <ul className="divide-y divide-steel/15 border-y-2 border-ink/10">
+        <ul className="divide-y divide-steel/15 border-y border-black/5/10">
           {ingredients.map((ingredient) => (
             <li key={ingredient.id}>
               <button

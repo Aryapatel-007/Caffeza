@@ -23,7 +23,7 @@ export default function Toast({ tone = 'success', message, onDismiss, onRetry, a
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-4 bottom-5 z-20 mx-auto flex max-w-xl items-center gap-3.5 rounded-[10px] border-2 bg-paper px-4 py-3.5 shadow-[0_6px_20px_rgba(28,27,25,0.18)] sm:inset-x-auto sm:left-1/2 sm:w-[36rem] sm:-translate-x-1/2"
+      className="fixed inset-x-4 bottom-5 z-20 mx-auto flex max-w-xl items-center gap-3.5 rounded-xl border-2 bg-paper px-4 py-3.5 shadow-[0_6px_20px_rgba(28,27,25,0.18)] sm:inset-x-auto sm:left-1/2 sm:w-[36rem] sm:-translate-x-1/2"
       style={{ borderColor: isError ? 'var(--color-mirch)' : 'var(--color-ink)' }}
     >
       <span

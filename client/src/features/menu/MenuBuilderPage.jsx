@@ -145,7 +145,7 @@ export default function MenuBuilderPage() {
 
   return (
     <main className="flex min-h-full flex-col bg-paper">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink px-5 py-4 sm:px-8">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-black/5 px-5 py-4 sm:px-8">
         <div className="flex items-baseline gap-3">
           <h1 className="text-xl font-semibold text-ink">Menu</h1>
           <span className="font-mono text-xs text-steel">

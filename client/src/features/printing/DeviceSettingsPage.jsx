@@ -16,7 +16,7 @@ export default function DeviceSettingsPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="border-b-2 border-ink px-4 py-3">
+      <header className="border-b border-black/5 px-4 py-3">
         <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold leading-7">This device</h1>
@@ -26,7 +26,7 @@ export default function DeviceSettingsPage() {
           </div>
           <Link
             to="/dashboard"
-            className="flex h-11 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5"
+            className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5"
           >
             Dashboard
           </Link>
@@ -42,7 +42,7 @@ export default function DeviceSettingsPage() {
             { value: 80, label: '80 mm, 48 characters' },
             { value: 58, label: '58 mm, 32 characters' },
           ].map((choice) => (
-            <label key={choice.value} className="flex min-h-12 items-center gap-3 rounded-[10px] border-2 border-steel/40 px-3">
+            <label key={choice.value} className="flex min-h-12 items-center gap-3 rounded-xl border-2 border-steel/40 px-3">
               <input
                 type="radio"
                 name="paper"
@@ -65,7 +65,7 @@ export default function DeviceSettingsPage() {
                 // already on screen as printed, so no backlog comes out.
                 update({ autoPrintKots: event.target.checked, autoPrintArmedAt: Date.now() })
               }
-              className="mt-1 h-5 w-5 rounded border-2 border-ink"
+              className="mt-1 h-5 w-5 rounded border border-black/5 shadow-card"
             />
             <span>
               <span className="text-[15px]">Print new tickets automatically</span>

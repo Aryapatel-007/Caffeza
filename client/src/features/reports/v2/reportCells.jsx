@@ -44,7 +44,7 @@ export function OpenDaysBanner({ openDays }) {
   const names = openDays.map((date) => formatBusinessDate(date).replace(/ \d{4}$/, ''));
   const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
   return (
-    <p className="rounded-[10px] border-2 border-ink/30 px-3 py-2 text-[13px] leading-[18px]">
+    <p className="rounded-xl border border-black/5 shadow-card/30 px-3 py-2 text-[13px] leading-[18px]">
       {list} {names.length === 1 ? 'is' : 'are'} still open. These numbers will change until Day Close.
     </p>
   );
@@ -56,7 +56,7 @@ export function CheckStrip({ checks, onOpenRefs }) {
   const failed = checks.filter((check) => !check.passed);
   if (failed.length === 0) {
     return (
-      <p className="rounded-[10px] border-2 border-patta bg-patta-tint px-3 py-2 text-[13px] leading-[18px] text-ink">
+      <p className="rounded-xl border-2 border-patta bg-patta-tint px-3 py-2 text-[13px] leading-[18px] text-ink">
         ✓ All {checks.length} checks passed.
       </p>
     );
@@ -67,7 +67,7 @@ export function CheckStrip({ checks, onOpenRefs }) {
         <li
           key={check.id}
           className={[
-            'rounded-[10px] border-2 px-3 py-2 text-[13px] leading-[18px]',
+            'rounded-xl border-2 px-3 py-2 text-[13px] leading-[18px]',
             check.severity === 'ERROR' ? 'border-mirch text-mirch' : 'border-ink/40 text-ink',
           ].join(' ')}
         >

@@ -195,7 +195,7 @@ export default function BillScreenPage() {
 
   return (
     <main className="min-h-full bg-paper pb-28">
-      <header className="sticky top-0 z-10 border-b-2 border-ink bg-paper px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3">
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -208,7 +208,7 @@ export default function BillScreenPage() {
           </div>
           <Link
             to="/bills"
-            className="flex h-11 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             All bills
           </Link>
@@ -218,14 +218,14 @@ export default function BillScreenPage() {
       <div className="mx-auto max-w-2xl px-4 py-6">
         {/* P04. Why it was voided: the fixed reason's label and the note. */}
         {bill.isVoided && (
-          <p className="mb-4 rounded-[10px] border-2 border-mirch/40 bg-mirch/5 px-3 py-2 text-[13px] leading-[18px] text-ink">
+          <p className="mb-4 rounded-xl border-2 border-mirch/40 bg-mirch/5 px-3 py-2 text-[13px] leading-[18px] text-ink">
             Voided: {describeReason(BILL_VOID_REASONS, bill.voidReasonCode, bill.voidReason) ?? 'no reason recorded'}
           </p>
         )}
 
         {/* The lines. A dense list, per DESIGN-SYSTEM section 6: staff scan a
             list faster than a grid of cards, and there is nothing here to tap. */}
-        <ul className="mb-4 divide-y divide-steel/15 border-y-2 border-ink/10">
+        <ul className="mb-4 divide-y divide-steel/15 border-y border-black/5/10">
           {bill.lines.map((line) => (
             <li key={line.orderLineId} className="flex items-start justify-between gap-3 py-2.5">
               <div>
@@ -281,7 +281,7 @@ export default function BillScreenPage() {
 
         {/* The total. The largest thing on this screen, per the M3 operator
             constraints: numbers carry the meaning, words support it. */}
-        <div className="mb-6 flex items-baseline justify-between border-t-2 border-ink pt-3">
+        <div className="mb-6 flex items-baseline justify-between border-t border-black/5 pt-3">
           <span className="text-[15px] font-semibold uppercase tracking-[0.04em]">
             {BILL_LABELS.total.en}
           </span>
@@ -292,7 +292,7 @@ export default function BillScreenPage() {
 
         {/* P09. On Hold: who it is charged to, and how much. */}
         {bill.status === 'ON_ACCOUNT' && !bill.isVoided && bill.account && (
-          <p className="mb-6 rounded-[10px] border-2 border-ink/30 px-3 py-2 text-center text-[13px] leading-[18px]">
+          <p className="mb-6 rounded-xl border border-black/5 shadow-card/30 px-3 py-2 text-center text-[13px] leading-[18px]">
             On Hold on <span className="font-semibold">{bill.account.accountName}</span>:{' '}
             <span className="font-mono">{formatPaise(bill.chargedToAccountInPaise)}</span>
           </p>
@@ -374,7 +374,7 @@ export default function BillScreenPage() {
             <button
               type="button"
               onClick={() => setPanel('void')}
-              className="min-h-[48px] rounded-[10px] border-2 border-mirch/50 text-[15px] font-semibold text-mirch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
+              className="min-h-[48px] rounded-xl border-2 border-mirch/50 text-[15px] font-semibold text-mirch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
             >
               <Bilingual label={BILL_LABELS.voidBill} align="center" />
             </button>
@@ -467,7 +467,7 @@ function ActionButton({ primary = false, disabled = false, onClick, children }) 
       onClick={onClick}
       disabled={disabled}
       className={[
-        'min-h-[56px] rounded-[10px] border-2 text-[15px] font-semibold transition-transform duration-100 active:translate-y-0.5',
+        'min-h-[56px] rounded-xl border-2 text-[15px] font-semibold transition-transform duration-100 active:translate-y-0.5',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
         'disabled:opacity-50',
         primary ? 'border-ink bg-chana' : 'border-ink bg-paper',

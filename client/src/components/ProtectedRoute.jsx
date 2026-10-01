@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext.jsx';
+import AppShell from './AppShell.jsx';
 import Spinner from './ui/Spinner.jsx';
 
 /**
@@ -31,5 +32,5 @@ export default function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  return children;
+  return <AppShell>{children}</AppShell>;
 }

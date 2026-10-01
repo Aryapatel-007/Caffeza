@@ -351,6 +351,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | R9's On Hold row uses the Tally code `P03`, a constant, until accounts carry their own code. | The contract names P03 and no account has a Tally code field; adding one is a schema change for its own prompt. |
 | 2026-10-01 | R2 reads `dayCloseService.readDay` rather than computing anything itself, so the Day Close screen and the report are one calculation, and a closed day is the stored snapshot. | A second calculation is a second chance to disagree; C12 is what compares the snapshot with a fresh count. |
 | 2026-10-01 | A sectioned report's Excel export stacks its sections on the Report sheet; R9 alone writes one sheet per section. | Tally imports one block per sheet. Every other report reads top to bottom like the screen. |
+| 2026-10-01 | A visual-only restyle of the existing screens was done ahead of P20, at the user's request: a sidebar and top bar (`components/AppShell.jsx`) around every signed-in screen, warm paper and linen surfaces, white rounded cards with soft shadows, pill buttons, a split login and a shortcut home screen. No new feature, endpoint or label. | P20 (themes and the full redesign) is still owed after P18 and P19, and will build on this. The pasted designs' WhatsApp, loyalty, IRN, server-side printer and service charge ideas were left out: no prompt covers them, and the server never talks to a printer. |
 
 ---
 
@@ -373,6 +374,13 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, early restyle (ahead of P20)
+
+What was built or decided:
+Visual only. `components/AppShell.jsx` (sidebar by role and feature switch, top bar with date and time, narrow-screen link strip) wraps every route behind `ProtectedRoute`, except the clock screen. Tokens in `index.css` gained linen layers, shadows and soft tints; `paper` is now warmer. Every `border-2 border-ink` became a soft border with a card shadow, grey `slate-*` classes map to the tokens, `Button` and `Input` are pill and rounded, `PanelShell` is a white slide-over, the login is split, the home screen is greeting plus shortcuts, and floor tables are cards. Labels and behaviour are unchanged.
+
+Not done: P20 proper, `docs/DESIGN-SYSTEM-V2.md`, a dark or themed mode, per-screen layouts from the pasted designs (order, kitchen, bill, payment) beyond colour, radius and borders. Lint and build pass; checked by eye in Chrome on home, floor and bills.
 
 ### 2026-10-01 Rishi, P15 daily, money and GST reports
 

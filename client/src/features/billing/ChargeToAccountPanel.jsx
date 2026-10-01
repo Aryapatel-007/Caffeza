@@ -40,7 +40,7 @@ export default function ChargeToAccountPanel({ owedInPaise, isBusy, error, onCan
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="W-330 Office"
-          className="w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
+          className="w-full rounded-xl border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
         />
       </label>
 
@@ -78,7 +78,7 @@ export default function ChargeToAccountPanel({ owedInPaise, isBusy, error, onCan
             maxLength={40}
             onChange={(event) => setNewName(event.target.value)}
             placeholder="New account name"
-            className="min-w-0 flex-1 rounded-[10px] border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] focus:border-ink focus:outline-none"
+            className="min-w-0 flex-1 rounded-xl border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] focus:border-ink focus:outline-none"
           />
           <button
             type="button"
@@ -92,7 +92,7 @@ export default function ChargeToAccountPanel({ owedInPaise, isBusy, error, onCan
                 query.refetch();
               }
             }}
-            className="min-h-[48px] rounded-[10px] border-2 border-ink px-3 text-[13px] font-semibold disabled:opacity-50"
+            className="min-h-[48px] rounded-xl border border-black/5 shadow-card px-3 text-[13px] font-semibold disabled:opacity-50"
           >
             Add
           </button>

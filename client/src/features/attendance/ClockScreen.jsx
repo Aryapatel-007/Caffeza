@@ -147,7 +147,7 @@ export default function ClockScreen() {
 
   return (
     <main className="flex min-h-full flex-col bg-paper">
-      <header className="flex items-center justify-between border-b-2 border-ink px-5 py-4">
+      <header className="flex items-center justify-between border-b border-black/5 px-5 py-4">
         <h1>
           <Bilingual label={CLOCK_LABELS.title} size="lg" />
         </h1>
@@ -162,7 +162,7 @@ export default function ClockScreen() {
         )}
 
         {managerNeeded && (
-          <div className="mx-auto max-w-md rounded-xl border-2 border-ink bg-paper p-6 text-center">
+          <div className="mx-auto max-w-md rounded-xl border border-black/5 shadow-card bg-white p-6 text-center">
             <p className="text-[15px] leading-[22px] text-ink">
               This tablet needs to be signed in as an owner or manager to show the staff list.
             </p>
@@ -184,12 +184,12 @@ export default function ClockScreen() {
                     key={person.id}
                     type="button"
                     onClick={() => onPickName(person)}
-                    className="flex min-h-[112px] flex-col items-start justify-between gap-3 rounded-xl border-2 border-ink bg-paper p-4 text-left active:translate-y-0.5 transition-transform duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    className="flex min-h-[112px] flex-col items-start justify-between gap-3 rounded-xl border border-black/5 shadow-card bg-white p-4 text-left active:translate-y-0.5 transition-transform duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <div className="flex w-full items-center gap-3">
                       <span
                         aria-hidden="true"
-                        className="flex h-11 w-11 flex-none items-center justify-center rounded-full border-2 border-ink font-mono text-lg font-semibold text-ink"
+                        className="flex h-11 w-11 flex-none items-center justify-center rounded-full border border-black/5 shadow-card font-mono text-lg font-semibold text-ink"
                       >
                         {initialsOf(person.name)}
                       </span>

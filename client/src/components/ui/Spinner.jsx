@@ -17,7 +17,7 @@ export default function Spinner({ size = 'md', label = 'Loading', className = ''
       <span
         aria-hidden="true"
         className={[
-          'animate-spin rounded-full border-slate-300 border-t-brand-600',
+          'animate-spin rounded-full border-black/10 border-t-brand-600',
           SIZES[size] ?? SIZES.md,
         ].join(' ')}
       />

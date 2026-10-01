@@ -78,7 +78,7 @@ export default function FloorViewPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="sticky top-0 z-10 border-b-2 border-ink bg-paper px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold leading-7">Floor</h1>
@@ -91,25 +91,25 @@ export default function FloorViewPage() {
           <nav className="flex items-center gap-2">
             <Link
               to="/orders/takeaway"
-              className="flex h-12 items-center rounded-[10px] border-2 border-ink px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex h-12 items-center rounded-xl border border-black/5 shadow-card px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Takeaway
             </Link>
             <Link
               to="/orders/delivery"
-              className="flex h-12 items-center rounded-[10px] border-2 border-ink px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex h-12 items-center rounded-xl border border-black/5 shadow-card px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Delivery
             </Link>
             <Link
               to="/kitchen"
-              className="flex h-12 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+              className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
             >
               Kitchen
             </Link>
             <Link
               to="/dashboard"
-              className="flex h-12 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+              className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
             >
               Dashboard
             </Link>
@@ -125,14 +125,14 @@ export default function FloorViewPage() {
         )}
 
         {tables.isSuccess && sections.length === 0 && (
-          <div className="rounded-[10px] border-2 border-dashed border-steel/50 px-6 py-12 text-center">
+          <div className="rounded-xl border-2 border-dashed border-steel/50 px-6 py-12 text-center">
             <p className="text-[15px] leading-[22px]">No tables have been set up yet.</p>
             <p className="mt-1 text-[13px] leading-[18px] text-steel">
               An owner or manager adds them on the Tables screen.
             </p>
             <Link
               to="/tables"
-              className="mt-4 inline-flex h-12 items-center rounded-[10px] bg-chana px-5 text-[15px] font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="mt-4 inline-flex h-12 items-center rounded-full bg-chana px-5 text-[15px] font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Set up tables
             </Link>
@@ -200,11 +200,11 @@ function TableTile({ table, isBusy, onOpen }) {
           : `Table ${table.name}, free, start an order`
       }
       className={[
-        'flex min-h-[104px] w-full flex-col justify-between rounded-[10px] border-2 bg-paper p-3 text-left',
+        'flex min-h-[104px] w-full flex-col justify-between rounded-2xl border-t-4 bg-white p-4 text-left shadow-card hover:shadow-lift',
         'transition-transform active:translate-y-0.5',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
         'disabled:opacity-60',
-        isOccupied ? 'border-ink shadow-[0_2px_0_0_var(--color-ink)]' : 'border-steel/40',
+        isOccupied ? 'border-chana' : 'border-linen-3 bg-linen',
       ].join(' ')}
     >
       <div className="flex items-baseline justify-between gap-2">

@@ -25,9 +25,9 @@ export default function NoChargePanel({ order, isBusy, onCancel, onConfirm }) {
       <aside
         role="dialog"
         aria-label="No Charge"
-        className="flex w-full max-w-md flex-col border-l-2 border-ink bg-paper shadow-[-8px_0_24px_rgba(28,27,25,0.18)]"
+        className="flex w-full max-w-md flex-col border-l border-black/5 bg-paper shadow-[-8px_0_24px_rgba(28,27,25,0.18)]"
       >
-        <header className="border-b-2 border-ink px-4 py-3">
+        <header className="border-b border-black/5 px-4 py-3">
           <h2 className="text-[20px] font-semibold leading-7">No Charge</h2>
           <p className="mt-0.5 text-[13px] leading-[18px] text-steel">
             The order closes with no bill. It is not a sale and takes no invoice number.
@@ -35,7 +35,7 @@ export default function NoChargePanel({ order, isBusy, onCancel, onConfirm }) {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <div className="mb-6 flex items-baseline justify-between border-b-2 border-ink/10 pb-3">
+          <div className="mb-6 flex items-baseline justify-between border-b border-black/5/10 pb-3">
             <span className="text-[13px] leading-[18px] text-steel">No Charge value, before GST</span>
             <span className="font-mono text-[24px] font-semibold leading-8">
               {formatPaise(order.totals.subtotalInPaise)}
@@ -43,7 +43,7 @@ export default function NoChargePanel({ order, isBusy, onCancel, onConfirm }) {
           </div>
 
           {unsent > 0 && (
-            <p className="mb-4 rounded-[10px] border-2 border-mirch/40 bg-mirch/5 px-3 py-2 text-[13px] leading-[18px]">
+            <p className="mb-4 rounded-xl border-2 border-mirch/40 bg-mirch/5 px-3 py-2 text-[13px] leading-[18px]">
               Send or cancel the unsent items first.
             </p>
           )}
@@ -51,11 +51,11 @@ export default function NoChargePanel({ order, isBusy, onCancel, onConfirm }) {
           <ReasonPicker reasons={NO_CHARGE_REASONS} value={reason} onChange={setReason} />
         </div>
 
-        <footer className="flex gap-2 border-t-2 border-ink px-4 py-3">
+        <footer className="flex gap-2 border-t border-black/5 px-4 py-3">
           <button
             type="button"
             onClick={onCancel}
-            className="h-12 flex-1 rounded-[10px] border-2 border-steel/40 text-[15px] font-semibold text-steel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="h-12 flex-1 rounded-xl border-2 border-steel/40 text-[15px] font-semibold text-steel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             Keep it
           </button>
@@ -63,7 +63,7 @@ export default function NoChargePanel({ order, isBusy, onCancel, onConfirm }) {
             type="button"
             disabled={!canConfirm}
             onClick={() => onConfirm(reasonBody(reason))}
-            className="h-12 flex-[2] rounded-[10px] bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+            className="h-12 flex-[2] rounded-xl bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
           >
             {isBusy ? 'Saving…' : 'Give No Charge'}
           </button>

@@ -96,7 +96,7 @@ export default function CorrectionPanel({
   };
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-30 flex w-full max-w-md flex-col gap-4 overflow-y-auto border-l-2 border-ink bg-paper p-6 shadow-[-10px_0_28px_rgba(28,27,25,0.12)]">
+    <aside className="fixed inset-y-0 right-0 z-30 flex w-full max-w-md flex-col gap-4 overflow-y-auto border-l border-black/5 bg-paper p-6 shadow-[-10px_0_28px_rgba(28,27,25,0.12)]">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-ink">
           {isCreate ? 'Add a missed entry' : `Correct ${entry.userName}'s shift`}

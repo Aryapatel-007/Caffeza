@@ -72,7 +72,7 @@ export default function CategoryRail({
             key={category.id}
             className={[
               'group flex items-center gap-2 rounded-lg',
-              isSelected ? 'border-2 border-ink bg-patta-tint' : 'border-2 border-transparent',
+              isSelected ? 'border border-black/5 shadow-card bg-patta-tint' : 'border-2 border-transparent',
               category.isActive ? '' : 'opacity-55',
             ].join(' ')}
           >

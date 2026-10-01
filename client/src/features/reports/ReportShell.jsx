@@ -41,12 +41,12 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="sticky top-0 z-10 border-b-2 border-ink bg-paper px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
           <h1 className="text-[20px] font-semibold leading-7">{title}</h1>
           <Link
             to="/dashboard"
-            className="flex h-11 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             Dashboard
           </Link>
@@ -63,7 +63,7 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
                 className={[
                   'flex h-10 items-center rounded-full px-3 text-[13px] font-medium',
                   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                  active ? 'border-2 border-ink bg-chana/20 text-ink' : 'text-steel hover:bg-black/5',
+                  active ? 'border border-black/5 shadow-card bg-chana/20 text-ink' : 'text-steel hover:bg-black/5',
                 ].join(' ')}
               >
                 {tab.label}
@@ -84,7 +84,7 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
                 value={range.from}
                 max={range.to}
                 onChange={(event) => onRangeChange({ ...range, from: event.target.value })}
-                className="h-11 rounded-[10px] border-2 border-steel/40 bg-paper px-3 font-mono text-[14px] focus:border-ink focus:outline-none"
+                className="h-11 rounded-xl border-2 border-steel/40 bg-paper px-3 font-mono text-[14px] focus:border-ink focus:outline-none"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -96,7 +96,7 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
                 value={range.to}
                 min={range.from}
                 onChange={(event) => onRangeChange({ ...range, to: event.target.value })}
-                className="h-11 rounded-[10px] border-2 border-steel/40 bg-paper px-3 font-mono text-[14px] focus:border-ink focus:outline-none"
+                className="h-11 rounded-xl border-2 border-steel/40 bg-paper px-3 font-mono text-[14px] focus:border-ink focus:outline-none"
               />
             </label>
 
@@ -110,7 +110,7 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
                   key={preset.label}
                   type="button"
                   onClick={() => onRangeChange(lastNDays(preset.days))}
-                  className="h-11 rounded-[10px] border-2 border-steel/40 px-3 text-[13px] font-medium text-steel hover:border-ink hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="h-11 rounded-xl border-2 border-steel/40 px-3 text-[13px] font-medium text-steel hover:border-ink hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   {preset.label}
                 </button>

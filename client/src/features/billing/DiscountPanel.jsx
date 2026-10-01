@@ -60,7 +60,7 @@ export default function DiscountPanel({ subtotalInPaise, platformOnly = false, i
               setPendingValue(null);
             }}
             className={[
-              'min-h-[48px] rounded-[10px] border-2 text-[15px] font-semibold',
+              'min-h-[48px] rounded-xl border-2 text-[15px] font-semibold',
               kind === option.value ? 'border-ink bg-chana/20' : 'border-steel/40 text-steel',
             ].join(' ')}
           >
@@ -103,7 +103,7 @@ export default function DiscountPanel({ subtotalInPaise, platformOnly = false, i
                 aria-pressed={fundedBy === option.value}
                 onClick={() => setFundedBy(option.value)}
                 className={[
-                  'min-h-[48px] rounded-[10px] border-2 text-[15px] font-semibold',
+                  'min-h-[48px] rounded-xl border-2 text-[15px] font-semibold',
                   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
                   fundedBy === option.value ? 'border-ink bg-chana/20' : 'border-steel/40 text-steel',
                 ].join(' ')}

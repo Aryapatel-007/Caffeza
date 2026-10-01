@@ -69,7 +69,7 @@ export default function BillListPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="border-b-2 border-ink px-4 py-3">
+      <header className="border-b border-black/5 px-4 py-3">
         <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold leading-7">Bill List</h1>
@@ -100,7 +100,7 @@ export default function BillListPage() {
               type="button"
               onClick={download}
               disabled={downloading || !envelope}
-              className="min-h-10 rounded-[10px] border-2 border-ink px-3 text-[13px] font-semibold disabled:opacity-50"
+              className="min-h-10 rounded-xl border border-black/5 shadow-card px-3 text-[13px] font-semibold disabled:opacity-50"
             >
               {downloading ? 'Preparing…' : 'Excel'}
             </button>
@@ -128,7 +128,7 @@ export default function BillListPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-[13px] leading-[18px]">
                 <thead>
-                  <tr className="border-b-2 border-ink text-left text-[12px] uppercase tracking-[0.04em] text-steel">
+                  <tr className="border-b border-black/5 text-left text-[12px] uppercase tracking-[0.04em] text-steel">
                     {envelope.columns.map((column) => (
                       <th
                         key={column.key}
@@ -160,7 +160,7 @@ export default function BillListPage() {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-ink font-semibold">
+                  <tr className="border-t border-black/5 font-semibold">
                     {envelope.columns.map((column, index) => (
                       <td
                         key={column.key}

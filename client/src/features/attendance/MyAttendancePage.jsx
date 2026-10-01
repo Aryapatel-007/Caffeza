@@ -24,7 +24,7 @@ export default function MyAttendancePage() {
 
   return (
     <main className="mx-auto flex min-h-full w-full max-w-2xl flex-col bg-paper">
-      <header className="border-b-2 border-ink px-5 py-4">
+      <header className="border-b border-black/5 px-5 py-4">
         <h1 className="text-xl font-semibold text-ink">My hours</h1>
       </header>
 
@@ -40,7 +40,7 @@ export default function MyAttendancePage() {
 
         {data && (
           <>
-            <section className="flex items-end justify-between gap-4 rounded-xl border-2 border-ink p-4">
+            <section className="flex items-end justify-between gap-4 rounded-xl border border-black/5 shadow-card p-4">
               <div className="flex flex-col">
                 <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-steel">
                   Last 7 days

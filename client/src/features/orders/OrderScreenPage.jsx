@@ -118,7 +118,7 @@ export default function OrderScreenPage() {
 
   return (
     <Shell>
-      <header className="sticky top-0 z-10 border-b-2 border-ink bg-paper px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-baseline gap-2">
@@ -150,7 +150,7 @@ export default function OrderScreenPage() {
             <BillOrderButton order={order} />
             <Link
               to="/floor"
-              className="flex h-12 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+              className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
             >
               Floor
             </Link>
@@ -161,7 +161,7 @@ export default function OrderScreenPage() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <section
           aria-label="This order"
-          className="flex min-h-0 flex-1 flex-col border-b-2 border-ink/10 lg:border-b-0 lg:border-r-2"
+          className="flex min-h-0 flex-1 flex-col border-b border-black/5/10 lg:border-b-0 lg:border-r-2"
         >
           <div className="min-h-0 flex-1 overflow-y-auto">
             <OrderLineList
@@ -184,7 +184,7 @@ export default function OrderScreenPage() {
           </div>
 
           {isOpen && (
-            <footer className="border-t-2 border-ink px-4 py-3">
+            <footer className="border-t border-black/5 px-4 py-3">
               <button
                 type="button"
                 disabled={pendingCount === 0 || write.isPending}
@@ -194,7 +194,7 @@ export default function OrderScreenPage() {
                     successMessage: 'Sent to the kitchen.',
                   })
                 }
-                className="h-14 w-full rounded-[10px] bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+                className="h-14 w-full rounded-xl bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
               >
                 {pendingCount === 0
                   ? 'Nothing new to send'
@@ -206,7 +206,7 @@ export default function OrderScreenPage() {
                   type="button"
                   disabled={write.isPending}
                   onClick={() => setCancelling({ kind: 'order' })}
-                  className="mt-2 h-12 w-full rounded-[10px] text-[13px] font-medium text-mirch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
+                  className="mt-2 h-12 w-full rounded-xl text-[13px] font-medium text-mirch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
                 >
                   Cancel the whole order
                 </button>
@@ -216,12 +216,12 @@ export default function OrderScreenPage() {
 
           {/* P08. Manager work, on an open order or one waiting for the cashier. */}
           {canCancelOrder && (isOpen || order.status === 'READY_TO_BILL') && (
-            <div className="border-t-2 border-ink/10 px-4 py-2">
+            <div className="border-t border-black/5/10 px-4 py-2">
               <button
                 type="button"
                 disabled={write.isPending}
                 onClick={() => setCancelling({ kind: 'noCharge' })}
-                className="h-12 w-full rounded-[10px] border-2 border-ink/20 text-[13px] font-medium text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+                className="h-12 w-full rounded-xl border border-black/5 shadow-card/20 text-[13px] font-medium text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
               >
                 No Charge
               </button>

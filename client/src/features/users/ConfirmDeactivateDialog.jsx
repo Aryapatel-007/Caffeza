@@ -40,8 +40,8 @@ export default function ConfirmDeactivateDialog({ staff, onClose, onDone }) {
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/40 p-4">
       <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-lg bg-white p-6 shadow-lg">
-        <h2 className="text-lg font-semibold text-slate-900">Deactivate {staff.name}?</h2>
-        <p className="mt-2 text-sm text-slate-600">
+        <h2 className="text-lg font-semibold text-ink">Deactivate {staff.name}?</h2>
+        <p className="mt-2 text-sm text-steel">
           They will be signed out everywhere and will not be able to sign in again. Their record and
           history stay. You can switch them back on later.
         </p>

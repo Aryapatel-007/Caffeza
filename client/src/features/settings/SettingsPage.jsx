@@ -19,7 +19,7 @@ import { clockToMinutes, minutesToClock } from './timeOfDay.js';
  */
 function Section({ title, description, children }) {
   return (
-    <section className="border-t-2 border-ink pt-5">
+    <section className="border-t border-black/5 pt-5">
       <h2 className="text-[17px] font-semibold leading-6">{title}</h2>
       {description && <p className="mt-1 text-[13px] leading-[18px] text-steel">{description}</p>}
       <div className="mt-4 grid gap-4">{children}</div>
@@ -42,7 +42,7 @@ function Checkbox({ label, hint, checked, onChange, disabled }) {
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
         disabled={disabled}
-        className="mt-1 h-5 w-5 rounded border-2 border-ink text-chana focus:ring-2 focus:ring-chana disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-1 h-5 w-5 rounded border border-black/5 shadow-card text-chana focus:ring-2 focus:ring-chana disabled:cursor-not-allowed disabled:opacity-50"
       />
       <span>
         <span className="text-[15px] leading-5">{label}</span>
@@ -179,7 +179,7 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="border-b-2 border-ink px-4 py-3">
+      <header className="border-b border-black/5 px-4 py-3">
         <div className="mx-auto max-w-2xl">
           <h1 className="text-[20px] font-semibold leading-7">Settings</h1>
           <p className="text-[13px] leading-[18px] text-steel">
@@ -372,7 +372,7 @@ export default function SettingsPage() {
                   value={choice.value}
                   checked={form.invoice.mode === choice.value}
                   onChange={() => set('invoice', 'mode')(choice.value)}
-                  className="h-5 w-5 border-2 border-ink text-chana focus:ring-2 focus:ring-chana"
+                  className="h-5 w-5 border border-black/5 shadow-card text-chana focus:ring-2 focus:ring-chana"
                 />
                 <span className="text-[15px] leading-5">{choice.label}</span>
               </label>
@@ -412,10 +412,10 @@ export default function SettingsPage() {
           The reason sits with the save button rather than at the top, because
           it is part of committing the change, not part of describing it.
         */}
-        <div className="fixed inset-x-0 bottom-0 border-t-2 border-ink bg-paper px-4 py-3">
+        <div className="fixed inset-x-0 bottom-0 border-t border-black/5 bg-paper px-4 py-3">
           <div className="mx-auto grid max-w-2xl gap-3">
             {patch.invoice && (
-              <p className="rounded-[10px] border-2 border-mirch px-3 py-2 text-[13px] leading-[18px] text-ink">
+              <p className="rounded-xl border-2 border-mirch px-3 py-2 text-[13px] leading-[18px] text-ink">
                 Invoice numbers are a legal record. Change this only before the first bill of a new
                 series, and only after your accountant agrees.
               </p>

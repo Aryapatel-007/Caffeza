@@ -9,10 +9,10 @@
 export default function EmptyState({ title, description, action, className = '' }) {
   return (
     <div
-      className={`rounded-lg border border-dashed border-slate-300 px-6 py-12 text-center ${className}`}
+      className={`rounded-lg border border-dashed border-black/10 px-6 py-12 text-center ${className}`}
     >
-      <h3 className="text-base font-semibold text-slate-900">{title}</h3>
-      {description && <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">{description}</p>}
+      <h3 className="text-base font-semibold text-ink">{title}</h3>
+      {description && <p className="mx-auto mt-1 max-w-sm text-sm text-steel">{description}</p>}
       {action && <div className="mt-6 flex justify-center">{action}</div>}
     </div>
   );

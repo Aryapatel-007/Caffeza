@@ -60,7 +60,7 @@ export default function StationsPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="border-b-2 border-ink px-4 py-3">
+      <header className="border-b border-black/5 px-4 py-3">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold leading-7">Kitchen stations</h1>
@@ -69,7 +69,7 @@ export default function StationsPage() {
               routed.
             </p>
           </div>
-          <Link to="/dashboard" className="flex h-11 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5">
+          <Link to="/dashboard" className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5">
             Dashboard
           </Link>
         </div>
@@ -78,7 +78,7 @@ export default function StationsPage() {
       <div className="mx-auto grid max-w-2xl gap-4 px-4 py-6">
         {stations.isPending && <Spinner label="Loading stations" />}
 
-        <ul className="divide-y divide-steel/20 border-y-2 border-ink/10">
+        <ul className="divide-y divide-steel/20 border-y border-black/5/10">
           {list.map((station, index) => (
             <li key={station.id} className={['flex flex-wrap items-center gap-3 py-3', station.isActive ? '' : 'opacity-55'].join(' ')}>
               <span className="w-6 font-mono text-[13px] text-steel">{index + 1}</span>
@@ -90,7 +90,7 @@ export default function StationsPage() {
                   const name = event.target.value.trim();
                   if (name && name !== station.name) update.mutate({ id: station.id, changes: { name } });
                 }}
-                className="h-11 min-w-0 flex-1 rounded-[10px] border-2 border-steel/40 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none"
+                className="h-11 min-w-0 flex-1 rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none"
               />
               <label className="flex items-center gap-2 text-[13px]">
                 <input
@@ -99,7 +99,7 @@ export default function StationsPage() {
                   onChange={(event) =>
                     update.mutate({ id: station.id, changes: { printsTickets: event.target.checked } })
                   }
-                  className="h-5 w-5 rounded border-2 border-ink"
+                  className="h-5 w-5 rounded border border-black/5 shadow-card"
                 />
                 Prints tickets
               </label>

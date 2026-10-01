@@ -26,7 +26,7 @@ export default function Input({
 
   return (
     <div className={className}>
-      <label htmlFor={inputId} className="block text-sm font-medium text-slate-700">
+      <label htmlFor={inputId} className="block text-sm font-medium text-ink">
         {label}
       </label>
 
@@ -36,22 +36,22 @@ export default function Input({
         aria-invalid={error ? true : undefined}
         aria-describedby={[error ? errorId : null, hint ? hintId : null].filter(Boolean).join(' ') || undefined}
         className={[
-          'mt-1 block h-11 w-full rounded-lg border-0 px-3 text-base text-slate-900',
-          'ring-1 ring-inset placeholder:text-slate-400',
+          'mt-1 block h-11 w-full rounded-lg border-0 px-3 text-base text-ink',
+          'ring-1 ring-inset placeholder:text-steel',
           'focus:ring-2 focus:ring-inset',
-          error ? 'ring-red-400 focus:ring-red-500' : 'ring-slate-300 focus:ring-brand-600',
-          'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500',
+          error ? 'ring-red-400 focus:ring-red-500' : 'ring-black/10 focus:ring-brand-600',
+          'disabled:cursor-not-allowed disabled:bg-linen disabled:text-steel',
         ].join(' ')}
         {...props}
       />
 
       {hint && !error && (
-        <p id={hintId} className="mt-1 text-sm text-slate-500">
+        <p id={hintId} className="mt-1 text-sm text-steel">
           {hint}
         </p>
       )}
       {error && (
-        <p id={errorId} className="mt-1 text-sm text-red-600">
+        <p id={errorId} className="mt-1 text-sm text-mirch">
           {error}
         </p>
       )}

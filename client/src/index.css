@@ -10,7 +10,17 @@
 
 @theme {
   /* The surface. The only background colour in the product. */
-  --color-paper: #fafaf7;
+  --color-paper: #fdf8f5;
+
+  /* Tonal layers over paper (the warm look). Cards are white, wells are linen. */
+  --color-linen: #f7f3ef;
+  --color-linen-2: #f2ede9;
+  --color-linen-3: #ece7e4;
+  --color-chana-soft: #fbf1d6;
+  --color-mirch-soft: #f6e3e0;
+
+  --shadow-card: 0 2px 12px rgba(28, 27, 25, 0.06);
+  --shadow-lift: 0 8px 30px rgba(28, 27, 25, 0.12);
 
   /* Primary text and primary borders. The stamp's 3px edge. */
   --color-ink: #1c1b19;
@@ -31,7 +41,7 @@
   --color-patta: #3f7d58;
 
   /* Derived: patta over paper, flattened opaque. The available stamp fill. */
-  --color-patta-tint: #d5e1d7;
+  --color-patta-tint: #e3eee6;
 
   /*
    * Mono is for numbers: prices, tax rates, quantities, the stamp label.

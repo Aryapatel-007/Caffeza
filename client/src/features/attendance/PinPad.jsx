@@ -29,7 +29,7 @@ export default function PinPad({ personName, onSubmit, onBack, busy = false, err
   };
 
   const keyBase =
-    'flex min-h-[72px] items-center justify-center rounded-xl border-2 border-ink bg-paper font-mono text-2xl font-medium text-ink ' +
+    'flex min-h-[72px] items-center justify-center rounded-xl border border-black/5 shadow-card bg-white font-mono text-2xl font-medium text-ink ' +
     'active:translate-y-0.5 transition-transform duration-100 ' +
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40';
 
@@ -96,7 +96,7 @@ export default function PinPad({ personName, onSubmit, onBack, busy = false, err
           onClick={submit}
           disabled={pin.length < MIN || busy}
           className={
-            'flex min-h-[72px] items-center justify-center rounded-xl border-2 border-ink bg-chana text-3xl text-ink ' +
+            'flex min-h-[72px] items-center justify-center rounded-xl border border-black/5 shadow-card bg-chana text-3xl text-ink ' +
             'active:translate-y-0.5 transition-transform duration-100 ' +
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40'
           }

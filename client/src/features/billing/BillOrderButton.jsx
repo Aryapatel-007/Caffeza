@@ -46,7 +46,7 @@ export default function BillOrderButton({ order }) {
       <button
         type="button"
         onClick={() => navigate(`/bills/${order.billId}`)}
-        className="flex h-12 items-center rounded-[10px] border-2 border-ink bg-chana px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="flex h-12 items-center rounded-xl border border-black/5 shadow-card bg-chana px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         {BILL_LABELS.openBill.en}
       </button>
@@ -61,7 +61,7 @@ export default function BillOrderButton({ order }) {
         type="button"
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending}
-        className="flex h-12 items-center rounded-[10px] border-2 border-ink bg-chana px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+        className="flex h-12 items-center rounded-xl border border-black/5 shadow-card bg-chana px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
       >
         {mutation.isPending ? 'Billing…' : BILL_LABELS.billThisOrder.en}
       </button>

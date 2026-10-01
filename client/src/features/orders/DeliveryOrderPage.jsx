@@ -38,12 +38,12 @@ export default function DeliveryOrderPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="border-b-2 border-ink px-4 py-3 sm:px-6">
+      <header className="border-b border-black/5 px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
           <h1 className="text-[20px] font-semibold leading-7">New delivery</h1>
           <Link
             to="/floor"
-            className="flex h-12 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             Floor
           </Link>
@@ -71,7 +71,7 @@ export default function DeliveryOrderPage() {
                   aria-pressed={chosen}
                   onClick={() => setPlatformCode(platform.code)}
                   className={[
-                    'h-16 rounded-[10px] border-2 text-[17px] font-semibold',
+                    'h-16 rounded-xl border-2 text-[17px] font-semibold',
                     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
                     chosen ? 'border-ink bg-chana/20' : 'border-steel/40',
                   ].join(' ')}
@@ -95,7 +95,7 @@ export default function DeliveryOrderPage() {
             maxLength={40}
             onChange={(event) => setPlatformOrderId(event.target.value)}
             placeholder="249377796192385"
-            className="h-12 w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 font-mono text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
+            className="h-12 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 font-mono text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
           />
         </label>
 
@@ -108,7 +108,7 @@ export default function DeliveryOrderPage() {
             value={customerName}
             maxLength={100}
             onChange={(event) => setCustomerName(event.target.value)}
-            className="h-12 w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 text-[15px] leading-[22px] focus:border-ink focus:outline-none"
+            className="h-12 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] leading-[22px] focus:border-ink focus:outline-none"
           />
         </label>
 
@@ -126,7 +126,7 @@ export default function DeliveryOrderPage() {
         <button
           type="submit"
           disabled={!canStart}
-          className="h-14 w-full rounded-[10px] bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
+          className="h-14 w-full rounded-xl bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
         >
           {start.isPending ? 'Starting…' : 'Start the order'}
         </button>

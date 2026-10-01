@@ -21,7 +21,7 @@ export default function VoidBillPanel({ bill, isBusy, error, onCancel, onConfirm
 
   return (
     <PanelShell title={BILL_LABELS.voidBill.en} onCancel={onCancel}>
-      <div className="mb-4 rounded-[10px] border-2 border-mirch/40 bg-mirch/5 p-3">
+      <div className="mb-4 rounded-xl border-2 border-mirch/40 bg-mirch/5 p-3">
         <p className="text-[15px] leading-[22px] text-ink">
           Bill <span className="font-mono">{bill.billNumber}</span> for{' '}
           <span className="font-mono font-semibold">{formatPaise(bill.grandTotalInPaise)}</span> will

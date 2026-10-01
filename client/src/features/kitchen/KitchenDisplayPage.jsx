@@ -123,7 +123,7 @@ export default function KitchenDisplayPage() {
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="sticky top-0 z-10 border-b-2 border-ink bg-paper px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold leading-7">Kitchen</h1>
@@ -133,7 +133,7 @@ export default function KitchenDisplayPage() {
           </div>
           <Link
             to="/floor"
-            className="flex h-12 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             Floor
           </Link>
@@ -154,7 +154,7 @@ export default function KitchenDisplayPage() {
                   className={[
                     'h-11 rounded-full px-4 text-[15px] font-medium',
                     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                    active ? 'border-2 border-ink bg-chana/20 text-ink' : 'border-2 border-steel/40 text-steel',
+                    active ? 'border border-black/5 shadow-card bg-chana/20 text-ink' : 'border-2 border-steel/40 text-steel',
                   ].join(' ')}
                 >
                   {station.name}
@@ -210,8 +210,8 @@ function Ticket({ kot, notPrinted, onReprint, isBusy, onLineReady, onAllReady })
   const outstanding = kot.lines.filter((line) => line.status === 'PENDING');
 
   return (
-    <article className="flex h-full flex-col rounded-[10px] border-2 border-ink bg-paper">
-      <header className="flex items-baseline justify-between gap-2 border-b-2 border-ink px-3 py-2.5">
+    <article className="flex h-full flex-col rounded-xl border border-black/5 shadow-card bg-white">
+      <header className="flex items-baseline justify-between gap-2 border-b border-black/5 px-3 py-2.5">
         <div>
           <p className="text-[15px] font-semibold leading-5">
             {kot.tableName ?? 'Takeaway'}
@@ -309,12 +309,12 @@ function Ticket({ kot, notPrinted, onReprint, isBusy, onLineReady, onAllReady })
         })}
       </ul>
 
-      <footer className="border-t-2 border-ink px-3 py-2.5">
+      <footer className="border-t border-black/5 px-3 py-2.5">
         <button
           type="button"
           disabled={isBusy || outstanding.length === 0}
           onClick={onAllReady}
-          className="h-14 w-full rounded-[10px] bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className="h-14 w-full rounded-xl bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
         >
           {outstanding.length === 0
             ? 'All ready'
