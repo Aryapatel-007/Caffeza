@@ -179,6 +179,10 @@ export async function createBill(req, { orderId, version }) {
         orderNumber: order.orderNumber,
         orderType: order.orderType,
         tableName: order.tableName ?? null,
+        // P06. Copied from the order, so a report groups delivery bills by
+        // platform and knows which were billed at 0% for the platform.
+        platform: order.platform ?? null,
+        taxTreatment: order.taxTreatment ?? 'NORMAL',
         businessDate: businessDateFor(at, startMinutes),
         status: BILL_STATUSES.UNPAID,
         lines,

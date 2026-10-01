@@ -57,6 +57,8 @@ const SETTING_PATHS = Object.freeze({
   'invoice.mode': 'settings.invoice.mode',
   'invoice.prefix': 'settings.invoice.prefix',
   'invoice.startingNumber': 'settings.invoice.startingNumber',
+
+  'delivery.platformCollectsGst': 'settings.delivery.platformCollectsGst',
 });
 
 /** The modules a restaurant can switch off. P02. */

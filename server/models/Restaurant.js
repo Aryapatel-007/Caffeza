@@ -202,6 +202,20 @@ const invoiceSettingsSchema = new mongoose.Schema(
 );
 
 /**
+ * Delivery orders. P06.
+ *
+ * When true, a DELIVERY order from a listed platform is frozen at 0% GST when
+ * it is created, because the platform pays the GST under section 9(5).
+ * TO CONFIRM with Caffeza's CA. Only orders created after a change follow it.
+ */
+const deliverySettingsSchema = new mongoose.Schema(
+  {
+    platformCollectsGst: { type: Boolean, required: true, default: true },
+  },
+  { _id: false },
+);
+
+/**
  * Restaurant-level settings. Every field has a default, which is what makes M7
  * a no-migration change: a document written before M7 reads back a complete
  * settings object because Mongoose fills missing paths on read.
@@ -244,6 +258,7 @@ const settingsSchema = new mongoose.Schema(
     inventory: { type: inventorySettingsSchema, default: () => ({}) },
     features: { type: featureSettingsSchema, default: () => ({}) },
     invoice: { type: invoiceSettingsSchema, default: () => ({}) },
+    delivery: { type: deliverySettingsSchema, default: () => ({}) },
   },
   { _id: false },
 );

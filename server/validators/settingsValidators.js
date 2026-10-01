@@ -191,6 +191,13 @@ const invoice = z
     }
   });
 
+/** Delivery orders. P06. */
+const delivery = z
+  .object({
+    platformCollectsGst: z.boolean({ error: 'Must be true or false.' }).optional(),
+  })
+  .strict();
+
 /** Everything except `reason`. Used to tell "a group was sent" from "only a reason was sent". */
 export const SETTINGS_GROUPS = Object.freeze([
   'business',
@@ -199,6 +206,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'inventory',
   'features',
   'invoice',
+  'delivery',
 ]);
 
 /**
@@ -238,6 +246,7 @@ export const updateSettingsSchema = z.object({
       inventory: inventory.optional(),
       features: features.optional(),
       invoice: invoice.optional(),
+      delivery: delivery.optional(),
     })
     .strict()
     .refine(

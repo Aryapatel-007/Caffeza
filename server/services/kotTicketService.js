@@ -33,7 +33,7 @@ function destination({ kot, order }) {
     return [`${kot.tableName ?? 'TABLE'}${covers}`];
   }
 
-  if (ORDER_TYPES.DELIVERY && kot.orderType === ORDER_TYPES.DELIVERY) {
+  if (kot.orderType === ORDER_TYPES.DELIVERY) {
     const platform = order?.platform;
     const lines = [
       platform ? `DELIVERY  ${platform.code} ${platform.orderId}` : 'DELIVERY',

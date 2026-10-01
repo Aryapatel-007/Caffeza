@@ -22,7 +22,25 @@ import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 export const ORDER_TYPES = Object.freeze({
   DINE_IN: 'DINE_IN',
   TAKEAWAY: 'TAKEAWAY',
+  // P06. Zomato and Swiggy orders, typed in by hand. Never on a table.
+  DELIVERY: 'DELIVERY',
 });
+
+/**
+ * How GST is decided for an order's lines. P06.
+ *
+ * PLATFORM_COLLECTS: a platform delivery order, where the platform pays the GST
+ * under section 9(5), so every line is frozen at 0% when it is added. Set once,
+ * when the order is created, and never changed.
+ */
+export const TAX_TREATMENTS = Object.freeze({
+  NORMAL: 'NORMAL',
+  PLATFORM_COLLECTS: 'PLATFORM_COLLECTS',
+});
+export const TAX_TREATMENT_VALUES = Object.freeze(Object.values(TAX_TREATMENTS));
+
+/** A platform's own order number: letters and digits, 3 to 40. */
+export const PLATFORM_ORDER_ID_PATTERN = /^[A-Za-z0-9]{3,40}$/;
 export const ORDER_TYPE_VALUES = Object.freeze(Object.values(ORDER_TYPES));
 
 /**
@@ -212,6 +230,18 @@ const orderLineSchema = new mongoose.Schema(
      */
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
     categoryName: { type: String, trim: true, default: null },
+
+    /**
+     * The item's own GST rate, kept for reference when this line is frozen at
+     * 0% on a PLATFORM_COLLECTS order. Null on NORMAL orders. P06.
+     */
+    menuTaxRateBps: {
+      type: Number,
+      min: 0,
+      max: MAX_BASIS_POINTS,
+      default: null,
+      validate: wholeNumberOrEmpty,
+    },
   },
   { _id: true },
 );
@@ -228,6 +258,30 @@ const orderSchema = new mongoose.Schema({
 
   /** Snapshot, so renaming a table does not rewrite last month's orders. */
   tableName: { type: String, trim: true, default: null },
+
+  /**
+   * The delivery platform and its own order number. P06. Null unless the
+   * order is DELIVERY. `name` is frozen from server/config/platforms.js.
+   */
+  platform: {
+    type: new mongoose.Schema(
+      {
+        code: { type: String, required: true, trim: true },
+        name: { type: String, required: true, trim: true },
+        orderId: { type: String, required: true, trim: true, match: PLATFORM_ORDER_ID_PATTERN },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
+
+  /** NORMAL or PLATFORM_COLLECTS. Set when the order is created. P06. */
+  taxTreatment: {
+    type: String,
+    required: true,
+    enum: TAX_TREATMENT_VALUES,
+    default: TAX_TREATMENTS.NORMAL,
+  },
 
   guestCount: {
     type: Number,
@@ -293,14 +347,23 @@ orderSchema.plugin(baseSchemaPlugin);
 orderSchema.plugin(tenantGuardPlugin);
 
 /** occupiesTable as derived from a status value, for the hooks below. */
-function occupiesTableFor(status) {
-  return OCCUPYING_ORDER_STATUSES.includes(status);
+/**
+ * Only an order that is on a table can occupy one.
+ *
+ * Before P06 this read the status alone, so every open takeaway carried
+ * `occupiesTable: true` with `tableId: null`, and two of them collided on the
+ * one-order-per-table index below: a second takeaway, or a second delivery
+ * order, was refused while the first was still open. A null table is now never
+ * occupied.
+ */
+function occupiesTableFor(status, tableId) {
+  return OCCUPYING_ORDER_STATUSES.includes(status) && tableId !== null && tableId !== undefined;
 }
 
 /** Covers `new Order(...).save()` and `order.status = x; order.save()`. */
 orderSchema.pre('save', function syncOccupiesTableOnSave(next) {
-  if (this.isNew || this.isModified('status')) {
-    this.occupiesTable = occupiesTableFor(this.status);
+  if (this.isNew || this.isModified('status') || this.isModified('tableId')) {
+    this.occupiesTable = occupiesTableFor(this.status, this.tableId);
   }
   next();
 });
@@ -315,14 +378,33 @@ orderSchema.pre('save', function syncOccupiesTableOnSave(next) {
  * Mongoose runs this as query middleware, so there is no document to read
  * `isModified` off. The incoming status is read straight out of the update.
  */
-function syncOccupiesTableOnStatusUpdate(next) {
+async function syncOccupiesTableOnStatusUpdate() {
   const update = this.getUpdate() ?? {};
   const nextStatus = update.status ?? update.$set?.status;
+  if (nextStatus === undefined) return;
 
-  if (nextStatus !== undefined) {
-    this.set('occupiesTable', occupiesTableFor(nextStatus));
+  if (!OCCUPYING_ORDER_STATUSES.includes(nextStatus)) {
+    this.set('occupiesTable', false);
+    return;
   }
-  next();
+
+  /**
+   * Moving into an occupying status: whether it occupies a table depends on
+   * whether the order has one, which the update does not carry. One small read
+   * of the same document, in the same session. A filter that matches nothing
+   * leaves the flag alone, and the update itself then matches nothing too.
+   */
+  const nextTableId = update.tableId ?? update.$set?.tableId;
+  if (nextTableId !== undefined) {
+    this.set('occupiesTable', occupiesTableFor(nextStatus, nextTableId));
+    return;
+  }
+  const current = await this.model
+    .findOne(this.getFilter())
+    .select('tableId')
+    .setOptions({ session: this.getOptions().session ?? null })
+    .lean();
+  if (current) this.set('occupiesTable', occupiesTableFor(nextStatus, current.tableId));
 }
 
 orderSchema.pre('findOneAndUpdate', syncOccupiesTableOnStatusUpdate);
@@ -383,6 +465,22 @@ orderSchema.index(
 
 /** For M6, which will ask what sold. */
 orderSchema.index({ restaurantId: 1, 'lines.menuItemId': 1 });
+
+/**
+ * One live order per platform order number. P06.
+ *
+ * Delivery orders are typed in by hand from a second screen, and entering the
+ * same one twice is the likeliest mistake. The database refuses the second
+ * insert, the same technique as the one-order-per-table index. A cancelled
+ * order frees its number, so a mistyped entry can be cancelled and re-entered.
+ */
+orderSchema.index(
+  { restaurantId: 1, 'platform.code': 1, 'platform.orderId': 1 },
+  {
+    unique: true,
+    partialFilterExpression: { 'platform.orderId': { $type: 'string' }, isCancelled: false },
+  },
+);
 
 applyJsonTransform(orderSchema, { strip: ['occupiesTable'] });
 

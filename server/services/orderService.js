@@ -15,6 +15,7 @@ import {
   ORDER_LINE_STATUSES,
   ORDER_STATUSES,
   PREPARED_LINE_STATUSES,
+  TAX_TREATMENTS,
 } from '../models/Order.js';
 import {
   BusinessRuleError,
@@ -130,7 +131,7 @@ export function serialiseOrder(order) {
  * One query for every distinct item, not one per line: a waiter adding four
  * portions of the same dish should not cost four round trips.
  */
-export async function buildLineSnapshots(req, lineRequests) {
+export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX_TREATMENTS.NORMAL } = {}) {
   const wantedIds = [...new Set(lineRequests.map((line) => String(line.menuItemId)))];
 
   const items = await MenuItem.find({ ...scoped(req), _id: { $in: wantedIds } });
@@ -207,7 +208,13 @@ export async function buildLineSnapshots(req, lineRequests) {
       variantId,
       variantName,
       unitPriceInPaise,
-      taxRateBps: item.taxRateBps,
+      /**
+       * P06. On a PLATFORM_COLLECTS order the platform pays the GST, so the
+       * line is frozen at 0% now, never decided at bill time. The item's own
+       * rate is kept for reference. The tax arithmetic sees a 0% line.
+       */
+      taxRateBps: taxTreatment === TAX_TREATMENTS.PLATFORM_COLLECTS ? 0 : item.taxRateBps,
+      menuTaxRateBps: taxTreatment === TAX_TREATMENTS.PLATFORM_COLLECTS ? item.taxRateBps : null,
       // A missing category should not happen. If it does, the id is still
       // kept and the order is not blocked over it.
       categoryId: item.categoryId ?? null,

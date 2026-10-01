@@ -13,6 +13,7 @@
 import { z } from 'zod';
 
 import { LINE_CANCEL_REASON_CODES, ORDER_CANCEL_REASON_CODES } from '../config/cancelReasons.js';
+import { PLATFORM_CODES } from '../config/platforms.js';
 import {
   MAX_GUEST_COUNT,
   MAX_LINE_QUANTITY,
@@ -23,6 +24,7 @@ import {
   LINE_NOTES_MAX_LENGTH,
   ORDER_STATUS_VALUES,
   ORDER_TYPES,
+  PLATFORM_ORDER_ID_PATTERN,
 } from '../models/Order.js';
 import { MAX_SEATS, MIN_SEATS, TABLE_NAME_MAX_LENGTH, TABLE_SECTION_MAX_LENGTH } from '../models/Table.js';
 import {
@@ -216,6 +218,7 @@ export const createOrderSchema = z.object({
           .optional(),
         customerName: z.never({ error: 'Only a takeaway order has a customer name.' }).optional(),
         customerPhone: z.never({ error: 'Only a takeaway order has a customer phone.' }).optional(),
+        platform: z.never({ error: 'Only a delivery order has a platform.' }).optional(),
         lines: lines.optional(),
       })
       .strict('Is not a field you can set here.'),
@@ -225,6 +228,33 @@ export const createOrderSchema = z.object({
         orderType: z.literal(ORDER_TYPES.TAKEAWAY),
         tableId: z.never({ error: 'A takeaway order has no table.' }).optional(),
         guestCount: z.never({ error: 'A takeaway order has no guest count.' }).optional(),
+        customerName: nonEmptyString
+          .max(CUSTOMER_NAME_MAX_LENGTH, `Cannot be longer than ${CUSTOMER_NAME_MAX_LENGTH} characters.`)
+          .optional(),
+        customerPhone: phoneIndia.optional(),
+        platform: z.never({ error: 'Only a delivery order has a platform.' }).optional(),
+        lines: lines.optional(),
+      })
+      .strict('Is not a field you can set here.'),
+
+    // P06. A Zomato or Swiggy order typed in by hand. No table, no guests.
+    z
+      .object({
+        orderType: z.literal(ORDER_TYPES.DELIVERY),
+        tableId: z.never({ error: 'A delivery order has no table.' }).optional(),
+        guestCount: z.never({ error: 'A delivery order has no guest count.' }).optional(),
+        platform: z
+          .object(
+            {
+              code: z.enum(PLATFORM_CODES, { error: `Must be one of: ${PLATFORM_CODES.join(', ')}.` }),
+              orderId: z
+                .string({ error: 'The platform order number is required.' })
+                .trim()
+                .regex(PLATFORM_ORDER_ID_PATTERN, 'Must be 3 to 40 letters and digits.'),
+            },
+            { error: 'A delivery order needs its platform and the platform order number.' },
+          )
+          .strict('Is not a field you can set here.'),
         customerName: nonEmptyString
           .max(CUSTOMER_NAME_MAX_LENGTH, `Cannot be longer than ${CUSTOMER_NAME_MAX_LENGTH} characters.`)
           .optional(),

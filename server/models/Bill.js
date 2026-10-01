@@ -297,6 +297,23 @@ const billSchema = new mongoose.Schema({
    * the order (GLOSSARY section 8). The name is read once, so renaming the user
    * later does not rewrite who served last month. Null on bills from before P03.
    */
+  /**
+   * Copied from the order. P06. `platform` is `{ code, name, orderId }` on a
+   * delivery bill and null otherwise. A bill from before P06 reads as NORMAL.
+   */
+  platform: {
+    type: new mongoose.Schema(
+      {
+        code: { type: String, trim: true },
+        name: { type: String, trim: true },
+        orderId: { type: String, trim: true },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
+  taxTreatment: { type: String, trim: true, default: 'NORMAL' },
+
   captainId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   captainName: { type: String, trim: true, default: null },
   guestCount: { type: Number, min: 0, default: null, validate: wholeNumberOrEmpty },

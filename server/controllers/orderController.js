@@ -16,6 +16,7 @@ import {
   ORDER_CANCEL_REASONS,
   reasonText,
 } from '../config/cancelReasons.js';
+import { platformByCode } from '../config/platforms.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { COUNTER_NAMES } from '../models/Counter.js';
 import {
@@ -25,6 +26,7 @@ import {
   PREPARED_LINE_STATUSES,
   ORDER_STATUSES,
   ORDER_TYPES,
+  TAX_TREATMENTS,
 } from '../models/Order.js';
 import { Table } from '../models/Table.js';
 import { recordAudit } from '../services/auditService.js';
@@ -34,7 +36,7 @@ import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/
 // and it was never actually made, so the ingredients go back. Keyed on the
 // ledger, not on the flag alone -- see stockMovementService.js.
 import { returnStockForCancelledLine } from '../services/stockMovementService.js';
-import { isFeatureOn } from '../services/settingsService.js';
+import { getSetting, isFeatureOn } from '../services/settingsService.js';
 import {
   applyVersionedUpdate,
   assertOrderIsOpen,
@@ -47,7 +49,7 @@ import {
   loadOrderInTenant,
   serialiseOrder,
 } from '../services/orderService.js';
-import { BusinessRuleError, NotFoundError, TableOccupiedError } from '../utils/errors.js';
+import { BusinessRuleError, DuplicateError, NotFoundError, TableOccupiedError } from '../utils/errors.js';
 import { sumPaise } from '../utils/money.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
@@ -109,14 +111,52 @@ async function rethrowTableConflict(req, tableId, error) {
   throw new TableOccupiedError(existing?._id);
 }
 
+/**
+ * P06. The platform order index refused a second live order with the same
+ * platform number. Turned into a 409 naming the order that already has it, so
+ * the counter can open that one instead of entering it twice.
+ */
+async function rethrowPlatformConflict(req, platform, error) {
+  const isDuplicate = error?.code === MONGO_DUPLICATE_KEY;
+  const onPlatformIndex = Object.hasOwn(error?.keyPattern ?? {}, 'platform.orderId');
+  if (!isDuplicate || !onPlatformIndex) throw error;
+
+  const existing = await Order.findOne({
+    ...scoped(req),
+    'platform.code': platform.code,
+    'platform.orderId': platform.orderId,
+    isCancelled: false,
+  }).select('_id orderNumber');
+
+  throw new DuplicateError(
+    `${platform.name} order ${platform.orderId} is already entered as order ${existing?.orderNumber ?? '?'}.`,
+    { 'platform.orderId': 'Already entered.' },
+    existing ? { existingOrderId: String(existing._id) } : undefined,
+  );
+}
+
 /** POST /orders */
 export async function createOrder(req, res) {
-  const { orderType, tableId, guestCount, customerName, customerPhone, lines } = req.body;
+  const { orderType, tableId, guestCount, customerName, customerPhone, lines, platform } = req.body;
 
   const isDineIn = orderType === ORDER_TYPES.DINE_IN;
   const table = isDineIn ? await assertTableUsable(req, tableId) : null;
 
-  const snapshotLines = lines?.length ? await buildLineSnapshots(req, lines) : [];
+  /**
+   * P06. A delivery order freezes its platform, with the name from the list,
+   * and its tax treatment: when the platform collects the GST, every line on
+   * this order is frozen at 0%, now and for lines added later.
+   */
+  const listed = platform ? platformByCode(platform.code) : null;
+  const frozenPlatform = listed ? { code: listed.code, name: listed.name, orderId: platform.orderId } : null;
+  const taxTreatment =
+    orderType === ORDER_TYPES.DELIVERY &&
+    listed &&
+    (await getSetting(req.restaurantId, 'delivery.platformCollectsGst', { req }))
+      ? TAX_TREATMENTS.PLATFORM_COLLECTS
+      : TAX_TREATMENTS.NORMAL;
+
+  const snapshotLines = lines?.length ? await buildLineSnapshots(req, lines, { taxTreatment }) : [];
 
   /**
    * The number is reserved before the document is written, so a failed insert
@@ -140,12 +180,17 @@ export async function createOrder(req, res) {
     guestCount: guestCount ?? null,
     customerName: customerName ?? null,
     customerPhone: customerPhone ?? null,
+    platform: frozenPlatform,
+    taxTreatment,
     lines: snapshotLines,
     openedBy: req.user.id,
     openedAt: new Date(),
   });
 
-  const saved = await order.save().catch((error) => rethrowTableConflict(req, tableId, error));
+  const saved = await order
+    .save()
+    .catch((error) => rethrowPlatformConflict(req, frozenPlatform, error))
+    .catch((error) => rethrowTableConflict(req, tableId, error));
 
   req.log?.info(
     {
@@ -215,7 +260,8 @@ export async function addOrderLines(req, res) {
    * not match and nothing is written, so the worst case is wasted work rather
    * than a line priced against a stale read.
    */
-  const snapshotLines = await buildLineSnapshots(req, lines);
+  // P06: a PLATFORM_COLLECTS order freezes every new line at 0% too.
+  const snapshotLines = await buildLineSnapshots(req, lines, { taxTreatment: order.taxTreatment });
 
   const updated = await applyVersionedUpdate(req, {
     orderId,

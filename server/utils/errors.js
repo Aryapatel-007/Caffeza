@@ -207,8 +207,12 @@ export class ValidationError extends AppError {
 }
 
 export class DuplicateError extends AppError {
-  constructor(message = 'That already exists.', fields) {
-    super(message, { statusCode: 409, code: ERROR_CODES.DUPLICATE, fields });
+  /**
+   * `details` (P06) carries extra top-level fields the client acts on, such as
+   * the `existingOrderId` of a platform order entered twice.
+   */
+  constructor(message = 'That already exists.', fields, details) {
+    super(message, { statusCode: 409, code: ERROR_CODES.DUPLICATE, fields, details });
   }
 }
 
