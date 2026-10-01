@@ -50,6 +50,9 @@ const DEFAULTS = {
     showServerName: false,
   },
   inventory: { lowStockAlertsEnabled: true },
+  // P02.
+  features: { inventory: true, attendance: true },
+  invoice: { mode: 'FINANCIAL_YEAR', prefix: null, startingNumber: null },
 };
 
 // ---------------------------------------------------------------------------
