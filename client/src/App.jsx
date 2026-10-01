@@ -30,6 +30,7 @@ import FloorViewPage from './features/orders/FloorViewPage.jsx';
 import OrderScreenPage from './features/orders/OrderScreenPage.jsx';
 import TableManagementPage from './features/orders/TableManagementPage.jsx';
 import TakeawayOrderPage from './features/orders/TakeawayOrderPage.jsx';
+import DeliveryOrderPage from './features/orders/DeliveryOrderPage.jsx';
 import StaffFormPage from './features/users/StaffFormPage.jsx';
 import StaffListPage from './features/users/StaffListPage.jsx';
 import { ROLES } from './features/users/roles.js';
@@ -222,6 +223,18 @@ export default function App() {
           <ProtectedRoute>
             <RequireRole roles={ORDER_TAKING_ROLES}>
               <TakeawayOrderPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P06. Zomato and Swiggy orders typed in at the counter. */}
+      <Route
+        path="/orders/delivery"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={ORDER_TAKING_ROLES}>
+              <DeliveryOrderPage />
             </RequireRole>
           </ProtectedRoute>
         }

@@ -9,6 +9,7 @@ import { businessDateToday } from '../../utils/formatDate.js';
 import { formatPaise } from '../../utils/formatMoney.js';
 import BillStatusBadge from './BillStatusBadge.jsx';
 import { errorMessage } from './errorCopy.js';
+import { placeLabel } from '../orders/orderLabel.js';
 
 /**
  * The day's bills, with a running total.
@@ -142,7 +143,7 @@ export default function BillsListPage() {
                   <div>
                     <p className="font-mono text-[13px] leading-[18px]">{bill.billNumber}</p>
                     <p className="text-[13px] leading-[18px] text-steel">
-                      {bill.tableName ?? (bill.orderType === 'TAKEAWAY' ? 'Takeaway' : 'Order')}
+                      {placeLabel(bill)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

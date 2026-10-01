@@ -18,6 +18,7 @@ import { charactersFor, printText } from '../printing/printText.js';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import VoidBillPanel from './VoidBillPanel.jsx';
 import { BILL_VOID_REASONS, describeReason } from '../orders/cancelReasons.js';
+import { placeLabel } from '../orders/orderLabel.js';
 
 const CAN_DISCOUNT_OR_VOID = [ROLES.OWNER, ROLES.MANAGER];
 
@@ -138,7 +139,7 @@ export default function BillScreenPage() {
               <BillStatusBadge bill={bill} />
             </div>
             <p className="text-[13px] leading-[18px] text-steel">
-              {bill.tableName ?? (bill.orderType === 'TAKEAWAY' ? 'Takeaway' : 'Order')} · {bill.businessDate}
+              {placeLabel(bill)} · {bill.businessDate}
             </p>
           </div>
           <Link

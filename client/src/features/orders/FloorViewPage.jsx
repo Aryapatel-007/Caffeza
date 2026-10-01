@@ -96,6 +96,12 @@ export default function FloorViewPage() {
               Takeaway
             </Link>
             <Link
+              to="/orders/delivery"
+              className="flex h-12 items-center rounded-[10px] border-2 border-ink px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              Delivery
+            </Link>
+            <Link
               to="/kitchen"
               className="flex h-12 items-center rounded-[10px] px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
             >

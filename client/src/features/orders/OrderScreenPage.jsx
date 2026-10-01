@@ -22,6 +22,7 @@ import LineOptionsPanel from './LineOptionsPanel.jsx';
 import MenuPicker from './MenuPicker.jsx';
 import OrderLineList from './OrderLineList.jsx';
 import { errorMessage, shouldRefetch } from './errorCopy.js';
+import { placeLabel } from './orderLabel.js';
 
 /** Only these two may cancel a whole order. The server is what enforces it. */
 const CAN_CANCEL_ORDER = ['OWNER', 'MANAGER'];
@@ -120,7 +121,7 @@ export default function OrderScreenPage() {
           <div>
             <div className="flex items-baseline gap-2">
               <h1 className="text-[20px] font-semibold leading-7">
-                {order.orderType === 'DINE_IN' ? (order.tableName ?? 'Table') : 'Takeaway'}
+                {placeLabel(order)}
               </h1>
               <span className="font-mono text-[12px] leading-4 text-steel">
                 #{order.orderNumber}
