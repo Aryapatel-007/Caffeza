@@ -5,6 +5,7 @@ import StatusBadge from '../../components/ui/StatusBadge.jsx';
 import { HeroFigure, StatTile } from '../../components/charts/StatTile.jsx';
 import RankedBars from '../../components/charts/RankedBars.jsx';
 import { getDashboard } from '../../api/reports.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { BASE_UNIT_SHORT_LABELS } from '../../utils/units.js';
 import { errorMessage } from './errorCopy.js';
 import { formatPaise } from './formatReport.js';
@@ -28,6 +29,9 @@ const STOCK_FACES = {
  * One hero figure -- the day's sales -- and everything else quieter than it.
  */
 export default function TodayPage() {
+  const { features } = useAuth();
+  const inventoryOn = features?.inventory !== false;
+
   const query = useQuery({
     queryKey: ['reports', 'dashboard'],
     queryFn: getDashboard,
@@ -74,7 +78,10 @@ export default function TodayPage() {
             />
             <StatTile label="Tax collected" value={formatPaise(data.sales.totalTaxInPaise)} />
             <StatTile label="Discount given" value={formatPaise(data.sales.totalDiscountInPaise)} />
-            <StatTile label="Staff on shift" value={data.staffOnShift} />
+            {/* Null when attendance is switched off (P02). Zero would be a claim. */}
+            {data.staffOnShift !== null && (
+              <StatTile label="Staff on shift" value={data.staffOnShift} />
+            )}
           </div>
 
           <ReportSection
@@ -92,6 +99,7 @@ export default function TodayPage() {
             />
           </ReportSection>
 
+          {inventoryOn && (
           <ReportSection
             title="Running low"
             description="Ingredients at or below their own threshold. Worst first."
@@ -126,6 +134,7 @@ export default function TodayPage() {
               Open stock
             </Link>
           </ReportSection>
+          )}
         </div>
       )}
     </ReportShell>

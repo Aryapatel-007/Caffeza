@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import NotFoundPage from './components/NotFoundPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import RequireFeature from './components/RequireFeature.jsx';
 import RequireRole from './components/RequireRole.jsx';
 import AttendanceRegisterPage from './features/attendance/AttendanceRegisterPage.jsx';
 import ClockScreen from './features/attendance/ClockScreen.jsx';
@@ -171,7 +172,9 @@ export default function App() {
         path="/attendance"
         element={
           <ProtectedRoute>
-            <ClockScreen />
+            <RequireFeature feature="attendance">
+              <ClockScreen />
+            </RequireFeature>
           </ProtectedRoute>
         }
       />
@@ -180,7 +183,9 @@ export default function App() {
         path="/attendance/me"
         element={
           <ProtectedRoute>
-            <MyAttendancePage />
+            <RequireFeature feature="attendance">
+              <MyAttendancePage />
+            </RequireFeature>
           </ProtectedRoute>
         }
       />
@@ -189,9 +194,11 @@ export default function App() {
         path="/attendance/register"
         element={
           <ProtectedRoute>
-            <RequireRole roles={STAFF_ADMIN_ROLES}>
-              <AttendanceRegisterPage />
-            </RequireRole>
+            <RequireFeature feature="attendance">
+              <RequireRole roles={STAFF_ADMIN_ROLES}>
+                <AttendanceRegisterPage />
+              </RequireRole>
+            </RequireFeature>
           </ProtectedRoute>
         }
       />
@@ -279,7 +286,9 @@ export default function App() {
         path="/inventory"
         element={
           <ProtectedRoute>
-            <StockListPage />
+            <RequireFeature feature="inventory">
+              <StockListPage />
+            </RequireFeature>
           </ProtectedRoute>
         }
       />
@@ -288,9 +297,11 @@ export default function App() {
         path="/inventory/recipes"
         element={
           <ProtectedRoute>
-            <RequireRole roles={RECIPE_EDITOR_ROLES}>
-              <RecipeEditorPage />
-            </RequireRole>
+            <RequireFeature feature="inventory">
+              <RequireRole roles={RECIPE_EDITOR_ROLES}>
+                <RecipeEditorPage />
+              </RequireRole>
+            </RequireFeature>
           </ProtectedRoute>
         }
       />
@@ -344,9 +355,11 @@ export default function App() {
         path="/reports/stock"
         element={
           <ProtectedRoute>
-            <RequireRole roles={STOCK_REPORT_ROLES}>
-              <StockReportPage />
-            </RequireRole>
+            <RequireFeature feature="inventory">
+              <RequireRole roles={STOCK_REPORT_ROLES}>
+                <StockReportPage />
+              </RequireRole>
+            </RequireFeature>
           </ProtectedRoute>
         }
       />
@@ -355,9 +368,11 @@ export default function App() {
         path="/reports/labour"
         element={
           <ProtectedRoute>
-            <RequireRole roles={REPORT_ROLES}>
-              <LabourReportPage />
-            </RequireRole>
+            <RequireFeature feature="attendance">
+              <RequireRole roles={REPORT_ROLES}>
+                <LabourReportPage />
+              </RequireRole>
+            </RequireFeature>
           </ProtectedRoute>
         }
       />

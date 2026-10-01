@@ -22,16 +22,22 @@ const TABS = [
   { to: '/reports/sales', label: 'Sales' },
   { to: '/reports/tax', label: 'Tax' },
   { to: '/reports/discounts', label: 'Discounts' },
-  { to: '/reports/stock', label: 'Stock' },
-  { to: '/reports/labour', label: 'Labour' },
+  { to: '/reports/stock', label: 'Stock', feature: 'inventory' },
+  { to: '/reports/labour', label: 'Labour', feature: 'attendance' },
   { to: '/reports/payments', label: 'Payments', ownerOnly: true },
 ];
 
 export default function ReportShell({ title, range, onRangeChange, children }) {
   const { pathname } = useLocation();
-  const { user } = useAuth();
+  const { user, features } = useAuth();
 
-  const tabs = TABS.filter((tab) => !tab.ownerOnly || user?.role === ROLES.OWNER);
+  // P02. A tab for a switched-off module is hidden; the server refuses its
+  // report with FEATURE_DISABLED regardless.
+  const tabs = TABS.filter(
+    (tab) =>
+      (!tab.ownerOnly || user?.role === ROLES.OWNER) &&
+      (!tab.feature || features?.[tab.feature] !== false),
+  );
 
   return (
     <main className="min-h-full bg-paper">

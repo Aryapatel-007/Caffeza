@@ -20,9 +20,19 @@ import { setAccessToken, setSessionHandlers } from '../api/client.js';
 
 const AuthContext = createContext(null);
 
+/**
+ * Which optional modules this restaurant uses, from GET /auth/me (P02).
+ *
+ * Both on until the server says otherwise. Hiding a link here is tidiness only:
+ * a switched-off feature is refused by requireFeature on the server whatever
+ * this says.
+ */
+const ALL_FEATURES_ON = Object.freeze({ inventory: true, attendance: true });
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+  const [features, setFeatures] = useState(ALL_FEATURES_ON);
 
   // True until we know whether there is a session to restore. Starting at
   // false would flash the login screen at someone who is already signed in.
@@ -31,12 +41,35 @@ export function AuthProvider({ children }) {
   const clearSession = useCallback(() => {
     setUser(null);
     setToken(null);
+    setFeatures(ALL_FEATURES_ON);
+  }, []);
+
+  /**
+   * Reads the feature switches again. Called after an owner saves Settings, so
+   * the links follow the change without a reload.
+   */
+  const refreshFeatures = useCallback(async () => {
+    const me = await authApi.getCurrentUser();
+    setFeatures({ ...ALL_FEATURES_ON, ...me.features });
+    return me.features;
   }, []);
 
   const login = useCallback(async (credentials) => {
     // credentials is { phone, password } or { email, password }.
     const data = await authApi.login(credentials);
     // The refresh token came back as a cookie, not in `data`.
+    setAccessToken(data.accessToken);
+
+    // The login response does not carry the feature switches, so read them
+    // before the user is set: a screen should never draw a link and then
+    // take it away again a moment later.
+    try {
+      const me = await authApi.getCurrentUser();
+      setFeatures({ ...ALL_FEATURES_ON, ...me.features });
+    } catch {
+      setFeatures(ALL_FEATURES_ON);
+    }
+
     setUser(data.user);
     setToken(data.accessToken);
     return data;
@@ -101,7 +134,10 @@ export function AuthProvider({ children }) {
         setToken(data.accessToken);
 
         const me = await authApi.getCurrentUser();
-        if (!cancelled) setUser(me.user);
+        if (!cancelled) {
+          setFeatures({ ...ALL_FEATURES_ON, ...me.features });
+          setUser(me.user);
+        }
       } catch {
         if (!cancelled) clearSession();
       } finally {
@@ -121,11 +157,13 @@ export function AuthProvider({ children }) {
       token,
       isAuthenticated: user !== null,
       isRestoring,
+      features,
+      refreshFeatures,
       login,
       logout,
       refresh,
     }),
-    [user, token, isRestoring, login, logout, refresh],
+    [user, token, isRestoring, features, refreshFeatures, login, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

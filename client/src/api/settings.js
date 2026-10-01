@@ -34,12 +34,36 @@ export function changedSettings(original, current) {
   const patch = {};
 
   for (const group of Object.keys(current)) {
-    for (const [field, value] of Object.entries(current[group])) {
+    const next = group === 'invoice' ? normaliseInvoice(current.invoice) : current[group];
+    for (const [field, value] of Object.entries(next)) {
       if (value === original?.[group]?.[field]) continue;
       patch[group] ??= {};
       patch[group][field] = value;
     }
   }
 
+  /**
+   * The invoice series is validated as a whole group (P02): if any of its
+   * fields changes, all three are sent, so the stored series is never
+   * half-changed.
+   */
+  if (patch.invoice) patch.invoice = normaliseInvoice(current.invoice);
+
   return patch;
+}
+
+/**
+ * Financial-year numbering takes no prefix and no starting number. The form
+ * keeps whatever was typed while the owner flips between the two choices, and
+ * this is where it is dropped before sending.
+ */
+function normaliseInvoice(invoice) {
+  if (invoice.mode === 'FINANCIAL_YEAR') {
+    return { mode: 'FINANCIAL_YEAR', prefix: null, startingNumber: null };
+  }
+  return {
+    mode: 'PREFIX',
+    prefix: invoice.prefix === '' ? null : invoice.prefix,
+    startingNumber: invoice.startingNumber,
+  };
 }

@@ -15,7 +15,12 @@ import { useAuth } from '../../context/AuthContext.jsx';
  * dashboard is M6, built once orders, bills and attendance produce data.
  */
 export default function DashboardPage() {
-  const { logout, user } = useAuth();
+  const { logout, user, features } = useAuth();
+
+  // P02. A switched-off module's links are hidden. The server refuses its
+  // endpoints with FEATURE_DISABLED whatever this shows.
+  const inventoryOn = features.inventory !== false;
+  const attendanceOn = features.attendance !== false;
 
   const canManageStaff = user?.role === 'OWNER' || user?.role === 'MANAGER';
 
@@ -100,13 +105,15 @@ export default function DashboardPage() {
               Bills
             </Link>
           )}
-          {/* All six may read stock, so this is not gated. */}
-          <Link
-            to="/inventory"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-          >
-            Stock
-          </Link>
+          {/* All six may read stock, so this is gated only by the feature switch. */}
+          {inventoryOn && (
+            <Link
+              to="/inventory"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Stock
+            </Link>
+          )}
           {/* M6. Reports are back-office reads for the two roles who run the place. */}
           {canManageStaff && (
             <Link
@@ -156,19 +163,23 @@ export default function DashboardPage() {
             </Link>
           )}
           {/* All roles clock their own shift and read their own hours. */}
-          <Link
-            to="/attendance"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-          >
-            Clock
-          </Link>
-          <Link
-            to="/attendance/me"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-          >
-            My hours
-          </Link>
-          {canManageStaff && (
+          {attendanceOn && (
+            <Link
+              to="/attendance"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Clock
+            </Link>
+          )}
+          {attendanceOn && (
+            <Link
+              to="/attendance/me"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              My hours
+            </Link>
+          )}
+          {attendanceOn && canManageStaff && (
             <Link
               to="/attendance/register"
               className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"

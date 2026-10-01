@@ -7,11 +7,13 @@ import Select from '../../components/ui/Select.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { changedSettings, getSettings, updateSettings } from '../../api/settings.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { businessDateToday } from '../../utils/formatDate.js';
 import { errorMessage } from './errorCopy.js';
 import { clockToMinutes, minutesToClock } from './timeOfDay.js';
 
 /**
- * A section of the form. Four of them, one per group in the contract.
+ * A section of the form. One per group in the contract.
  */
 function Section({ title, description, children }) {
   return (
@@ -57,10 +59,45 @@ function NotYetWired() {
   );
 }
 
+/** "2026-27" for a "YYYY-MM-DD" date, the Indian financial year, 1 April to 31 March. */
+function financialYearOf(isoDate) {
+  const [year, month] = isoDate.split('-').map(Number);
+  const start = month < 4 ? year - 1 : year;
+  return `${start}-${String((start + 1) % 100).padStart(2, '0')}`;
+}
+
+/**
+ * How the next bill will print under what is on screen.
+ *
+ * Exact for a new prefix series, whose first bill is the starting number. For a
+ * series already running, or financial-year numbering, the next number depends
+ * on how many bills have been issued, so the line says how the number is built.
+ */
+function invoicePreview(form, original) {
+  const { mode, prefix, startingNumber } = form.invoice;
+
+  if (mode === 'FINANCIAL_YEAR') {
+    const year = financialYearOf(businessDateToday());
+    return `Bills print like ${year}/000148: the financial year, then a number that starts again at 000001 every 1 April.`;
+  }
+
+  if (!prefix || !Number.isInteger(startingNumber)) {
+    return 'Enter a prefix and a starting number to see how the next bill will print.';
+  }
+
+  const saved = original.invoice;
+  const unchanged =
+    saved.mode === 'PREFIX' && saved.prefix === prefix && saved.startingNumber === startingNumber;
+
+  return unchanged
+    ? `Bills continue the ${prefix} series, counting up from ${prefix}${startingNumber}. It never resets.`
+    : `The next bill will print as ${prefix}${startingNumber}.`;
+}
+
 /**
  * The settings screen. Owner only, and the server is what enforces that.
  *
- * Four sections, one per group in the contract. The form loads the current
+ * One section per group in the contract. The form loads the current
  * settings, keeps the loaded copy alongside the edited one, and sends only the
  * difference: an audit line per field is the point of this endpoint, and a
  * patch carrying fields nobody touched would fill the log with lines saying a
@@ -73,6 +110,7 @@ function NotYetWired() {
  */
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const { refreshFeatures } = useAuth();
   const [form, setForm] = useState(null);
   const [reason, setReason] = useState('');
   const [toast, setToast] = useState(null);
@@ -96,6 +134,8 @@ export default function SettingsPage() {
       setForm(structuredClone(saved));
       setReason('');
       setToast({ tone: 'success', message: 'Settings saved.' });
+      // The feature switches decide which links show everywhere else.
+      refreshFeatures().catch(() => {});
     },
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
   });
@@ -252,12 +292,89 @@ export default function SettingsPage() {
           />
         </Section>
 
+        <Section
+          title="Features"
+          description="Switch off a part of the system this restaurant does not use. Its screens disappear and its data stays where it is."
+        >
+          <Checkbox
+            label="Inventory"
+            hint="When off, firing an order does not deduct stock. Switching it back on does not catch up, so do a stock count first."
+            checked={form.features.inventory}
+            onChange={set('features', 'inventory')}
+          />
+          <Checkbox
+            label="Attendance"
+            hint="When off, the clock, the register and the hours report are hidden. Past shifts are kept."
+            checked={form.features.attendance}
+            onChange={set('features', 'attendance')}
+          />
+        </Section>
+
+        <Section
+          title="Invoice numbers"
+          description="How bill numbers are formed. Every bill keeps the number it was issued with."
+        >
+          <fieldset className="grid gap-2">
+            <legend className="sr-only">Numbering</legend>
+            {[
+              { value: 'FINANCIAL_YEAR', label: 'Financial year, like 2026-27/000148' },
+              { value: 'PREFIX', label: 'Prefix, like CFA/C/22442' },
+            ].map((choice) => (
+              <label key={choice.value} className="flex min-h-11 items-center gap-3">
+                <input
+                  type="radio"
+                  name="invoice-mode"
+                  value={choice.value}
+                  checked={form.invoice.mode === choice.value}
+                  onChange={() => set('invoice', 'mode')(choice.value)}
+                  className="h-5 w-5 border-2 border-ink text-chana focus:ring-2 focus:ring-chana"
+                />
+                <span className="text-[15px] leading-5">{choice.label}</span>
+              </label>
+            ))}
+          </fieldset>
+
+          {form.invoice.mode === 'PREFIX' && (
+            <>
+              <Input
+                label="Prefix"
+                maxLength={7}
+                value={form.invoice.prefix ?? ''}
+                onChange={(event) => set('invoice', 'prefix')(event.target.value.trim())}
+                hint="Up to 7 characters: letters, numbers, / and -."
+              />
+              <Input
+                label="Starting number"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max="999999999"
+                step="1"
+                value={form.invoice.startingNumber ?? ''}
+                onChange={(event) => {
+                  const typed = event.target.value;
+                  set('invoice', 'startingNumber')(typed === '' ? null : Number(typed));
+                }}
+                hint="The first number a new series issues. Up to 9 digits."
+              />
+            </>
+          )}
+
+          <p className="font-mono text-[13px] leading-[18px]">{invoicePreview(form, original)}</p>
+        </Section>
+
         {/*
           The reason sits with the save button rather than at the top, because
           it is part of committing the change, not part of describing it.
         */}
         <div className="fixed inset-x-0 bottom-0 border-t-2 border-ink bg-paper px-4 py-3">
           <div className="mx-auto grid max-w-2xl gap-3">
+            {patch.invoice && (
+              <p className="rounded-[10px] border-2 border-mirch px-3 py-2 text-[13px] leading-[18px] text-ink">
+                Invoice numbers are a legal record. Change this only before the first bill of a new
+                series, and only after your accountant agrees.
+              </p>
+            )}
             <Input
               label="Why are you changing this?"
               value={reason}
