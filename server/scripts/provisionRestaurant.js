@@ -24,6 +24,7 @@ import mongoose from 'mongoose';
 import { connectDatabase, disconnectDatabase } from '../config/database.js';
 import { ROLES } from '../config/roles.js';
 import { Branch } from '../models/Branch.js';
+import { PaymentMethod } from '../models/PaymentMethod.js';
 import { Restaurant } from '../models/Restaurant.js';
 import { User } from '../models/User.js';
 import { isEmailRegistered, isPhoneRegistered } from '../services/authService.js';
@@ -156,8 +157,13 @@ function isTransactionUnsupported(error) {
 
 /** Best effort cleanup for the no-transaction path. */
 async function rollbackManually(ids) {
-  const results = { restaurant: false, branch: false, user: false };
+  const results = { restaurant: false, branch: false, user: false, paymentMethods: false };
   try {
+    // P08. Created last, so removed first. Configuration, never a sale record.
+    if (ids.restaurantId) {
+      await PaymentMethod.deleteMany({ restaurantId: ids.restaurantId });
+      results.paymentMethods = true;
+    }
     if (ids.userId) {
       await User.deleteOne({ _id: ids.userId, restaurantId: ids.restaurantId });
       results.user = true;

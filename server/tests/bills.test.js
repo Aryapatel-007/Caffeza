@@ -308,7 +308,7 @@ describe('discounts', () => {
     const response = await discount(tokens.MANAGER, bill.id, {
       kind: 'PERCENT',
       rateBps: 1000,
-      reason: 'Regular customer',
+      reasonCode: 'REGULAR_GUEST',
     });
 
     assert.equal(response.status, 200);
@@ -337,22 +337,23 @@ describe('discounts', () => {
     const response = await discount(tokens.CASHIER, bill.id, {
       kind: 'FLAT',
       valueInPaise: 5000,
-      reason: 'Because I said so',
+      reasonCode: 'OTHER',
+      note: 'Because I said so',
     });
 
     assert.equal(response.status, 403);
   });
 
-  it('requires a reason, and refuses an empty one', async () => {
+  it('requires a reason code, and refuses an unknown one', async () => {
     const { bill, tokens } = await billedFloor();
 
-    for (const reason of [undefined, '', '   ']) {
+    for (const reasonCode of [undefined, '', 'BECAUSE']) {
       const response = await discount(tokens.MANAGER, bill.id, {
         kind: 'FLAT',
         valueInPaise: 5000,
-        reason,
+        reasonCode,
       });
-      assert.equal(response.status, 400, `reason ${JSON.stringify(reason)} should be refused`);
+      assert.equal(response.status, 400, `reasonCode ${JSON.stringify(reasonCode)} should be refused`);
     }
   });
 
@@ -363,7 +364,8 @@ describe('discounts', () => {
       kind: 'FLAT',
       valueInPaise: 5000,
       rateBps: 1000,
-      reason: 'Both, somehow',
+      reasonCode: 'OTHER',
+      note: 'Both, somehow',
     });
 
     assert.equal(response.status, 400, 'a silently dropped rate looks like it worked');
@@ -375,7 +377,7 @@ describe('discounts', () => {
     const response = await discount(tokens.MANAGER, bill.id, {
       kind: 'FLAT',
       valueInPaise: bill.subtotalInPaise + 1,
-      reason: 'Too much',
+      reasonCode: 'REGULAR_GUEST',
     });
 
     assert.equal(response.status, 422);
@@ -387,14 +389,15 @@ describe('discounts', () => {
     await discount(tokens.MANAGER, bill.id, {
       kind: 'FLAT',
       valueInPaise: 4000,
-      reason: 'Service was slow',
+      reasonCode: 'OTHER',
+      note: 'Service was slow',
     });
 
     const entries = await AuditLog.find({ restaurantId: bill.restaurantId });
     assert.equal(entries.length, 1);
     assert.equal(entries[0].action, 'DISCOUNT_APPLIED');
     assert.equal(entries[0].entityLabel, bill.billNumber);
-    assert.equal(entries[0].reason, 'Service was slow');
+    assert.equal(entries[0].reason, 'Other: Service was slow');
     assert.equal(entries[0].amountInPaise, 4000);
     assert.equal(entries[0].actorRole, ROLES.MANAGER);
   });
@@ -406,7 +409,7 @@ describe('discounts', () => {
     const response = await discount(tokens.MANAGER, bill.id, {
       kind: 'FLAT',
       valueInPaise: 1000,
-      reason: 'Too late',
+      reasonCode: 'REGULAR_GUEST',
     });
 
     assert.equal(response.status, 422);
@@ -456,15 +459,17 @@ describe('payments', () => {
     assert.equal(response.status, 422);
   });
 
-  it('refuses a payment method that is not one of the four', async () => {
+  it('refuses a payment method the restaurant does not have', async () => {
+    // P08: methods are configured, so an unknown code is a 422 naming it, and
+    // a malformed one is still a 400.
     const { bill, tokens } = await billedFloor();
 
-    const response = await pay(tokens.CASHIER, bill.id, {
-      method: 'CRYPTO',
-      amountInPaise: 100,
-    });
+    const unknown = await pay(tokens.CASHIER, bill.id, { method: 'CRYPTO', amountInPaise: 100 });
+    assert.equal(unknown.status, 422);
+    assert.equal(unknown.body.error.code, 'PAYMENT_METHOD_NOT_ALLOWED');
 
-    assert.equal(response.status, 400);
+    const malformed = await pay(tokens.CASHIER, bill.id, { method: 'cash!', amountInPaise: 100 });
+    assert.equal(malformed.status, 400);
   });
 });
 
@@ -847,7 +852,7 @@ describe('the bill freezes its captain, covers and categories (P03)', () => {
     const onDiscount = await discount(tokens.MANAGER, bill.id, {
       kind: 'FLAT',
       valueInPaise: 100,
-      reason: 'Regular',
+      reasonCode: 'REGULAR_GUEST',
       discountShareInPaise: 100,
     });
     assert.equal(onDiscount.status, 400);
@@ -899,7 +904,7 @@ describe('line shares on a real bill (P03)', () => {
     const response = await discount(tokens.MANAGER, bill.id, {
       kind: 'FLAT',
       valueInPaise: 7307,
-      reason: 'Zomato Gold',
+      reasonCode: 'ZOMATO_GOLD',
     });
     assert.equal(response.status, 200, JSON.stringify(response.body));
 
@@ -927,11 +932,11 @@ describe('line shares on a real bill (P03)', () => {
   it('replaces the shares when a second discount replaces the first', async () => {
     const { bill, tokens } = await goldenB02();
 
-    await discount(tokens.MANAGER, bill.id, { kind: 'PERCENT', rateBps: 1000, reason: 'First' });
+    await discount(tokens.MANAGER, bill.id, { kind: 'PERCENT', rateBps: 1000, reasonCode: 'REGULAR_GUEST' });
     const second = await discount(tokens.MANAGER, bill.id, {
       kind: 'FLAT',
       valueInPaise: 7307,
-      reason: 'Zomato Gold',
+      reasonCode: 'ZOMATO_GOLD',
     });
 
     assert.deepEqual(sharesOf(second.body.data), B02_SHARES);

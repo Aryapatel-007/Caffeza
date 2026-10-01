@@ -11,6 +11,7 @@ import { changedSettings, getSettings, updateSettings } from '../../api/settings
 import { useAuth } from '../../context/AuthContext.jsx';
 import { businessDateToday } from '../../utils/formatDate.js';
 import { errorMessage } from './errorCopy.js';
+import PaymentMethodsSection from './PaymentMethodsSection.jsx';
 import { clockToMinutes, minutesToClock } from './timeOfDay.js';
 
 /**
@@ -293,6 +294,25 @@ export default function SettingsPage() {
             hint="Switching this off hides the low-stock list and the dashboard panel. Stock levels are still tracked exactly as before."
             checked={form.inventory.lowStockAlertsEnabled}
             onChange={set('inventory', 'lowStockAlertsEnabled')}
+          />
+        </Section>
+
+        <Section
+          title="Payment methods"
+          description="How a bill can be paid. Each method saves on its own. A code and its kind never change once created, because reports and the Tally export group by them."
+        >
+          <PaymentMethodsSection onToast={setToast} />
+        </Section>
+
+        <Section
+          title="Discounts"
+          description="Who may give a discount at the till. Owners and managers always can."
+        >
+          <Checkbox
+            label="Cashiers may apply platform discounts"
+            hint="Zomato Gold, Dineout and EazyDiner only. Every other discount stays with a manager."
+            checked={form.discounts.cashierMayApplyPlatformDiscounts}
+            onChange={set('discounts', 'cashierMayApplyPlatformDiscounts')}
           />
         </Section>
 

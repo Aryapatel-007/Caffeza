@@ -53,6 +53,7 @@ export function assertOrderIsOpen(order) {
     [ORDER_STATUSES.READY_TO_BILL]: 'This order is waiting to be billed.',
     [ORDER_STATUSES.BILLED]: 'This order has already been billed.',
     [ORDER_STATUSES.CANCELLED]: 'This order was cancelled.',
+    [ORDER_STATUSES.NO_CHARGE]: 'This order was given No Charge.',
   };
 
   throw new BusinessRuleError(

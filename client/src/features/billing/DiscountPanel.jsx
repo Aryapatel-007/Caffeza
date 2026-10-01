@@ -2,34 +2,42 @@ import { useState } from 'react';
 
 import NumericKeypad from '../../components/ui/NumericKeypad.jsx';
 import { formatPaise, parseRupeesToPaise } from '../../utils/formatMoney.js';
+import ReasonPicker, { isReasonComplete, reasonBody } from '../orders/ReasonPicker.jsx';
+import { DISCOUNT_REASONS, PLATFORM_DISCOUNT_REASONS } from './discountReasons.js';
 import { BILL_LABELS } from './labels.js';
 import PanelShell from './PanelShell.jsx';
 
 /**
  * Applying a bill-level discount.
  *
- * OWNER and MANAGER only, enforced by the server (billPermissionService.js);
- * hiding this panel from a cashier is a convenience, not the control.
+ * The server decides who may (billPermissionService.js); hiding this panel is
+ * a convenience, not the control.
  *
  * A flat-versus-percent toggle, then the keypad in whichever unit was picked,
- * then a reason. Every discount requires a reason on the server, and it is a
- * free-text field here rather than a fixed tile: a manager's reasoning is real
- * prose, not one of a handful of predictable categories the way M4's wastage
- * reasons are, and the CancelPanel precedent already asks for one the same way.
+ * then a reason. P08: the reason is one of the fixed discount reasons, with an
+ * optional note that is required for Other, the same picker cancels use. For a
+ * platform reason a small choice asks who paid for it. A cashier, when the
+ * owner allows it, is shown the platform reasons only.
  */
-export default function DiscountPanel({ subtotalInPaise, isBusy, error, onCancel, onConfirm }) {
+export default function DiscountPanel({ subtotalInPaise, platformOnly = false, isBusy, error, onCancel, onConfirm }) {
   const [kind, setKind] = useState('FLAT');
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState({ reasonCode: null, note: '' });
+  const [fundedBy, setFundedBy] = useState('RESTAURANT');
   const [pendingValue, setPendingValue] = useState(null);
 
+  const reasons = platformOnly ? PLATFORM_DISCOUNT_REASONS : DISCOUNT_REASONS;
+  const isPlatformReason = PLATFORM_DISCOUNT_REASONS.some((entry) => entry.code === reason.reasonCode);
+  const ready = pendingValue !== null && isReasonComplete(reason);
+
   const submit = () => {
-    if (pendingValue === null || reason.trim().length === 0) return;
+    if (!ready) return;
+    const common = { ...reasonBody(reason), fundedBy: isPlatformReason ? fundedBy : 'RESTAURANT' };
 
     if (kind === 'FLAT') {
-      onConfirm({ kind: 'FLAT', valueInPaise: pendingValue, reason: reason.trim() });
+      onConfirm({ kind: 'FLAT', valueInPaise: pendingValue, ...common });
     } else {
       // rateBps: 10% typed as "10" becomes 1000 basis points.
-      onConfirm({ kind: 'PERCENT', rateBps: Math.round(pendingValue * 100), reason: reason.trim() });
+      onConfirm({ kind: 'PERCENT', rateBps: Math.round(pendingValue * 100), ...common });
     }
   };
 
@@ -77,19 +85,35 @@ export default function DiscountPanel({ subtotalInPaise, isBusy, error, onCancel
         />
       </div>
 
-      <label className="mb-4 block">
-        <span className="mb-1 block text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
-          {BILL_LABELS.reason.en}
-        </span>
-        <textarea
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          rows={2}
-          maxLength={200}
-          placeholder="Regular customer"
-          className="w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
-        />
-      </label>
+      <ReasonPicker reasons={reasons} value={reason} onChange={setReason} />
+
+      {isPlatformReason && (
+        <fieldset className="mb-6">
+          <legend className="mb-2 text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
+            Paid for by
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: 'RESTAURANT', label: 'Restaurant' },
+              { value: 'PLATFORM', label: 'Platform' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={fundedBy === option.value}
+                onClick={() => setFundedBy(option.value)}
+                className={[
+                  'min-h-[48px] rounded-[10px] border-2 text-[15px] font-semibold',
+                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
+                  fundedBy === option.value ? 'border-ink bg-chana/20' : 'border-steel/40 text-steel',
+                ].join(' ')}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       {error && <p className="mb-3 text-[13px] leading-[18px] text-mirch">{error}</p>}
 
@@ -104,7 +128,7 @@ export default function DiscountPanel({ subtotalInPaise, isBusy, error, onCancel
         <button
           type="button"
           onClick={submit}
-          disabled={pendingValue === null || reason.trim().length === 0 || isBusy}
+          disabled={!ready || isBusy}
           className="h-14 flex-[2] rounded-xl bg-chana text-[15px] font-semibold text-ink transition-transform duration-100 active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
         >
           {isBusy ? 'Applying…' : BILL_LABELS.applyDiscount.en}

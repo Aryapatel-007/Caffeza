@@ -13,6 +13,7 @@
 import mongoose from 'mongoose';
 
 import { LINE_CANCEL_REASON_CODES, ORDER_CANCEL_REASON_CODES } from '../config/cancelReasons.js';
+import { NO_CHARGE_REASON_CODES } from '../config/noChargeReasons.js';
 import { MAX_PAISE } from '../utils/money.js';
 import { MAX_BASIS_POINTS } from '../validators/common.js';
 import { applyJsonTransform } from './plugins/jsonTransform.js';
@@ -52,6 +53,11 @@ export const ORDER_STATUSES = Object.freeze({
   READY_TO_BILL: 'READY_TO_BILL',
   BILLED: 'BILLED',
   CANCELLED: 'CANCELLED',
+  /**
+   * P08. Food given free, with a reason and an approver. No bill and no
+   * invoice number: it is not a sale. Frees the table like BILLED.
+   */
+  NO_CHARGE: 'NO_CHARGE',
 });
 export const ORDER_STATUS_VALUES = Object.freeze(Object.values(ORDER_STATUSES));
 
@@ -323,6 +329,31 @@ const orderSchema = new mongoose.Schema({
   cancelReason: { type: String, trim: true, maxlength: CANCEL_REASON_MAX_LENGTH, default: null },
   /** P04. The fixed reason, from ORDER_CANCEL_REASONS. Null before P04. */
   cancelReasonCode: { type: String, enum: [...ORDER_CANCEL_REASON_CODES, null], default: null },
+
+  /**
+   * P08. Null unless the status is NO_CHARGE. `valueInPaise` is the live line
+   * totals at menu price, before GST, frozen at that moment. `businessDate` is
+   * from `at` by businessDateFor, and is the date No Charge reports read.
+   */
+  noCharge: {
+    type: new mongoose.Schema(
+      {
+        reasonCode: { type: String, required: true, enum: NO_CHARGE_REASON_CODES },
+        note: { type: String, trim: true, maxlength: CANCEL_REASON_MAX_LENGTH, default: null },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
+        at: { type: Date, required: true },
+        businessDate: { type: String, required: true },
+        valueInPaise: {
+          type: Number,
+          required: true,
+          min: 0,
+          validate: { validator: Number.isInteger, message: 'Must be a whole number of paise.' },
+        },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
 
   /**
    * Mirrors `status`: true for OPEN and READY_TO_BILL, false for BILLED and

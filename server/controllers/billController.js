@@ -13,12 +13,17 @@ import { Bill } from '../models/Bill.js';
 import { Restaurant } from '../models/Restaurant.js';
 import {
   applyDiscount,
+  correctPayment,
   createBill,
   readBill,
   recordPayment,
   voidBill,
 } from '../services/billService.js';
-import { assertCanDiscount, assertCanVoid } from '../services/billPermissionService.js';
+import {
+  assertCanCorrectPayment,
+  assertCanDiscount,
+  assertCanVoid,
+} from '../services/billPermissionService.js';
 import { renderReceipt } from '../services/receiptService.js';
 import { getSetting } from '../services/settingsService.js';
 import { sendList, sendSuccess } from '../utils/response.js';
@@ -123,13 +128,28 @@ export async function listBills(req, res) {
 
 /** POST /bills/:billId/discount */
 export async function postDiscount(req, res) {
-  assertCanDiscount(req.user);
+  // P08: a cashier may give a platform discount when the owner allows it.
+  const cashierMayApplyPlatformDiscounts = await getSetting(
+    req.restaurantId,
+    'discounts.cashierMayApplyPlatformDiscounts',
+    { req },
+  );
+  assertCanDiscount(req.user, { reasonCode: req.body.reasonCode, cashierMayApplyPlatformDiscounts });
   return sendSuccess(res, await applyDiscount(req, req.params.billId, req.body));
 }
 
 /** POST /bills/:billId/payments */
 export async function postPayment(req, res) {
   return sendSuccess(res, await recordPayment(req, req.params.billId, req.body));
+}
+
+/** POST /bills/:billId/payments/:paymentId/correct. P08. */
+export async function postCorrectPayment(req, res) {
+  assertCanCorrectPayment(req.user);
+  return sendSuccess(
+    res,
+    await correctPayment(req, req.params.billId, req.params.paymentId, req.body),
+  );
 }
 
 /** POST /bills/:billId/void */

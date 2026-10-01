@@ -546,7 +546,7 @@ describe('discounts', () => {
     ).body.data;
     await request('POST', `/api/v1/bills/${bill.id}/discount`, {
       token: tokens.MANAGER,
-      body: { kind: 'FLAT', valueInPaise: 5000, reason: 'Regular customer' },
+      body: { kind: 'FLAT', valueInPaise: 5000, reasonCode: 'REGULAR_GUEST' },
     });
 
     const data = (await report(tokens.OWNER, `discounts?from=${today}&to=${today}`)).body.data;
@@ -556,7 +556,7 @@ describe('discounts', () => {
     assert.equal(data.byUser.length, 1);
     assert.equal(data.byUser[0].name, ROLES.MANAGER, 'seedTeam names each user after their role');
     assert.equal(data.byUser[0].amountInPaise, 5000);
-    assert.equal(data.recent[0].reason, 'Regular customer');
+    assert.equal(data.recent[0].reason, 'Regular guest');
     assert.equal(data.recent[0].billNumber, bill.billNumber);
   });
 

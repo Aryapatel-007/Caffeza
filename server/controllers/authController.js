@@ -209,13 +209,18 @@ export async function me(req, res) {
 
   // P02. Every role gets the feature switches, because every screen needs to
   // know what to hide and GET /settings is owner and manager only.
-  const { features } = await getSettings(req.restaurantId, { req });
+  // P08. The cashier platform-discount switch too, so the till knows whether
+  // to show a cashier the discount panel. The server still decides.
+  const { features, discounts } = await getSettings(req.restaurantId, { req });
 
   return sendSuccess(res, {
     user: presentUser(req.currentUser, { includeLastLoginAt: true, includeStation: true }),
     restaurant: presentRestaurant(req.currentRestaurant, { includeGstin: true }),
     branch: branch ? presentBranch(branch) : null,
     features,
+    discounts: {
+      cashierMayApplyPlatformDiscounts: discounts.cashierMayApplyPlatformDiscounts,
+    },
   });
 }
 

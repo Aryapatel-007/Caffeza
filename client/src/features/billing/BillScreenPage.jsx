@@ -4,16 +4,27 @@ import { Link, useParams } from 'react-router-dom';
 
 import Spinner from '../../components/ui/Spinner.jsx';
 import Toast from '../../components/ui/Toast.jsx';
-import { applyDiscount, getBill, getReceipt, recordPayment, voidBill } from '../../api/bills.js';
+import {
+  applyDiscount,
+  correctPayment,
+  getBill,
+  getReceipt,
+  recordPayment,
+  voidBill,
+} from '../../api/bills.js';
+import { listPaymentMethods } from '../../api/paymentMethods.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { formatBasisPoints, formatPaise } from '../../utils/formatMoney.js';
 import { ROLES } from '../users/roles.js';
 import Bilingual from './Bilingual.jsx';
 import BillStatusBadge from './BillStatusBadge.jsx';
+import CorrectPaymentPanel from './CorrectPaymentPanel.jsx';
 import DiscountPanel from './DiscountPanel.jsx';
+import { discountReasonLabel } from './discountReasons.js';
 import { errorMessage } from './errorCopy.js';
 import { BILL_LABELS } from './labels.js';
 import PaymentPanel from './PaymentPanel.jsx';
+import { methodsForBill, paymentMethodName } from './paymentMethodsForBill.js';
 import { charactersFor, printText } from '../printing/printText.js';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import VoidBillPanel from './VoidBillPanel.jsx';
@@ -35,10 +46,11 @@ const CAN_DISCOUNT_OR_VOID = [ROLES.OWNER, ROLES.MANAGER];
 export default function BillScreenPage() {
   const { billId } = useParams();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, features } = useAuth();
 
   const [toast, setToast] = useState(null);
-  const [panel, setPanel] = useState(null); // 'payment' | 'discount' | 'void' | null
+  const [panel, setPanel] = useState(null); // 'payment' | 'discount' | 'void' | 'correct' | null
+  const [correcting, setCorrecting] = useState(null); // the payment whose method is being changed
   const [printing, setPrinting] = useState(false);
 
   const billQuery = useQuery({
@@ -47,6 +59,14 @@ export default function BillScreenPage() {
   });
 
   const bill = billQuery.data;
+
+  // P08. The restaurant's configured methods, filtered to the ones this bill may use.
+  const methodsQuery = useQuery({
+    queryKey: ['payment-methods'],
+    queryFn: () => listPaymentMethods(),
+    staleTime: 60_000,
+  });
+  const allowedMethods = bill && methodsQuery.data ? methodsForBill(methodsQuery.data, bill) : [];
 
   const invalidate = (updated) => {
     queryClient.setQueryData(['bill', billId], updated);
@@ -74,6 +94,17 @@ export default function BillScreenPage() {
         tone: 'success',
         message: updated.status === 'PAID' ? 'Payment recorded. Bill paid in full.' : 'Payment recorded.',
       });
+    },
+    onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
+  });
+
+  const correctMutation = useMutation({
+    mutationFn: ({ paymentId, body }) => correctPayment(billId, paymentId, body),
+    onSuccess: (updated) => {
+      invalidate(updated);
+      setPanel(null);
+      setCorrecting(null);
+      setToast({ tone: 'success', message: 'Payment method changed.' });
     },
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
   });
@@ -126,7 +157,12 @@ export default function BillScreenPage() {
   const canManage = CAN_DISCOUNT_OR_VOID.includes(user?.role);
   const canTakePayment = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER].includes(user?.role);
   const isSettleable = !bill.isVoided && bill.status !== 'PAID' && outstandingInPaise > 0;
-  const canDiscount = canManage && !bill.isVoided && bill.amountPaidInPaise === 0;
+  // P08: a cashier sees the panel only when the owner allows platform discounts.
+  const cashierPlatformOnly =
+    user?.role === ROLES.CASHIER && Boolean(features?.cashierMayApplyPlatformDiscounts);
+  const canDiscount =
+    (canManage || cashierPlatformOnly) && !bill.isVoided && bill.amountPaidInPaise === 0;
+  const canCorrect = canManage && !bill.isVoided && bill.status === 'PAID';
   const canVoid = canManage && !bill.isVoided;
 
   return (
@@ -192,8 +228,8 @@ export default function BillScreenPage() {
             <Row
               label={
                 bill.discount.kind === 'PERCENT'
-                  ? `Discount (${formatBasisPoints(bill.discount.rateBps)}) — ${bill.discount.reason}`
-                  : `Discount — ${bill.discount.reason}`
+                  ? `Discount (${formatBasisPoints(bill.discount.rateBps)}) — ${discountText(bill.discount)}`
+                  : `Discount — ${discountText(bill.discount)}`
               }
               value={`− ${formatPaise(bill.discount.amountInPaise)}`}
             />
@@ -240,12 +276,31 @@ export default function BillScreenPage() {
             </p>
             <ul className="space-y-1.5">
               {bill.payments.map((payment) => (
-                <li key={payment.id} className="flex justify-between text-[13px] leading-[18px]">
-                  <span>
-                    {payment.method}
-                    {payment.reference ? ` · ${payment.reference}` : ''}
-                  </span>
-                  <span className="font-mono">{formatPaise(payment.amountInPaise)}</span>
+                <li key={payment.id} className="text-[13px] leading-[18px]">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>
+                      {paymentMethodName(payment)}
+                      {payment.reference ? ` · ${payment.reference}` : ''}
+                    </span>
+                    <span className="font-mono">{formatPaise(payment.amountInPaise)}</span>
+                  </div>
+                  {(payment.corrections ?? []).map((change) => (
+                    <p key={`${change.at}-${change.toMethod}`} className="text-[12px] leading-4 text-steel">
+                      Changed from {change.fromMethod} to {change.toMethod}: {change.reason}
+                    </p>
+                  ))}
+                  {canCorrect && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCorrecting(payment);
+                        setPanel('correct');
+                      }}
+                      className="mt-1 min-h-[40px] text-[13px] font-medium text-steel underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+                    >
+                      Change payment method
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -289,6 +344,7 @@ export default function BillScreenPage() {
 
       {panel === 'payment' && (
         <PaymentPanel
+          methods={allowedMethods}
           outstandingInPaise={outstandingInPaise}
           isBusy={paymentMutation.isPending}
           error={paymentMutation.isError ? errorMessage(paymentMutation.error) : null}
@@ -300,10 +356,25 @@ export default function BillScreenPage() {
       {panel === 'discount' && (
         <DiscountPanel
           subtotalInPaise={bill.subtotalInPaise}
+          platformOnly={!canManage}
           isBusy={discountMutation.isPending}
           error={discountMutation.isError ? errorMessage(discountMutation.error) : null}
           onCancel={() => setPanel(null)}
           onConfirm={(body) => discountMutation.mutate(body)}
+        />
+      )}
+
+      {panel === 'correct' && correcting && (
+        <CorrectPaymentPanel
+          payment={correcting}
+          methods={allowedMethods}
+          isBusy={correctMutation.isPending}
+          error={correctMutation.isError ? errorMessage(correctMutation.error) : null}
+          onCancel={() => {
+            setPanel(null);
+            setCorrecting(null);
+          }}
+          onConfirm={(body) => correctMutation.mutate({ paymentId: correcting.id, body })}
         />
       )}
 
@@ -320,6 +391,13 @@ export default function BillScreenPage() {
       <Toast tone={toast?.tone} message={toast?.message} onDismiss={() => setToast(null)} />
     </main>
   );
+}
+
+/** P08: the fixed reason's label and the note; a discount from before P08 keeps its text. */
+function discountText(discount) {
+  if (!discount.reasonCode) return discount.reason ?? '';
+  const label = discountReasonLabel(discount.reasonCode);
+  return discount.reason ? `${label}: ${discount.reason}` : label;
 }
 
 function Row({ label, value }) {

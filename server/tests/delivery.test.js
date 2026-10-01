@@ -271,7 +271,7 @@ describe('billing delivery orders, golden day', () => {
 
     const discounted = await request('POST', `/api/v1/bills/${b08.id}/discount`, {
       token: floor.tokens.MANAGER,
-      body: { kind: 'FLAT', valueInPaise: 20000, reason: 'Merchant promo TAKE200' },
+      body: { kind: 'FLAT', valueInPaise: 20000, reasonCode: 'MERCHANT_PROMO', note: 'TAKE200' },
     });
     assert.equal(discounted.status, 200, JSON.stringify(discounted.body));
     const data = discounted.body.data;

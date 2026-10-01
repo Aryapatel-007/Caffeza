@@ -11,6 +11,7 @@ import {
   editOrderLine,
   fireOrder,
   getOrder,
+  giveNoCharge,
   markLineServed,
 } from '../../api/orders.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -20,6 +21,7 @@ import CancelPanel from './CancelPanel.jsx';
 import { LINE_CANCEL_REASONS, ORDER_CANCEL_REASONS } from './cancelReasons.js';
 import LineOptionsPanel from './LineOptionsPanel.jsx';
 import MenuPicker from './MenuPicker.jsx';
+import NoChargePanel from './NoChargePanel.jsx';
 import OrderLineList from './OrderLineList.jsx';
 import { errorMessage, shouldRefetch } from './errorCopy.js';
 import { placeLabel } from './orderLabel.js';
@@ -132,7 +134,9 @@ export default function OrderScreenPage() {
                 ? 'Everything served. Waiting for the cashier.'
                 : order.status === 'CANCELLED'
                   ? 'This order was cancelled.'
-                  : order.customerName || `${order.totals.lineCount} lines`}
+                  : order.status === 'NO_CHARGE'
+                    ? 'Given No Charge. No bill.'
+                    : order.customerName || `${order.totals.lineCount} lines`}
             </p>
           </div>
 
@@ -208,6 +212,20 @@ export default function OrderScreenPage() {
                 </button>
               )}
             </footer>
+          )}
+
+          {/* P08. Manager work, on an open order or one waiting for the cashier. */}
+          {canCancelOrder && (isOpen || order.status === 'READY_TO_BILL') && (
+            <div className="border-t-2 border-ink/10 px-4 py-2">
+              <button
+                type="button"
+                disabled={write.isPending}
+                onClick={() => setCancelling({ kind: 'noCharge' })}
+                className="h-12 w-full rounded-[10px] border-2 border-ink/20 text-[13px] font-medium text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+              >
+                No Charge
+              </button>
+            </div>
           )}
         </section>
 
@@ -285,6 +303,21 @@ export default function OrderScreenPage() {
             run({
               run: () => cancelOrder(order.id, { version: order.version, ...answers }),
               successMessage: 'Order cancelled.',
+              onDone: () => setCancelling(null),
+            })
+          }
+        />
+      )}
+
+      {cancelling?.kind === 'noCharge' && (
+        <NoChargePanel
+          order={order}
+          isBusy={write.isPending}
+          onCancel={() => setCancelling(null)}
+          onConfirm={(answers) =>
+            run({
+              run: () => giveNoCharge(order.id, { version: order.version, ...answers }),
+              successMessage: 'No Charge given. The table is free.',
               onDone: () => setCancelling(null),
             })
           }

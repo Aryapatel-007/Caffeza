@@ -40,3 +40,14 @@ export const DISCOUNT_FUNDERS = Object.freeze({
   PLATFORM: 'PLATFORM',
 });
 export const DISCOUNT_FUNDER_VALUES = Object.freeze(Object.values(DISCOUNT_FUNDERS));
+
+/**
+ * What a discount's reason reads as on a receipt, a report or an audit line:
+ * the label, then ": " and the note when there is one. A discount from before
+ * P08 has no code and keeps its free text.
+ */
+export function discountReasonText({ reasonCode = null, reason = null } = {}) {
+  if (!reasonCode) return reason ?? '';
+  const label = DISCOUNT_REASONS.find((entry) => entry.code === reasonCode)?.label ?? reasonCode;
+  return reason ? `${label}: ${reason}` : label;
+}

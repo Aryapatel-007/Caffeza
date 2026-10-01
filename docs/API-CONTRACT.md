@@ -245,7 +245,8 @@ Response 200:
       "id": "652b...",
       "name": "Main"
     },
-    "features": { "inventory": true, "attendance": true }
+    "features": { "inventory": true, "attendance": true },
+    "discounts": { "cashierMayApplyPlatformDiscounts": false }
   }
 }
 ```
@@ -256,6 +257,8 @@ Reads live from the database, not from the token. A role changed five minutes ag
 `null`.
 
 `features` (added by P02) is `settings.features`, returned to every role, because every screen needs to know what to hide and `GET /settings` is owner and manager only.
+
+`discounts` (added by P08) is `settings.discounts`, for the same reason: the bill screen shows a cashier the discount panel only when `cashierMayApplyPlatformDiscounts` is true. The server still decides every discount.
 
 ### 1.6 Change own password
 

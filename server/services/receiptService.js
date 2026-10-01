@@ -16,6 +16,7 @@
  * because the layout depends on the exact character count. Everywhere else
  * hands paise to the client and lets it format.
  */
+import { discountReasonText } from '../config/discountReasons.js';
 import { paiseToRupees } from '../utils/money.js';
 import { toIst } from '../utils/time.js';
 
@@ -151,7 +152,8 @@ export function renderReceipt({ restaurant, bill, width = 32 }) {
         ? `Discount (${bill.discount.rateBps / 100}%)`
         : 'Discount';
     push(row(label, `-${money(bill.discount.amountInPaise)}`, width));
-    for (const part of wrapName(`  ${bill.discount.reason}`, width, 2)) push(part);
+    const reasonLine = discountReasonText(bill.discount);
+    if (reasonLine) for (const part of wrapName(`  ${reasonLine}`, width, 2)) push(part);
   }
 
   for (const slab of bill.taxBreakdown) {

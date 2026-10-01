@@ -35,6 +35,7 @@ import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/
 // M4. wasPrepared: false means the kitchen had already deducted for this line
 // and it was never actually made, so the ingredients go back. Keyed on the
 // ledger, not on the flag alone -- see stockMovementService.js.
+import { giveNoCharge } from '../services/noChargeService.js';
 import { returnStockForCancelledLine } from '../services/stockMovementService.js';
 import { getSetting, isFeatureOn } from '../services/settingsService.js';
 import {
@@ -205,6 +206,12 @@ export async function createOrder(req, res) {
   );
 
   return sendSuccess(res, serialiseOrder(saved), 201);
+}
+
+/** POST /orders/:orderId/no-charge. P08. Every rule is in services/noChargeService.js. */
+export async function postNoCharge(req, res) {
+  const order = await giveNoCharge(req, req.params.orderId, req.body);
+  return sendSuccess(res, serialiseOrder(order));
 }
 
 /**
@@ -575,6 +582,9 @@ export async function cancelOrder(req, res) {
   }
   if (order.status === ORDER_STATUSES.BILLED) {
     throw new BusinessRuleError('That order has been billed. A bill is voided, not cancelled.');
+  }
+  if (order.status === ORDER_STATUSES.NO_CHARGE) {
+    throw new BusinessRuleError('That order was given No Charge and is closed.');
   }
 
   // One answer covers every fired line: the manager is answering "did the

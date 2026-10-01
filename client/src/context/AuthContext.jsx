@@ -29,6 +29,17 @@ const AuthContext = createContext(null);
  */
 const ALL_FEATURES_ON = Object.freeze({ inventory: true, attendance: true });
 
+/**
+ * What the screens read from GET /auth/me: the feature switches, plus P08's
+ * cashier platform-discount switch, off until the server says otherwise. Kept
+ * in the same bag because both answer "what should this screen show".
+ */
+const fromMe = (me) => ({
+  ...ALL_FEATURES_ON,
+  ...me.features,
+  cashierMayApplyPlatformDiscounts: Boolean(me.discounts?.cashierMayApplyPlatformDiscounts),
+});
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -50,7 +61,7 @@ export function AuthProvider({ children }) {
    */
   const refreshFeatures = useCallback(async () => {
     const me = await authApi.getCurrentUser();
-    setFeatures({ ...ALL_FEATURES_ON, ...me.features });
+    setFeatures(fromMe(me));
     return me.features;
   }, []);
 
@@ -65,7 +76,7 @@ export function AuthProvider({ children }) {
     // take it away again a moment later.
     try {
       const me = await authApi.getCurrentUser();
-      setFeatures({ ...ALL_FEATURES_ON, ...me.features });
+      setFeatures(fromMe(me));
     } catch {
       setFeatures(ALL_FEATURES_ON);
     }
@@ -135,7 +146,7 @@ export function AuthProvider({ children }) {
 
         const me = await authApi.getCurrentUser();
         if (!cancelled) {
-          setFeatures({ ...ALL_FEATURES_ON, ...me.features });
+          setFeatures(fromMe(me));
           setUser(me.user);
         }
       } catch {

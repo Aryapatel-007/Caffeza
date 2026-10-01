@@ -137,3 +137,11 @@ export function cancelOrder(orderId, { version, reasonCode, note, wasPrepared })
   if (wasPrepared !== undefined) body.wasPrepared = wasPrepared;
   return api.post(`/orders/${orderId}/cancel`, body);
 }
+
+/**
+ * P08. Closes the order with no bill and no invoice number: food given free.
+ * OWNER and MANAGER. A fixed reason, and a note that is required for OTHER.
+ */
+export function giveNoCharge(orderId, { version, reasonCode, note }) {
+  return api.post(`/orders/${orderId}/no-charge`, { version, reasonCode, note: note || null });
+}

@@ -26,6 +26,7 @@ import {
   getSummary,
   listBills,
   postBill,
+  postCorrectPayment,
   postDiscount,
   postPayment,
   postVoid,
@@ -37,6 +38,7 @@ import { validate } from '../middleware/validate.js';
 import {
   applyDiscountSchema,
   billSummarySchema,
+  correctPaymentSchema,
   createBillSchema,
   listBillsSchema,
   readBillSchema,
@@ -81,7 +83,19 @@ router.get('/bills/:billId/receipt', ...anySignedIn, validate(receiptSchema), ge
 
 router.post('/bills/:billId/payments', ...till, validate(recordPaymentSchema), postPayment);
 
-router.post('/bills/:billId/discount', ...managers, validate(applyDiscountSchema), postDiscount);
+router.post(
+  '/bills/:billId/payments/:paymentId/correct',
+  ...managers,
+  validate(correctPaymentSchema),
+  postCorrectPayment,
+);
+
+/**
+ * P08: the till, not managers, because a cashier may apply a platform discount
+ * when the owner allows it. billPermissionService.assertCanDiscount is the gate
+ * and refuses a cashier everything else.
+ */
+router.post('/bills/:billId/discount', ...till, validate(applyDiscountSchema), postDiscount);
 router.post('/bills/:billId/void', ...managers, validate(voidBillSchema), postVoid);
 
 export default router;

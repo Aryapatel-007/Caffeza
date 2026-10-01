@@ -16,6 +16,7 @@
  * because a route table is a list of strings that can be edited without anyone
  * reading the reasoning, and the reasoning is what this file holds.
  */
+import { isPlatformDiscountReason } from '../config/discountReasons.js';
 import { ROLES } from '../config/roles.js';
 import { ORDER_STATUSES } from '../models/Order.js';
 import { BusinessRuleError, EntryVoidedError, ForbiddenError } from '../utils/errors.js';
@@ -28,15 +29,33 @@ const isManagerOrAbove = (role) => MANAGER_ROLES.includes(role);
 /**
  * Applying a discount.
  *
- * A cashier cannot, and this is the single most deliberate permission in M3.
- * BUILD-PLAN section 7 names discounts and voids as the events an owner is
- * losing money to, and the audit trail only means something if the person who
- * can trigger it is the person accountable for it. Widening this to CASHIER
- * would remove the control this module exists to provide.
+ * An owner or a manager may give any discount. This is the single most
+ * deliberate permission in M3: BUILD-PLAN section 7 names discounts and voids as
+ * the events an owner is losing money to, and the audit trail only means
+ * something if the person who can trigger it is the person accountable for it.
+ *
+ * P08 opens exactly one narrow door. When the owner switches on
+ * `discounts.cashierMayApplyPlatformDiscounts`, a CASHIER may apply a discount
+ * whose reason is a platform's (Zomato Gold, Dineout, EazyDiner): the guest
+ * shows the app, the platform sets the amount, and nobody at the till decides
+ * it. Every other reason stays manager work. The route lets a cashier through
+ * so this function can decide; it is the only gate.
  */
-export function assertCanDiscount(actor) {
+export function assertCanDiscount(actor, { reasonCode = null, cashierMayApplyPlatformDiscounts = false } = {}) {
+  if (isManagerOrAbove(actor.role)) return;
+
+  if (actor.role === ROLES.CASHIER && cashierMayApplyPlatformDiscounts) {
+    if (reasonCode === null || isPlatformDiscountReason(reasonCode)) return;
+    throw new ForbiddenError('A cashier can apply only a platform discount, like Zomato Gold.');
+  }
+
+  throw new ForbiddenError('Only an owner or a manager can discount a bill.');
+}
+
+/** Correcting a payment's method. P08. Moving money between cash and UPI after the fact. */
+export function assertCanCorrectPayment(actor) {
   if (!isManagerOrAbove(actor.role)) {
-    throw new ForbiddenError('Only an owner or a manager can discount a bill.');
+    throw new ForbiddenError('Only an owner or a manager can change how a payment was made.');
   }
 }
 
@@ -126,6 +145,7 @@ export function assertPaymentFits(bill, amountInPaise) {
 
 export default {
   assertBillHasLines,
+  assertCanCorrectPayment,
   assertCanDiscount,
   assertCanVoid,
   assertDiscountFits,

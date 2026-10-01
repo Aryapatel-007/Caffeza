@@ -12,6 +12,7 @@
  * with the printed bill by a rupee, which is the exact failure BUILD-PLAN
  * names and the reason `tax.js` exists as the only place tax is worked out.
  */
+import { discountReasonText } from '../config/discountReasons.js';
 import { config } from '../config/env.js';
 import { Bill } from '../models/Bill.js';
 import { Order, OCCUPYING_ORDER_STATUSES } from '../models/Order.js';
@@ -448,6 +449,7 @@ export async function discounts(req, { from, to, page, limit }) {
           businessDate: 1,
           amountInPaise: '$discount.amountInPaise',
           reason: '$discount.reason',
+          reasonCode: '$discount.reasonCode',
           appliedBy: { $ifNull: [{ $first: '$user.name' }, 'Unknown user'] },
           appliedAt: '$discount.appliedAt',
         },
@@ -455,6 +457,12 @@ export async function discounts(req, { from, to, page, limit }) {
     ]),
     Bill.countDocuments(discounted),
   ]);
+
+  // P08: the reason reads as its label and note; older discounts keep their text.
+  for (const row of recent) {
+    row.reason = discountReasonText(row);
+    delete row.reasonCode;
+  }
 
   const totalDiscountInPaise = totals?.totalDiscountInPaise ?? 0;
   const subtotalOfDiscounted = totals?.subtotalOfDiscountedInPaise ?? 0;

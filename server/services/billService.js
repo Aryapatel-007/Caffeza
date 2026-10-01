@@ -23,13 +23,15 @@
 import mongoose from 'mongoose';
 
 import { BILL_VOID_REASONS, reasonText } from '../config/cancelReasons.js';
+import { DISCOUNT_REASONS } from '../config/discountReasons.js';
 import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
 import { User } from '../models/User.js';
 import { recordAudit } from './auditService.js';
 import { reserveBillNumber } from './billNumberService.js';
-import { getSettings } from './settingsService.js';
+import { frozenMethodFields, methodForBill } from './paymentMethodService.js';
+import { getSetting, getSettings } from './settingsService.js';
 import {
   assertBillHasLines,
   assertDiscountFits,
@@ -39,7 +41,12 @@ import {
   assertPaymentFits,
 } from './billPermissionService.js';
 import { applyVersionedUpdate, computeLineTotalInPaise } from './orderService.js';
-import { BillAlreadyExistsError, NotFoundError, TransactionRequiredError } from '../utils/errors.js';
+import {
+  BillAlreadyExistsError,
+  BusinessRuleError,
+  NotFoundError,
+  TransactionRequiredError,
+} from '../utils/errors.js';
 import { sumPaise } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { allocateLineShares, computeBillTotals, resolveDiscountAmount } from '../utils/tax.js';
@@ -260,7 +267,11 @@ export async function readBill(req, billId, session = null) {
  * bill is a conversation about which was authorised, and the audit trail
  * records each application either way.
  */
-export async function applyDiscount(req, billId, { kind, valueInPaise, rateBps, reason }) {
+export async function applyDiscount(
+  req,
+  billId,
+  { kind, valueInPaise, rateBps, reasonCode, note = null, fundedBy = 'RESTAURANT' },
+) {
   const bill = await readBill(req, billId);
 
   assertNotVoided(bill);
@@ -272,10 +283,13 @@ export async function applyDiscount(req, billId, { kind, valueInPaise, rateBps, 
 
   const totals = computeBillTotals({ lines: bill.lines, discount: request });
 
+  // P08: a fixed code, the optional note in `reason`, and who paid for it.
   bill.discount = {
     ...request,
     amountInPaise,
-    reason,
+    reason: note ?? null,
+    reasonCode,
+    fundedBy,
     appliedBy: req.user.id,
     appliedAt: nowUtc(),
   };
@@ -287,9 +301,9 @@ export async function applyDiscount(req, billId, { kind, valueInPaise, rateBps, 
     entityType: AUDIT_ENTITY_TYPES.BILL,
     entityId: bill._id,
     entityLabel: bill.billNumber,
-    reason,
+    reason: reasonText(DISCOUNT_REASONS, reasonCode, note),
     amountInPaise,
-    details: { kind, rateBps: rateBps ?? null },
+    details: { kind, rateBps: rateBps ?? null, reasonCode, fundedBy },
   });
 
   return bill;
@@ -308,9 +322,17 @@ export async function recordPayment(req, billId, { method, amountInPaise, refere
   assertNotVoided(bill);
   assertPaymentFits(bill, amountInPaise);
 
+  // P08: the four method rules, then freeze the method onto the payment.
+  // P10 adds the closed-day refusal here: the bill's business date and today's.
+  const paymentMethod = await methodForBill(req, bill, method);
+  const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', {
+    req,
+  });
+
   const at = nowUtc();
   bill.payments.push({
-    method,
+    ...frozenMethodFields(paymentMethod),
+    businessDate: businessDateFor(at, startMinutes),
     amountInPaise,
     reference: reference ?? null,
     receivedBy: req.user.id,
@@ -338,6 +360,47 @@ export async function recordPayment(req, billId, { method, amountInPaise, refere
       { $set: { status: ORDER_STATUSES.BILLED }, $inc: { version: 1 } },
     );
   }
+
+  return bill;
+}
+
+/**
+ * Changes how one payment was made. P08.
+ *
+ * Only the method moves, never the amount: to change an amount, void and bill
+ * again. The new method must pass every rule a new payment would. The payment
+ * keeps its business date, because the money arrived when it arrived; only
+ * the frozen method fields are replaced, and the history records the change.
+ */
+export async function correctPayment(req, billId, paymentId, { method, reason }) {
+  const bill = await readBill(req, billId);
+  assertNotVoided(bill);
+
+  const payment = bill.payments.id(paymentId);
+  if (!payment) throw new NotFoundError('Payment not found on this bill.');
+
+  // P10 adds the closed-day refusal here: the payment's business date and the bill's.
+
+  if (payment.method === method) {
+    throw new BusinessRuleError('That payment was already made by that method.');
+  }
+  const paymentMethod = await methodForBill(req, bill, method);
+
+  const fromMethod = payment.method;
+  const at = nowUtc();
+  Object.assign(payment, frozenMethodFields(paymentMethod));
+  payment.corrections.push({ fromMethod, toMethod: paymentMethod.code, by: req.user.id, at, reason });
+  await bill.save();
+
+  await recordAudit(req, {
+    action: AUDIT_ACTIONS.PAYMENT_METHOD_CORRECTED,
+    entityType: AUDIT_ENTITY_TYPES.BILL,
+    entityId: bill._id,
+    entityLabel: bill.billNumber,
+    reason,
+    amountInPaise: payment.amountInPaise,
+    details: { paymentId: String(payment._id), fromMethod, toMethod: paymentMethod.code },
+  });
 
   return bill;
 }
@@ -386,6 +449,7 @@ export async function voidBill(req, billId, { reasonCode, note = null }) {
 
 export default {
   applyDiscount,
+  correctPayment,
   createBill,
   readBill,
   recordPayment,

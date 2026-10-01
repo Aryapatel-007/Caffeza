@@ -425,8 +425,10 @@ describe('GET /auth/me', () => {
 
     assert.equal(status, 200);
     // `features` added by P02, so every role knows which modules are switched off.
-    assert.deepEqual(Object.keys(body.data).sort(), ['branch', 'features', 'restaurant', 'user']);
+    assert.deepEqual(Object.keys(body.data).sort(), ['branch', 'discounts', 'features', 'restaurant', 'user']);
     assert.deepEqual(body.data.features, { inventory: true, attendance: true });
+    // P08. The cashier platform-discount switch, default off.
+    assert.deepEqual(body.data.discounts, { cashierMayApplyPlatformDiscounts: false });
     assert.deepEqual(Object.keys(body.data.user).sort(), [
       'branchId', 'email', 'id', 'lastLoginAt', 'name', 'phone', 'restaurantId', 'role',
       // P05: the station a KITCHEN user's screen opens on.

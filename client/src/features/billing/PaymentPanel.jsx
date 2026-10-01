@@ -2,8 +2,8 @@ import { useState } from 'react';
 
 import NumericKeypad from '../../components/ui/NumericKeypad.jsx';
 import { formatPaise, paiseToInput, parseRupeesToPaise } from '../../utils/formatMoney.js';
-import Bilingual from './Bilingual.jsx';
-import { BILL_LABELS, METHOD_LABELS } from './labels.js';
+import { BILL_LABELS } from './labels.js';
+import MethodButtons from './MethodButtons.jsx';
 import PanelShell from './PanelShell.jsx';
 
 /**
@@ -15,12 +15,11 @@ import PanelShell from './PanelShell.jsx';
  * bill — the common case — should be able to tap the method and confirm
  * without typing a single digit. A split payment is still one tap away: clear
  * the keypad and type the partial amount.
+ *
+ * P08: the method tiles are the restaurant's configured methods this bill may
+ * use, passed in by the bill screen. A Swiggy delivery bill shows only Swiggy.
  */
-const METHODS = ['CASH', 'UPI', 'CARD', 'OTHER'];
-
-const METHOD_ICON = { CASH: '₹', UPI: '◈', CARD: '▭', OTHER: '···' };
-
-export default function PaymentPanel({ outstandingInPaise, isBusy, error, onCancel, onConfirm }) {
+export default function PaymentPanel({ methods, outstandingInPaise, isBusy, error, onCancel, onConfirm }) {
   const [method, setMethod] = useState(null);
   const [reference, setReference] = useState('');
 
@@ -30,21 +29,7 @@ export default function PaymentPanel({ outstandingInPaise, isBusy, error, onCanc
         <p className="mb-4 text-[13px] leading-[18px] text-steel">
           Outstanding: <span className="font-mono text-ink">{formatPaise(outstandingInPaise)}</span>
         </p>
-        <div className="grid grid-cols-2 gap-3">
-          {METHODS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setMethod(value)}
-              className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-ink bg-paper transition-transform duration-100 active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              <span aria-hidden="true" className="font-mono text-2xl">
-                {METHOD_ICON[value]}
-              </span>
-              <Bilingual label={METHOD_LABELS[value]} size="sm" align="center" />
-            </button>
-          ))}
-        </div>
+        <MethodButtons methods={methods} onPick={setMethod} />
       </PanelShell>
     );
   }
@@ -59,10 +44,10 @@ export default function PaymentPanel({ outstandingInPaise, isBusy, error, onCanc
         >
           <span aria-hidden="true">←</span> Change method
         </button>
-        <span className="text-[13px] font-semibold text-ink">{METHOD_LABELS[method].en}</span>
+        <span className="text-[13px] font-semibold text-ink">{method.name}</span>
       </div>
 
-      {method !== 'CASH' && (
+      {method.code !== 'CASH' && (
         <label className="mb-4 block">
           <span className="mb-1 block text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
             Reference (optional)
@@ -72,7 +57,9 @@ export default function PaymentPanel({ outstandingInPaise, isBusy, error, onCanc
             value={reference}
             onChange={(event) => setReference(event.target.value)}
             maxLength={100}
-            placeholder={method === 'UPI' ? 'UPI reference' : 'Last 4 digits'}
+            placeholder={
+              method.code === 'UPI' ? 'UPI reference' : method.kind === 'PLATFORM' ? 'Order or booking number' : 'Last 4 digits'
+            }
             className="w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
           />
         </label>
@@ -91,7 +78,7 @@ export default function PaymentPanel({ outstandingInPaise, isBusy, error, onCanc
         onConfirm={(raw) => {
           const amountInPaise = parseRupeesToPaise(raw);
           if (amountInPaise === null || amountInPaise <= 0) return;
-          onConfirm({ method, amountInPaise, reference: reference.trim() || null });
+          onConfirm({ method: method.code, amountInPaise, reference: reference.trim() || null });
         }}
       />
     </PanelShell>

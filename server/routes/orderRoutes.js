@@ -14,6 +14,7 @@ import {
   addOrderLines,
   cancelOrder,
   cancelOrderLine,
+  postNoCharge,
   createOrder,
   editOrderLine,
   fireOrder,
@@ -43,6 +44,7 @@ import {
   addOrderLinesSchema,
   cancelOrderLineSchema,
   cancelOrderSchema,
+  noChargeSchema,
   createOrderSchema,
   createTableSchema,
   editOrderLineSchema,
@@ -140,6 +142,9 @@ router.patch('/orders/:orderId/table', ...floor, validate(moveOrderTableSchema),
  * consistent.
  */
 router.post('/orders/:orderId/cancel', ...managers, validate(cancelOrderSchema), cancelOrder);
+
+/** P08. Giving food away free is manager work, the same as cancelling a whole order. */
+router.post('/orders/:orderId/no-charge', ...managers, validate(noChargeSchema), postNoCharge);
 
 // ---------------------------------------------------------------------------
 // Kitchen tickets

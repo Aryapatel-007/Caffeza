@@ -13,6 +13,7 @@
 import { z } from 'zod';
 
 import { LINE_CANCEL_REASON_CODES, ORDER_CANCEL_REASON_CODES } from '../config/cancelReasons.js';
+import { NO_CHARGE_REASON_CODES } from '../config/noChargeReasons.js';
 import { PLATFORM_CODES } from '../config/platforms.js';
 import {
   MAX_GUEST_COUNT,
@@ -370,6 +371,21 @@ export const cancelOrderSchema = z.object({
       version,
       ...reasonFields(ORDER_CANCEL_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
       wasPrepared: z.boolean({ error: 'Must be true or false.' }).optional(),
+    })
+    .strict('Is not a field you can set here.')
+    .superRefine(requireNoteForOther),
+});
+
+/**
+ * POST /orders/:orderId/no-charge. P08. The order's version, a fixed reason and
+ * an optional note, required for Other.
+ */
+export const noChargeSchema = z.object({
+  params: orderIdParam,
+  body: z
+    .object({
+      version,
+      ...reasonFields(NO_CHARGE_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
     })
     .strict('Is not a field you can set here.')
     .superRefine(requireNoteForOther),

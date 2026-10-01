@@ -524,7 +524,7 @@ async function seedOrdersAndBills(tokens, menu, tables) {
   })();
   const discounted = await request('POST', `/api/v1/bills/${unpaidForDiscount.id}/discount`, {
     token: tokens.OWNER,
-    body: { kind: 'PERCENT', rateBps: 1000, reason: 'Regular customer' },
+    body: { kind: 'PERCENT', rateBps: 1000, reasonCode: 'REGULAR_GUEST' },
   });
   await request('POST', `/api/v1/bills/${discounted.id}/payments`, {
     token: tokens.CASHIER,

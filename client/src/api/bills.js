@@ -41,9 +41,13 @@ export function listBills({ from, to, status, includeVoided, page, limit } = {})
   return requestWithMeta(`/bills${toQuery({ from, to, status, includeVoided, page, limit })}`);
 }
 
-/** OWNER and MANAGER only on the server. `kind` is 'FLAT' or 'PERCENT'. */
-export function applyDiscount(billId, { kind, valueInPaise, rateBps, reason }) {
-  const body = { kind, reason };
+/**
+ * `kind` is 'FLAT' or 'PERCENT'. P08: a fixed reason code, an optional note
+ * (required for OTHER), and who paid for it. OWNER and MANAGER, plus a CASHIER
+ * for platform reasons when the owner allows it; the server decides.
+ */
+export function applyDiscount(billId, { kind, valueInPaise, rateBps, reasonCode, note, fundedBy }) {
+  const body = { kind, reasonCode, note: note || null, fundedBy: fundedBy ?? 'RESTAURANT' };
   if (kind === 'FLAT') body.valueInPaise = valueInPaise;
   if (kind === 'PERCENT') body.rateBps = rateBps;
   return api.post(`/bills/${billId}/discount`, body);
@@ -53,6 +57,11 @@ export function recordPayment(billId, { method, amountInPaise, reference }) {
   const body = { method, amountInPaise };
   if (reference) body.reference = reference;
   return api.post(`/bills/${billId}/payments`, body);
+}
+
+/** P08. Changes only the method of one payment, with a reason. OWNER and MANAGER. */
+export function correctPayment(billId, paymentId, { method, reason }) {
+  return api.post(`/bills/${billId}/payments/${paymentId}/correct`, { method, reason });
 }
 
 /**
