@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button.jsx';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import UnclosedDayWarning from '../settlement/UnclosedDayWarning.jsx';
 
 /**
  * Dashboard. Still a placeholder.
@@ -119,6 +120,22 @@ export default function DashboardPage() {
               On Hold
             </Link>
           )}
+          {canBill && (
+            <Link
+              to="/cash"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Cash drawer
+            </Link>
+          )}
+          {canManageStaff && (
+            <Link
+              to="/day-close"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Day Close
+            </Link>
+          )}
           {canManageStaff && (
             <Link
               to="/payouts"
@@ -229,6 +246,9 @@ export default function DashboardPage() {
           </Button>
         </div>
       </header>
+
+      {/* P10. Yesterday traded and was not closed. */}
+      {canManageStaff && <UnclosedDayWarning />}
 
       <div className="p-6">
         {/* Loading and error states are required on every screen that calls

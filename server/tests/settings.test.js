@@ -56,6 +56,7 @@ const DEFAULTS = {
   // P06.
   delivery: { platformCollectsGst: true },
   discounts: { cashierMayApplyPlatformDiscounts: false },
+  dayClose: { showCashDifferenceToManager: false },
 };
 
 // ---------------------------------------------------------------------------

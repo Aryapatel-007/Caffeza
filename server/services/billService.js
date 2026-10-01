@@ -29,6 +29,7 @@ import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
 import { User } from '../models/User.js';
 import { reverseChargeForVoid } from './accountService.js';
+import { assertDayOpen, todayBusinessDate } from './dayLockService.js';
 import { recordAudit } from './auditService.js';
 import { reserveBillNumber } from './billNumberService.js';
 import { frozenMethodFields, methodForBill } from './paymentMethodService.js';
@@ -173,6 +174,8 @@ export async function createBill(req, { orderId, version }) {
        */
       const settings = await getSettings(req.restaurantId, { session });
       const startMinutes = settings.business.businessDayStartsAtMinutes;
+      // P10: a bill is never issued into a closed business day.
+      await assertDayOpen(req, businessDateFor(at, startMinutes), { session });
       const numbering = await reserveBillNumber(
         { restaurantId: req.restaurantId, branchId: req.branchId, at, invoice: settings.invoice },
         session,
@@ -276,6 +279,8 @@ export async function applyDiscount(
 ) {
   const bill = await readBill(req, billId);
 
+  // P10: a closed day answers first, before any rule about the bill itself.
+  await assertDayOpen(req, bill.businessDate);
   assertNotVoided(bill);
   assertNotPaid(bill, 'discounted');
 
@@ -321,11 +326,13 @@ export async function applyDiscount(
 export async function recordPayment(req, billId, { method, amountInPaise, reference }) {
   const bill = await readBill(req, billId);
 
+  // P10: neither the bill's day nor today's may be closed. Checked first.
+  await assertDayOpen(req, [bill.businessDate, await todayBusinessDate(req)]);
+
   assertNotVoided(bill);
   assertPaymentFits(bill, amountInPaise);
 
   // P08: the four method rules, then freeze the method onto the payment.
-  // P10 adds the closed-day refusal here: the bill's business date and today's.
   const paymentMethod = await methodForBill(req, bill, method);
   const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', {
     req,
@@ -381,7 +388,12 @@ export async function correctPayment(req, billId, paymentId, { method, reason })
   const payment = bill.payments.id(paymentId);
   if (!payment) throw new NotFoundError('Payment not found on this bill.');
 
-  // P10 adds the closed-day refusal here: the payment's business date and the bill's.
+  // P10: the bill's day, the day the money arrived, and today's must all be open.
+  await assertDayOpen(req, [
+    bill.businessDate,
+    payment.businessDate ?? bill.businessDate,
+    await todayBusinessDate(req),
+  ]);
 
   if (payment.method === method) {
     throw new BusinessRuleError('That payment was already made by that method.');
@@ -422,8 +434,6 @@ export async function voidBill(req, billId, { reasonCode, note = null }) {
   const existing = await readBill(req, billId);
   assertNotVoided(existing);
 
-  // P10 adds the closed-day refusal here: the bill's business date.
-
   const at = nowUtc();
 
   /**
@@ -434,6 +444,8 @@ export async function voidBill(req, billId, { reasonCode, note = null }) {
   return withOptionalTransaction(async (session) => {
     const bill = await readBill(req, billId, session);
     assertNotVoided(bill);
+    // P10: a closed day's bills stay as they are.
+    await assertDayOpen(req, bill.businessDate, { session });
 
     bill.isVoided = true;
     bill.voidedAt = at;

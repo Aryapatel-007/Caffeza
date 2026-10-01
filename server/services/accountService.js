@@ -35,6 +35,7 @@ import { businessDateFor, nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 import { recordAudit } from './auditService.js';
 import { assertNotVoided } from './billPermissionService.js';
+import { assertDayOpen, todayBusinessDate } from './dayLockService.js';
 import { methodByCode } from './paymentMethodService.js';
 import { getSetting } from './settingsService.js';
 
@@ -200,6 +201,8 @@ export async function updateAccount(req, accountId, changes) {
 export async function chargeBillToAccount(req, billId, { accountId }) {
   const bill = await Bill.findOne({ ...scoped(req), _id: billId });
   if (!bill) throw new NotFoundError('Bill not found.');
+  // P10: the bill's day, and today's, when the charge entry is written. Checked first.
+  await assertDayOpen(req, [bill.businessDate, await todayBusinessDate(req)]);
   assertNotVoided(bill);
   if (bill.status !== BILL_STATUSES.UNPAID) {
     throw new BusinessRuleError('Only an unpaid bill can be charged to an account.');
@@ -214,8 +217,6 @@ export async function chargeBillToAccount(req, billId, { accountId }) {
   if (chargedToAccountInPaise <= 0) {
     throw new BusinessRuleError('Nothing is left to charge on this bill.');
   }
-
-  // P10 adds the closed-day refusal here: the bill's business date.
 
   const at = nowUtc();
   const startMinutes = await startMinutesFor(req);
@@ -309,9 +310,10 @@ export async function recordCollection(req, accountId, { method, amountInPaise, 
     );
   }
 
-  // P10 adds the closed-day refusal here: today's business date.
+  const today = await todayBusinessDate(req);
 
   return withOptionalTransaction(async (session) => {
+    await assertDayOpen(req, today, { session });
     const outstanding = await outstandingFor(req, account._id, { session });
     if (amountInPaise > outstanding) {
       throw new AccountBalanceExceededError(
@@ -339,9 +341,10 @@ export async function recordCollection(req, accountId, { method, amountInPaise, 
 export async function adjustBalance(req, accountId, { direction, amountInPaise, reason }) {
   const account = await loadAccount(req, accountId);
 
-  // P10 adds the closed-day refusal here: today's business date.
+  const today = await todayBusinessDate(req);
 
   return withOptionalTransaction(async (session) => {
+    await assertDayOpen(req, today, { session });
     if (direction === ENTRY_DIRECTIONS.DOWN) {
       const outstanding = await outstandingFor(req, account._id, { session });
       if (amountInPaise > outstanding) {

@@ -20,6 +20,8 @@ import StockReportPage from './features/reports/StockPage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
 import AccountsPage from './features/settlement/AccountsPage.jsx';
 import PayoutsPage from './features/settlement/PayoutsPage.jsx';
+import CashDrawerPage from './features/settlement/CashDrawerPage.jsx';
+import DayClosePage from './features/settlement/DayClosePage.jsx';
 import DeviceSettingsPage from './features/printing/DeviceSettingsPage.jsx';
 import StationsPage from './features/stations/StationsPage.jsx';
 import TaxReportPage from './features/reports/TaxPage.jsx';
@@ -281,6 +283,30 @@ export default function App() {
           <ProtectedRoute>
             <RequireRole roles={BILLING_ROLES}>
               <AccountsPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P10. The cash drawer, for the till. */}
+      <Route
+        path="/cash"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={BILLING_ROLES}>
+              <CashDrawerPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P10. Day Close, for the owner and manager. */}
+      <Route
+        path="/day-close"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={REPORT_ROLES}>
+              <DayClosePage />
             </RequireRole>
           </ProtectedRoute>
         }

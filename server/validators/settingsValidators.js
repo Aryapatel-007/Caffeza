@@ -205,6 +205,13 @@ const discounts = z
   })
   .strict();
 
+/** Day Close. P10. */
+const dayClose = z
+  .object({
+    showCashDifferenceToManager: z.boolean({ error: 'Must be true or false.' }).optional(),
+  })
+  .strict();
+
 /** Everything except `reason`. Used to tell "a group was sent" from "only a reason was sent". */
 export const SETTINGS_GROUPS = Object.freeze([
   'business',
@@ -215,6 +222,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'invoice',
   'delivery',
   'discounts',
+  'dayClose',
 ]);
 
 /**
@@ -256,6 +264,7 @@ export const updateSettingsSchema = z.object({
       invoice: invoice.optional(),
       delivery: delivery.optional(),
       discounts: discounts.optional(),
+      dayClose: dayClose.optional(),
     })
     .strict()
     .refine(

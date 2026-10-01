@@ -61,6 +61,8 @@ const SETTING_PATHS = Object.freeze({
   'delivery.platformCollectsGst': 'settings.delivery.platformCollectsGst',
 
   'discounts.cashierMayApplyPlatformDiscounts': 'settings.discounts.cashierMayApplyPlatformDiscounts',
+
+  'dayClose.showCashDifferenceToManager': 'settings.dayClose.showCashDifferenceToManager',
 });
 
 /** The modules a restaurant can switch off. P02. */

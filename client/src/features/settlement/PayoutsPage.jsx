@@ -14,6 +14,7 @@ import { businessDateToday, formatBusinessDate } from '../../utils/formatDate.js
 import { formatPaise, parseRupeesToPaise } from '../../utils/formatMoney.js';
 import { errorMessage } from '../billing/errorCopy.js';
 import { ROLES } from '../users/roles.js';
+import InlineVoid from './InlineVoid.jsx';
 
 /**
  * Platform payouts. P09. OWNER and MANAGER.
@@ -78,45 +79,6 @@ function PayoutForm({ methods, onDone, onError }) {
         </Button>
       </div>
     </div>
-  );
-}
-
-/** Void, with the reason asked for in place. A payout is kept, marked voided. */
-function VoidPayout({ isBusy, onConfirm }) {
-  const [asking, setAsking] = useState(false);
-  const [reason, setReason] = useState('');
-
-  if (!asking) {
-    return (
-      <button
-        type="button"
-        onClick={() => setAsking(true)}
-        className="min-h-10 text-[12px] font-medium text-mirch underline"
-      >
-        Void
-      </button>
-    );
-  }
-  return (
-    <span className="flex items-center gap-2">
-      <input
-        type="text"
-        value={reason}
-        maxLength={200}
-        onChange={(event) => setReason(event.target.value)}
-        placeholder="Why?"
-        aria-label="Why is this payout being voided?"
-        className="w-32 rounded-lg border-2 border-steel/40 px-2 py-1 text-[13px] focus:border-ink focus:outline-none"
-      />
-      <button
-        type="button"
-        disabled={!reason.trim() || isBusy}
-        onClick={() => onConfirm(reason.trim())}
-        className="min-h-10 text-[12px] font-semibold text-mirch underline disabled:opacity-50"
-      >
-        Void it
-      </button>
-    </span>
   );
 }
 
@@ -199,7 +161,7 @@ export default function PayoutsPage() {
                     </td>
                     <td className="py-2 text-right">
                       {isOwner && !payout.isVoided && (
-                        <VoidPayout
+                        <InlineVoid
                           isBusy={voiding.isPending}
                           onConfirm={(reason) => voiding.mutate({ id: payout.id, reason })}
                         />

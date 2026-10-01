@@ -40,6 +40,10 @@ export const AUDIT_ACTIONS = Object.freeze({
   BILL_CHARGED_TO_ACCOUNT: 'BILL_CHARGED_TO_ACCOUNT',
   ACCOUNT_BALANCE_ADJUSTED: 'ACCOUNT_BALANCE_ADJUSTED',
   PLATFORM_PAYOUT_RECORDED: 'PLATFORM_PAYOUT_RECORDED',
+  // P10. Cash leaving the drawer, a day locked, and a locked day opened again.
+  CASH_PAID_OUT: 'CASH_PAID_OUT',
+  DAY_CLOSED: 'DAY_CLOSED',
+  DAY_REOPENED: 'DAY_REOPENED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 
@@ -51,6 +55,9 @@ export const AUDIT_ENTITY_TYPES = Object.freeze({
   // P09.
   ACCOUNT: 'ACCOUNT',
   PAYOUT: 'PAYOUT',
+  // P10.
+  CASH: 'CASH',
+  DAY: 'DAY',
 });
 export const AUDIT_ENTITY_TYPE_VALUES = Object.freeze(Object.values(AUDIT_ENTITY_TYPES));
 

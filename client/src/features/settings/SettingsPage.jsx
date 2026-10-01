@@ -317,6 +317,18 @@ export default function SettingsPage() {
         </Section>
 
         <Section
+          title="Day Close"
+          description="By default a manager counts the drawer without seeing what it should hold, and only the owner sees the difference."
+        >
+          <Checkbox
+            label="Show managers the expected cash and the difference"
+            hint="Leave this off for a blind count, the usual protection against cash going missing."
+            checked={form.dayClose.showCashDifferenceToManager}
+            onChange={set('dayClose', 'showCashDifferenceToManager')}
+          />
+        </Section>
+
+        <Section
           title="Kitchen stations"
           description="Which counter cooks which dishes. Managed on its own page, so a manager can change it too."
         >

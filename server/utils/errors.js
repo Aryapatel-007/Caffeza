@@ -105,6 +105,10 @@ export const ERROR_CODES = Object.freeze({
   /** Added by P09. More than an account owes, and two payouts covering one date. */
   ACCOUNT_BALANCE_EXCEEDED: 'ACCOUNT_BALANCE_EXCEEDED',
   PAYOUT_PERIOD_OVERLAP: 'PAYOUT_PERIOD_OVERLAP',
+
+  /** Added by P10. Day Close blocked, and a write into a closed day. */
+  DAY_NOT_READY: 'DAY_NOT_READY',
+  DAY_CLOSED: 'DAY_CLOSED',
 });
 
 /**
@@ -539,5 +543,28 @@ export class AccountBalanceExceededError extends AppError {
 export class PayoutPeriodOverlapError extends AppError {
   constructor(message) {
     super(message, { statusCode: 409, code: ERROR_CODES.PAYOUT_PERIOD_OVERLAP });
+  }
+}
+
+/** P10. Day Close is blocked; `details.blockers` lists every reason at once. */
+export class DayNotReadyError extends AppError {
+  constructor(blockers) {
+    super(
+      blockers.length === 1
+        ? `This day cannot be closed yet: ${blockers[0].message}`
+        : `This day cannot be closed yet. ${blockers.length} things need sorting first.`,
+      { statusCode: 422, code: ERROR_CODES.DAY_NOT_READY, details: { blockers } },
+    );
+  }
+}
+
+/** P10. A write would change a business date that has been closed. */
+export class DayClosedError extends AppError {
+  constructor(businessDate) {
+    super(`${businessDate} is closed. An owner can reopen it.`, {
+      statusCode: 409,
+      code: ERROR_CODES.DAY_CLOSED,
+      details: { businessDate },
+    });
   }
 }

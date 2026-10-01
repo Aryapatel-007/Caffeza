@@ -1,0 +1,368 @@
+/**
+ * Day Close. M16, built in P10. docs/API-CONTRACT.md "M16" section 6.
+ *
+ * Closing a business date computes its figures once, runs the checks, stores
+ * both as the snapshot, and locks the date: from then on dayLockService
+ * refuses every write that would change it. Only the owner reopens, with a
+ * reason, and every close and reopen is kept in `history`.
+ *
+ * The blind count: a manager enters the counted cash without being shown what
+ * the drawer should hold. Unless the owner switches
+ * `dayClose.showCashDifferenceToManager` on, every response and print to a
+ * manager leaves out the expected cash, the difference, and the C9 numbers
+ * that would give them away. The rule is applied here, on the server.
+ */
+import { ROLES } from '../config/roles.js';
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
+import { Bill, BILL_STATUSES } from '../models/Bill.js';
+import { DAY_STATUSES, DayClosure } from '../models/DayClosure.js';
+import { OCCUPYING_ORDER_STATUSES, Order } from '../models/Order.js';
+import { User } from '../models/User.js';
+import { BusinessRuleError, DayNotReadyError, NotFoundError } from '../utils/errors.js';
+import { paiseToRupees } from '../utils/money.js';
+import { scoped } from '../utils/scopedQuery.js';
+import { businessDateRangeToUtc, formatTimeIst12, nowUtc } from '../utils/time.js';
+import { withOptionalTransaction } from '../utils/transaction.js';
+import { recordAudit } from './auditService.js';
+import { computeDayFigures } from './dayFiguresService.js';
+import { todayBusinessDate } from './dayLockService.js';
+import { centre, row, rule, wrapName } from './receiptService.js';
+import { runDayChecks, SEVERITY } from './reconciliationService.js';
+import { getSetting } from './settingsService.js';
+
+const opts = (session) => (session ? { session } : {});
+
+/** Whether this caller sees expected cash and the difference. */
+async function seesCash(req) {
+  if (req.user.role === ROLES.OWNER) return true;
+  return Boolean(await getSetting(req.restaurantId, 'dayClose.showCashDifferenceToManager', { req }));
+}
+
+/** Removes everything that would reveal the expected cash, for a blind manager. */
+function blind(view) {
+  const copy = structuredClone(view);
+  delete copy.expectedCashInPaise;
+  delete copy.differenceInPaise;
+  if (copy.figures?.cash) delete copy.figures.cash.expectedCashInPaise;
+  if (Array.isArray(copy.checks)) {
+    copy.checks = copy.checks.map((check) =>
+      check.id === 'C9'
+        ? { ...check, message: 'C9 Cash: the count is recorded.', expected: null, actual: null, difference: null }
+        : check,
+    );
+  }
+  if (Array.isArray(copy.history)) {
+    for (const entry of copy.history) {
+      delete entry.expectedCashInPaise;
+      delete entry.differenceInPaise;
+    }
+  }
+  return copy;
+}
+
+/** Everything that stops a date being closed, reported together. */
+async function blockersFor(req, businessDate, checks, { session = null } = {}) {
+  const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', { req });
+  const { start, end } = businessDateRangeToUtc(businessDate, businessDate, startMinutes);
+
+  const [openOrders, unpaidBills] = await Promise.all([
+    Order.find({
+      ...scoped(req),
+      status: { $in: [...OCCUPYING_ORDER_STATUSES] },
+      openedAt: { $gte: start, $lt: end },
+    })
+      .select('orderNumber tableName orderType')
+      .setOptions(opts(session))
+      .lean(),
+    Bill.find({ ...scoped(req), businessDate, isVoided: false, status: BILL_STATUSES.UNPAID })
+      .select('billNumber orderId')
+      .setOptions(opts(session))
+      .lean(),
+  ]);
+
+  // An order waiting on its unpaid bill is reported once, as the bill.
+  const billedOrders = new Set(unpaidBills.map((bill) => String(bill.orderId)));
+
+  return [
+    ...openOrders.filter((order) => !billedOrders.has(String(order._id))).map((order) => ({
+      kind: 'OPEN_ORDER',
+      message: `Order ${order.orderNumber}${order.tableName ? ` on ${order.tableName}` : ''} is still open.`,
+      ref: String(order._id),
+    })),
+    ...unpaidBills.map((bill) => ({
+      kind: 'UNPAID_BILL',
+      message: `Bill ${bill.billNumber} is not paid.`,
+      ref: String(bill._id),
+    })),
+    ...checks
+      .filter((check) => check.severity === SEVERITY.ERROR && !check.passed)
+      .map((check) => ({ kind: 'CHECK', message: check.message, ref: check.id })),
+  ];
+}
+
+function presentClosure(closure) {
+  const plain = closure.toJSON();
+  return {
+    businessDate: plain.businessDate,
+    status: plain.status,
+    isClosed: plain.status === DAY_STATUSES.CLOSED,
+    countedCashInPaise: plain.countedCashInPaise,
+    expectedCashInPaise: plain.expectedCashInPaise,
+    differenceInPaise: plain.differenceInPaise,
+    note: plain.note,
+    figures: plain.snapshot,
+    checks: plain.checks,
+    blockers: [],
+    closedBy: plain.closedBy ? String(plain.closedBy) : null,
+    closedAt: plain.closedAt,
+    history: plain.history,
+  };
+}
+
+/** POST /day-close. OWNER and MANAGER. */
+export async function closeDay(req, { businessDate, countedCashInPaise, note = null }) {
+  const today = await todayBusinessDate(req);
+  if (businessDate > today) {
+    throw new BusinessRuleError('That business date has not happened yet.');
+  }
+
+  const closure = await withOptionalTransaction(async (session) => {
+    const existing = await DayClosure.findOne({ ...scoped(req), businessDate }).setOptions(opts(session));
+    if (existing?.status === DAY_STATUSES.CLOSED) {
+      throw new BusinessRuleError(`${businessDate} is already closed.`);
+    }
+
+    const figures = await computeDayFigures(req, businessDate, { session });
+    const checks = await runDayChecks(req, businessDate, figures, { countedCashInPaise, session });
+    const blockers = await blockersFor(req, businessDate, checks, { session });
+    if (blockers.length > 0) throw new DayNotReadyError(blockers);
+
+    const expectedCashInPaise = figures.cash.expectedCashInPaise;
+    const differenceInPaise = countedCashInPaise - expectedCashInPaise;
+    if (differenceInPaise !== 0 && !note) {
+      // Says only that it differs: a blind manager must not learn by how much.
+      const error = new BusinessRuleError(
+        'The cash counted is not what the drawer should hold. Add a note saying why, then close.',
+      );
+      error.details = { noteRequired: true };
+      throw error;
+    }
+
+    const at = nowUtc();
+    const record = existing ?? new DayClosure({ ...scoped(req), businessDate });
+    Object.assign(record, {
+      status: DAY_STATUSES.CLOSED,
+      countedCashInPaise,
+      expectedCashInPaise,
+      differenceInPaise,
+      note: note ?? null,
+      snapshot: figures,
+      checks,
+      closedBy: req.user.id,
+      closedAt: at,
+    });
+    record.history.push({
+      action: 'CLOSED',
+      by: req.user.id,
+      at,
+      note: note ?? null,
+      countedCashInPaise,
+      expectedCashInPaise,
+      differenceInPaise,
+    });
+    record.markModified('snapshot');
+    record.markModified('checks');
+    await record.save(opts(session));
+
+    await recordAudit(
+      req,
+      {
+        action: AUDIT_ACTIONS.DAY_CLOSED,
+        entityType: AUDIT_ENTITY_TYPES.DAY,
+        entityId: record._id,
+        entityLabel: businessDate,
+        reason: note ?? 'Day closed',
+        amountInPaise: figures.sales.billTotalInPaise,
+        details: { countedCashInPaise, differenceInPaise },
+      },
+      session,
+    );
+
+    return record;
+  });
+
+  const view = presentClosure(closure);
+  return (await seesCash(req)) ? view : blind(view);
+}
+
+/** GET /day-close/:businessDate. The stored close, or the live figures and blockers. */
+export async function readDay(req, businessDate) {
+  const closure = await DayClosure.findOne({ ...scoped(req), businessDate });
+  let view;
+  if (closure?.status === DAY_STATUSES.CLOSED) {
+    view = presentClosure(closure);
+  } else {
+    const figures = await computeDayFigures(req, businessDate);
+    const checks = await runDayChecks(req, businessDate, figures);
+    view = {
+      businessDate,
+      status: closure?.status ?? 'OPEN',
+      isClosed: false,
+      countedCashInPaise: null,
+      expectedCashInPaise: figures.cash.expectedCashInPaise,
+      differenceInPaise: null,
+      note: null,
+      figures,
+      checks,
+      blockers: await blockersFor(req, businessDate, checks),
+      closedBy: null,
+      closedAt: null,
+      history: closure ? closure.toJSON().history : [],
+    };
+  }
+  return (await seesCash(req)) ? view : blind(view);
+}
+
+/** GET /day-close?from&to. One row per date with a closure record. */
+export async function listDays(req, { from, to }) {
+  const filter = { ...scoped(req) };
+  if (from || to) filter.businessDate = {};
+  if (from) filter.businessDate.$gte = from;
+  if (to) filter.businessDate.$lte = to;
+
+  const closures = await DayClosure.find(filter).sort({ businessDate: -1 });
+  const showCash = await seesCash(req);
+  return closures.map((closure) => {
+    const row = {
+      businessDate: closure.businessDate,
+      status: closure.status,
+      countedCashInPaise: closure.countedCashInPaise,
+      expectedCashInPaise: closure.expectedCashInPaise,
+      differenceInPaise: closure.differenceInPaise,
+      billTotalInPaise: closure.snapshot?.sales?.billTotalInPaise ?? null,
+      closedAt: closure.closedAt,
+    };
+    if (!showCash) {
+      delete row.expectedCashInPaise;
+      delete row.differenceInPaise;
+    }
+    return row;
+  });
+}
+
+/** POST /day-close/:businessDate/reopen. OWNER, with a reason. */
+export async function reopenDay(req, businessDate, { reason }) {
+  const closure = await DayClosure.findOne({ ...scoped(req), businessDate });
+  if (!closure || closure.status !== DAY_STATUSES.CLOSED) {
+    throw new BusinessRuleError(`${businessDate} is not closed.`);
+  }
+
+  await withOptionalTransaction(async (session) => {
+    closure.status = DAY_STATUSES.REOPENED;
+    closure.history.push({ action: 'REOPENED', by: req.user.id, at: nowUtc(), note: reason });
+    await closure.save(opts(session));
+    await recordAudit(
+      req,
+      {
+        action: AUDIT_ACTIONS.DAY_REOPENED,
+        entityType: AUDIT_ENTITY_TYPES.DAY,
+        entityId: closure._id,
+        entityLabel: businessDate,
+        reason,
+        amountInPaise: closure.snapshot?.sales?.billTotalInPaise ?? null,
+      },
+      session,
+    );
+  });
+
+  return presentClosure(closure);
+}
+
+/**
+ * GET /day-close/:businessDate/print. Plain text laid out like the receipt:
+ * sections A, B, D and G, the checks, and who closed it. The blind count
+ * applies to the print exactly as to the screen.
+ */
+export async function printDay(req, businessDate, width) {
+  const day = await readDay(req, businessDate);
+  if (!day) throw new NotFoundError('Nothing to print for that date.');
+  const { figures } = day;
+  const money = (paise) => paiseToRupees(paise);
+  const lines = [];
+  const push = (line) => lines.push(line);
+  const heading = (text) => {
+    push('');
+    push(text.toUpperCase().slice(0, width));
+    push(rule(width));
+  };
+
+  push(centre('DAY CLOSE', width));
+  push(centre(businessDate, width));
+  if (!day.isClosed) push(centre('NOT CLOSED YET', width));
+  push(rule(width, '='));
+
+  heading('Sales');
+  const s = figures.sales;
+  push(row('Bills', String(s.billCount), width));
+  push(row('Covers', String(s.covers), width));
+  push(row('Item total', money(s.itemTotalInPaise), width));
+  push(row('Discount', money(s.discountInPaise), width));
+  push(row('Net sales', money(s.netSalesInPaise), width));
+  push(row('CGST', money(s.cgstInPaise), width));
+  push(row('SGST', money(s.sgstInPaise), width));
+  push(row('GST', money(s.gstInPaise), width));
+  push(row('Round-off', money(s.roundOffInPaise), width));
+  push(row('Bill total', money(s.billTotalInPaise), width));
+  push(row('Average bill', money(s.averageBillInPaise), width));
+  push(row('Average per cover', money(s.averagePerCoverInPaise), width));
+
+  heading('Where the bill total went');
+  for (const method of figures.money.methods) push(row(method.methodName, money(method.amountInPaise), width));
+  push(row('Money in hand', money(figures.money.inHandInPaise), width));
+  push(row('Platform money', money(figures.money.platformInPaise), width));
+  for (const account of figures.money.onHold) {
+    push(row(`On Hold: ${account.accountName}`, money(account.amountInPaise), width));
+  }
+  push(row('Unpaid', money(figures.money.unpaidInPaise), width));
+  push(row('Total', money(figures.money.totalInPaise), width));
+
+  heading('Cash drawer');
+  const c = figures.cash;
+  push(row('Opening float', money(c.openingFloatInPaise), width));
+  push(row('Cash from bills', money(c.cashFromBillsInPaise), width));
+  push(row('Cash collections', money(c.cashCollectionsInPaise), width));
+  push(row('Paid in', money(c.paidInInPaise), width));
+  push(row('Paid out', money(c.paidOutInPaise), width));
+  if (c.expectedCashInPaise !== undefined) push(row('Expected cash', money(c.expectedCashInPaise), width));
+  if (day.countedCashInPaise !== null) push(row('Counted cash', money(day.countedCashInPaise), width));
+  if (day.differenceInPaise !== undefined && day.differenceInPaise !== null) {
+    push(row('Cash difference', money(day.differenceInPaise), width));
+  }
+
+  heading('Controls');
+  const g = figures.controls;
+  push(row(`Discounts (${g.discounts.count})`, money(g.discounts.totalInPaise), width));
+  push(row(`No Charge (${g.noCharge.count})`, money(g.noCharge.valueInPaise), width));
+  push(row(`Items cancelled (${g.cancelledItems.count})`, money(g.cancelledItems.valueInPaise), width));
+  push(row('Wasted value', money(g.cancelledItems.wastedValueInPaise), width));
+  push(row(`Orders cancelled (${g.cancelledOrders.count})`, money(g.cancelledOrders.valueInPaise), width));
+  push(row(`Voided bills (${g.voidedBills.count})`, money(g.voidedBills.valueInPaise), width));
+
+  heading('Checks');
+  for (const check of day.checks) {
+    const mark = check.passed ? 'OK' : check.severity === SEVERITY.ERROR ? 'FAIL' : 'LOOK';
+    for (const part of wrapName(`${mark} ${check.message}`, width, 2)) push(part);
+  }
+
+  push(rule(width, '='));
+  if (day.isClosed && day.closedBy) {
+    const closer = await User.findOne({ ...scoped(req), _id: day.closedBy }).select('name').lean();
+    for (const part of wrapName(`Closed by ${closer?.name ?? 'Unknown'} at ${formatTimeIst12(day.closedAt)}`, width, 0)) {
+      push(part);
+    }
+  }
+
+  return lines.map((line) => line.slice(0, width)).join('\n');
+}
+
+export default { closeDay, listDays, printDay, readDay, reopenDay };

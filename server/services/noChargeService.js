@@ -20,6 +20,7 @@ import { scoped } from '../utils/scopedQuery.js';
 import { businessDateFor, nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 import { recordAudit } from './auditService.js';
+import { assertDayOpen } from './dayLockService.js';
 import { applyVersionedUpdate, computeLineTotalInPaise, loadOrderInTenant } from './orderService.js';
 import { getSetting } from './settingsService.js';
 
@@ -48,16 +49,17 @@ export async function giveNoCharge(req, orderId, { version, reasonCode, note = n
   const order = await loadOrderInTenant(req, orderId);
   await assertNoChargeAllowed(req, order);
 
-  // P10 adds the closed-day refusal here: today's business date.
-
   const at = nowUtc();
   const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', {
     req,
   });
+  const today = businessDateFor(at, startMinutes);
   const liveLines = order.lines.filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED);
   const valueInPaise = sumPaise(...liveLines.map(computeLineTotalInPaise));
 
   return withOptionalTransaction(async (session) => {
+    // P10: No Charge lands on today's business date, so today must be open.
+    await assertDayOpen(req, today, { session });
     const updated = await applyVersionedUpdate(req, {
       orderId,
       version,
@@ -69,7 +71,7 @@ export async function giveNoCharge(req, orderId, { version, reasonCode, note = n
             note: note ?? null,
             approvedBy: req.user.id,
             at,
-            businessDate: businessDateFor(at, startMinutes),
+            businessDate: today,
             valueInPaise,
           },
         },

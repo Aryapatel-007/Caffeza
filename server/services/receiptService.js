@@ -45,7 +45,7 @@ export function rule(width, character = RULE) {
  * a customer can live with "Paneer Tikka Mas" and cannot live with a total
  * missing its last digit.
  */
-function row(label, amount, width) {
+export function row(label, amount, width) {
   const value = String(amount);
   const room = width - value.length - 1;
   const left = label.length > room ? label.slice(0, Math.max(0, room)) : label;

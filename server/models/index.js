@@ -19,8 +19,10 @@ import { AttendanceEntry } from './AttendanceEntry.js';
 import { AuditLog } from './AuditLog.js';
 import { Bill } from './Bill.js';
 import { Branch } from './Branch.js';
+import { CashMovement } from './CashMovement.js';
 import { Category } from './Category.js';
 import { Counter } from './Counter.js';
+import { DayClosure } from './DayClosure.js';
 import { Ingredient } from './Ingredient.js';
 import { Kot } from './Kot.js';
 import { MenuItem } from './MenuItem.js';
@@ -42,8 +44,10 @@ export const ALL_MODELS = Object.freeze([
   AuditLog,
   Bill,
   Branch,
+  CashMovement,
   Category,
   Counter,
+  DayClosure,
   Ingredient,
   Kot,
   MenuItem,

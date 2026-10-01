@@ -30,6 +30,7 @@ import { scoped, scopedForAggregate } from '../utils/scopedQuery.js';
 import { nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 import { recordAudit } from './auditService.js';
+import { assertDayOpen, todayBusinessDate } from './dayLockService.js';
 import { methodByCode } from './paymentMethodService.js';
 
 const FULL_RATE_BPS = 10_000;
@@ -118,9 +119,10 @@ export async function recordPayout(req, body) {
     );
   }
 
-  // P10 adds the closed-day refusal here: today's business date.
+  const today = await todayBusinessDate(req);
 
   const payout = await withOptionalTransaction(async (session) => {
+    await assertDayOpen(req, today, { session });
     const overlapping = await PlatformPayout.findOne({
       ...scoped(req),
       method: method.code,
@@ -180,7 +182,7 @@ export async function voidPayout(req, payoutId, { reason }) {
   if (!payout) throw new NotFoundError('Payout not found.');
   if (payout.isVoided) throw new BusinessRuleError('This payout is already voided.');
 
-  // P10 adds the closed-day refusal here: today's business date.
+  await assertDayOpen(req, await todayBusinessDate(req));
 
   payout.isVoided = true;
   payout.voidedAt = nowUtc();

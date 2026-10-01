@@ -148,6 +148,24 @@ export function applyBasisPoints(paise, basisPoints) {
  * into a rupee somewhere further down and makes the bill and the report
  * disagree.
  */
+/**
+ * An average in paise: a sum divided by a count, rounded half away from zero,
+ * the same rule as rupeesToPaise and applyBasisPoints. P10.
+ *
+ * Always a total divided by a total, never an average of averages
+ * (docs/GLOSSARY.md section 1). A zero count gives zero rather than a NaN on a
+ * day with no sales.
+ */
+export function averagePaise(totalPaise, count) {
+  assertInteger(totalPaise, 'averagePaise total');
+  assertInteger(count, 'averagePaise count');
+  if (count <= 0) return 0;
+
+  const magnitude = Math.abs(totalPaise);
+  const rounded = Math.floor((2 * magnitude + count) / (2 * count));
+  return totalPaise < 0 ? -rounded : rounded;
+}
+
 export function sumPaise(...amounts) {
   let total = 0;
   amounts.forEach((amount, index) => {

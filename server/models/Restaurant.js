@@ -228,6 +228,17 @@ const discountSettingsSchema = new mongoose.Schema(
 );
 
 /**
+ * Day Close. P10. The blind count: when false, a MANAGER never sees expected
+ * cash or the difference in any Day Close response or print.
+ */
+const dayCloseSettingsSchema = new mongoose.Schema(
+  {
+    showCashDifferenceToManager: { type: Boolean, required: true, default: false },
+  },
+  { _id: false },
+);
+
+/**
  * Restaurant-level settings. Every field has a default, which is what makes M7
  * a no-migration change: a document written before M7 reads back a complete
  * settings object because Mongoose fills missing paths on read.
@@ -272,6 +283,7 @@ const settingsSchema = new mongoose.Schema(
     invoice: { type: invoiceSettingsSchema, default: () => ({}) },
     delivery: { type: deliverySettingsSchema, default: () => ({}) },
     discounts: { type: discountSettingsSchema, default: () => ({}) },
+    dayClose: { type: dayCloseSettingsSchema, default: () => ({}) },
   },
   { _id: false },
 );

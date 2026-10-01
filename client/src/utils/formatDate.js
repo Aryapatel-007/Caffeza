@@ -136,3 +136,12 @@ export function businessDateForIst(instant, startMinutes = DEFAULT_BUSINESS_DAY_
 export function businessDateToday(startMinutes = DEFAULT_BUSINESS_DAY_START_MINUTES) {
   return businessDateForIst(new Date(), startMinutes);
 }
+
+/**
+ * The business date `days` before a "YYYY-MM-DD" label. Label arithmetic on
+ * the calendar, read in UTC so no time zone can move it. P10.
+ */
+export function businessDateBefore(businessDate, days = 1) {
+  const [year, month, day] = businessDate.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day - days)).toISOString().slice(0, 10);
+}
