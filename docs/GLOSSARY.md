@@ -114,9 +114,9 @@ The two dates differ only for On Hold bills, which are issued on one day and col
 | **Bill** | A tax invoice with a number from the invoice series | Yes |
 | **Unpaid bill** | A bill issued but not yet settled. Only possible on an open day. | Yes |
 | **Paid bill** | A bill whose payments add up to its bill total | Yes |
-| **On Hold bill** | A bill charged to a named account, to be collected later | Yes, on the day it was issued |
+| **On Hold bill** | A bill charged to a named account, to be collected later. Status `ON_ACCOUNT`. | Yes, on the day it was issued |
 | **Voided bill** | A bill cancelled after it was issued. It keeps its number and is shown in the invoice register. | No |
-| **No Charge order** | Food given free, with a reason and an approver. It gets no invoice number. | No |
+| **No Charge order** | Food given free, with a reason and an approver. Order status `NO_CHARGE`. It gets no invoice number and no bill. | No |
 | **Cancelled item** | A line cancelled before the bill was issued | No |
 | **Cancelled order** | A whole order cancelled before billing | No |
 
@@ -127,8 +127,9 @@ The two dates differ only for On Hold bills, which are issued on one day and col
 | Term | Meaning |
 |---|---|
 | **Payment method** | How a bill was settled. Caffeza has eight. See `docs/CAFFEZA-PROFILE.md` section 10. |
-| **Money in hand** | Methods where the money is already the cafe's: Cash, Card, UPI |
-| **Platform money** | Methods where a platform collected the money and pays the cafe later, minus commission: Zomato Gold, Dineout, EazyDiner, Zomato, Swiggy |
+| **Payment method kind** | `IN_HAND` or `PLATFORM`, set on each payment method and frozen onto each payment |
+| **Money in hand** | Methods of kind `IN_HAND`, where the money is already the cafe's: Cash, Card, UPI |
+| **Platform money** | Methods of kind `PLATFORM`, where a platform collected the money and pays the cafe later, minus commission: Zomato Gold, Dineout, EazyDiner, Zomato, Swiggy |
 | **Money received** | Money in hand plus platform money |
 | **On Hold** | Bill totals charged to accounts and not yet collected |
 | **Collection** | Money received later against an On Hold account. It is not a sale. It counts in the drawer on the day it arrives. |
@@ -150,7 +151,8 @@ On 26 September at Caffeza: ₹2,06,628 received plus ₹551 On Hold equals ₹2
 | **Platform-paid GST** | On a platform delivery order, the platform pays the GST under section 9(5). Our bill shows 0% GST. Stored as `taxTreatment: PLATFORM_COLLECTS` on the order and the bill, frozen when the order is created. |
 | **Discount funded by** | Who paid for a discount: the restaurant, or the platform |
 | **Commission** | The platform's cut, as a percent of the bill total. `TO CONFIRM` per platform. |
-| **Expected payout** | Bill total minus commission |
+| **Payout** | One batch of money from a platform, covering a range of business dates. Stored in `platformpayouts`. |
+| **Expected payout** | For one payout: the sum over its payments of payment amount minus commission, each at the payment's own frozen commission rate. Payments with no rate are listed as "rate not set" and left out. |
 | **Received payout** | What the platform actually paid, entered when it lands in the bank |
 | **Payout difference** | Received payout minus expected payout |
 

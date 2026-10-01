@@ -206,6 +206,16 @@ INVOICE_SERIES_STARTED   422  a prefix that has issued bills would be restarted
 INVOICE_SERIES_LOCKED    422  switching back to financial-year numbering mid-year
 ```
 
+Added by P07:
+
+```
+PAYMENT_METHOD_NOT_ALLOWED  422  the method is inactive, not allowed for the order type, or the wrong platform
+ACCOUNT_BALANCE_EXCEEDED    422  a collection or downward adjustment larger than what the account owes
+PAYOUT_PERIOD_OVERLAP       409  two live payouts for one method would cover the same business date
+DAY_NOT_READY               422  Day Close is blocked; details.blockers lists every reason
+DAY_CLOSED                  409  a write would change a closed business date
+```
+
 ### Paging
 
 Every list endpoint takes `?page=1&limit=50`.

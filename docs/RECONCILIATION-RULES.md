@@ -34,7 +34,7 @@ A link to the bills or records that caused it.
 
 A check never changes data. It only reads.
 A check never rounds before comparing. It compares whole paise.
-Checks live in one server file, `server/services/reconciliationService.js`, built by P14.
+Checks live in one server file, `server/services/reconciliationService.js`, started in P10 with the one-day checks Day Close needs, and completed in P14.
 
 ---
 
@@ -75,8 +75,8 @@ Scope: each business date in the range.
 Severity: ERROR.
 
 Payments received on the day's bills
-plus bill totals of the day's bills On Hold
-plus bill totals of the day's unpaid bills
+plus `chargedToAccountInPaise` of the day's `ON_ACCOUNT` bills
+plus the unpaid remainder of the day's other bills
 equals the day's bill total.
 
 On 26 September at Caffeza: ₹2,06,628 + ₹551 + ₹0 = ₹2,07,179.
@@ -149,6 +149,7 @@ Scope: each business date with a cash record.
 Severity: WARNING.
 
 Expected cash equals opening float + cash from bills + cash collections + paid in − paid out.
+Cash collections are `accountentries` of type `COLLECTION` whose frozen method is `CASH`, on that business date.
 That equation itself is ERROR if it fails, because it means the arithmetic is broken.
 The difference between counted and expected cash is a WARNING whenever it is not zero.
 
@@ -159,17 +160,17 @@ Message: "C9 Cash: counted {counted}, expected {expected}. {difference} {short o
 Scope: every On Hold account.
 Severity: ERROR for the arithmetic, WARNING for a negative balance.
 
-Outstanding equals opening balance + charges − collections.
+Outstanding equals opening balance + charges − collections, read from `accountentries`: `OPENING`, `CHARGE` and `ADJUSTMENT` up add, `CHARGE_REVERSED`, `COLLECTION` and `ADJUSTMENT` down subtract.
 An outstanding balance below zero is a WARNING: the account has paid more than it owes.
 
 Message: "C10 Account: {accountName} shows {outstanding} outstanding, but its entries add up to {computed}."
 
 ### C11 Platform payouts
 
-Scope: every platform in the range.
+Scope: every live payout batch in the range.
 Severity: WARNING.
 
-Expected payout equals bill total minus commission, for every bill with a commission rate set.
+Expected payout is worked out per batch, as `docs/API-CONTRACT.md` M17 section 6.4 says: each payment's amount minus its own frozen commission, summed.
 Any difference between received and expected payout is shown for review.
 A bill whose platform has no commission rate set is listed, and no expected payout is invented for it.
 
@@ -180,7 +181,7 @@ Message: "C11 Platform: {platform} paid {received} for {count} bills against {ex
 Scope: every closed business date in the range.
 Severity: ERROR.
 
-Recomputing the Day Close figures from the stored records gives exactly the snapshot stored when the day was closed.
+Recomputing the Day Close figures from the stored records, with `computeDayFigures`, gives exactly `dayclosures.snapshot` stored when the day was closed.
 A failure means a record on a closed day was changed after the close.
 
 Message: "C12 Closed day: {date} was closed at {closedAt} with bill total {stored}. The records now add up to {now}."

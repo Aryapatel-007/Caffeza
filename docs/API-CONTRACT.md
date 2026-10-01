@@ -2230,6 +2230,10 @@ tax. The apportionment across slabs is in DB-SCHEMA.md section 12.
 Response 200 returns the recomputed bill. Writes one `auditlogs` row,
 `DISCOUNT_APPLIED`, carrying the amount.
 
+From P08 the request is `{ kind, valueInPaise | rateBps, reasonCode, note?,
+fundedBy? }` with a fixed reason list, and a CASHIER may apply platform reasons
+when a setting allows it. See M10 Payments, section 4.
+
 Applying a discount also replaces every line's `discountShareInPaise`,
 `taxableInPaise` and `taxInPaise` (P03), so the line shares always match the
 recomputed bill.
@@ -2254,6 +2258,11 @@ Roles: `OWNER`, `MANAGER`, `CASHIER`.
 ```json
 { "method": "UPI", "amountInPaise": 48200, "reference": "42XXXX9911" }
 ```
+
+From P08, `method` is a payment method code from `GET /payment-methods`, and
+each payment freezes its method's name, kind, Tally code, commission and its own
+business date. See M10 Payments, section 3. A bill charged to an On Hold account
+takes no payment (M16).
 
 Appends to `payments[]` and adds to `amountPaidInPaise`. When the paid amount
 first reaches `grandTotalInPaise` the bill becomes `PAID`, `paidAt` is stamped,
@@ -2299,6 +2308,10 @@ The old `reason` field is refused with a 400. The code is stored in
 Sets `isVoided`, `voidedAt`, `voidedBy`, `voidReasonCode`, `voidReason`. Returns the order to
 `READY_TO_BILL`, clears `orders.billId`, and **re-occupies the table**, so the
 order can be billed again correctly.
+
+Voiding an `ON_ACCOUNT` bill is allowed and writes a `CHARGE_REVERSED` account
+entry in the same transaction (M16). Voiding a bill of a closed business date
+is refused with 409 `DAY_CLOSED` (M16).
 
 **The bill number stays spent.** It is never reissued, not to the replacement
 bill and not to anything else. A gap in what a customer holds is fine; a
@@ -3170,6 +3183,18 @@ Both default to `true`, so nothing changes for an existing restaurant. Switching
 |---|---|---|---|
 | `platformCollectsGst` | Boolean | true | When true, a `DELIVERY` order from a platform on the list is frozen at 0% GST when created. `TO CONFIRM` with the CA. A change affects only orders created after it, and writes `SETTINGS_CHANGED`. |
 
+### `settings.discounts` (added by P07)
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `cashierMayApplyPlatformDiscounts` | Boolean | false | When true, a CASHIER may apply a discount with a platform reason, and no other. `TO CONFIRM` with Caffeza. |
+
+### `settings.dayClose` (added by P07)
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `showCashDifferenceToManager` | Boolean | false | The blind count. When false, Day Close responses and prints to a MANAGER leave out expected cash and the difference. |
+
 ### `settings.invoice` (added by P02)
 
 | Field | Type | Default | Notes |
@@ -3212,7 +3237,9 @@ No parameters. Returns the full settings object for the restaurant in the token,
     "inventory": { "lowStockAlertsEnabled": true },
     "features": { "inventory": true, "attendance": true },
     "invoice": { "mode": "FINANCIAL_YEAR", "prefix": null, "startingNumber": null },
-    "delivery": { "platformCollectsGst": true }
+    "delivery": { "platformCollectsGst": true },
+    "discounts": { "cashierMayApplyPlatformDiscounts": false },
+    "dayClose": { "showCashDifferenceToManager": false }
   }
 }
 ```
@@ -3385,6 +3412,16 @@ M8 also uses `businessDateRangeToUtc` from `server/utils/time.js`, which M6 intr
 | `ORDER_CANCELLED` | `ORDER` | M2, from P04 onwards. Listed before P04 but never written until then. |
 | `SETTINGS_CHANGED` | `SETTINGS` | M7 |
 | `LINE_CANCELLED_AFTER_PREP` | `ORDER` | M2, from P04. A line cancelled with `wasPrepared: true`. |
+| `PAYMENT_METHOD_CORRECTED` | `BILL` | M10, from P08. A payment's method changed after the fact. |
+| `NO_CHARGE_GIVEN` | `ORDER` | M16, from P08. Food given away free. |
+| `BILL_CHARGED_TO_ACCOUNT` | `BILL` | M16, from P09. A sale whose money arrives later. |
+| `ACCOUNT_BALANCE_ADJUSTED` | `ACCOUNT` | M16, from P09. Writing off or adding to what someone owes. |
+| `PLATFORM_PAYOUT_RECORDED` | `PAYOUT` | M17, from P09. Platform money arriving. |
+| `CASH_PAID_OUT` | `CASH` | M16, from P10. Cash leaving the drawer. |
+| `DAY_CLOSED` | `DAY` | M16, from P10. The day is locked. |
+| `DAY_REOPENED` | `DAY` | M16, from P10. A locked day was opened again. |
+
+`entityType` gains `ACCOUNT`, `CASH`, `DAY` and `PAYOUT` (P07).
 
 ## 2. What M8 adds
 
@@ -3818,3 +3855,484 @@ is one, and no table.
 |---|---|---|---|---|---|---|
 | POST /orders with `DELIVERY` | yes | yes | yes | yes | no | no |
 | PATCH /settings `delivery` | yes | no | no | no | no | no |
+
+## 6. Platform payouts (P07, built in P09)
+
+Platforms pay out in batches, usually weekly, covering a range of business
+dates. Stored in `platformpayouts`, DB-SCHEMA section 23.
+
+### 6.1 List payouts
+
+```
+GET /api/v1/platform-payouts?method=SWIGGY&from=2026-09-01&to=2026-09-30
+```
+
+Roles: OWNER, MANAGER. All filters optional; `from` and `to` select payouts whose
+period overlaps that range. Newest first. Each payout comes with its expected
+figure and the difference:
+
+```json
+{
+  "id": "6550...", "method": "SWIGGY", "methodName": "Swiggy",
+  "periodFrom": "2026-09-26", "periodTo": "2026-09-26",
+  "amountReceivedInPaise": 74400, "receivedOn": "2026-10-02", "reference": "UTR123",
+  "expectedInPaise": 74400, "differenceInPaise": 0,
+  "includedPaymentCount": 1, "rateNotSet": [],
+  "isVoided": false
+}
+```
+
+### 6.2 Record a payout
+
+```
+POST /api/v1/platform-payouts
+```
+
+Roles: OWNER, MANAGER.
+
+```json
+{ "method": "SWIGGY", "periodFrom": "2026-09-26", "periodTo": "2026-09-26",
+  "amountReceivedInPaise": 74400, "receivedOn": "2026-10-02", "reference": "UTR123", "note": null }
+```
+
+`method` must be an active `PLATFORM` method: 422
+`PAYMENT_METHOD_NOT_ALLOWED` otherwise. `periodFrom` not after `periodTo`: 400.
+A live payout for the same method already covering any date in the period: 409
+`PAYOUT_PERIOD_OVERLAP`. Writes `PLATFORM_PAYOUT_RECORDED`, entity `PAYOUT`,
+with the amount received. Refused with 409 `DAY_CLOSED` when today's business
+date is closed.
+
+### 6.3 Void a payout
+
+```
+POST /api/v1/platform-payouts/:payoutId/void
+```
+
+Roles: OWNER. Body `{ reason }`, 1 to 200 characters. The record is kept, marked
+voided, and stops counting for the overlap rule.
+
+### 6.4 Expected payout
+
+For one payout: every payment with that method code whose own `businessDate` is
+inside the period, on a bill that is not voided. Each payment's expected payout
+is its amount times `(10000 − commissionBps)` basis points, through
+`applyBasisPoints`, which rounds half away from zero. The batch's expected payout
+is the sum of those per-payment figures. Payments whose frozen `commissionBps` is
+null are listed under `rateNotSet` and left out of the expected figure. Nothing
+is invented, and a live rate is never read.
+
+### Permission summary for payouts
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| GET /platform-payouts | yes | yes | no | no | no | no |
+| POST /platform-payouts | yes | yes | no | no | no | no |
+| POST /platform-payouts/:id/void | yes | no | no | no | no | no |
+
+---
+
+# M10 Payments
+
+Owner: Rishi. Specified in P07, built in P08. Pulled forward for Caffeza with an
+adjusted scope: configurable payment methods including platforms. No gateway,
+no UPI QR, no money movement. We record how a bill was settled.
+
+## 1. Payment methods
+
+Stored in `paymentmethods`, DB-SCHEMA section 20. Every restaurant always has the
+built-in `CASH`, `CARD`, `UPI` (active) and `OTHER` (inactive), created if
+missing, before a method is listed or a payment taken, and at provisioning.
+
+### 1.1 List
+
+```
+GET /api/v1/payment-methods?includeInactive=false
+```
+
+Roles: all six. Active methods by `displayOrder`. `includeInactive=true` for
+OWNER and MANAGER only, 403 otherwise.
+
+```json
+{ "success": true, "data": [
+  { "id": "6560...", "code": "CASH", "name": "Cash", "kind": "IN_HAND", "orderTypes": ["DINE_IN","TAKEAWAY","DELIVERY"],
+    "platformCode": null, "tallyLedgerCode": "P01", "commissionBps": null, "displayOrder": 0, "isActive": true },
+  { "id": "6561...", "code": "SWIGGY", "name": "Swiggy", "kind": "PLATFORM", "orderTypes": ["DELIVERY"],
+    "platformCode": "SWIGGY", "tallyLedgerCode": "868", "commissionBps": 2000, "displayOrder": 7, "isActive": true }
+] }
+```
+
+### 1.2 Create
+
+```
+POST /api/v1/payment-methods
+```
+
+Roles: OWNER. Body: `code`, `name`, `kind` required; `orderTypes`,
+`platformCode`, `tallyLedgerCode`, `commissionBps`, `displayOrder` optional.
+
+| Rule | Error |
+|---|---|
+| `code` not 2 to 20 of capital letters, digits and `_` starting with a letter | 400 |
+| `kind` not `IN_HAND` or `PLATFORM` | 400 |
+| `orderTypes` empty or with an unknown type | 400 |
+| `platformCode` not on the platform list | 400 |
+| `commissionBps` on an `IN_HAND` method, or outside 0 to 10000 | 400 |
+| `code` already used in this restaurant | 409 `DUPLICATE` |
+
+### 1.3 Update
+
+```
+PATCH /api/v1/payment-methods/:methodId
+```
+
+Roles: OWNER. Any of `name`, `orderTypes`, `platformCode`, `tallyLedgerCode`,
+`commissionBps`, `displayOrder`, `isActive`. `code` and `kind` are refused with
+400: they never change after creation. A commission change affects only payments
+taken after it, because each payment freezes its own rate.
+
+## 2. Taking a payment
+
+`POST /api/v1/bills/:billId/payments` keeps its shape. `method` holds a method
+code. Each rule is 422 `PAYMENT_METHOD_NOT_ALLOWED` with a message naming the
+reason:
+
+1. The code is an active method of this restaurant.
+2. The method's `orderTypes` include the bill's order type.
+3. On a delivery bill with a platform, only the method whose `platformCode`
+   matches that platform. A Swiggy order is paid by the Swiggy method only.
+4. A method with a `platformCode` is used only on delivery bills from that
+   platform.
+
+Each payment freezes `methodName`, `methodKind`, `tallyLedgerCode`,
+`commissionBps` (null for `IN_HAND`), and `businessDate`, from `receivedAt` by
+`businessDateFor`. Old payments have null frozen fields: readers treat a null
+`methodKind` as `IN_HAND` and a null `businessDate` as the bill's.
+
+A bill that is `ON_ACCOUNT` takes no payment: 422 `BUSINESS_RULE_VIOLATED`.
+Refused with 409 `DAY_CLOSED` when the bill's business date, or today's, is
+closed (P10).
+
+## 3. Correcting a payment's method
+
+```
+POST /api/v1/bills/:billId/payments/:paymentId/correct
+```
+
+Roles: OWNER, MANAGER. Body `{ method, reason }`, `reason` 1 to 200 characters.
+
+Only the method changes, never the amount; to change an amount, void and bill
+again. The new method must pass every rule in section 2. The payment gains a
+`corrections` entry `{ fromMethod, toMethod, by, at, reason }`, and its frozen
+method fields are replaced with the new method's; its `businessDate` stays.
+
+Writes `PAYMENT_METHOD_CORRECTED`, entity `BILL`, with the payment amount and
+`details: { paymentId, fromMethod, toMethod }`.
+
+Refused with 409 `DAY_CLOSED` when the payment's business date or the bill's is
+closed (P10). 404 for an unknown payment id. Correcting to the same method is 422.
+
+## 4. Discount reasons
+
+`POST /api/v1/bills/:billId/discount` changes the way cancels did in P04:
+
+```json
+{ "kind": "FLAT", "valueInPaise": 7307, "reasonCode": "ZOMATO_GOLD", "note": null, "fundedBy": "PLATFORM" }
+```
+
+`server/config/discountReasons.js`, mirrored on the client:
+
+| Code | Label | Platform reason |
+|---|---|---|
+| `ZOMATO_GOLD` | Zomato Gold | yes |
+| `DINEOUT` | Dineout | yes |
+| `EAZYDINER` | EazyDiner | yes |
+| `REGULAR_GUEST` | Regular guest | no |
+| `REFERRAL` | Referral | no |
+| `STAFF_OFFICE` | Staff or office | no |
+| `MERCHANT_PROMO` | Merchant promo | no |
+| `SERVICE_RECOVERY` | Service recovery | no |
+| `OTHER` | Other, note required | no |
+
+`note` optional, up to 200 characters, required for `OTHER`. `fundedBy` is
+`RESTAURANT` or `PLATFORM`, default `RESTAURANT`; `PLATFORM` with a non-platform
+reason is 400. The old `reason` field is refused with 400.
+
+The bill's `discount` gains `reasonCode` and `fundedBy`; its `reason` holds the
+note. `DISCOUNT_APPLIED` gains `reasonCode` and `fundedBy` in `details`, and its
+`reason` is the label followed by ": " and the note when there is one.
+
+Who may discount: OWNER and MANAGER. Plus CASHIER, for platform reasons only,
+when `settings.discounts.cashierMayApplyPlatformDiscounts` is true (default
+false). A cashier is refused with 403 otherwise. Discounting an `ON_ACCOUNT`
+bill is refused like a paid one.
+
+## Permission summary for M10
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| GET /payment-methods | yes | yes | yes | yes | yes | yes |
+| GET /payment-methods?includeInactive=true | yes | yes | no | no | no | no |
+| POST /payment-methods | yes | no | no | no | no | no |
+| PATCH /payment-methods/:id | yes | no | no | no | no | no |
+| POST /bills/:id/payments | yes | yes | yes | no | no | no |
+| POST /bills/:id/payments/:paymentId/correct | yes | yes | no | no | no | no |
+| POST /bills/:id/discount | yes | yes | platform reasons, when the setting is on | no | no | no |
+
+## Error codes added by M10
+
+| Code | Status | When |
+|---|---|---|
+| `PAYMENT_METHOD_NOT_ALLOWED` | 422 | The method is inactive, not allowed for the order type, or the wrong platform |
+
+---
+
+# M16 Settlement and Day Close
+
+Owner: Rishi. Specified in P07. No Charge built in P08, On Hold accounts in P09,
+the cash drawer and Day Close in P10.
+
+## 1. No Charge
+
+No Charge closes an order without a bill. It is not a sale and takes no invoice
+number.
+
+```
+POST /api/v1/orders/:orderId/no-charge
+```
+
+Roles: OWNER, MANAGER. Body `{ version, reasonCode, note? }`, reasons from
+`server/config/noChargeReasons.js`, mirrored on the client:
+
+| Code | Label |
+|---|---|
+| `CORPORATE_OFFICE` | Corporate office order |
+| `STAFF_MEAL` | Staff meal |
+| `OWNER_GUEST` | Owner's guest |
+| `TASTING` | Tasting or trial |
+| `SERVICE_RECOVERY` | Service recovery |
+| `OTHER` | Other, note required |
+
+Rules, each 422 `BUSINESS_RULE_VIOLATED`:
+
+1. The order is `OPEN` or `READY_TO_BILL`.
+2. It has no live bill. "Void the bill first."
+3. It has no line still waiting to be sent to the kitchen. "Send or cancel the
+   unsent items first."
+4. It has at least one live line.
+
+Effect, in one transaction: status `NO_CHARGE`, the table freed, `noCharge`
+filled in (`approvedBy` is the caller, `valueInPaise` the sum of the live line
+totals before GST, `businessDate` from now), and `NO_CHARGE_GIVEN`, entity
+`ORDER`, with `amountInPaise` equal to `valueInPaise` and `details: { orderNumber,
+tableName, reasonCode, lineCount }`. Stock was already deducted at fire, so
+nothing else moves. Refused with 409 `DAY_CLOSED` when today's business date is
+closed (P10).
+
+A `NO_CHARGE` order is never open, never billable, and never a sale.
+
+## 2. On Hold accounts
+
+An On Hold bill is a sale whose money arrives later, from a named account.
+Collections are dated when the money arrives and are never sales.
+
+### 2.1 Endpoints
+
+| Method and path | Roles | Notes |
+|---|---|---|
+| `GET /api/v1/accounts?includeInactive=false` | OWNER, MANAGER, CASHIER | Each with `outstandingInPaise` and `oldestUncollectedDate`, the business date of the oldest charge not yet covered by later collections and reversals, or null |
+| `POST /api/v1/accounts` | OWNER, MANAGER | `{ name, contactName?, phone?, note?, openingBalanceInPaise? }`. A positive opening balance writes an `OPENING` entry in the same transaction. 409 `DUPLICATE` on a name. |
+| `PATCH /api/v1/accounts/:accountId` | OWNER, MANAGER | `name`, `contactName`, `phone`, `note`, `isActive`. Never the opening balance: 400. |
+| `POST /api/v1/bills/:billId/charge-to-account` | OWNER, MANAGER | `{ accountId }`. Who else may: `TO CONFIRM` with Caffeza. |
+| `POST /api/v1/accounts/:accountId/collections` | OWNER, MANAGER, CASHIER | `{ method, amountInPaise, reference?, note? }`. `IN_HAND` methods only. |
+| `POST /api/v1/accounts/:accountId/adjustments` | OWNER | `{ direction, amountInPaise, reason }`. Writes `ACCOUNT_BALANCE_ADJUSTED`, entity `ACCOUNT`. |
+| `GET /api/v1/accounts/:accountId/statement?from&to` | OWNER, MANAGER | Balance before `from`, every entry in the range with a running balance, balance after `to` |
+
+### 2.2 Charging a bill
+
+1. The bill is `UNPAID` and not voided, and the account is active: 422
+   otherwise.
+2. The amount charged is the bill total minus what was already paid. It must be
+   above zero: 422 otherwise.
+3. In one transaction: the bill becomes `ON_ACCOUNT` with `account`,
+   `chargedToAccountInPaise`, `chargedAt` and `chargedBy`; the order becomes
+   `BILLED` and frees its table exactly as a full payment does; a `CHARGE` entry;
+   and `BILL_CHARGED_TO_ACCOUNT`, entity `BILL`, with the amount charged.
+
+Refused with 409 `DAY_CLOSED` when the bill's business date is closed (P10).
+
+Voiding an `ON_ACCOUNT` bill is allowed, by the roles that void today, and writes
+a `CHARGE_REVERSED` entry for the charged amount in the same transaction.
+
+### 2.3 Collections and adjustments
+
+A collection larger than the outstanding balance is refused with 422
+`ACCOUNT_BALANCE_EXCEEDED`. A `PLATFORM` method is refused with 422
+`PAYMENT_METHOD_NOT_ALLOWED`. A collection freezes `method`, `methodName`,
+`methodKind`, and takes today's business date. It counts in the drawer on the
+day it arrives and is never a sale.
+
+An adjustment's `direction` is `UP` or `DOWN`; a `DOWN` larger than the
+outstanding balance is refused with 422 `ACCOUNT_BALANCE_EXCEEDED`.
+
+Collections and adjustments are refused with 409 `DAY_CLOSED` when today's
+business date is closed (P10).
+
+## 3. The cash drawer
+
+Stored in `cashmovements`, DB-SCHEMA section 24.
+
+| Method and path | Roles |
+|---|---|
+| `GET /api/v1/cash-movements?date=YYYY-MM-DD` | OWNER, MANAGER, CASHIER. Default today's business date. |
+| `POST /api/v1/cash-movements` | `OPENING_FLOAT` and `PAID_IN`: OWNER, MANAGER, CASHIER. `PAID_OUT`: OWNER, MANAGER, and writes `CASH_PAID_OUT`, entity `CASH`, with the amount and reason. |
+| `POST /api/v1/cash-movements/:id/void` | OWNER, MANAGER. Body `{ reason }`. |
+
+Body `{ type, amountInPaise, reason? }`. `reason` 1 to 200 characters, required
+for `PAID_IN` and `PAID_OUT`. The business date is always today's; no request can
+set it. A second live opening float for the date is 409 `DUPLICATE`. Writes and
+voids are refused with 409 `DAY_CLOSED` when the movement's business date is
+closed.
+
+## 4. Day figures
+
+`server/services/dayFiguresService.js`, `computeDayFigures(req, businessDate, {
+session })`. The only place day-level figures are computed. Day Close stores its
+output as the snapshot, and R2 returns it. Frozen fields only, whole paise, and
+averages as a sum divided by a sum rounded half away from zero. "Cash" means
+payments and collections whose frozen `methodKind` is `IN_HAND` (or null) and
+whose method code is `CASH`.
+
+```json
+{
+  "businessDate": "2026-09-26",
+  "sales": {
+    "billCount": 15, "covers": 27,
+    "itemTotalInPaise": 931022, "discountInPaise": 42390, "netSalesInPaise": 888632,
+    "cgstInPaise": 19131, "sgstInPaise": 19126, "gstInPaise": 38257,
+    "roundOffInPaise": 11, "billTotalInPaise": 926900,
+    "averageBillInPaise": 59242, "dineInNetSalesInPaise": 721132, "averagePerCoverInPaise": 26709
+  },
+  "money": {
+    "methods": [ { "method": "CASH", "methodName": "Cash", "methodKind": "IN_HAND", "amountInPaise": 175400, "paymentCount": 3 } ],
+    "inHandInPaise": 470700, "platformInPaise": 401100,
+    "onHold": [ { "accountId": "...", "accountName": "E-210 Office", "amountInPaise": 4700, "billCount": 1 } ],
+    "onHoldInPaise": 55100, "unpaidInPaise": 0, "unpaidBillCount": 0, "totalInPaise": 926900
+  },
+  "collections": { "entries": [], "totalInPaise": 0, "cashInPaise": 0 },
+  "cash": {
+    "openingFloatInPaise": 200000, "cashFromBillsInPaise": 175400, "cashCollectionsInPaise": 0,
+    "paidInInPaise": 0, "paidOutInPaise": 35000, "expectedCashInPaise": 340400,
+    "paidIn": [], "paidOut": [ { "amountInPaise": 35000, "reason": "Milk from the dairy", "at": "..." } ]
+  },
+  "orderTypes": [ { "orderType": "DINE_IN", "platformCode": null, "billCount": 12, "covers": 27, "netSalesInPaise": 721132, "billTotalInPaise": 757200 } ],
+  "gst": [ { "taxRateBps": 500, "platformCollects": false, "netSalesInPaise": 765132, "cgstInPaise": 19131, "sgstInPaise": 19126, "gstInPaise": 38257 } ],
+  "controls": {
+    "discounts": { "count": 6, "totalInPaise": 42390, "largest": [ { "billNumber": "CFA/C/22449", "amountInPaise": 20000 } ] },
+    "noCharge": { "count": 1, "valueInPaise": 23000 },
+    "cancelledItems": { "count": 2, "valueInPaise": 75000, "wastedValueInPaise": 39000 },
+    "cancelledOrders": { "count": 0, "valueInPaise": 0 },
+    "voidedBills": { "count": 1, "valueInPaise": 34700, "bills": [ { "billNumber": "CFA/C/22452", "amountInPaise": 34700, "reasonCode": "WRONG_TABLE", "reason": "Billed to the wrong table" } ] }
+  },
+  "invoices": [ { "series": "CFA/C/", "first": "CFA/C/22442", "last": "CFA/C/22457", "issued": 16, "voided": 1, "gaps": [] } ]
+}
+```
+
+| Section | Reads |
+|---|---|
+| `sales` (A) | Non-voided bills with this `businessDate` |
+| `money` (B) | Those bills' payments by frozen method, grouped by frozen kind; their `chargedToAccountInPaise` by account; and bill total minus paid minus charged for the rest, as unpaid |
+| `collections` (C) | `accountentries` of type `COLLECTION` with this `businessDate` |
+| `cash` (D) | `cashmovements` for this date, cash payments whose own `businessDate` is this date, and cash collections |
+| `orderTypes` (E) | Bills grouped by `orderType`, delivery split by frozen `platform.code` |
+| `gst` (F) | Bills' `taxBreakdown`, with `PLATFORM_COLLECTS` bills in their own 0% row |
+| `controls` (G) | Discounts from bills; No Charge from orders with `noCharge.businessDate` on this date; cancelled lines and whole orders by the business date of their cancel time; voided bills of this date |
+| `invoices` (H) | Per `invoiceSeries` (null reads as the bill's `financialYear`), bills of this date including voided: first, last, issued, voided, missing numbers between first and last |
+
+Counted cash and the difference are not day figures; Day Close adds them.
+
+## 5. Checks at close
+
+`server/services/reconciliationService.js`. P10 builds C1, C3, C4, C6, C8 and C9
+for one business date; P14 adds the rest and the range versions. Each check
+returns `{ id, severity, passed, message, expected, actual, difference, refs }`,
+`refs` listing the bill numbers or record ids behind a failure.
+
+## 6. Day Close
+
+Stored in `dayclosures`, DB-SCHEMA section 25.
+
+| Method and path | Roles | Notes |
+|---|---|---|
+| `POST /api/v1/day-close` | OWNER, MANAGER | `{ businessDate, countedCashInPaise, note? }` |
+| `GET /api/v1/day-close/:businessDate` | OWNER, MANAGER | The closure, or for an open date the live figures and blockers. The blind count applies. |
+| `GET /api/v1/day-close?from&to` | OWNER, MANAGER | One row per date with a closure record |
+| `GET /api/v1/day-close/:businessDate/print?width=32` | OWNER, MANAGER | Plain text for a thermal printer, laid out on the server like the receipt: sections A, B, D and G, the checks, and "Closed by {name} at {time}". The blind count applies. |
+| `POST /api/v1/day-close/:businessDate/reopen` | OWNER | `{ reason }`. Writes `DAY_REOPENED`, entity `DAY`. |
+
+Closing:
+
+1. The date is today's business date or earlier, and not already `CLOSED`: 422
+   otherwise.
+2. Blockers, reported together in one 422 `DAY_NOT_READY` with `details.blockers`,
+   each `{ kind, message, ref }`: an order opened on that business date still
+   `OPEN` or `READY_TO_BILL`; a bill of that date still `UNPAID`; any failed
+   ERROR check from section 5.
+3. A cash difference other than zero needs a `note`: 422 otherwise.
+4. Effect, in one transaction: compute the figures, store the snapshot and
+   checks, set `CLOSED`, add to `history`, and write `DAY_CLOSED`, entity `DAY`,
+   with the day's bill total.
+
+**The blind count.** A MANAGER enters the counted cash without seeing the
+expected figure. Responses and prints to a MANAGER leave out
+`expectedCashInPaise` and `differenceInPaise`, and the snapshot's
+`cash.expectedCashInPaise`, unless `settings.dayClose.showCashDifferenceToManager`
+is true. OWNER always sees both.
+
+Reopening needs the date to be `CLOSED`, sets `REOPENED`, and adds to `history`.
+A `REOPENED` date is open, and can be closed again.
+
+## 7. The lock
+
+Once a business date is `CLOSED`, every write that would change that date's
+figures is refused with 409 `DAY_CLOSED`, message "{date} is closed. An owner can
+reopen it." One helper, `assertDayOpen(req, businessDate, { session })`, called
+once per write:
+
+| Write | Date checked |
+|---|---|
+| Create a bill | The business date the new bill would get |
+| Discount, void, charge to account | The bill's `businessDate` |
+| Take a payment, correct a payment | The bill's `businessDate`, and today's |
+| No Charge | Today's business date |
+| Cash movement, and voiding one | Its business date |
+| Account collection, adjustment | Today's business date |
+| Record or void a payout | Today's business date |
+
+## Permission summary for M16
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| POST /orders/:id/no-charge | yes | yes | no | no | no | no |
+| GET /accounts | yes | yes | yes | no | no | no |
+| POST /accounts | yes | yes | no | no | no | no |
+| PATCH /accounts/:id | yes | yes | no | no | no | no |
+| POST /bills/:id/charge-to-account | yes | yes | no | no | no | no |
+| POST /accounts/:id/collections | yes | yes | yes | no | no | no |
+| POST /accounts/:id/adjustments | yes | no | no | no | no | no |
+| GET /accounts/:id/statement | yes | yes | no | no | no | no |
+| GET /cash-movements | yes | yes | yes | no | no | no |
+| POST /cash-movements, float or paid in | yes | yes | yes | no | no | no |
+| POST /cash-movements, paid out | yes | yes | no | no | no | no |
+| POST /cash-movements/:id/void | yes | yes | no | no | no | no |
+| POST /day-close | yes | yes | no | no | no | no |
+| GET /day-close, /day-close/:date, print | yes | yes | no | no | no | no |
+| POST /day-close/:date/reopen | yes | no | no | no | no | no |
+
+## Error codes added by M16 and M17 payouts
+
+| Code | Status | When |
+|---|---|---|
+| `ACCOUNT_BALANCE_EXCEEDED` | 422 | A collection or a downward adjustment larger than the outstanding balance |
+| `PAYOUT_PERIOD_OVERLAP` | 409 | Two live payouts for one method would cover the same business date |
+| `DAY_NOT_READY` | 422 | Day Close blocked; `details.blockers` lists every reason |
+| `DAY_CLOSED` | 409 | A write would change a closed business date |

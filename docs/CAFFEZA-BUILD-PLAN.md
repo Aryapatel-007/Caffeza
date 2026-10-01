@@ -73,8 +73,8 @@ Each prompt names its model at the top.
 | P05 | Kitchen stations and printing | M18, Phase 2 printing | P01 | Arya | Opus, high |
 | P06 | Delivery and platform orders | M17 | P03 | Arya | Opus, high |
 | P07 | Settlement spec | M10, M16 | P03, P06 | Rishi | Opus, high |
-| P08 | Payment methods and No Charge | M10, M16 | P07 | Rishi | Opus, high |
-| P09 | On Hold accounts | M16 | P08 | Rishi | Opus, high |
+| P08 | Payment methods, discount reasons and No Charge | M10, M16 | P07 | Rishi | Opus, high |
+| P09 | On Hold accounts and platform payouts | M16 | P08 | Rishi | Opus, high |
 | P10 | Cash drawer and Day Close | M16 | P09 | Rishi | Opus, high |
 | P11 | Caffeza setup and menu import | Phase 2 onboarding | P05, P08 | Arya | Sonnet, medium |
 | P12 | Cloud deployment | Phase 2 hosting | P01, P11 | Arya | Opus, high |
@@ -138,7 +138,7 @@ M8 reads them all.
 | `CASH_PAID_OUT` | `CASH` | M16, from P10 | Cash leaving the drawer |
 | `DAY_CLOSED` | `DAY` | M16, from P10 | The day is locked |
 | `DAY_REOPENED` | `DAY` | M16, from P10 | A locked day was changed |
-| `PLATFORM_PAYOUT_RECORDED` | `BILL` | M17, from P06 | Platform money arriving |
+| `PLATFORM_PAYOUT_RECORDED` | `PAYOUT` | M17, from P09 | Platform money arriving |
 
 ---
 

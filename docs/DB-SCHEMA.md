@@ -680,7 +680,8 @@ collection in the project after `menuitems`.
 | `guestCount` | Number | no | | Integer 1 to 100. Null when unset. |
 | `customerName` | String | no | | Trimmed, max 100 characters |
 | `customerPhone` | String | no | | Trimmed |
-| `status` | String | yes | | Enum `OPEN`, `READY_TO_BILL`, `BILLED`, `CANCELLED` |
+| `status` | String | yes | | Enum `OPEN`, `READY_TO_BILL`, `BILLED`, `CANCELLED`, `NO_CHARGE`. `NO_CHARGE` appended by P07, built in P08. |
+| `noCharge` | Object | no | | Added by P07. Null unless the status is `NO_CHARGE`: `{ reasonCode, note, approvedBy, at, businessDate, valueInPaise }`. `reasonCode` from `server/config/noChargeReasons.js`. `valueInPaise` is the sum of the order's live line totals at menu price, before GST, frozen at that moment. `businessDate` from `at` by `businessDateFor`. |
 | `version` | Number | yes | | Optimistic concurrency. Starts at 1. See below. |
 | `lines` | [OrderLine] | yes | | Default `[]`. Append only; a line is never removed. |
 | `openedBy` | ObjectId | yes | `users._id` | |
@@ -1037,7 +1038,11 @@ about.
 | `taxTreatment` | String | no | | Added by P06. Copied from the order. A bill from before P06 reads as `NORMAL`. |
 | `tableName` | String | no | | Snapshot |
 | `businessDate` | String | yes | | `"YYYY-MM-DD"`, derived once at creation by `businessDateFor`. Never recomputed. |
-| `status` | String | yes | | Enum `UNPAID`, `PAID`. A voided bill keeps its last status and sets `isVoided`. |
+| `status` | String | yes | | Enum `UNPAID`, `PAID`, `ON_ACCOUNT`. A voided bill keeps its last status and sets `isVoided`. `ON_ACCOUNT` appended by P07, built in P09: the bill was charged to an On Hold account. |
+| `account` | Object | no | `accounts._id` | Added by P07. `{ accountId, accountName }` when charged to an account, else null. The name is frozen. |
+| `chargedToAccountInPaise` | Number | no | | Added by P07. Bill total minus what was already paid when it was charged. Null unless charged. |
+| `chargedAt` | Date | no | | Added by P07. UTC. |
+| `chargedBy` | ObjectId | no | `users._id` | Added by P07. |
 | `lines` | [BillLine] | yes | | Copied from the order's live lines at creation. Frozen. |
 | `subtotalInPaise` | Number | yes | | Sum of `lineTotalInPaise` over `lines`. Pre-tax, pre-discount. |
 | `discount` | Discount | no | | Null when none. See the subdocument. |
@@ -1110,7 +1115,9 @@ section 8 closed at the point it would first appear.
 | `valueInPaise` | Number | no | Set when `kind` is `FLAT`. Integer paise. |
 | `rateBps` | Number | no | Set when `kind` is `PERCENT`. Integer basis points, 1 to 10000. |
 | `amountInPaise` | Number | yes | The resolved rupee amount taken off, whichever kind it was. This is what the arithmetic uses. |
-| `reason` | String | yes | Trimmed, 1 to 200 characters. Never defaulted to `""`. |
+| `reason` | String | no | Trimmed, up to 200 characters. From P08 it holds the optional note; before P08 the free-text reason. |
+| `reasonCode` | String | no | Added by P07, built in P08. From `server/config/discountReasons.js`. Null on discounts from before P08. |
+| `fundedBy` | String | no | Added by P07. `RESTAURANT` or `PLATFORM`, default `RESTAURANT`. `PLATFORM` only with a platform reason. |
 | `appliedBy` | ObjectId | yes | `users._id` |
 | `appliedAt` | Date | yes | UTC |
 
@@ -1135,7 +1142,13 @@ One row per distinct `taxRateBps` on the bill. This is what prints.
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `_id` | ObjectId | auto | |
-| `method` | String | yes | Enum `CASH`, `UPI`, `CARD`, `OTHER` |
+| `method` | String | yes | A `paymentmethods.code` of this restaurant (P08). Before P08 the enum `CASH`, `UPI`, `CARD`, `OTHER`; the four built-in methods keep those codes, so every old payment still points at a real method. The fixed enum is removed and the check lives in the service. |
+| `methodName` | String | no | Added by P07. Frozen from the method when the payment is taken. Null on old payments. |
+| `methodKind` | String | no | Added by P07. `IN_HAND` or `PLATFORM`, frozen. A null reads as `IN_HAND`. |
+| `tallyLedgerCode` | String | no | Added by P07. Frozen. |
+| `commissionBps` | Number | no | Added by P07. Frozen from a `PLATFORM` method; null for `IN_HAND` or when the rate is not set. Payouts use this, never a live rate. |
+| `businessDate` | String | no | Added by P07. From `receivedAt` and the restaurant's business day start, by `businessDateFor`. A null reads as the bill's `businessDate`. |
+| `corrections` | [Object] | no | Added by P07. `{ fromMethod, toMethod, by, at, reason }`, one per method correction. The amount never changes. |
 | `amountInPaise` | Number | yes | Integer, 1 or more |
 | `reference` | String | no | Trimmed, max 100 characters. A UPI reference or the last four digits of a card. Never a full card number. |
 | `receivedBy` | ObjectId | yes | `users._id` |
@@ -1312,6 +1325,12 @@ the module that would need it. This is that collection.
 `STOCK_ADJUSTED`, `ORDER_CANCELLED`, `SETTINGS_CHANGED`,
 `LINE_CANCELLED_AFTER_PREP`. The last was appended by P04, which is also when
 `ORDER_CANCELLED` was first actually written.
+
+P07 appends the settlement actions, each written by the prompt that builds it:
+`PAYMENT_METHOD_CORRECTED` (P08), `NO_CHARGE_GIVEN` (P08),
+`BILL_CHARGED_TO_ACCOUNT` (P09), `ACCOUNT_BALANCE_ADJUSTED` (P09),
+`PLATFORM_PAYOUT_RECORDED` (P09), `CASH_PAID_OUT` (P10), `DAY_CLOSED` (P10),
+`DAY_REOPENED` (P10). `entityType` gains `ACCOUNT`, `CASH`, `DAY` and `PAYOUT`.
 
 `entityType` gained `SETTINGS` alongside it. Both were appended by M7; see
 section 18 for the shape of a settings audit line.
@@ -1796,6 +1815,18 @@ setup in P11 switches both off.
 |---|---|---|---|---|
 | `platformCollectsGst` | Boolean | yes | true | When true, an order placed through a platform on the list is billed at 0%, because the platform pays the GST under section 9(5). `TO CONFIRM` with Caffeza's CA. Affects only orders created after a change. |
 
+### `settings.discounts` (added by P07)
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `cashierMayApplyPlatformDiscounts` | Boolean | yes | false | When true, a CASHIER may apply a discount whose reason is a platform reason, and no other. `TO CONFIRM` with Caffeza. |
+
+### `settings.dayClose` (added by P07)
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `showCashDifferenceToManager` | Boolean | yes | false | The blind count. When false, a MANAGER never sees expected cash or the difference in any Day Close response or print. |
+
 ### `settings.invoice` (added by P02)
 
 | Field | Type | Required | Default | Notes |
@@ -1912,3 +1943,147 @@ Routing reads the category at fire time on purpose: which counter cooks a dish
 is a question about today, not history. The KOT then freezes `stationId` and
 `stationName`, so moving a category to another station never changes a ticket
 already printed.
+
+---
+
+# M10 Payments, M16 Settlement and Day Close, M17 payouts
+
+Specified in P07, built in P08 (payment methods, discounts, No Charge), P09 (On
+Hold accounts, payouts) and P10 (cash drawer, Day Close). Every collection below
+is an ordinary tenant collection: `baseSchemaPlugin` then `tenantGuardPlugin`,
+every index starting with `restaurantId`.
+
+## 20. `paymentmethods`
+
+How a bill may be settled. Configured per restaurant.
+
+| Field | Type | Required | Links to | Notes |
+|---|---|---|---|---|
+| `_id` | ObjectId | auto | | |
+| `restaurantId`, `branchId` | ObjectId | yes | | From `baseSchema` |
+| `code` | String | yes | | 2 to 20 characters, capital letters, digits and `_`, starting with a letter. Unique per restaurant. Never changes. Payments store it. |
+| `name` | String | yes | | 1 to 30 characters. What staff see. |
+| `kind` | String | yes | | `IN_HAND` or `PLATFORM`. Never changes. |
+| `orderTypes` | [String] | yes | | At least one of `DINE_IN`, `TAKEAWAY`, `DELIVERY`. Default all three. |
+| `platformCode` | String | no | | A code from `server/config/platforms.js` for a delivery platform's own payment, like `SWIGGY`. Otherwise null. |
+| `tallyLedgerCode` | String | no | | Up to 20 characters. Caffeza's are in CAFFEZA-PROFILE.md section 10. |
+| `commissionBps` | Number | no | | `PLATFORM` methods only. Integer 0 to 10000. Null means "rate not set". A change affects only payments taken after it. |
+| `displayOrder` | Number | yes | | Integer, default 0 |
+| `isActive` | Boolean | yes | | Default true. Never deleted. |
+| `createdAt`, `updatedAt` | Date | auto | | UTC |
+
+Index: `{ restaurantId: 1, code: 1 }` unique. Payments refer to a method by code,
+so two methods with one code would make every report ambiguous.
+
+Index: `{ restaurantId: 1, branchId: 1, isActive: 1, displayOrder: 1 }` for the
+payment panel's list.
+
+Every restaurant always has four built-in methods, created if missing by code,
+never overwriting one that exists: `CASH` Cash, `CARD` Card, `UPI` UPI, all
+`IN_HAND` and active, and `OTHER` Other, `IN_HAND`, inactive. They match the four
+values the old fixed list allowed.
+
+## 21. `accounts`
+
+An On Hold account, such as "W-330 Office": someone who runs a tab.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema` |
+| `name` | String | yes | 1 to 40 characters, unique per restaurant ignoring case |
+| `nameLower` | String | yes | Internal, derived from `name`, never in a response |
+| `contactName`, `phone`, `note` | String | no | Optional. Up to 60, 15 and 200 characters. |
+| `openingBalanceInPaise` | Number | yes | Integer 0 or more, default 0. Set at creation, never edited. Also written as an `OPENING` entry. |
+| `isActive` | Boolean | yes | Default true |
+
+Index: `{ restaurantId: 1, branchId: 1, nameLower: 1 }` unique.
+
+The outstanding balance is never stored. It is computed from `accountentries`,
+so it cannot drift from the ledger.
+
+## 22. `accountentries`
+
+The account ledger. Entries are never edited or deleted. A mistake is reversed
+by another entry.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema` |
+| `accountId` | ObjectId | yes | `accounts._id` |
+| `type` | String | yes | `OPENING`, `CHARGE`, `CHARGE_REVERSED`, `COLLECTION`, `ADJUSTMENT` |
+| `direction` | String | yes | `UP` or `DOWN`. Fixed by type: `OPENING` and `CHARGE` are `UP`, `CHARGE_REVERSED` and `COLLECTION` are `DOWN`. `ADJUSTMENT` takes either. |
+| `amountInPaise` | Number | yes | Integer above 0. Always positive; the direction carries the sign. |
+| `billId`, `billNumber` | ObjectId, String | no | For `CHARGE` and `CHARGE_REVERSED` |
+| `method`, `methodName`, `methodKind` | String | no | For `COLLECTION`, frozen like a payment |
+| `reference`, `note` | String | no | Up to 100 and 200 characters. An adjustment's reason is its `note`. |
+| `businessDate` | String | yes | The business date of the moment the entry was written, by `businessDateFor` |
+| `at` | Date | yes | UTC |
+| `by` | ObjectId | yes | `users._id` |
+
+Outstanding balance is the `UP` amounts minus the `DOWN` amounts.
+
+Indexes: `{ restaurantId: 1, accountId: 1, at: 1 }` for statements and balances,
+and `{ restaurantId: 1, branchId: 1, businessDate: 1, type: 1 }` for a day's
+collections.
+
+## 23. `platformpayouts`
+
+Money a platform sent, in a batch covering a range of business dates.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema` |
+| `method`, `methodName` | String | yes | A `PLATFORM` payment method's code, and its frozen name |
+| `periodFrom`, `periodTo` | String | yes | Business dates, `YYYY-MM-DD`, inclusive, `periodFrom` not after `periodTo` |
+| `amountReceivedInPaise` | Number | yes | Integer 0 or more |
+| `receivedOn` | String | yes | The date it reached the bank, `YYYY-MM-DD` |
+| `reference`, `note` | String | no | Up to 100 and 200 characters |
+| `recordedBy`, `recordedAt` | ObjectId, Date | yes | |
+| `isVoided`, `voidedBy`, `voidedAt`, `voidReason` | | | A wrong entry is voided, never edited |
+
+Index: `{ restaurantId: 1, method: 1, periodFrom: 1, periodTo: 1 }` for the
+overlap check and the list.
+
+Two live payouts for the same method may not cover the same business date: 409
+`PAYOUT_PERIOD_OVERLAP`. Checked in the service; a payout is recorded by a person
+a few times a week, so there is no race worth an index.
+
+## 24. `cashmovements`
+
+The cash drawer's non-sale entries.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema` |
+| `type` | String | yes | `OPENING_FLOAT`, `PAID_IN`, `PAID_OUT` |
+| `amountInPaise` | Number | yes | Integer above 0 |
+| `reason` | String | no | 1 to 200 characters. Required for `PAID_IN` and `PAID_OUT`. |
+| `businessDate` | String | yes | Always the current business date when entered. No back-dating. |
+| `at`, `by` | Date, ObjectId | yes | |
+| `isVoided`, `voidedBy`, `voidedAt`, `voidReason` | | | Voided, never deleted |
+
+Index: `{ restaurantId: 1, branchId: 1, businessDate: 1, type: 1 }` **unique,
+partial on `{ type: 'OPENING_FLOAT', isVoided: false }`**. One live opening
+float per business date. A voided float frees the slot. Equality only in the
+filter, as MongoDB requires.
+
+Index: `{ restaurantId: 1, branchId: 1, businessDate: 1, at: 1 }` for a day's
+drawer.
+
+## 25. `dayclosures`
+
+One document per business date, written by Day Close.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema` |
+| `businessDate` | String | yes | |
+| `status` | String | yes | `CLOSED` or `REOPENED` |
+| `countedCashInPaise`, `expectedCashInPaise`, `differenceInPaise` | Number | yes | From the latest close. Difference is counted minus expected. |
+| `note` | String | no | Required when the cash difference is not zero |
+| `snapshot` | Object | yes | The full output of `computeDayFigures` at the latest close |
+| `checks` | [Object] | yes | The check results at the latest close |
+| `closedBy`, `closedAt` | ObjectId, Date | yes | The latest close |
+| `history` | [Object] | yes | Every close and reopen: `{ action, by, at, note, countedCashInPaise, expectedCashInPaise, differenceInPaise }` |
+
+Index: `{ restaurantId: 1, branchId: 1, businessDate: 1 }` unique.

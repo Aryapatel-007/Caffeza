@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P07, the settlement spec.
+Next: P08, payment methods, discount reasons and No Charge.
 
 ---
 
@@ -42,8 +42,8 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M6 | Reports and Dashboard | Rishi | IN PROGRESS | Server and screens both built on `feat/m6/reports`: ten read-only endpoints, no collection, 34 tests, seven screens. Verified live against the seeded Atlas data, where its figures reconcile exactly with the independent Section 11 verification. Not done under BUILD-PLAN section 13: Arya has not read it. |
 | M7 | Restaurant Settings | Rishi | DONE | Phase 1B's first module. Two endpoints, no new collection: `restaurants.settings` gains `tax`, `receipt` and `inventory`, every field with a schema default so there is no migration. `settingsService` is now the only way any module reads configuration. 27 new tests. Verified live against the Atlas cluster, including a genuine pre-M7 document reading back complete. Not done under BUILD-PLAN section 13: Arya has not read it. P02 added `settings.features` (inventory and attendance switches, enforced by `requireFeature`) and `settings.invoice` (financial-year or prefix numbering). |
 | M8 | Audit Trail | Rishi | NOT STARTED | Specified in API-CONTRACT.md. Pulled forward for Caffeza. Built in P17 part A. |
-| M10 | Payments | Rishi | NOT STARTED | Pulled forward for Caffeza with an adjusted scope: configurable payment methods including platforms. No UPI QR for go-live. P07, P08. |
-| M16 | Settlement and Day Close | Rishi | NOT STARTED | No Charge, On Hold accounts, cash drawer, Day Close. P07 to P10. |
+| M10 | Payments | Rishi | IN PROGRESS | Specified in P07. Payment methods as a configured list, frozen payment fields, method corrections, discount reasons. Built in P08. |
+| M16 | Settlement and Day Close | Rishi | IN PROGRESS | Specified in P07. No Charge (P08), On Hold accounts (P09), cash drawer and Day Close (P10). |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders and 0% platform tax built in P06. Payouts come in P09. Built by Rishi, off the listed owner. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | NOT STARTED | Every report in REPORT-SPEC.md. P13 to P18, proven by P21. |
@@ -295,6 +295,13 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | A platform order's lines are frozen at 0% GST, with the item's own rate kept in `menuTaxRateBps`, when `settings.delivery.platformCollectsGst` is true. The tax arithmetic is untouched. | Section 9(5): the platform pays the GST. Pending CA confirmation, so it is a setting. |
 | 2026-10-01 | An order occupies a table only if it has one: `occupiesTable` is true for OPEN and READY_TO_BILL orders with a `tableId`, and false otherwise. The status-update hook reads the order's `tableId` when moving into an occupying status. | Found while building P06: every open takeaway carried `occupiesTable: true` with `tableId: null`, so a second open takeaway, or a second delivery order, collided on the one-order-per-table index and was refused. Verified against a real index before fixing. |
 | 2026-10-01 | The 409 for a platform order entered twice is `DUPLICATE` with `existingOrderId` beside the message, the same shape `TABLE_OCCUPIED` uses. `DuplicateError` gained an optional `details` argument for it. | The counter opens the order that already exists instead of entering it again. |
+| 2026-10-01 | Payment methods are a configured list per restaurant, each `IN_HAND` or `PLATFORM`, with a Tally code and an optional commission. Every payment freezes its method's name, kind, commission and business date. | Caffeza takes eight methods, and reports and payouts must not change when a method is renamed. |
+| 2026-10-01 | No Charge is an order status, `NO_CHARGE`, with no bill and no invoice number. | It is not a sale, and must not touch the GST invoice series. |
+| 2026-10-01 | On Hold is a bill status, `ON_ACCOUNT`, backed by an account ledger in `accountentries`. Collections are dated when the money arrives. | The sale happened on the day of the bill. The cash arrives on another day. |
+| 2026-10-01 | Platform payouts are recorded as batches over a date range, and expected payout uses each payment's frozen commission. | That is how the platforms actually pay. |
+| 2026-10-01 | Day figures are computed in one place, `computeDayFigures`, used by Day Close and by the R2 report. A closed day refuses every write that would change it, through one helper, `assertDayOpen`. | The printed close and the report must never disagree, and a closed day must stay closed. |
+| 2026-10-01 | The Day Close cash count is blind for managers by default. | Standard practice against cash going missing. |
+| 2026-10-01 | P07 details settled while writing the spec: the built-in methods `CASH`, `CARD`, `UPI` are created if missing and `OTHER` starts inactive; a method's `code` and `kind` never change; charging a bill to an account is OWNER and MANAGER only until Caffeza says otherwise; collections take `IN_HAND` methods only; a `REOPENED` day is open and can be closed again; expected payout rounds per payment, half away from zero, through `applyBasisPoints`. | Each was a choice the prompt left open. Written down so P08 to P10 build one answer rather than three. |
 
 ---
 
@@ -309,12 +316,49 @@ Things not yet decided. Move them to the decision log once settled.
 - Which cloud host. Decided in P12, against the rules in `docs/DEPLOYMENT.md` section 2.
 - Who applies platform discounts at the till. Our current rule allows only OWNER and MANAGER.
 - Should kitchen station logins be able to cancel items? Caffeza's stations do it today. Our rule allows OWNER, MANAGER, CASHIER and WAITER only.
+- May a cashier charge a bill to an On Hold account?
+- May a cashier apply platform discounts? A setting exists, default off.
 
 ---
 
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P07 settlement spec
+
+What was built or decided:
+The spec for payments, No Charge, On Hold accounts, platform payouts, the cash
+drawer and Day Close. Docs only: no code, no model, no test.
+
+`docs/API-CONTRACT.md` gains "M10 Payments" (payment methods, taking and
+correcting a payment, discount reasons), "M16 Settlement and Day Close" (No
+Charge, accounts, the cash drawer, `computeDayFigures` sections A to H, the
+checks at close, Day Close with the blind count, and the `assertDayOpen` lock
+list), M17 section 6 for platform payouts, the `discounts` and `dayClose`
+settings groups, and eight new M8 actions with four entity types.
+
+`docs/DB-SCHEMA.md` gains sections 20 to 25: `paymentmethods`, `accounts`,
+`accountentries`, `platformpayouts`, `cashmovements`, `dayclosures`. Orders gain
+`NO_CHARGE` and `noCharge`; bills gain `ON_ACCOUNT` and the account charge
+fields; payments gain frozen method fields, a business date and corrections;
+the discount gains `reasonCode` and `fundedBy`. Every field is additive with a
+default, and every new index starts with `restaurantId`.
+
+GLOSSARY, REPORT-SPEC, RECONCILIATION-RULES, CONVENTIONS (five error codes) and
+the build plan (P08 and P09 renamed, `PLATFORM_PAYOUT_RECORDED` now entity
+`PAYOUT` from P09) were brought in line.
+
+Files or endpoints touched:
+Docs only.
+
+Anything the other developer needs to know:
+Every write that changes a business date's figures calls `assertDayOpen` once;
+the list is in the M16 section 7. Readers treat a null `methodKind` on an old
+payment as `IN_HAND` and a null payment `businessDate` as the bill's.
+
+Anything now blocked or unblocked:
+P08 can start.
 
 ### 2026-10-01 Rishi, P06 delivery and platform orders
 
@@ -927,68 +971,6 @@ GST output and the real-thermal-printer test, both pilot gates BUILD-PLAN
 section 10 names explicitly. Arya's read, now owed on three modules instead
 of two. The Atlas credential purge from git history at `177ed9c`, unrelated
 to this build and still deferred from M0.
-
-### 2026-08-30 Rishi, M4 screens
-
-**What was built:** the three M4 screens, on `feat/m4/inventory`, on top of
-the server from the previous session entry. `/inventory` (the stock list and
-the adjustment panel), `/inventory/recipes` (the editor), plus a "Stock" link
-on the dashboard. No server code changed.
-
-**Screens**
-
-The stock list: a dense list, name plus quantity in the ingredient's own
-purchase unit plus a state badge, per DESIGN-SYSTEM section 6. Tapping a row
-is the one tap into the adjustment panel -- there is no menu between seeing an
-ingredient and acting on it.
-
-The adjustment panel: five reason tiles (Received, Wastage, Spillage, Return,
-Recount), no free-text field required, then `NumericKeypad` in the
-ingredient's own purchase unit with a live base-unit conversion underneath.
-Recount asks for a direction (More / Less) before the magnitude, because the
-keypad itself has no sign key.
-
-The recipe editor: a menu item list on the left, variant tabs plus an
-ingredient-row editor on the right, built in a `useState` initialiser synced
-once per selection -- the same fix M1's item editor already found for the
-same symptom (fields empty for a frame on every selection change).
-
-**Two shared pieces generalised, not duplicated**
-
-`components/ui/NumericKeypad.jsx`, built during M3 screens with M4 in mind, is
-reused here completely unchanged for a stock quantity.
-
-`components/ui/StatusBadge.jsx` is new: a shared shell for any three-or-more-
-state field, read by icon, colour and word together. Built once M4's stock
-state (IN_STOCK/LOW/OUT) needed the exact shape M3's bill status already used;
-`BillStatusBadge.jsx` is now a five-line wrapper over it rather than its own
-drawing. `AvailabilityStamp` is untouched, still the two-state, rotated,
-signature element DESIGN-SYSTEM section 5 reserves it as.
-
-`client/src/utils/units.js` is new: the client-side mirror of
-`server/utils/units.js`, the same relationship `formatMoney.js` has with
-`money.js`. The adjustment screen has to convert a typed purchase-unit
-quantity before it ever sends a request, so the BigInt algorithm exists on
-both sides, kept identical on purpose.
-
-**What the other developer needs to know**
-
-The recipe editor is gated to OWNER and MANAGER in the client, matching the
-`MenuBuilderPage` precedent, even though `GET /recipes` itself allows
-STOREKEEPER on the server. `/inventory` itself is open to all six, matching
-`GET /ingredients`.
-
-`api/client.js` gained a `put` method. M4 is the first module needing one --
-`PUT /recipes` is the one PUT verb in the whole project.
-
-Lint is clean and the client builds. No automated test covers these screens;
-manual verification is part of Section 11's end-to-end pass, not done yet.
-
-**Unblocked:** M4 is feature-complete, server and screens both. Seed data and
-the end-to-end Atlas verification are what remain of the whole M3+M4 build.
-
-**Still open:** M3's two pilot gates are unchanged. Arya's read is now owed on
-three modules. Seed data (`scripts/seedDemo.js`) has not been written.
 
 ---
 

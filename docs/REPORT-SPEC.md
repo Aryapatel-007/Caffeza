@@ -134,6 +134,7 @@ The owner can choose which tiles show and in what order. That arrives with M20.
 The most important report.
 One business date.
 It is also the record printed and stored when the day is closed by M16.
+Computed in one place, `computeDayFigures` in `server/services/dayFiguresService.js`, used by both Day Close and this report. A closed day returns the stored snapshot. See `docs/API-CONTRACT.md`, M16 section 4.
 
 **Section A. Sales**
 
@@ -282,7 +283,9 @@ OWNER only, matching the existing rule on `GET /reports/payment-methods`.
 
 ### R6 Platform Money
 
-A range. One row per platform.
+A range. One row per payout batch, from `platformpayouts`, with expected, received and difference, as `docs/API-CONTRACT.md` M17 section 6.4 works it out.
+Below it, a list of platform payments no live payout covers yet.
+The table below is what each batch row and its drill down show.
 
 | Column | Calculation |
 |---|---|
@@ -473,6 +476,8 @@ A range. Three tables, one screen.
 | Reason and note | |
 | Cancelled by | A person, never a station name alone |
 
+A line cancelled as part of a whole-order cancel takes the order's `cancelReasonCode`, as P04 noted.
+
 **Whole orders cancelled:** time, table, value, reason, cancelled by.
 **Bills voided:** invoice number, value, reason, voided by, time.
 
@@ -484,7 +489,7 @@ Caffeza's old system split this across three reports, and one of them said "No D
 
 ### R16 No Charge
 
-A range. One row per No Charge order.
+A range. One row per No Charge order: `orders` with status `NO_CHARGE`, by `noCharge.businessDate`.
 
 | Column | Contents |
 |---|---|
@@ -503,6 +508,8 @@ Their old reports showed the same order as ₹230 in one place and ₹242 in ano
 ### R17 On Hold Accounts
 
 Two views.
+
+Reads `accounts` and `accountentries`.
 
 **Accounts, as of a date:**
 
@@ -593,8 +600,10 @@ A report prompt must not start until the fields it needs exist.
 | Cancel reason from a fixed list | P04 |
 | `stationId` on categories, KOTs per station | P05 |
 | `DELIVERY` order type, platform fields, tax treatment | P06 |
-| Configurable payment methods with a kind and a Tally code | P08 |
-| A business date on every payment | P08 |
-| No Charge records | P08 |
-| On Hold accounts, charges and collections | P09 |
-| Opening float, paid in, paid out, Day Close record | P10 |
+| `paymentmethods`, and on each payment `method`, `methodName`, `methodKind`, `tallyLedgerCode`, `commissionBps` | P08 |
+| `bills.payments[].businessDate`, `bills.payments[].corrections[]` | P08 |
+| `bills.discount.reasonCode`, `bills.discount.fundedBy` | P08 |
+| `orders.status: NO_CHARGE`, `orders.noCharge` (`reasonCode`, `note`, `approvedBy`, `at`, `valueInPaise`, `businessDate`) | P08 |
+| `bills.status: ON_ACCOUNT`, `bills.account`, `bills.chargedToAccountInPaise`, `accounts`, `accountentries` | P09 |
+| `platformpayouts` | P09 |
+| `cashmovements` (`OPENING_FLOAT`, `PAID_IN`, `PAID_OUT`), `dayclosures` (`snapshot`, `countedCashInPaise`, `checks`) | P10 |

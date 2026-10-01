@@ -1,5 +1,67 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-08-30 Rishi, M4 screens
+
+**What was built:** the three M4 screens, on `feat/m4/inventory`, on top of
+the server from the previous session entry. `/inventory` (the stock list and
+the adjustment panel), `/inventory/recipes` (the editor), plus a "Stock" link
+on the dashboard. No server code changed.
+
+**Screens**
+
+The stock list: a dense list, name plus quantity in the ingredient's own
+purchase unit plus a state badge, per DESIGN-SYSTEM section 6. Tapping a row
+is the one tap into the adjustment panel -- there is no menu between seeing an
+ingredient and acting on it.
+
+The adjustment panel: five reason tiles (Received, Wastage, Spillage, Return,
+Recount), no free-text field required, then `NumericKeypad` in the
+ingredient's own purchase unit with a live base-unit conversion underneath.
+Recount asks for a direction (More / Less) before the magnitude, because the
+keypad itself has no sign key.
+
+The recipe editor: a menu item list on the left, variant tabs plus an
+ingredient-row editor on the right, built in a `useState` initialiser synced
+once per selection -- the same fix M1's item editor already found for the
+same symptom (fields empty for a frame on every selection change).
+
+**Two shared pieces generalised, not duplicated**
+
+`components/ui/NumericKeypad.jsx`, built during M3 screens with M4 in mind, is
+reused here completely unchanged for a stock quantity.
+
+`components/ui/StatusBadge.jsx` is new: a shared shell for any three-or-more-
+state field, read by icon, colour and word together. Built once M4's stock
+state (IN_STOCK/LOW/OUT) needed the exact shape M3's bill status already used;
+`BillStatusBadge.jsx` is now a five-line wrapper over it rather than its own
+drawing. `AvailabilityStamp` is untouched, still the two-state, rotated,
+signature element DESIGN-SYSTEM section 5 reserves it as.
+
+`client/src/utils/units.js` is new: the client-side mirror of
+`server/utils/units.js`, the same relationship `formatMoney.js` has with
+`money.js`. The adjustment screen has to convert a typed purchase-unit
+quantity before it ever sends a request, so the BigInt algorithm exists on
+both sides, kept identical on purpose.
+
+**What the other developer needs to know**
+
+The recipe editor is gated to OWNER and MANAGER in the client, matching the
+`MenuBuilderPage` precedent, even though `GET /recipes` itself allows
+STOREKEEPER on the server. `/inventory` itself is open to all six, matching
+`GET /ingredients`.
+
+`api/client.js` gained a `put` method. M4 is the first module needing one --
+`PUT /recipes` is the one PUT verb in the whole project.
+
+Lint is clean and the client builds. No automated test covers these screens;
+manual verification is part of Section 11's end-to-end pass, not done yet.
+
+**Unblocked:** M4 is feature-complete, server and screens both. Seed data and
+the end-to-end Atlas verification are what remain of the whole M3+M4 build.
+
+**Still open:** M3's two pilot gates are unchanged. Arya's read is now owed on
+three modules. Seed data (`scripts/seedDemo.js`) has not been written.
+
 ### 2026-08-30 Rishi, M4 backend
 
 **What was built:** the M4 Inventory server, on `feat/m4/inventory`, against
