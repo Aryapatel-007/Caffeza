@@ -1605,6 +1605,20 @@ Takeaway:
 
 `lines` is optional at creation; an order may be opened empty and filled in.
 
+Delivery (P06), for orders typed in from Zomato or Swiggy:
+
+```json
+{
+  "orderType": "DELIVERY",
+  "platform": { "code": "SWIGGY", "orderId": "249377796192385" },
+  "customerName": "Rishi",
+  "lines": [{ "menuItemId": "652d...", "quantity": 1 }]
+}
+```
+
+The rules, the 409 for a platform order entered twice, and the 0% tax treatment
+are in M17 Delivery and Platform Orders.
+
 Response 201 returns the order with `orderNumber`, `version: 1`, and every line
 priced by the server.
 
@@ -2086,6 +2100,9 @@ breakdown, reserves the bill number inside the same transaction, and sets
 occupied**: the customers are still sitting there until they have paid.
 
 Response 201 returns the bill, `status: "UNPAID"`.
+
+From P06 every bill also carries `platform` and `taxTreatment`, copied from
+the order. See M17 Delivery and Platform Orders.
 
 From P03 every bill also carries, frozen at creation, `captainId` and
 `captainName` (who opened the order), `guestCount` and `orderOpenedAt`, and
@@ -3147,6 +3164,12 @@ Forty characters is not arbitrary. A standard 80mm thermal roll fits roughly 42 
 
 Both default to `true`, so nothing changes for an existing restaurant. Switching a feature off never deletes data. Switching it back on does not back-fill anything: stock levels resume from where they stopped and are wrong until someone does a stock count.
 
+### `settings.delivery` (added by P06)
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `platformCollectsGst` | Boolean | true | When true, a `DELIVERY` order from a platform on the list is frozen at 0% GST when created. `TO CONFIRM` with the CA. A change affects only orders created after it, and writes `SETTINGS_CHANGED`. |
+
 ### `settings.invoice` (added by P02)
 
 | Field | Type | Default | Notes |
@@ -3188,7 +3211,8 @@ No parameters. Returns the full settings object for the restaurant in the token,
     },
     "inventory": { "lowStockAlertsEnabled": true },
     "features": { "inventory": true, "attendance": true },
-    "invoice": { "mode": "FINANCIAL_YEAR", "prefix": null, "startingNumber": null }
+    "invoice": { "mode": "FINANCIAL_YEAR", "prefix": null, "startingNumber": null },
+    "delivery": { "platformCollectsGst": true }
   }
 }
 ```
@@ -3720,3 +3744,77 @@ once, remembering the last 500 printed KOT ids on the device.
 | POST /stations | yes | yes | no | no | no | no |
 | PATCH /stations/:id | yes | yes | no | no | no | no |
 | GET /kots/:id/ticket | yes | yes | yes | yes | yes | yes |
+
+---
+
+# M17 Delivery and Platform Orders
+
+Owner: Arya. Delivery orders built in P06. Payouts are designed in P07 and
+built in P09.
+
+Zomato and Swiggy orders are typed in by hand at the counter. No platform API.
+
+## 1. The platform list
+
+`server/config/platforms.js`, a frozen list, mirrored codes and names only in
+`client/src/features/orders/platforms.js`:
+
+| Code | Name | Order type |
+|---|---|---|
+| `ZOMATO` | Zomato | `DELIVERY` |
+| `SWIGGY` | Swiggy | `DELIVERY` |
+
+Zomato Gold, Dineout and EazyDiner are not on this list. Those guests sit at a
+table, so the order is `DINE_IN`, and only the payment goes through the app.
+They are payment methods (M10).
+
+## 2. Creating a delivery order
+
+`POST /api/v1/orders` with `orderType: "DELIVERY"`. Roles: the four that open
+orders today.
+
+| Rule | Error |
+|---|---|
+| `DELIVERY` without `platform` | 400 `VALIDATION_FAILED` |
+| `platform.code` not on the list | 400, the field message lists the allowed codes |
+| `platform.orderId` missing, or not 3 to 40 letters and digits | 400 |
+| `DELIVERY` with a `tableId` or a `guestCount` | 400. A delivery order has no table and no guests. |
+| The same platform order number already on a live order | 409 `DUPLICATE`, "Swiggy order 249377796192385 is already entered as order {orderNumber}." |
+
+`customerName` and `customerPhone` stay optional. A delivery order never
+occupies a table. `platform` and `platform` alone are refused on `DINE_IN` and
+`TAKEAWAY` orders.
+
+Response 201 is the order, with `platform: { code, name, orderId }` and
+`taxTreatment`.
+
+## 3. Tax treatment
+
+When a `DELIVERY` order is created with a listed platform and
+`settings.delivery.platformCollectsGst` is true, `taxTreatment` is
+`PLATFORM_COLLECTS`. Every other order is `NORMAL`. It is set once and never
+changed, so changing the setting later moves no existing order.
+
+On a `PLATFORM_COLLECTS` order, every line is frozen at `taxRateBps: 0` when it
+is added, and `menuTaxRateBps` keeps the item's own rate. `computeBillTotals`
+and `allocateLineShares` are untouched: they see 0% lines and produce a 0% slab.
+The rate is never decided at bill time.
+
+## 4. Billing
+
+`createBill` copies `platform` and `taxTreatment` onto the bill. Nothing else in
+billing changes. Discounts and payments work on delivery bills as on any other
+bill, until M10 restricts the payment method.
+
+## 5. The KOT ticket
+
+For a delivery order, the ticket's destination line reads
+`DELIVERY  SWIGGY 249377796192385`, with the customer name below it when there
+is one, and no table.
+
+## Permission summary for M17 (P06)
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| POST /orders with `DELIVERY` | yes | yes | yes | yes | no | no |
+| PATCH /settings `delivery` | yes | no | no | no | no | no |

@@ -672,7 +672,9 @@ collection in the project after `menuitems`.
 | `restaurantId` | ObjectId | yes | `restaurants._id` | From `baseSchema` |
 | `branchId` | ObjectId | yes | `branches._id` | From `baseSchema` |
 | `orderNumber` | Number | yes | | Sequential per restaurant, from `counters`. Never reused. **Gaps are acceptable here.** |
-| `orderType` | String | yes | | Enum `DINE_IN`, `TAKEAWAY` |
+| `orderType` | String | yes | | Enum `DINE_IN`, `TAKEAWAY`, `DELIVERY`. `DELIVERY` appended by P06. |
+| `platform` | Object | no | | Added by P06. `{ code, name, orderId }` for a `DELIVERY` order, null otherwise. `code` from `server/config/platforms.js`, `name` frozen from that list, `orderId` the platform's own number, 3 to 40 letters and digits. |
+| `taxTreatment` | String | yes | | Added by P06. `NORMAL` or `PLATFORM_COLLECTS`, default `NORMAL`. Set once when the order is created and never changed. |
 | `tableId` | ObjectId | no | `tables._id` | Null on a takeaway |
 | `tableName` | String | no | | Snapshot, so renaming a table does not rewrite last month's orders |
 | `guestCount` | Number | no | | Integer 1 to 100. Null when unset. |
@@ -726,6 +728,7 @@ price back out of `menuitems`.
 | `wasPrepared` | Boolean | no | **The cancelled-item answer.** Required when cancelling a line that reached the kitchen, refused when cancelling one that did not. M4 reads it to decide whether the ingredients are gone. |
 | `categoryId` | ObjectId | no | Added by P03. `categories._id` of the menu item's category **when the line was added**. Null on lines added before P03. |
 | `categoryName` | String | no | Added by P03. That category's `name` when the line was added. Null on lines added before P03, or if the category could not be found. |
+| `menuTaxRateBps` | Number | no | Added by P06. The item's own GST rate, kept for reference when the line itself is frozen at 0% on a `PLATFORM_COLLECTS` order. Null on `NORMAL` orders. |
 
 `categoryId` and `categoryName` are frozen at add time for the same reason price
 and name are: if a dish moves category between the order and the bill, the sale
@@ -804,6 +807,23 @@ a race between two tablets.
 
 `{ restaurantId: 1, 'lines.menuItemId': 1 }` for M6 reporting and for the M1
 guard on removing a variant that an open line still points at.
+
+### The platform order index (P06)
+
+`{ restaurantId: 1, 'platform.code': 1, 'platform.orderId': 1 }` **unique, partial
+on `{ 'platform.orderId': { $type: 'string' }, isCancelled: false }`**. One live
+order per platform order number, so the same Swiggy order typed in twice is
+refused by the database rather than by a check-then-write. A cancelled order
+frees its number, so a mistyped entry can be cancelled and entered again. The
+duplicate is reported as 409 `DUPLICATE` naming the existing order number.
+
+### Tax treatment (P06)
+
+When a `DELIVERY` order is created with a platform from the list and
+`settings.delivery.platformCollectsGst` is true, the order is
+`PLATFORM_COLLECTS`, and every line added to it is frozen at `taxRateBps: 0` with
+the item's own rate kept in `menuTaxRateBps`. The tax arithmetic is untouched:
+it sees 0% lines and produces a 0% slab. Every other order is `NORMAL`.
 
 ### `version`, and the only legal way to write an order
 
@@ -884,7 +904,7 @@ to mark lines ready or cancelled.
 | `kotNumber` | Number | yes | | Sequential per restaurant, from `counters`. Gaps acceptable. |
 | `orderId` | ObjectId | yes | `orders._id` | |
 | `orderNumber` | Number | yes | | Snapshot, so the ticket reads without a join |
-| `orderType` | String | yes | | Enum `DINE_IN`, `TAKEAWAY` |
+| `orderType` | String | yes | | Enum `DINE_IN`, `TAKEAWAY`, `DELIVERY`. Snapshot. |
 | `tableName` | String | no | | Snapshot |
 | `lines` | [KotLine] | yes | | Default `[]` |
 | `firedBy` | ObjectId | yes | `users._id` | |
@@ -1012,7 +1032,9 @@ about.
 | `invoiceSeries` | String | no | | Added by P02. The series the number belongs to: the financial year, like `"2026-27"`, in `FINANCIAL_YEAR` mode, or the prefix, like `"CFA/C/"`, in `PREFIX` mode. `null` on bills created before P02, meaning the financial year series. The M19 invoice register groups by it. |
 | `orderId` | ObjectId | yes | `orders._id` | One bill per order. See the partial unique index below. |
 | `orderNumber` | Number | yes | | Snapshot, so a bill reads without a join |
-| `orderType` | String | yes | | Enum `DINE_IN`, `TAKEAWAY`. Snapshot. |
+| `orderType` | String | yes | | Enum `DINE_IN`, `TAKEAWAY`, `DELIVERY`. Snapshot. |
+| `platform` | Object | no | | Added by P06. Copied from the order: `{ code, name, orderId }`, or null. Report C5 groups delivery bills by `platform.code`. |
+| `taxTreatment` | String | no | | Added by P06. Copied from the order. A bill from before P06 reads as `NORMAL`. |
 | `tableName` | String | no | | Snapshot |
 | `businessDate` | String | yes | | `"YYYY-MM-DD"`, derived once at creation by `businessDateFor`. Never recomputed. |
 | `status` | String | yes | | Enum `UNPAID`, `PAID`. A voided bill keeps its last status and sets `isVoided`. |
@@ -1767,6 +1789,12 @@ entry rather than in a kitchen during Phase 2.
 
 The defaults are `true` so nothing changes for an existing restaurant. Caffeza's
 setup in P11 switches both off.
+
+### `settings.delivery` (added by P06)
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `platformCollectsGst` | Boolean | yes | true | When true, an order placed through a platform on the list is billed at 0%, because the platform pays the GST under section 9(5). `TO CONFIRM` with Caffeza's CA. Affects only orders created after a change. |
 
 ### `settings.invoice` (added by P02)
 

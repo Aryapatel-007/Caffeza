@@ -147,7 +147,7 @@ On 26 September at Caffeza: ₹2,06,628 received plus ₹551 On Hold equals ₹2
 | **Platform** | Zomato, Swiggy, Zomato Gold, Dineout or EazyDiner |
 | **Platform order** | A delivery order placed on Zomato or Swiggy. Entered by hand for now. |
 | **Platform order ID** | The platform's own number for the order, like `249377796192385` |
-| **Platform-paid GST** | On a platform delivery order, the platform pays the GST under section 9(5). Our bill shows 0% GST. |
+| **Platform-paid GST** | On a platform delivery order, the platform pays the GST under section 9(5). Our bill shows 0% GST. Stored as `taxTreatment: PLATFORM_COLLECTS` on the order and the bill, frozen when the order is created. |
 | **Discount funded by** | Who paid for a discount: the restaurant, or the platform |
 | **Commission** | The platform's cut, as a percent of the bill total. `TO CONFIRM` per platform. |
 | **Expected payout** | Bill total minus commission |
