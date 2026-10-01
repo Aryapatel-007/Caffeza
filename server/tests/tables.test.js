@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
 import { ROLES } from '../config/roles.js';
-import { COUNTER_NAMES } from '../models/Counter.js';
+import { Counter, COUNTER_NAMES } from '../models/Counter.js';
 import { nextNumber } from '../services/counterService.js';
 import { clearTestDatabase, startTestDatabase, stopTestDatabase } from './helpers/testDatabase.js';
 import { createTable, seedTeam } from './helpers/m2Fixtures.js';
@@ -20,6 +20,11 @@ import { request, startTestServer, stopTestServer } from './helpers/testServer.j
 before(async () => {
   await startTestDatabase();
   await startTestServer();
+  // The concurrency test below relies on the unique counter index, and index
+  // builds are asynchronous: without waiting, twenty racing upserts can each
+  // create their own counter before the index exists. Same fix as
+  // billNumber.test.js.
+  await Counter.init();
 });
 
 after(async () => {

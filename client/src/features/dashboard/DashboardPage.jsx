@@ -105,6 +105,28 @@ export default function DashboardPage() {
               Bills
             </Link>
           )}
+          {/* P09. Money: On Hold accounts for the till, payouts for the back office. */}
+          {canBill && (
+            <span className="ml-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+              Money
+            </span>
+          )}
+          {canBill && (
+            <Link
+              to="/accounts"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              On Hold
+            </Link>
+          )}
+          {canManageStaff && (
+            <Link
+              to="/payouts"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Payouts
+            </Link>
+          )}
           {/* All six may read stock, so this is gated only by the feature switch. */}
           {inventoryOn && (
             <Link

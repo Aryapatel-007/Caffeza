@@ -46,6 +46,16 @@ export function formatDateIst(value) {
   return format(value, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+/**
+ * A business date label, "2026-09-26", shown as "26 Sep 2026". A business date
+ * is a label, not an instant, so it is read at midday India time, which no
+ * time zone can push onto another day. P09.
+ */
+export function formatBusinessDate(businessDate) {
+  if (!businessDate) return '';
+  return formatDateIst(`${businessDate}T12:00:00+05:30`);
+}
+
 /** Time only. 8:29 pm */
 export function formatTimeIst(value) {
   return format(value, { hour: 'numeric', minute: '2-digit', hour12: true });

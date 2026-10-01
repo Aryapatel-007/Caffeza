@@ -108,6 +108,13 @@ export function assertNotVoided(bill) {
  * system does not model. Void it and re-issue instead.
  */
 export function assertNotPaid(bill, action = 'changed') {
+  // P09: a bill charged to an On Hold account is settled, like a paid one.
+  if (bill.status === 'ON_ACCOUNT') {
+    throw new BusinessRuleError(
+      `This bill is On Hold on ${bill.account?.accountName ?? 'an account'}, so it cannot be ${action}. ` +
+        'Void it and bill again.',
+    );
+  }
   if (bill.amountPaidInPaise > 0) {
     throw new BusinessRuleError(
       `Money has already been collected against this bill, so it cannot be ${action}. ` +
@@ -131,6 +138,12 @@ export function assertDiscountFits(discountAmountInPaise, subtotalInPaise) {
  * report downstream relies on.
  */
 export function assertPaymentFits(bill, amountInPaise) {
+  // P09: an On Hold bill is settled by its account; money arrives as a collection.
+  if (bill.status === 'ON_ACCOUNT') {
+    throw new BusinessRuleError(
+      'This bill is On Hold. Record the money as a collection on the account instead.',
+    );
+  }
   const outstanding = bill.grandTotalInPaise - bill.amountPaidInPaise;
 
   if (outstanding <= 0) {

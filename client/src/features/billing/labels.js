@@ -42,4 +42,6 @@ export const STATUS_LABELS = {
   UNPAID: { en: 'Unpaid', gu: 'બાકી' },
   PAID: { en: 'Paid', gu: 'ચૂકવેલ' },
   VOIDED: { en: 'Voided', gu: 'રદ' },
+  // P09. Charged to an account, collected later.
+  ON_ACCOUNT: { en: 'On Hold', gu: 'ખાતે' },
 };

@@ -35,6 +35,11 @@ import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 export const BILL_STATUSES = Object.freeze({
   UNPAID: 'UNPAID',
   PAID: 'PAID',
+  /**
+   * P09. Charged to an On Hold account: a sale whose money arrives later. It
+   * takes no payment and no discount, and frees the table like PAID.
+   */
+  ON_ACCOUNT: 'ON_ACCOUNT',
 });
 export const BILL_STATUS_VALUES = Object.freeze(Object.values(BILL_STATUSES));
 
@@ -318,6 +323,25 @@ const billSchema = new mongoose.Schema({
 
   /** subtotal - discount + totalTax + roundOff. Always a multiple of 100. */
   grandTotalInPaise: { type: Number, required: true, min: 0, validate: wholeNumber },
+
+  /**
+   * P09. Set when the bill is charged to an On Hold account. The name is
+   * frozen. `chargedToAccountInPaise` is the bill total minus what was already
+   * paid at that moment.
+   */
+  account: {
+    type: new mongoose.Schema(
+      {
+        accountId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Account' },
+        accountName: { type: String, required: true, trim: true },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
+  chargedToAccountInPaise: { type: Number, min: 1, default: null, validate: wholeNumberOrEmpty },
+  chargedAt: { type: Date, default: null },
+  chargedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 
   payments: { type: [paymentSchema], default: [] },
   amountPaidInPaise: { type: Number, required: true, min: 0, default: 0, validate: wholeNumber },

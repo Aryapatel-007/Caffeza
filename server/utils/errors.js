@@ -101,6 +101,10 @@ export const ERROR_CODES = Object.freeze({
 
   /** Added by P08. The method is inactive, wrong for the order type, or the wrong platform. */
   PAYMENT_METHOD_NOT_ALLOWED: 'PAYMENT_METHOD_NOT_ALLOWED',
+
+  /** Added by P09. More than an account owes, and two payouts covering one date. */
+  ACCOUNT_BALANCE_EXCEEDED: 'ACCOUNT_BALANCE_EXCEEDED',
+  PAYOUT_PERIOD_OVERLAP: 'PAYOUT_PERIOD_OVERLAP',
 });
 
 /**
@@ -521,5 +525,19 @@ export class FeatureDisabledError extends AppError {
 export class PaymentMethodNotAllowedError extends AppError {
   constructor(message) {
     super(message, { statusCode: 422, code: ERROR_CODES.PAYMENT_METHOD_NOT_ALLOWED });
+  }
+}
+
+/** P09. A collection or a downward adjustment larger than the account owes. */
+export class AccountBalanceExceededError extends AppError {
+  constructor(message) {
+    super(message, { statusCode: 422, code: ERROR_CODES.ACCOUNT_BALANCE_EXCEEDED });
+  }
+}
+
+/** P09. Two live payouts for one method would cover the same business date. */
+export class PayoutPeriodOverlapError extends AppError {
+  constructor(message) {
+    super(message, { statusCode: 409, code: ERROR_CODES.PAYOUT_PERIOD_OVERLAP });
   }
 }

@@ -110,6 +110,7 @@ export default function BillsListPage() {
               <option value="">All</option>
               <option value="UNPAID">Unpaid</option>
               <option value="PAID">Paid</option>
+              <option value="ON_ACCOUNT">On Hold</option>
             </select>
           </label>
           <label className="flex h-11 items-center gap-2">

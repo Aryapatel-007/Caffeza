@@ -21,6 +21,7 @@ import orderRoutes from './orderRoutes.js';
 import reportRoutes from './reportRoutes.js';
 import restaurantRoutes from './restaurantRoutes.js';
 import settingsRoutes from './settingsRoutes.js';
+import accountRoutes from './accountRoutes.js';
 import paymentMethodRoutes from './paymentMethodRoutes.js';
 import stationRoutes from './stationRoutes.js';
 import userRoutes from './userRoutes.js';
@@ -41,5 +42,6 @@ router.use(reportRoutes);
 router.use(settingsRoutes);
 router.use(stationRoutes);
 router.use(paymentMethodRoutes);
+router.use(accountRoutes);
 
 export default router;

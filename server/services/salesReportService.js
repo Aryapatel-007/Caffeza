@@ -301,7 +301,10 @@ export async function paymentMethods(req, { from, to }) {
   ]);
 
   const byMethod = new Map(collected.map((row) => [row._id, row]));
-  const methods = ALL_METHODS.map((method) => ({
+  // P08: methods are configured, so any other code that was used is listed
+  // after the four built-ins rather than silently left out of the total.
+  const others = [...byMethod.keys()].filter((code) => !ALL_METHODS.includes(code)).sort();
+  const methods = [...ALL_METHODS, ...others].map((method) => ({
     method,
     amountInPaise: byMethod.get(method)?.amountInPaise ?? 0,
     paymentCount: byMethod.get(method)?.paymentCount ?? 0,

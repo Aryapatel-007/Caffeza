@@ -18,6 +18,8 @@ import PaymentsReportPage from './features/reports/PaymentsPage.jsx';
 import SalesReportPage from './features/reports/SalesPage.jsx';
 import StockReportPage from './features/reports/StockPage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
+import AccountsPage from './features/settlement/AccountsPage.jsx';
+import PayoutsPage from './features/settlement/PayoutsPage.jsx';
 import DeviceSettingsPage from './features/printing/DeviceSettingsPage.jsx';
 import StationsPage from './features/stations/StationsPage.jsx';
 import TaxReportPage from './features/reports/TaxPage.jsx';
@@ -268,6 +270,30 @@ export default function App() {
         element={
           <ProtectedRoute>
             <KitchenDisplayPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P09. On Hold accounts: the till records collections; the server gates the rest. */}
+      <Route
+        path="/accounts"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={BILLING_ROLES}>
+              <AccountsPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P09. Platform payouts, back-office money for the owner and manager. */}
+      <Route
+        path="/payouts"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={REPORT_ROLES}>
+              <PayoutsPage />
+            </RequireRole>
           </ProtectedRoute>
         }
       />

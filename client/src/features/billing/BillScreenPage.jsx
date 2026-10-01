@@ -12,12 +12,14 @@ import {
   recordPayment,
   voidBill,
 } from '../../api/bills.js';
+import { chargeToAccount, createAccount } from '../../api/accounts.js';
 import { listPaymentMethods } from '../../api/paymentMethods.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { formatBasisPoints, formatPaise } from '../../utils/formatMoney.js';
 import { ROLES } from '../users/roles.js';
 import Bilingual from './Bilingual.jsx';
 import BillStatusBadge from './BillStatusBadge.jsx';
+import ChargeToAccountPanel from './ChargeToAccountPanel.jsx';
 import CorrectPaymentPanel from './CorrectPaymentPanel.jsx';
 import DiscountPanel from './DiscountPanel.jsx';
 import { discountReasonLabel } from './discountReasons.js';
@@ -109,6 +111,27 @@ export default function BillScreenPage() {
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
   });
 
+  const chargeMutation = useMutation({
+    mutationFn: (accountId) => chargeToAccount(billId, accountId),
+    onSuccess: (updated) => {
+      invalidate(updated);
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      setPanel(null);
+      setToast({ tone: 'success', message: `On Hold on ${updated.account.accountName}. The table is free.` });
+    },
+    onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
+  });
+
+  /** "Add account" inside the charge panel. Returns the new account, or null. */
+  const addAccount = async (name) => {
+    try {
+      return await createAccount({ name });
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error) });
+      return null;
+    }
+  };
+
   const voidMutation = useMutation({
     mutationFn: (reason) => voidBill(billId, reason),
     onSuccess: (updated) => {
@@ -156,12 +179,17 @@ export default function BillScreenPage() {
   const outstandingInPaise = bill.grandTotalInPaise - bill.amountPaidInPaise;
   const canManage = CAN_DISCOUNT_OR_VOID.includes(user?.role);
   const canTakePayment = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER].includes(user?.role);
-  const isSettleable = !bill.isVoided && bill.status !== 'PAID' && outstandingInPaise > 0;
+  const isSettleable = !bill.isVoided && bill.status === 'UNPAID' && outstandingInPaise > 0;
+  // P09. Managers can put what is still owed on an On Hold account.
+  const canCharge = canManage && isSettleable;
   // P08: a cashier sees the panel only when the owner allows platform discounts.
   const cashierPlatformOnly =
     user?.role === ROLES.CASHIER && Boolean(features?.cashierMayApplyPlatformDiscounts);
   const canDiscount =
-    (canManage || cashierPlatformOnly) && !bill.isVoided && bill.amountPaidInPaise === 0;
+    (canManage || cashierPlatformOnly) &&
+    !bill.isVoided &&
+    bill.status === 'UNPAID' &&
+    bill.amountPaidInPaise === 0;
   const canCorrect = canManage && !bill.isVoided && bill.status === 'PAID';
   const canVoid = canManage && !bill.isVoided;
 
@@ -262,7 +290,15 @@ export default function BillScreenPage() {
           </span>
         </div>
 
-        {outstandingInPaise > 0 && !bill.isVoided && (
+        {/* P09. On Hold: who it is charged to, and how much. */}
+        {bill.status === 'ON_ACCOUNT' && !bill.isVoided && bill.account && (
+          <p className="mb-6 rounded-[10px] border-2 border-ink/30 px-3 py-2 text-center text-[13px] leading-[18px]">
+            On Hold on <span className="font-semibold">{bill.account.accountName}</span>:{' '}
+            <span className="font-mono">{formatPaise(bill.chargedToAccountInPaise)}</span>
+          </p>
+        )}
+
+        {outstandingInPaise > 0 && !bill.isVoided && bill.status === 'UNPAID' && (
           <p className="mb-6 text-center text-[15px] leading-[22px] text-steel">
             {BILL_LABELS.outstanding.en}:{' '}
             <span className="font-mono font-semibold text-ink">{formatPaise(outstandingInPaise)}</span>
@@ -324,6 +360,10 @@ export default function BillScreenPage() {
             <Bilingual label={BILL_LABELS.printReceipt} align="center" />
           </ActionButton>
 
+          {canCharge && (
+            <ActionButton onClick={() => setPanel('charge')}>Charge to account</ActionButton>
+          )}
+
           {canDiscount && (
             <ActionButton onClick={() => setPanel('discount')}>
               <Bilingual label={BILL_LABELS.applyDiscount} align="center" />
@@ -361,6 +401,17 @@ export default function BillScreenPage() {
           error={discountMutation.isError ? errorMessage(discountMutation.error) : null}
           onCancel={() => setPanel(null)}
           onConfirm={(body) => discountMutation.mutate(body)}
+        />
+      )}
+
+      {panel === 'charge' && (
+        <ChargeToAccountPanel
+          owedInPaise={outstandingInPaise}
+          isBusy={chargeMutation.isPending}
+          error={chargeMutation.isError ? errorMessage(chargeMutation.error) : null}
+          onCancel={() => setPanel(null)}
+          onConfirm={(accountId) => chargeMutation.mutate(accountId)}
+          onCreate={addAccount}
         />
       )}
 

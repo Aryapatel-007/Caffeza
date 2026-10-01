@@ -36,6 +36,10 @@ export const AUDIT_ACTIONS = Object.freeze({
   // P08. A payment's method changed after the fact, and food given away free.
   PAYMENT_METHOD_CORRECTED: 'PAYMENT_METHOD_CORRECTED',
   NO_CHARGE_GIVEN: 'NO_CHARGE_GIVEN',
+  // P09. A sale whose money arrives later, a balance written off, platform money.
+  BILL_CHARGED_TO_ACCOUNT: 'BILL_CHARGED_TO_ACCOUNT',
+  ACCOUNT_BALANCE_ADJUSTED: 'ACCOUNT_BALANCE_ADJUSTED',
+  PLATFORM_PAYOUT_RECORDED: 'PLATFORM_PAYOUT_RECORDED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 
@@ -44,6 +48,9 @@ export const AUDIT_ENTITY_TYPES = Object.freeze({
   STOCK: 'STOCK',
   ORDER: 'ORDER',
   SETTINGS: 'SETTINGS',
+  // P09.
+  ACCOUNT: 'ACCOUNT',
+  PAYOUT: 'PAYOUT',
 });
 export const AUDIT_ENTITY_TYPE_VALUES = Object.freeze(Object.values(AUDIT_ENTITY_TYPES));
 

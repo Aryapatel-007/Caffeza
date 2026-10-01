@@ -129,6 +129,12 @@ export async function updatePaymentMethod(req, methodId, changes) {
   return method;
 }
 
+/** One method by code, after making sure the built-ins exist. Null when there is none. P09. */
+export async function methodByCode(req, code, { session = null } = {}) {
+  await ensureFor(req, session);
+  return PaymentMethod.findOne({ ...scoped(req), code }).setOptions(session ? { session } : {});
+}
+
 /**
  * The method a payment on this bill may use, by code. Each failure is a 422
  * `PAYMENT_METHOD_NOT_ALLOWED` naming the reason.
@@ -199,6 +205,7 @@ export default {
   ensureDefaultPaymentMethods,
   frozenMethodFields,
   listPaymentMethods,
+  methodByCode,
   methodForBill,
   paymentBusinessDate,
   updatePaymentMethod,

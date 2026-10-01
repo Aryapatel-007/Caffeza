@@ -13,6 +13,8 @@
  *
  * Alphabetical by model name.
  */
+import { Account } from './Account.js';
+import { AccountEntry } from './AccountEntry.js';
 import { AttendanceEntry } from './AttendanceEntry.js';
 import { AuditLog } from './AuditLog.js';
 import { Bill } from './Bill.js';
@@ -24,6 +26,7 @@ import { Kot } from './Kot.js';
 import { MenuItem } from './MenuItem.js';
 import { Order } from './Order.js';
 import { PaymentMethod } from './PaymentMethod.js';
+import { PlatformPayout } from './PlatformPayout.js';
 import { Recipe } from './Recipe.js';
 import { RefreshToken } from './RefreshToken.js';
 import { Restaurant } from './Restaurant.js';
@@ -33,6 +36,8 @@ import { Table } from './Table.js';
 import { User } from './User.js';
 
 export const ALL_MODELS = Object.freeze([
+  Account,
+  AccountEntry,
   AttendanceEntry,
   AuditLog,
   Bill,
@@ -44,6 +49,7 @@ export const ALL_MODELS = Object.freeze([
   MenuItem,
   Order,
   PaymentMethod,
+  PlatformPayout,
   Recipe,
   RefreshToken,
   Restaurant,

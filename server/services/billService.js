@@ -28,6 +28,7 @@ import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
 import { User } from '../models/User.js';
+import { reverseChargeForVoid } from './accountService.js';
 import { recordAudit } from './auditService.js';
 import { reserveBillNumber } from './billNumberService.js';
 import { frozenMethodFields, methodForBill } from './paymentMethodService.js';
@@ -51,6 +52,7 @@ import { sumPaise } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { allocateLineShares, computeBillTotals, resolveDiscountAmount } from '../utils/tax.js';
 import { businessDateFor, nowUtc } from '../utils/time.js';
+import { withOptionalTransaction } from '../utils/transaction.js';
 
 /** Mongo's duplicate key error. */
 const DUPLICATE_KEY = 11000;
@@ -417,34 +419,58 @@ export async function correctPayment(req, billId, paymentId, { method, reason })
  * was not consumed, a storekeeper writes a visible manual adjustment.
  */
 export async function voidBill(req, billId, { reasonCode, note = null }) {
-  const bill = await readBill(req, billId);
-  assertNotVoided(bill);
+  const existing = await readBill(req, billId);
+  assertNotVoided(existing);
+
+  // P10 adds the closed-day refusal here: the bill's business date.
 
   const at = nowUtc();
-  bill.isVoided = true;
-  bill.voidedAt = at;
-  bill.voidedBy = req.user.id;
-  // P04: a fixed code, and the free-text field now holds the optional note.
-  bill.voidReasonCode = reasonCode;
-  bill.voidReason = note ?? null;
-  await bill.save();
 
-  await Order.updateOne(
-    { ...scoped(req), _id: bill.orderId },
-    { $set: { status: ORDER_STATUSES.READY_TO_BILL, billId: null }, $inc: { version: 1 } },
-  );
+  /**
+   * P09: one transaction, because voiding a bill charged to an On Hold
+   * account also takes the charge off the account's ledger, and the two must
+   * land together or not at all.
+   */
+  return withOptionalTransaction(async (session) => {
+    const bill = await readBill(req, billId, session);
+    assertNotVoided(bill);
 
-  await recordAudit(req, {
-    action: AUDIT_ACTIONS.BILL_VOIDED,
-    entityType: AUDIT_ENTITY_TYPES.BILL,
-    entityId: bill._id,
-    entityLabel: bill.billNumber,
-    reason: reasonText(BILL_VOID_REASONS, reasonCode, note),
-    amountInPaise: bill.grandTotalInPaise,
-    details: { wasPaid: bill.amountPaidInPaise > 0, reasonCode },
+    bill.isVoided = true;
+    bill.voidedAt = at;
+    bill.voidedBy = req.user.id;
+    // P04: a fixed code, and the free-text field now holds the optional note.
+    bill.voidReasonCode = reasonCode;
+    bill.voidReason = note ?? null;
+    await bill.save(session ? { session } : {});
+
+    await Order.updateOne(
+      { ...scoped(req), _id: bill.orderId },
+      { $set: { status: ORDER_STATUSES.READY_TO_BILL, billId: null }, $inc: { version: 1 } },
+      session ? { session } : {},
+    );
+
+    await reverseChargeForVoid(req, bill, { session });
+
+    await recordAudit(
+      req,
+      {
+        action: AUDIT_ACTIONS.BILL_VOIDED,
+        entityType: AUDIT_ENTITY_TYPES.BILL,
+        entityId: bill._id,
+        entityLabel: bill.billNumber,
+        reason: reasonText(BILL_VOID_REASONS, reasonCode, note),
+        amountInPaise: bill.grandTotalInPaise,
+        details: {
+          wasPaid: bill.amountPaidInPaise > 0,
+          wasOnAccount: bill.status === BILL_STATUSES.ON_ACCOUNT,
+          reasonCode,
+        },
+      },
+      session,
+    );
+
+    return bill;
   });
-
-  return bill;
 }
 
 export default {
