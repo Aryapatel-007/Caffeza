@@ -374,7 +374,27 @@ const kotStatusList = z
   .pipe(z.array(z.enum(KOT_STATUS_VALUES, { error: 'Is not a ticket status.' })).min(1).optional());
 
 export const listKotsSchema = z.object({
-  query: paginationQuery.extend({ status: kotStatusList }),
+  query: paginationQuery.extend({
+    status: kotStatusList,
+    // P05. A station id, or "none" for tickets that went to no station.
+    stationId: z.union([z.literal('none'), objectId], {
+      error: 'Must be a station id, or none.',
+    }).optional(),
+  }),
+});
+
+/** GET /kots/:kotId/ticket. 32 is 58mm paper, 48 is 80mm. P05. */
+export const kotTicketSchema = z.object({
+  params: z.object({ kotId: objectId }),
+  query: z
+    .object({
+      width: z
+        .enum(['32', '48'], { error: 'Must be 32 or 48.' })
+        .default('32')
+        .transform(Number),
+      reprint: queryBoolean,
+    })
+    .strict('Is not an option on a ticket.'),
 });
 
 export const readKotSchema = z.object({ params: kotIdParam });

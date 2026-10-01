@@ -52,6 +52,15 @@ const categorySchema = new mongoose.Schema({
    * off, so reactivating brings them back exactly as they were.
    */
   isActive: { type: Boolean, required: true, default: true },
+
+  /**
+   * The station this category's dishes are cooked at. P05.
+   *
+   * Read at fire time, not frozen here: which counter cooks a dish is a
+   * question about today. The KOT freezes the station it actually went to.
+   * Null, or an inactive station, routes to the default station.
+   */
+  stationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Station', default: null },
 });
 
 categorySchema.plugin(baseSchemaPlugin);

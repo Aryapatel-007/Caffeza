@@ -20,6 +20,7 @@ import {
   SUBDOCUMENT_NAME_MAX_LENGTH,
 } from '../models/MenuItem.js';
 import { CATEGORY_NAME_MAX_LENGTH } from '../models/Category.js';
+import { stationIdOrNull } from './stationValidators.js';
 import { basisPoints, nonEmptyString, objectId, paginationQuery, paise, queryBoolean } from './common.js';
 
 export const MAX_SEARCH_LENGTH = 60;
@@ -78,6 +79,8 @@ export const updateCategorySchema = z.object({
     .object({
       name: categoryName.optional(),
       displayOrder: displayOrder.optional(),
+      // P05. The station this category's dishes are cooked at, or null.
+      stationId: stationIdOrNull.optional(),
       isActive: z
         .never({ error: 'Has its own endpoint: PATCH /categories/:categoryId/active' })
         .optional(),

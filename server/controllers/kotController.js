@@ -6,7 +6,10 @@
  * about a ticket is decided on the floor.
  */
 import { Kot } from '../models/Kot.js';
+import { Order } from '../models/Order.js';
+import { User } from '../models/User.js';
 import { loadKotInTenant, markKotLinesReady, serialiseKot } from '../services/kitchenService.js';
+import { renderKotTicket } from '../services/kotTicketService.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
 
@@ -23,9 +26,11 @@ import { scoped } from '../utils/scopedQuery.js';
  * that can drift from the lines it describes.
  */
 export async function listKots(req, res) {
-  const { page, limit, status } = req.query;
+  const { page, limit, status, stationId } = req.query;
 
   const filter = { ...scoped(req) };
+  // P05. One station's tickets, or "none" for the ones with no station.
+  if (stationId !== undefined) filter.stationId = stationId === 'none' ? null : stationId;
 
   const [tickets, total] = await Promise.all([
     Kot.find(filter)
@@ -66,4 +71,32 @@ export async function markKotLineReady(req, res) {
 export async function markKotReady(req, res) {
   const kot = await markKotLinesReady(req, { kotId: req.params.kotId });
   return sendSuccess(res, kot);
+}
+
+/**
+ * GET /kots/:kotId/ticket. P05.
+ *
+ * The ticket as plain text, laid out on the server like the receipt. The
+ * guest count, the customer and the name of whoever fired it are read here,
+ * for printing only; none of them is a figure anything adds up.
+ */
+export async function getKotTicket(req, res) {
+  const kot = await loadKotInTenant(req, req.params.kotId);
+  const [order, firedBy] = await Promise.all([
+    Order.findOne({ ...scoped(req), _id: kot.orderId })
+      .select('guestCount customerName platform')
+      .lean(),
+    User.findOne({ restaurantId: req.restaurantId, _id: kot.firedBy }).select('name').lean(),
+  ]);
+
+  const { width, reprint } = req.query;
+  const text = renderKotTicket({
+    kot,
+    order,
+    firedByName: firedBy?.name ?? null,
+    width,
+    reprint: Boolean(reprint),
+  });
+
+  return sendSuccess(res, { width, text });
 }

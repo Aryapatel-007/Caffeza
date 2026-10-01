@@ -90,6 +90,12 @@ const userSchema = new mongoose.Schema({
    * staff-facing message, not to auto-unlock.
    */
   pinLockedUntil: { type: Date, default: null },
+
+  /**
+   * The station a KITCHEN user's screen opens on. P05. Null for every other
+   * role; the controller refuses one on any role but KITCHEN.
+   */
+  stationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Station', default: null },
 });
 
 userSchema.plugin(baseSchemaPlugin);

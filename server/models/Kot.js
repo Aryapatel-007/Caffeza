@@ -76,6 +76,14 @@ const kotSchema = new mongoose.Schema({
 
   firedBy: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
   firedAt: { type: Date, required: true, default: Date.now },
+
+  /**
+   * The station this ticket went to, frozen when it was created. P05.
+   * Null when the restaurant has no active stations. Renaming or moving a
+   * station later never rewrites a ticket already printed.
+   */
+  stationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Station', default: null },
+  stationName: { type: String, trim: true, default: null },
 });
 
 kotSchema.plugin(baseSchemaPlugin);
@@ -88,6 +96,9 @@ kotSchema.plugin(tenantGuardPlugin);
 kotSchema.index({ restaurantId: 1, branchId: 1, createdAt: 1 });
 
 kotSchema.index({ restaurantId: 1, orderId: 1 });
+
+/** The station filter on the kitchen screen. P05. */
+kotSchema.index({ restaurantId: 1, branchId: 1, stationId: 1, createdAt: 1 });
 
 kotSchema.index({ restaurantId: 1, kotNumber: 1 }, { unique: true });
 

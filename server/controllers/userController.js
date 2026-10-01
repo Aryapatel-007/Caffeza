@@ -8,6 +8,7 @@
  * There is no delete. A user is deactivated, and the record stays, because M5
  * attendance history links to it and a deleted user takes that history with it.
  */
+import { ROLES } from '../config/roles.js';
 import { REVOKE_REASONS } from '../models/RefreshToken.js';
 import { User } from '../models/User.js';
 import {
@@ -26,7 +27,8 @@ import {
   assertCanSetPin,
   assertNotLastActiveOwner,
 } from '../services/userPermissionService.js';
-import { DuplicateError, NotFoundError } from '../utils/errors.js';
+import { assertStationUsable } from '../services/stationService.js';
+import { DuplicateError, NotFoundError, ValidationError } from '../utils/errors.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
@@ -50,7 +52,24 @@ function present(user) {
     branchId: String(user.branchId),
     lastLoginAt: user.lastLoginAt ?? null,
     createdAt: user.createdAt,
+    // P05. The station a KITCHEN user's screen opens on.
+    stationId: user.stationId ? String(user.stationId) : null,
   };
+}
+
+/**
+ * P05. A station belongs only to a KITCHEN user, and must be an active station
+ * of this restaurant. Any other role sending one is a malformed request.
+ */
+async function resolveStationFor(req, role, stationId) {
+  if (stationId === undefined || stationId === null) return stationId;
+  if (role !== ROLES.KITCHEN) {
+    throw new ValidationError('One of the values sent was not valid.', {
+      stationId: 'Only a KITCHEN user has a station.',
+    });
+  }
+  await assertStationUsable(req, stationId);
+  return stationId;
 }
 
 /**
@@ -74,9 +93,10 @@ async function loadUserInTenant(req) {
  * the tenant middleware already removed it before this ran.
  */
 export async function createUser(req, res) {
-  const { name, phone, email, role, password } = req.body;
+  const { name, phone, email, role, password, stationId } = req.body;
 
   assertCanCreateUser(req.user, role);
+  const station = await resolveStationFor(req, role, stationId);
 
   /**
    * Phone numbers are unique across the whole platform, so this asks a global
@@ -100,7 +120,7 @@ export async function createUser(req, res) {
   }
 
   const user = await createUserWithPassword(
-    { ...scoped(req), name, phone, email: email ?? null, role },
+    { ...scoped(req), name, phone, email: email ?? null, role, stationId: station ?? null },
     password,
   );
 
@@ -152,10 +172,11 @@ export async function getUser(req, res) {
  */
 export async function updateUser(req, res) {
   const user = await loadUserInTenant(req);
-  const { name, email, role } = req.body;
+  const { name, email, role, stationId } = req.body;
 
   // Every permission and business rule, before anything is written.
   assertCanEditUser(req.user, user, role);
+  const station = await resolveStationFor(req, role ?? user.role, stationId);
 
   // Setting an email to a new address has to clear the global-uniqueness check,
   // the same as creating one. Clearing it (email: null) is always fine.
@@ -170,6 +191,9 @@ export async function updateUser(req, res) {
   if (name !== undefined) user.name = name;
   if (email !== undefined) user.email = email;
   if (role !== undefined) user.role = role;
+  if (station !== undefined) user.stationId = station;
+  // A user moved away from KITCHEN has no station any more.
+  if (user.role !== ROLES.KITCHEN) user.stationId = null;
 
   await user.save();
 

@@ -390,12 +390,13 @@ export async function cancelOrderLine(req, res) {
  * and those two must not drift.
  */
 export async function fireOrder(req, res) {
-  const { kot, order } = await fireOrderToKitchen(req, {
+  const { kot, kots, order } = await fireOrderToKitchen(req, {
     orderId: req.params.orderId,
     version: req.body.version,
   });
 
-  return sendSuccess(res, { kot, order });
+  // P05: `kots` is every ticket, one per station; `kot` is the first of them.
+  return sendSuccess(res, { kot, kots, order });
 }
 
 /**

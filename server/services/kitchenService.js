@@ -13,6 +13,7 @@ import { Kot, KOT_LINE_STATUSES } from '../models/Kot.js';
 import { Order, ORDER_LINE_STATUSES } from '../models/Order.js';
 import { BusinessRuleError, NotFoundError } from '../utils/errors.js';
 import { scoped } from '../utils/scopedQuery.js';
+import { nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 import { nextNumber } from './counterService.js';
 import {
@@ -28,6 +29,7 @@ import {
 // is exactly the kind of drift a transaction exists to prevent.
 import { deductForFiredLines } from './stockMovementService.js';
 import { isFeatureOn } from './settingsService.js';
+import { routeLinesToStations } from './stationService.js';
 
 export const KOT_STATUSES = Object.freeze({
   PENDING: 'PENDING',
@@ -91,14 +93,32 @@ export async function fireOrder(req, { orderId, version }) {
     throw new BusinessRuleError('There is nothing new to send to the kitchen.');
   }
 
-  const kotNumber = await nextNumber({
-    restaurantId: req.restaurantId,
-    branchId: req.branchId,
-    name: COUNTER_NAMES.KOT,
-  });
+  /**
+   * P05. One KOT per station: each line goes to its category's current
+   * station, and anything unroutable goes to the default station. With no
+   * active stations this is a single group with no station, exactly as before.
+   */
+  const groups = await routeLinesToStations(req, pending);
 
-  const kotId = new mongoose.Types.ObjectId();
-  const firedAt = new Date();
+  /**
+   * KOT numbers are reserved before the transaction, one per station, in
+   * station order, so the numbering is predictable. An aborted fire leaves a
+   * gap rather than reusing a number; see models/Counter.js.
+   */
+  const tickets = [];
+  for (const group of groups) {
+    tickets.push({
+      ...group,
+      kotId: new mongoose.Types.ObjectId(),
+      kotNumber: await nextNumber({
+        restaurantId: req.restaurantId,
+        branchId: req.branchId,
+        name: COUNTER_NAMES.KOT,
+      }),
+    });
+  }
+
+  const firedAt = nowUtc();
 
   // P02. Read once, before the transaction. A restaurant with inventory
   // switched off fires exactly as before and writes no stock movement.
@@ -108,76 +128,85 @@ export async function fireOrder(req, { orderId, version }) {
     async (session) => {
       const options = session ? { session } : {};
 
-      const [kot] = await Kot.create(
-        [
-          {
-            _id: kotId,
-            ...scoped(req),
-            kotNumber,
-            orderId: order._id,
-            // Denormalised so the kitchen screen needs one query, not a join
-            // per ticket, and so a table renamed next month does not rewrite
-            // what this chit said.
-            orderNumber: order.orderNumber,
-            orderType: order.orderType,
-            tableName: order.tableName,
-            lines: pending.map((line) => ({
-              orderLineId: line._id,
-              itemName: line.itemName,
-              variantName: line.variantName,
-              quantity: line.quantity,
-              // Names only. No prices reach the kitchen.
-              addOnNames: line.addOns.map((addOn) => addOn.name),
-              notes: line.notes,
-              status: KOT_LINE_STATUSES.PENDING,
-            })),
-            firedBy: req.user.id,
-            firedAt,
-          },
-        ],
-        options,
+      const kots = await Kot.create(
+        tickets.map((ticket) => ({
+          _id: ticket.kotId,
+          ...scoped(req),
+          kotNumber: ticket.kotNumber,
+          orderId: order._id,
+          // Denormalised so the kitchen screen needs one query, not a join
+          // per ticket, and so a table renamed next month does not rewrite
+          // what this chit said.
+          orderNumber: order.orderNumber,
+          orderType: order.orderType,
+          tableName: order.tableName,
+          // P05. Frozen: moving the station later never rewrites this ticket.
+          stationId: ticket.station?._id ?? null,
+          stationName: ticket.station?.name ?? null,
+          lines: ticket.lines.map((line) => ({
+            orderLineId: line._id,
+            itemName: line.itemName,
+            variantName: line.variantName,
+            quantity: line.quantity,
+            // Names only. No prices reach the kitchen.
+            addOnNames: line.addOns.map((addOn) => addOn.name),
+            notes: line.notes,
+            status: KOT_LINE_STATUSES.PENDING,
+          })),
+          firedBy: req.user.id,
+          firedAt,
+        })),
+        { ...options, ordered: true },
       );
 
       /**
        * The version filter still applies. If someone added a line between the
        * read above and this write, nothing is written and the whole transaction
-       * aborts, taking the ticket with it, so the kitchen never sees a chit for
-       * an order state that did not happen.
+       * aborts, taking the tickets with it, so the kitchen never sees a chit
+       * for an order state that did not happen.
+       *
+       * Each line points at the ticket it actually went on: one positional
+       * filter per ticket, matching that ticket's own line ids.
        */
+      const $set = {
+        'lines.$[pending].status': ORDER_LINE_STATUSES.FIRED,
+        'lines.$[pending].firedAt': firedAt,
+      };
+      const arrayFilters = [{ 'pending.status': ORDER_LINE_STATUSES.PENDING }];
+      tickets.forEach((ticket, index) => {
+        $set[`lines.$[kot${index}].kotId`] = ticket.kotId;
+        arrayFilters.push({
+          [`kot${index}._id`]: { $in: ticket.lines.map((line) => line._id) },
+          [`kot${index}.status`]: ORDER_LINE_STATUSES.PENDING,
+        });
+      });
+
       const updatedOrder = await applyVersionedUpdate(req, {
         orderId,
         version,
-        update: {
-          $set: {
-            'lines.$[pending].status': ORDER_LINE_STATUSES.FIRED,
-            'lines.$[pending].firedAt': firedAt,
-            'lines.$[pending].kotId': kot._id,
-          },
-        },
-        arrayFilters: [{ 'pending.status': ORDER_LINE_STATUSES.PENDING }],
+        update: { $set },
+        arrayFilters,
         session,
       });
 
       /**
        * M4: deduct stock for exactly the lines that just fired, in this same
-       * transaction. `pending` still carries each line's own `_id`,
-       * `menuItemId`, `variantId` and `quantity` -- everything the recipe
-       * lookup needs -- so there is no second read of the order here.
+       * transaction, once per line however many tickets the fire made.
        */
       if (inventoryOn) {
         await deductForFiredLines(req, { lines: pending, orderId: order._id, at: firedAt }, session);
       }
 
-      return { kot, order: updatedOrder };
+      return { kots, order: updatedOrder };
     },
     {
       /**
-       * No transaction available, so the ticket may exist while the order was
-       * never updated. Undo it by hand rather than leaving the kitchen a chit
+       * No transaction available, so the tickets may exist while the order was
+       * never updated. Undo them by hand rather than leaving the kitchen chits
        * for food nobody ordered.
        */
       onFailureWithoutTransaction: async () => {
-        await Kot.deleteOne({ ...scoped(req), _id: kotId });
+        await Kot.deleteMany({ ...scoped(req), _id: { $in: tickets.map((ticket) => ticket.kotId) } });
       },
     },
   );
@@ -187,14 +216,16 @@ export async function fireOrder(req, { orderId, version }) {
       actorId: req.user.id,
       orderId: String(order._id),
       orderNumber: order.orderNumber,
-      kotId: String(result.kot._id),
-      kotNumber: result.kot.kotNumber,
+      kotIds: result.kots.map((kot) => String(kot._id)),
+      kotNumbers: result.kots.map((kot) => kot.kotNumber),
       lineCount: pending.length,
     },
     'Order fired to the kitchen.',
   );
 
-  return { kot: serialiseKot(result.kot), order: serialiseOrder(result.order) };
+  const kots = result.kots.map(serialiseKot);
+  // `kot` is the first ticket, so a client written before P05 keeps working.
+  return { kot: kots[0], kots, order: serialiseOrder(result.order) };
 }
 
 /* --------------------------------------------------------------------------
@@ -235,7 +266,7 @@ export async function markKotLinesReady(req, { kotId, lineId }) {
       line.status === KOT_LINE_STATUSES.PENDING && (!lineId || String(line._id) === String(lineId)),
   );
 
-  const readyAt = new Date();
+  const readyAt = nowUtc();
   const orderLineIds = targets.map((line) => line.orderLineId);
 
   const updated = await withOptionalTransaction(async (session) => {

@@ -429,6 +429,8 @@ describe('GET /auth/me', () => {
     assert.deepEqual(body.data.features, { inventory: true, attendance: true });
     assert.deepEqual(Object.keys(body.data.user).sort(), [
       'branchId', 'email', 'id', 'lastLoginAt', 'name', 'phone', 'restaurantId', 'role',
+      // P05: the station a KITCHEN user's screen opens on.
+      'stationId',
     ]);
     assert.equal(body.data.user.id, String(user._id));
     assert.equal(typeof body.data.user.lastLoginAt, 'string');

@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { ROLE_VALUES } from '../config/roles.js';
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from './authValidators.js';
 import { nonEmptyString, objectId, paginationQuery, phoneIndia } from './common.js';
+import { stationIdOrNull } from './stationValidators.js';
 
 const MAX_NAME_LENGTH = 100;
 const MAX_SEARCH_LENGTH = 100;
@@ -46,6 +47,8 @@ export const createUserSchema = z.object({
       email,
       role,
       password,
+      // P05. KITCHEN users only; the controller refuses it on any other role.
+      stationId: stationIdOrNull.optional(),
     })
     .strict('Is not a field you can set here.'),
 });
@@ -83,6 +86,7 @@ export const updateUserSchema = z.object({
       name: name.optional(),
       email,
       role: role.optional(),
+      stationId: stationIdOrNull.optional(),
       phone: z.never({ error: 'Cannot be changed. A phone number identifies the account.' }).optional(),
       isActive: z.never({ error: 'Has its own endpoint: PATCH /users/:userId/status' }).optional(),
       password: z.never({ error: 'Has its own endpoint: PATCH /users/:userId/password' }).optional(),

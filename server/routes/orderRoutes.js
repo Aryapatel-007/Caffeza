@@ -24,6 +24,7 @@ import {
 } from '../controllers/orderController.js';
 import {
   getKot,
+  getKotTicket,
   listKots,
   markKotLineReady,
   markKotReady,
@@ -53,6 +54,7 @@ import {
   markKotReadySchema,
   markLineServedSchema,
   moveOrderTableSchema,
+  kotTicketSchema,
   readKotSchema,
   readOrderSchema,
   setTableStatusSchema,
@@ -145,6 +147,7 @@ router.post('/orders/:orderId/cancel', ...managers, validate(cancelOrderSchema),
 
 router.get('/kots', ...anySignedIn, validate(listKotsSchema), listKots);
 router.get('/kots/:kotId', ...anySignedIn, validate(readKotSchema), getKot);
+router.get('/kots/:kotId/ticket', ...anySignedIn, validate(kotTicketSchema), getKotTicket);
 
 /**
  * Both ready endpoints are open to all six roles, including STOREKEEPER.

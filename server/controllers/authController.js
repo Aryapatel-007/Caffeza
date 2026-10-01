@@ -34,7 +34,7 @@ import {
 import { sendSuccess } from '../utils/response.js';
 import { nowUtc } from '../utils/time.js';
 
-function presentUser(user, { includeLastLoginAt = false } = {}) {
+function presentUser(user, { includeLastLoginAt = false, includeStation = false } = {}) {
   const shape = {
     id: String(user._id),
     name: user.name,
@@ -45,6 +45,8 @@ function presentUser(user, { includeLastLoginAt = false } = {}) {
     branchId: String(user.branchId),
   };
   if (includeLastLoginAt) shape.lastLoginAt = user.lastLoginAt ?? null;
+  // P05. The station a KITCHEN user's screen opens on. GET /auth/me only.
+  if (includeStation) shape.stationId = user.stationId ? String(user.stationId) : null;
   return shape;
 }
 
@@ -210,7 +212,7 @@ export async function me(req, res) {
   const { features } = await getSettings(req.restaurantId, { req });
 
   return sendSuccess(res, {
-    user: presentUser(req.currentUser, { includeLastLoginAt: true }),
+    user: presentUser(req.currentUser, { includeLastLoginAt: true, includeStation: true }),
     restaurant: presentRestaurant(req.currentRestaurant, { includeGstin: true }),
     branch: branch ? presentBranch(branch) : null,
     features,

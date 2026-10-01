@@ -26,6 +26,7 @@ import { Order } from './Order.js';
 import { Recipe } from './Recipe.js';
 import { RefreshToken } from './RefreshToken.js';
 import { Restaurant } from './Restaurant.js';
+import { Station } from './Station.js';
 import { StockMovement } from './StockMovement.js';
 import { Table } from './Table.js';
 import { User } from './User.js';
@@ -44,6 +45,7 @@ export const ALL_MODELS = Object.freeze([
   Recipe,
   RefreshToken,
   Restaurant,
+  Station,
   StockMovement,
   Table,
   User,

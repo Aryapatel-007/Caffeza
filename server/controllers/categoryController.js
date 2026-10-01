@@ -9,6 +9,7 @@ import { Category } from '../models/Category.js';
 import { DuplicateCategoryNameError, NotFoundError } from '../utils/errors.js';
 import { sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
+import { assertStationUsable } from '../services/stationService.js';
 
 const MONGO_DUPLICATE_KEY = 11000;
 
@@ -69,10 +70,15 @@ export async function listCategories(req, res) {
 /** PATCH /categories/:categoryId */
 export async function updateCategory(req, res) {
   const category = await loadCategoryInTenant(req, req.params.categoryId);
-  const { name, displayOrder } = req.body;
+  const { name, displayOrder, stationId } = req.body;
 
   if (name !== undefined) category.name = name;
   if (displayOrder !== undefined) category.displayOrder = displayOrder;
+  if (stationId !== undefined) {
+    // P05. An active station of this restaurant, or null for the default one.
+    await assertStationUsable(req, stationId);
+    category.stationId = stationId;
+  }
 
   await category.save().catch(rethrowDuplicate);
 
