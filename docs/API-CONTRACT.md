@@ -1601,6 +1601,30 @@ Takeaway:
 Response 201 returns the order with `orderNumber`, `version: 1`, and every line
 priced by the server.
 
+Every order line in every order response carries `categoryId` and
+`categoryName` (P03), frozen from the menu item's category when the line was
+added, alongside its other snapshot fields:
+
+```json
+{
+  "id": "6531...",
+  "menuItemId": "652d...",
+  "itemName": "Paneer Tikka",
+  "variantId": null,
+  "variantName": null,
+  "unitPriceInPaise": 24000,
+  "taxRateBps": 500,
+  "categoryId": "652c...",
+  "categoryName": "Starters",
+  "quantity": 2,
+  "addOns": [],
+  "status": "PENDING",
+  "lineTotalInPaise": 48000
+}
+```
+
+Neither is accepted from a client. Both are set by the server.
+
 409 `TABLE_OCCUPIED` if an order is already open on that table. The error
 carries `existingOrderId` at the top level of `error`, beside `code` and
 `message`, so the client can open that order instead:
@@ -1992,6 +2016,39 @@ occupied**: the customers are still sitting there until they have paid.
 
 Response 201 returns the bill, `status: "UNPAID"`.
 
+From P03 every bill also carries, frozen at creation, `captainId` and
+`captainName` (who opened the order), `guestCount` and `orderOpenedAt`, and
+every bill line carries `categoryId`, `categoryName`, `discountShareInPaise`,
+`taxableInPaise` and `taxInPaise`:
+
+```json
+{
+  "billNumber": "CFA/C/22443",
+  "captainId": "652f...",
+  "captainName": "Budha Singh",
+  "guestCount": 3,
+  "orderOpenedAt": "2026-09-26T07:31:00.000Z",
+  "lines": [
+    {
+      "itemName": "Indian Platters",
+      "quantity": 1,
+      "unitPriceInPaise": 45000,
+      "taxRateBps": 500,
+      "lineTotalInPaise": 45000,
+      "categoryId": "652c...",
+      "categoryName": "Platters",
+      "discountShareInPaise": 2268,
+      "taxableInPaise": 42732,
+      "taxInPaise": 2137
+    }
+  ]
+}
+```
+
+The line shares add up exactly to the bill's discount and to each tax slab's
+net sales and GST. The rule is in DB-SCHEMA.md section 12. None of these fields
+is accepted from a client; the strict request schemas refuse them.
+
 422 `BUSINESS_RULE_VIOLATED` if the order is not `READY_TO_BILL`, or has no
 live lines. A zero-line bill is not a bill.
 409 `DUPLICATE` if a live bill already exists for that order; the existing
@@ -2084,6 +2141,10 @@ tax. The apportionment across slabs is in DB-SCHEMA.md section 12.
 
 Response 200 returns the recomputed bill. Writes one `auditlogs` row,
 `DISCOUNT_APPLIED`, carrying the amount.
+
+Applying a discount also replaces every line's `discountShareInPaise`,
+`taxableInPaise` and `taxInPaise` (P03), so the line shares always match the
+recomputed bill.
 
 422 `BUSINESS_RULE_VIOLATED` if the bill is `PAID`, if it is voided, or if the
 discount is greater than the subtotal. 400 if `rateBps` is outside 1 to 10000 or

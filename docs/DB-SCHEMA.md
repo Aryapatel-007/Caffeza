@@ -720,6 +720,13 @@ price back out of `menuitems`.
 | `cancelledBy` | ObjectId | no | `users._id` |
 | `cancelReason` | String | no | Trimmed, max 200 characters |
 | `wasPrepared` | Boolean | no | **The cancelled-item answer.** Required when cancelling a line that reached the kitchen, refused when cancelling one that did not. M4 reads it to decide whether the ingredients are gone. |
+| `categoryId` | ObjectId | no | Added by P03. `categories._id` of the menu item's category **when the line was added**. Null on lines added before P03. |
+| `categoryName` | String | no | Added by P03. That category's `name` when the line was added. Null on lines added before P03, or if the category could not be found. |
+
+`categoryId` and `categoryName` are frozen at add time for the same reason price
+and name are: if a dish moves category between the order and the bill, the sale
+belongs to the category it was ordered under. Reports never read today's
+category for an old sale.
 
 ### Subdocument: LineAddOn
 
@@ -1019,6 +1026,10 @@ about.
 | `voidedAt` | Date | no | | UTC |
 | `voidedBy` | ObjectId | no | `users._id` | |
 | `voidReason` | String | no | | Trimmed, 1 to 500 characters. Required when voiding. |
+| `captainId` | ObjectId | no | `users._id` | Added by P03. `orders.openedBy`, frozen at bill creation. "Captain" is the person who opened the order (GLOSSARY section 8). Null on bills created before P03. |
+| `captainName` | String | no | | Added by P03. The captain's `name`, read when the bill is created, or `"Unknown"` if the user cannot be found. Renaming the user later does not change it. |
+| `guestCount` | Number | no | | Added by P03. `orders.guestCount`, frozen. Covers. Null on a takeaway and on bills created before P03. |
+| `orderOpenedAt` | Date | no | | Added by P03. `orders.openedAt`, frozen. UTC. For table time. |
 | `createdAt` | Date | auto | | UTC |
 | `updatedAt` | Date | auto | | UTC |
 
@@ -1039,6 +1050,24 @@ is never edited.
 | `unitPriceInPaise` | Number | yes | Integer paise, including add-ons: the per-unit price actually charged |
 | `taxRateBps` | Number | yes | Integer basis points. The slab this line falls in. |
 | `lineTotalInPaise` | Number | yes | `unitPriceInPaise * quantity`. Stored, not derived, because a bill is frozen. |
+| `categoryId` | ObjectId | no | Added by P03. Copied from the order line. Null for lines on orders created before P03. |
+| `categoryName` | String | no | Added by P03. Copied from the order line. Same. |
+| `discountShareInPaise` | Number | no | Added by P03. This line's share of the bill discount. Integer, 0 or more. |
+| `taxableInPaise` | Number | no | Added by P03. `lineTotalInPaise − discountShareInPaise`. Line net sales. |
+| `taxInPaise` | Number | no | Added by P03. This line's share of its tax rate's GST. Integer, 0 or more. |
+
+**Line shares (P03).** The three share fields are written on every bill created
+or re-discounted from P03 onwards, by `allocateLineShares` in
+`server/utils/tax.js`. Inside each tax rate on the bill, separately: the rate's
+discount (the sum of its line totals minus the slab's `taxableInPaise`) is split
+across its lines in proportion to line total, by the largest remainder method —
+whole paise rounded down, then the paise left over one at a time to the largest
+leftover fractions, ties to the earlier line. The slab's `taxInPaise` is then
+split the same way in proportion to each line's `taxableInPaise`. The shares
+therefore always add up exactly to the bill's discount and to each slab's
+figures (check C2). `computeBillTotals` is unchanged; this splits its output.
+On bills created before P03 the three fields are absent and mean "not
+recorded". Old bills are not back-filled.
 
 **Cancelled order lines are not copied.** Only lines whose status is not
 `CANCELLED` become bill lines. This is the soft-delete leak from BUILD-PLAN
