@@ -1,29 +1,36 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 
 import Toast from '../../components/ui/Toast.jsx';
 import { createOrder, listTables } from '../../api/orders.js';
 import { formatPaise } from '../../utils/formatMoney.js';
+import { formatDateIst, formatTimeIst } from '../../utils/formatDate.js';
 import { errorMessage, occupiedByOrderId } from './errorCopy.js';
+import SeatTablePanel from './SeatTablePanel.jsx';
+
+const ALL = '__all__';
+const UNASSIGNED = 'Unassigned';
 
 /**
  * The floor. The screen a waiter looks at most, so it is the one that has to be
  * readable at arm's length across a room.
  *
- * Tables are grouped by section and drawn as tap tiles rather than list rows.
- * DESIGN-SYSTEM.md section 6 says lists for anything staff scan and cards for
- * tap targets: this is the second case. A waiter is not reading the floor, they
- * are hitting one table.
+ * Tables are cards, filtered by section with the pills along the top. A free
+ * table asks for the guest count before the order opens, because covers are
+ * frozen onto the bill from the order and every per-cover figure reads them.
  *
- * Occupancy is not stored anywhere. Every tile's state comes from the server
- * working out whether an order is open on that table, so a tile cannot be stuck
+ * Occupancy is not stored anywhere. Every card's state comes from the server
+ * working out whether an order is open on that table, so a card cannot be stuck
  * occupied with nothing on it.
  */
 export default function FloorViewPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [toast, setToast] = useState(null);
+  const [section, setSection] = useState(ALL);
+  const [seating, setSeating] = useState(null);
+  const now = useNow(30_000);
 
   const tables = useQuery({
     queryKey: ['tables', { includeInactive: false }],
@@ -33,7 +40,8 @@ export default function FloorViewPage() {
   });
 
   const open = useMutation({
-    mutationFn: (tableId) => createOrder({ orderType: 'DINE_IN', tableId }),
+    mutationFn: ({ tableId, guestCount }) =>
+      createOrder({ orderType: 'DINE_IN', tableId, guestCount }),
     onSuccess: (order) => {
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       navigate(`/orders/${order.id}`);
@@ -50,85 +58,107 @@ export default function FloorViewPage() {
         navigate(`/orders/${existingOrderId}`);
         return;
       }
+      setSeating(null);
       setToast({ tone: 'error', message: errorMessage(error) });
     },
   });
 
-  /** Grouped by section, with unsectioned tables last under a plain heading. */
+  const rows = tables.data ?? [];
+
+  /** Section names in order, with unsectioned tables last. */
   const sections = useMemo(() => {
-    const rows = tables.data ?? [];
-    const bySection = new Map();
-
+    const counts = new Map();
     for (const table of rows) {
-      const key = table.section ?? '';
-      if (!bySection.has(key)) bySection.set(key, []);
-      bySection.get(key).push(table);
+      const name = table.section || UNASSIGNED;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
     }
+    return [...counts.entries()].sort(([a], [b]) => {
+      if (a === UNASSIGNED) return 1;
+      if (b === UNASSIGNED) return -1;
+      return a.localeCompare(b);
+    });
+  }, [rows]);
 
-    return [...bySection.entries()]
-      .sort(([a], [b]) => {
-        if (a === '') return 1;
-        if (b === '') return -1;
-        return a.localeCompare(b);
-      })
-      .map(([name, entries]) => ({ name: name || 'Unassigned', tables: entries }));
-  }, [tables.data]);
+  const visible =
+    section === ALL ? rows : rows.filter((table) => (table.section || UNASSIGNED) === section);
 
-  const occupiedCount = (tables.data ?? []).filter((table) => table.occupancy.isOccupied).length;
+  const seated = rows.filter((table) => table.occupancy.isOccupied);
+  const openTotal = seated.reduce((sum, table) => sum + table.occupancy.runningTotalInPaise, 0);
+
+  const openTable = (table) => {
+    if (table.occupancy.isOccupied) {
+      navigate(`/orders/${table.occupancy.orderId}`);
+      return;
+    }
+    setSeating(table);
+  };
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3 sm:px-6">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
+    <main className="min-h-full bg-paper px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-[20px] font-semibold leading-7">Floor</h1>
-            <p className="text-[13px] leading-[18px] text-steel">
-              <span className="font-mono">{occupiedCount}</span> of{' '}
-              <span className="font-mono">{tables.data?.length ?? 0}</span> tables seated
+            <div className="flex items-center gap-2">
+              <h1 className="text-[24px] font-semibold leading-8 tracking-[-0.015em]">Tables</h1>
+              <span className="rounded-full bg-chana-soft px-2.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-ink">
+                Floor
+              </span>
+            </div>
+            <p className="font-mono text-[13px] leading-[18px] text-steel">
+              {formatDateIst(now)} · {formatTimeIst(now)}
             </p>
           </div>
 
-          <nav className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <CountPill dot="bg-steel" count={rows.length - seated.length} label="Free" />
+            <CountPill
+              dot="bg-chana"
+              count={seated.length}
+              label="Seated"
+              className="bg-chana-soft font-semibold"
+            />
             <Link
               to="/orders/takeaway"
-              className="flex h-12 items-center rounded-xl border border-black/5 shadow-card px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex h-10 items-center rounded-full bg-white px-4 text-[14px] font-semibold shadow-card hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Takeaway
             </Link>
             <Link
               to="/orders/delivery"
-              className="flex h-12 items-center rounded-xl border border-black/5 shadow-card px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex h-10 items-center rounded-full bg-white px-4 text-[14px] font-semibold shadow-card hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               Delivery
             </Link>
-            <Link
-              to="/kitchen"
-              className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-            >
-              Kitchen
-            </Link>
-            <Link
-              to="/dashboard"
-              className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-            >
-              Dashboard
-            </Link>
-          </nav>
-        </div>
-      </header>
+          </div>
+        </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-        {tables.isPending && <p className="text-[15px] text-steel">Loading the floor…</p>}
-
-        {tables.isError && (
-          <p className="text-[15px] text-mirch">{errorMessage(tables.error)}</p>
+        {sections.length > 1 && (
+          <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
+            <SectionPill
+              label={`All tables (${rows.length})`}
+              isActive={section === ALL}
+              onClick={() => setSection(ALL)}
+            />
+            {sections.map(([name, count]) => (
+              <SectionPill
+                key={name}
+                label={`${name} (${count})`}
+                isActive={section === name}
+                onClick={() => setSection(name)}
+              />
+            ))}
+          </div>
         )}
 
-        {tables.isSuccess && sections.length === 0 && (
-          <div className="rounded-xl border-2 border-dashed border-steel/50 px-6 py-12 text-center">
+        {tables.isPending && <p className="text-[15px] text-steel">Loading the floor…</p>}
+
+        {tables.isError && <p className="text-[15px] text-mirch">{errorMessage(tables.error)}</p>}
+
+        {tables.isSuccess && rows.length === 0 && (
+          <div className="rounded-2xl bg-white px-6 py-12 text-center shadow-card">
             <p className="text-[15px] leading-[22px]">No tables have been set up yet.</p>
             <p className="mt-1 text-[13px] leading-[18px] text-steel">
-              An owner or manager adds them on the Tables screen.
+              An owner or manager adds them on the Table setup screen.
             </p>
             <Link
               to="/tables"
@@ -139,38 +169,47 @@ export default function FloorViewPage() {
           </div>
         )}
 
-        {sections.map((section) => (
-          <section key={section.name} className="mb-8">
-            <h2 className="mb-3 text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
-              {section.name}
-            </h2>
+        {visible.length > 0 && (
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {visible.map((table) => (
+              <li key={table.id}>
+                <TableCard
+                  table={table}
+                  now={now}
+                  isSelected={seating?.id === table.id}
+                  onOpen={() => openTable(table)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
 
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {section.tables.map((table) => (
-                <li key={table.id}>
-                  <TableTile
-                    table={table}
-                    isBusy={open.isPending && open.variables === table.id}
-                    onOpen={() => {
-                      if (table.occupancy.isOccupied) {
-                        navigate(`/orders/${table.occupancy.orderId}`);
-                        return;
-                      }
-                      open.mutate(table.id);
-                    }}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+        {tables.isSuccess && rows.length > 0 && (
+          <footer className="flex flex-col gap-2 rounded-2xl bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[16px] font-semibold leading-6">
+              <span className="font-mono">{seated.length}</span> of{' '}
+              <span className="font-mono">{rows.length}</span> tables seated
+            </p>
+            <p className="text-[13px] leading-[18px] text-steel">
+              Open tables, item total{' '}
+              <span className="font-mono text-[15px] font-semibold text-ink">
+                {formatPaise(openTotal)}
+              </span>
+            </p>
+          </footer>
+        )}
       </div>
 
-      <Toast
-        tone={toast?.tone}
-        message={toast?.message}
-        onDismiss={() => setToast(null)}
-      />
+      {seating && (
+        <SeatTablePanel
+          table={seating}
+          isBusy={open.isPending}
+          onCancel={() => setSeating(null)}
+          onConfirm={(guestCount) => open.mutate({ tableId: seating.id, guestCount })}
+        />
+      )}
+
+      <Toast tone={toast?.tone} message={toast?.message} onDismiss={() => setToast(null)} />
     </main>
   );
 }
@@ -178,14 +217,11 @@ export default function FloorViewPage() {
 /**
  * One table.
  *
- * The whole tile is the tap target, not a small button inside it, and it is
- * well over the 48px minimum from DESIGN-SYSTEM.md section 7.
- *
- * A seated table is marked by a thicker ink border and the order number, never
- * by colour alone. `chana`, `mirch` and `patta` are functional colour and
- * "this table has people at it" is not one of those three meanings.
+ * The whole card is the tap target, well over the 48px minimum from
+ * DESIGN-SYSTEM.md section 7. A seated table is marked by the word, the order
+ * number and the chana edge together, never by colour alone.
  */
-function TableTile({ table, isBusy, onOpen }) {
+function TableCard({ table, now, isSelected, onOpen }) {
   const { occupancy } = table;
   const isOccupied = occupancy.isOccupied;
 
@@ -193,37 +229,125 @@ function TableTile({ table, isBusy, onOpen }) {
     <button
       type="button"
       onClick={onOpen}
-      disabled={isBusy}
       aria-label={
         isOccupied
           ? `Table ${table.name}, order ${occupancy.orderNumber}, open it`
-          : `Table ${table.name}, free, start an order`
+          : `Table ${table.name}, free, seat guests`
       }
       className={[
-        'flex min-h-[104px] w-full flex-col justify-between rounded-2xl border-t-4 bg-white p-4 text-left shadow-card hover:shadow-lift',
-        'transition-transform active:translate-y-0.5',
+        'relative flex min-h-[188px] w-full flex-col justify-between overflow-hidden rounded-2xl p-5 text-left transition-shadow',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-        'disabled:opacity-60',
-        isOccupied ? 'border-chana' : 'border-linen-3 bg-linen',
+        isSelected
+          ? 'bg-linen shadow-[0_4px_20px_rgba(122,89,0,0.14)] ring-2 ring-chana/60'
+          : 'bg-white shadow-card hover:shadow-lift',
       ].join(' ')}
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[15px] font-semibold leading-5">{table.name}</span>
-        {table.seats != null && (
-          <span className="font-mono text-[12px] leading-4 text-steel">{table.seats} seats</span>
-        )}
+      {isOccupied && <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-chana" />}
+
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <span
+              className={[
+                'block truncate font-mono text-[28px] font-bold leading-9 tracking-[-0.02em]',
+                isOccupied ? 'text-ink' : 'text-steel',
+              ].join(' ')}
+            >
+              {table.name}
+            </span>
+            {table.section && (
+              <span className="mt-0.5 block text-[11px] font-semibold uppercase tracking-[0.04em] text-steel">
+                {table.section}
+              </span>
+            )}
+          </div>
+
+          <span
+            className={[
+              'flex-none rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em]',
+              isOccupied ? 'bg-chana-soft text-ink' : 'bg-linen-2 text-steel',
+            ].join(' ')}
+          >
+            {isOccupied ? 'Seated' : 'Free'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-4 font-mono text-[13px] leading-[18px] text-steel">
+          {table.seats != null && <span>{table.seats} seats</span>}
+          {isOccupied && occupancy.openedAt && (
+            <span>{formatElapsed(now, occupancy.openedAt)}</span>
+          )}
+          {isOccupied && <span>#{occupancy.orderNumber}</span>}
+        </div>
       </div>
 
       {isOccupied ? (
-        <div>
-          <p className="font-mono text-[12px] leading-4 text-steel">#{occupancy.orderNumber}</p>
-          <p className="font-mono text-[18px] font-semibold leading-6">
-            {formatPaise(occupancy.runningTotalInPaise)}
-          </p>
+        <div className="mt-4 flex items-end justify-between gap-2 pt-4">
+          <div>
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.04em] text-steel">
+              Item total
+            </span>
+            <span className="block font-mono text-[20px] font-bold leading-7">
+              {formatPaise(occupancy.runningTotalInPaise)}
+            </span>
+          </div>
+          <span className="rounded-full bg-linen-2 px-3.5 py-1.5 text-[12px] font-medium">
+            Open order →
+          </span>
         </div>
       ) : (
-        <p className="text-[13px] leading-[18px] text-steel">Free — tap to start</p>
+        <div className="mt-4 flex items-center justify-between gap-2 pt-4">
+          <span className="text-[11px] font-semibold tracking-[0.04em] text-steel">Ready to seat</span>
+          <span className="rounded-full bg-linen-3 px-4 py-2 text-[12px] font-medium">
+            + Seat table
+          </span>
+        </div>
       )}
     </button>
   );
+}
+
+function CountPill({ dot, count, label, className = 'bg-linen-3' }) {
+  return (
+    <span className={`flex items-center gap-2 rounded-full px-3.5 py-2 shadow-card ${className}`}>
+      <span aria-hidden className={`size-2.5 rounded-full ${dot}`} />
+      <span className="font-mono text-[14px] font-bold">{count}</span>
+      <span className="text-[12px] font-medium text-steel">{label}</span>
+    </span>
+  );
+}
+
+function SectionPill({ label, isActive, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={isActive}
+      className={[
+        'flex h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-5 text-[14px] font-semibold shadow-card transition-colors',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
+        isActive ? 'bg-ink text-white' : 'bg-white text-steel hover:text-ink',
+      ].join(' ')}
+    >
+      {isActive && <span aria-hidden className="size-2 rounded-full bg-chana" />}
+      {label}
+    </button>
+  );
+}
+
+/** "32m" or "1h 12m" since an instant. Display only. */
+function formatElapsed(now, since) {
+  const minutes = Math.max(0, Math.floor((now - new Date(since).getTime()) / 60_000));
+  if (minutes < 60) return `${minutes}m`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+/** The current time, refreshed on an interval, so elapsed times move on their own. */
+function useNow(intervalMs) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
 }

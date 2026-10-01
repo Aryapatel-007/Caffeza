@@ -53,7 +53,7 @@ export default function OrderLineList({
         const isPending = line.status === 'PENDING';
 
         return (
-          <li key={line.id} className={['px-4 py-3', isCancelled ? 'opacity-60' : ''].join(' ')}>
+          <li key={line.id} className={['px-5 py-3', isCancelled ? 'opacity-60' : ''].join(' ')}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p
@@ -123,7 +123,7 @@ export default function OrderLineList({
                     type="button"
                     disabled={isBusy}
                     onClick={() => onServeLine(line)}
-                    className="h-12 rounded-xl bg-chana px-4 text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
+                    className="h-12 rounded-full bg-chana px-4 text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
                   >
                     Mark served
                   </button>
@@ -134,7 +134,7 @@ export default function OrderLineList({
                     type="button"
                     disabled={isBusy}
                     onClick={() => onCancelLine(line)}
-                    className="h-12 rounded-xl px-3 text-[13px] font-medium text-mirch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-60"
+                    className="h-12 rounded-full px-3 text-[13px] font-medium text-mirch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-60"
                   >
                     Cancel line
                   </button>

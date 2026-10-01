@@ -1,5 +1,130 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, P07 settlement spec
+
+What was built or decided:
+The spec for payments, No Charge, On Hold accounts, platform payouts, the cash
+drawer and Day Close. Docs only: no code, no model, no test.
+
+`docs/API-CONTRACT.md` gains "M10 Payments" (payment methods, taking and
+correcting a payment, discount reasons), "M16 Settlement and Day Close" (No
+Charge, accounts, the cash drawer, `computeDayFigures` sections A to H, the
+checks at close, Day Close with the blind count, and the `assertDayOpen` lock
+list), M17 section 6 for platform payouts, the `discounts` and `dayClose`
+settings groups, and eight new M8 actions with four entity types.
+
+`docs/DB-SCHEMA.md` gains sections 20 to 25: `paymentmethods`, `accounts`,
+`accountentries`, `platformpayouts`, `cashmovements`, `dayclosures`. Orders gain
+`NO_CHARGE` and `noCharge`; bills gain `ON_ACCOUNT` and the account charge
+fields; payments gain frozen method fields, a business date and corrections;
+the discount gains `reasonCode` and `fundedBy`. Every field is additive with a
+default, and every new index starts with `restaurantId`.
+
+GLOSSARY, REPORT-SPEC, RECONCILIATION-RULES, CONVENTIONS (five error codes) and
+the build plan (P08 and P09 renamed, `PLATFORM_PAYOUT_RECORDED` now entity
+`PAYOUT` from P09) were brought in line.
+
+Files or endpoints touched:
+Docs only.
+
+Anything the other developer needs to know:
+Every write that changes a business date's figures calls `assertDayOpen` once;
+the list is in the M16 section 7. Readers treat a null `methodKind` on an old
+payment as `IN_HAND` and a null payment `businessDate` as the bill's.
+
+Anything now blocked or unblocked:
+P08 can start.
+
+### 2026-10-01 Rishi, P06 delivery and platform orders
+
+What was built or decided:
+M17's first part. `DELIVERY` order type with `platform: { code, name, orderId }`
+from `server/config/platforms.js` (Zomato, Swiggy; mirrored on the client) and
+`taxTreatment`. A delivery order has no table and no guests; a platform order
+number can be live on only one order, enforced by a partial unique index, and a
+second entry is a 409 naming the existing order. With
+`settings.delivery.platformCollectsGst` on (the default), lines are frozen at
+0% with the item's rate kept in `menuTaxRateBps`; the order keeps its treatment
+for lines added later even if the setting changes. Bills copy `platform` and
+`taxTreatment`. The KOT ticket shows `DELIVERY  SWIGGY {number}`.
+
+A latent M2 bug was fixed on the way: two open orders with no table collided on
+the one-order-per-table index, so a second takeaway or delivery order was
+refused while the first was open. Only an order with a table occupies one now.
+
+Golden day B07 (93000 at 0%) and B08 (30500, shares 13069 and 6931) are
+reproduced through the API in `tests/delivery.test.js`.
+
+Client: a Delivery page at `/orders/delivery` (platform buttons, order number,
+keyboard-friendly, link to the existing order on a duplicate), a Delivery button
+on the floor, and `placeLabel()` naming the order or bill as "Swiggy 2493..."
+on the order screen, bill screen and bills list.
+
+Tests: 679 before, 700 after, 0 failing.
+
+Files or endpoints touched:
+New: `config/platforms.js`, `tests/delivery.test.js`, client
+`features/orders/platforms.js`, `DeliveryOrderPage.jsx`, `orderLabel.js`.
+Changed: Order, Bill and Restaurant models, `orderValidators`,
+`settingsValidators`, `settingsService`, `orderService.buildLineSnapshots`,
+`orderController`, `billService`, `kotTicketService`, `utils/errors.js`.
+
+Anything the other developer needs to know:
+The M6 sales summary still counts only dine-in and takeaway in its per-type
+fields; delivery bills are in its totals. R2 and R3 handle order types properly
+in P10 and P15. Arya's read of M3 was meant to come before P06 and has not
+happened.
+
+Anything now blocked or unblocked:
+P07 can start.
+
+### 2026-10-01 Rishi, P05 kitchen stations and printing
+
+What was built or decided:
+M18 Kitchen Stations. A `stations` collection, `stationId` on categories, KOTs
+(with `stationName`) and KITCHEN users. Firing routes each pending line through
+its frozen `categoryId` to that category's current station, makes one KOT per
+station in station order, and points each order line at the KOT it went on.
+Unroutable lines go to the first active station. With no stations, one KOT with
+no station, exactly as before. Stock is still deducted once per line.
+
+`GET /kots?stationId=` (or `none`), and `GET /kots/:id/ticket?width=&reprint=`,
+laid out in `services/kotTicketService.js`, a sibling of the receipt sharing its
+wrapping. No prices on a ticket.
+
+Client: `features/printing/` prints any server text through a hidden iframe at
+58 or 80 mm. A "This device" page (`/device`) holds paper width and KOT
+auto-print in localStorage. The bill screen's print button uses it. The kitchen
+screen has a station picker (opens on the user's station, remembered on the
+device), shows the station on each ticket, has Reprint, and auto-prints new
+tickets once, remembering the last 500 printed ids and marking what is already on
+screen as printed when auto-print is switched on. A failed print shows "Not
+printed". Stations page at `/stations`; station pickers on the category rail and
+the staff form for KITCHEN users.
+
+Tests: 660 before, 679 after, 0 failing. Ticket snapshots at 32 and 48 in
+`tests/stations.test.js`.
+
+Files or endpoints touched:
+New: `models/Station.js`, `services/stationService.js`,
+`services/kotTicketService.js`, `controllers/stationController.js`,
+`routes/stationRoutes.js`, `validators/stationValidators.js`,
+`tests/stations.test.js`, client `features/printing/*`, `features/stations/*`,
+`api/stations.js`. Changed: Category, Kot, User models, `kitchenService.fireOrder`,
+`kotController`, category and user controllers and validators, `authController`
+(`user.stationId` on `/auth/me`), `receiptService` (exports its wrapping),
+`utils/time.js` (`formatTimeIst12`), and on the client the kitchen screen, bill
+screen, menu builder, staff form, dashboard, settings and `App.jsx`.
+`features/billing/printReceipt.js` is replaced by `features/printing/printText.js`.
+
+Anything the other developer needs to know:
+Not checked by hand in a browser with a real printer yet: the two-station
+fire, the print preview width, and auto-print after a refresh. A 48-wide ticket
+as the API returns it is in the P05 summary of this session.
+
+Anything now blocked or unblocked:
+P06 can start.
+
 ### 2026-10-01 Rishi, P04 cancel reasons and the variant check
 
 What was built or decided:
