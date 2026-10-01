@@ -319,13 +319,8 @@ No controller reads the token directly. It reads `req.user` and `req.restaurantI
 
 ## 9. Git
 
-Branch names:
-
-```
-feat/m2/create-order
-fix/m3/gst-rounding
-chore/m0/add-rate-limit
-```
+Commit directly to `main`. No feature branches.
+One prompt is one commit, or a few small ones.
 
 Commit messages. One line, present tense, says what changed.
 
@@ -333,8 +328,6 @@ Commit messages. One line, present tense, says what changed.
 add order fire endpoint
 fix gst rounding on split lines
 ```
-
-Do not commit directly to `main`.
 
 Do not commit `.env`, `node_modules`, or a build folder.
 

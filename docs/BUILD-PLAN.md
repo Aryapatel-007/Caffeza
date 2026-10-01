@@ -1,5 +1,8 @@
 # BUILD PLAN
 
+> For the Caffeza go-live, see `docs/CAFFEZA-BUILD-PLAN.md`. It reuses M8 and
+> M10 from this file and adds M16 to M20.
+
 This file holds the full scope, the security requirements, and the list of problems teams like ours usually miss.
 
 It does not change often. When it does change, the change is made in the brain chat and logged in PROJECT-STATE.md.

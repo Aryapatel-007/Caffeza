@@ -12,6 +12,16 @@ you stop.
 | [`docs/PROJECT-STATE.md`](docs/PROJECT-STATE.md) | Current status, decisions, open questions, known problems |
 | [`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md) | Scope, security requirements, the problems teams like ours miss |
 | [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) | Folder layout, naming, response envelope, error codes, middleware order |
+| [`docs/CAFFEZA-BUILD-PLAN.md`](docs/CAFFEZA-BUILD-PLAN.md) | The Caffeza go-live plan: modules, prompts, owners, order |
+| [`docs/CURRENT-STATE-AUDIT.md`](docs/CURRENT-STATE-AUDIT.md) | What exists in the code today, and what Caffeza still needs |
+| [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | One meaning for every word used in reports |
+| [`docs/REPORT-SPEC.md`](docs/REPORT-SPEC.md) | Every report, column by column |
+| [`docs/RECONCILIATION-RULES.md`](docs/RECONCILIATION-RULES.md) | The balance checks every report must pass |
+| [`docs/TEST-DATA.md`](docs/TEST-DATA.md) | The golden day every report test reproduces |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Cloud server and Atlas, backups, the cafe setup |
+| [`docs/GO-LIVE.md`](docs/GO-LIVE.md) | Gates, training, pilot days, cutover |
+| [`docs/prompts/`](docs/prompts/) | The build prompts, P00 to P21, run in order |
+| [`docs/CAFFEZA-PROFILE.md`](docs/CAFFEZA-PROFILE.md) | The client's real setup: tax, invoice series, tables, staff, payment methods |
 
 ## Running it
 

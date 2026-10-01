@@ -2,16 +2,35 @@
 
 MERN stack. REST API. Multi-tenant SaaS for restaurants in Ahmedabad.
 Two developers: Arya and Rishi. One person owns one module fully.
+The first paying client is Caffeza, a cafe in Gandhinagar. Current work is taking the product live there.
 
-## Read these before doing anything
+## Loaded every session
 
-@docs/BUILD-PLAN.md
 @docs/PROJECT-STATE.md
-@docs/API-CONTRACT.md
-@docs/DB-SCHEMA.md
+@docs/CAFFEZA-BUILD-PLAN.md
 @docs/CONVENTIONS.md
+@docs/GLOSSARY.md
 
-API-CONTRACT.md and DB-SCHEMA.md exist as of M0 part B and are the specification. Do not invent their contents. If a task needs a field or endpoint that is not in them yet, stop and say so instead of adding it.
+## Read these when the task needs them
+
+These are long. Read the section your task touches, not the whole file.
+
+| File | Read it when |
+|---|---|
+| `docs/API-CONTRACT.md` | Before writing or changing any endpoint. Read your module's section. |
+| `docs/DB-SCHEMA.md` | Before writing or changing any model. Read your module's section. |
+| `docs/REPORT-SPEC.md` | Before any report work |
+| `docs/RECONCILIATION-RULES.md` | Before any report, billing, payment or Day Close work |
+| `docs/TEST-DATA.md` | Before writing any report or money test |
+| `docs/CAFFEZA-PROFILE.md` | Before building anything Caffeza-specific |
+| `docs/DESIGN-SYSTEM.md` | Before any screen work |
+| `docs/BUILD-PLAN.md` | Section 13 before calling a module done. Sections 11 and 12 for security and common mistakes. |
+| `docs/DEPLOYMENT.md` | Before touching startup, environment variables or deployment |
+| `docs/CURRENT-STATE-AUDIT.md` | When you need to know what already exists and where |
+
+API-CONTRACT.md and DB-SCHEMA.md are the specification. Do not invent their contents.
+If a task needs a field or endpoint that is not in them yet, stop and say so instead of adding it.
+A module's spec section is committed before its first line of code.
 
 ## Non-negotiable rules
 
@@ -25,10 +44,28 @@ Secrets live in `.env`. `.env` is in `.gitignore`. Never commit a real secret.
 Store timestamps in UTC. Convert to India time only for display.
 GST rates are settings, never hardcoded.
 
+## Rules for money and reports
+
+Money arithmetic lives in `server/utils/money.js`. Tax arithmetic lives in `server/utils/tax.js`. Nowhere else.
+Which business day a moment belongs to is decided only by `businessDateFor` in `server/utils/time.js`.
+Reports only add up values frozen onto records when the event happened. A report never recomputes tax, never reads a live menu price, and never reads today's category for an old sale.
+Every report goes through the one shared report engine. It applies tenant scope, the business date range and "leave out voided" in its first step.
+Every label on a screen or an export comes from `docs/GLOSSARY.md`.
+A totals row is the exact sum of its rows. An average is a sum divided by a sum.
+Every report runs its checks from `docs/RECONCILIATION-RULES.md`. A new check gets a test that breaks it on purpose.
+The golden day in `docs/TEST-DATA.md` must still produce every expected number after your change.
+
+## Rules for Caffeza
+
+The server runs in the cloud, next to a separate Atlas cluster. Do not add anything that assumes a machine inside the cafe.
+Printing happens from the browser on a device in the cafe. The server never talks to a printer.
+Never create a bill in production to test something. Every production bill uses a real GST invoice number.
+Schema changes are additive: new fields with defaults, nothing renamed or removed. If a change cannot be additive, say so and write its rollback steps.
+
 ## Scope discipline
 
-Only the modules listed as in-scope in PROJECT-STATE.md are being built.
-If asked for something outside that list, say so instead of building it.
+Work comes from the prompts in `docs/prompts/`, in the order in `docs/CAFFEZA-BUILD-PLAN.md` section 3.
+If asked for something that fits none of them, say so instead of building it.
 
 ## End of every session
 

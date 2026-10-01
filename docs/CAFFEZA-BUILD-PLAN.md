@@ -1,0 +1,183 @@
+# Caffeza Build Plan
+
+This file is the plan for taking the existing ERP live at Caffeza, our first paying client.
+It sits next to `docs/BUILD-PLAN.md`, it does not replace it.
+`docs/BUILD-PLAN.md` still describes the whole product.
+This file says what Caffeza needs from it, in what order, and who builds each part.
+
+Read `docs/CAFFEZA-PROFILE.md` for who the client is.
+Read `docs/CURRENT-STATE-AUDIT.md` for what already exists.
+
+---
+
+## 1. The goal
+
+Replace Caffeza's current POS with ours.
+Keep it as simple to use as theirs.
+Make the reports impossible to get wrong.
+
+Go-live means:
+Captains take orders on their phones or tablets.
+Kitchen stations get their tickets.
+The cashier bills, takes every payment method they use today, handles No Charge and On Hold.
+The manager closes the day with a cash count.
+The owner reads reports that always balance, and exports them for the accountant.
+
+---
+
+## 2. Module numbers
+
+The repo's numbers stay as they are.
+`docs/BUILD-PLAN.md` section 5 already defines M7 to M15.
+So Caffeza work reuses M8 and M10, where they already cover what Caffeza needs, and new modules start at M16.
+
+| ID | Module | Status | What Caffeza needs from it |
+|---|---|---|---|
+| M0 | Foundation | Done | Trust the host's proxy |
+| M1 | Menu Management | Done | Bulk import of their menu |
+| M2 | Order Taking and KOT | Done | Fixed cancel reasons, the variant availability check |
+| M3 | Billing with GST | Done, CA review pending | Invoice prefix and starting number, frozen captain, covers and category, line shares |
+| M4 | Inventory | Built | Switched off for go-live |
+| M5 | Attendance | Done | Switched off for go-live |
+| M6 | Reports and Dashboard | Built | The base that M19 extends |
+| M7 | Restaurant Settings | Done | Feature switches and new setting groups |
+| M8 | Audit Trail | Specified, not built | Pulled forward. Built exactly as specified, plus the new actions in section 6. |
+| M10 | Payments | Not started | Pulled forward with an adjusted scope: configurable payment methods including platforms. No UPI QR for go-live. |
+| M16 | Settlement and Day Close | New | No Charge, On Hold accounts, cash drawer, Day Close |
+| M17 | Delivery and Platform Orders | New | Delivery order type, platform fields, 0% tax on platform orders, entered by hand |
+| M18 | Kitchen Stations | New | Stations, category routing, one KOT per station |
+| M19 | Reports v2 | New | Every report in `docs/REPORT-SPEC.md` |
+| M20 | Floor Plan and Look | New | Areas, a visual table layout, themes, the visual refresh |
+
+Deferred until after Caffeza is live, exactly as `docs/BUILD-PLAN.md` describes them:
+M9 Purchase Orders, M11 Payroll, M12 Employee Self-Service, M13 Company Finance Dashboard, M14 Online Ordering, M15 AI Service.
+
+Phase 2 work from `docs/BUILD-PLAN.md` section 7 is also required before go-live.
+For Caffeza it becomes prompts P01, P05, P11 and P12, plus the checklist in `docs/GO-LIVE.md`.
+
+---
+
+## 3. The prompts, in order
+
+Every prompt lives in `docs/prompts/`.
+Paste one into Claude Code, or into Antigravity, per session.
+Each prompt names its model at the top.
+
+| Prompt | Title | Module | Depends on | Suggested owner | Model |
+|---|---|---|---|---|---|
+| P00 | Adopt the Caffeza docs | Docs only | Nothing | Arya | Sonnet, medium |
+| P01 | Production safety | Phase 2 | P00 | Rishi | Opus, high |
+| P02 | Settings: feature switches and invoice series | M7 | P01 | Rishi | Sonnet, medium |
+| P03 | Bill snapshots and line shares | M3 | P02 | Rishi | Opus, high |
+| P04 | Cancel reasons and variant check | M2 | P01 | Rishi | Sonnet, medium |
+| P05 | Kitchen stations | M18, Phase 2 printing | P01 | Arya | Opus, high |
+| P06 | Delivery and platform orders | M17 | P03 | Arya | Opus, high |
+| P07 | Settlement spec | M10, M16 | P03, P06 | Rishi | Opus, high |
+| P08 | Payment methods and No Charge | M10, M16 | P07 | Rishi | Opus, high |
+| P09 | On Hold accounts | M16 | P08 | Rishi | Opus, high |
+| P10 | Cash drawer and Day Close | M16 | P09 | Rishi | Opus, high |
+| P11 | Caffeza setup and menu import | Phase 2 onboarding | P05, P08 | Arya | Sonnet, medium |
+| P12 | Cloud deployment | Phase 2 hosting | P01, P11 | Arya | Opus, high |
+| P13 | Reports spec | M19 | P10 | Arya | Opus, high |
+| P14 | Report engine: checks, drill down, export | M19 | P13 | Arya | Opus, high |
+| P15 | Daily, money and GST reports | M19 | P14 | Arya | Opus, high |
+| P16 | Menu, captain and table reports | M19 | P14 | Arya | Opus, high |
+| P17 | Audit trail and control reports | M8, M19 | P14 | Part A Rishi, Part B Arya | Opus, high |
+| P18 | Report screens and Today | M19 | P15, P16, P17 | Arya | Opus, high |
+| P19 | Floor plan | M20 | P05 | Arya | Opus, high |
+| P20 | Look, themes and customisation | M20 | P18, P19, and `docs/DESIGN-SYSTEM-V2.md` | Arya | Opus, high |
+| P21 | Golden day, end to end | M19 proof | Everything | Arya | Opus, high |
+
+P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
+The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.
+
+---
+
+## 4. Milestones
+
+| Milestone | Prompts | What you can show the client |
+|---|---|---|
+| A. Safe foundations | P00 to P04 | Nothing new on screen. Bills now store everything the reports need. |
+| B. Their way of working | P05 to P10 | Stations, delivery orders, all eight payment methods, No Charge, On Hold, Day Close |
+| C. Live on staging | P11, P12 | Their real menu and tables on a real web address |
+| D. The reports | P13 to P18 | Every report, balancing, drillable and exportable |
+| E. The look | P19, P20 | Their floor plan and the new design |
+| F. Proof | P21 | The golden day replays end to end with every check green |
+
+After milestone F, follow `docs/GO-LIVE.md`.
+
+---
+
+## 5. Reviews
+
+`docs/BUILD-PLAN.md` section 13 says a module is not done until the other developer has read it.
+`docs/PROJECT-STATE.md` records that Arya has not yet read M1, M4, M5, M6 or M7.
+
+For Caffeza, two of those reads come first, because the reports build directly on them:
+
+1. Arya reads M3 before P06 starts.
+2. Arya reads M6 before P13 starts.
+
+Every new Caffeza module gets its second read before the next milestone begins.
+
+---
+
+## 6. New audit actions
+
+M8 already lists the actions it adds.
+Caffeza work adds these, each written by the module that creates the event.
+M8 reads them all.
+
+| Action | Entity | Written by | Why |
+|---|---|---|---|
+| `LINE_CANCELLED_AFTER_PREP` | `ORDER` | M2, from P04 | Food was made and thrown away |
+| `NO_CHARGE_GIVEN` | `ORDER` | M16, from P08 | Food given away free |
+| `PAYMENT_METHOD_CORRECTED` | `BILL` | M10, from P08 | A way to move money between cash and UPI after the fact |
+| `BILL_CHARGED_TO_ACCOUNT` | `BILL` | M16, from P09 | Money that will only arrive later |
+| `ACCOUNT_BALANCE_ADJUSTED` | `ACCOUNT` | M16, from P09 | Writing off what someone owes |
+| `CASH_PAID_OUT` | `CASH` | M16, from P10 | Cash leaving the drawer |
+| `DAY_CLOSED` | `DAY` | M16, from P10 | The day is locked |
+| `DAY_REOPENED` | `DAY` | M16, from P10 | A locked day was changed |
+| `PLATFORM_PAYOUT_RECORDED` | `BILL` | M17, from P06 | Platform money arriving |
+
+---
+
+## 7. What "done" means for Caffeza work
+
+Everything in `docs/BUILD-PLAN.md` section 13, plus:
+
+1. The module's spec section is committed to `docs/API-CONTRACT.md` and `docs/DB-SCHEMA.md` before its code.
+2. The golden day in `docs/TEST-DATA.md` still produces every expected number.
+3. Every check in `docs/RECONCILIATION-RULES.md` that touches the module passes, and has a test that breaks it on purpose.
+4. Every new number on screen uses a word from `docs/GLOSSARY.md`.
+5. Every new screen works on a phone held in one hand, and on the cashier's computer with a keyboard.
+6. `docs/PROJECT-STATE.md` is updated before the session ends.
+
+---
+
+## 8. Out of scope for go-live
+
+| Thing | Why |
+|---|---|
+| Live Zomato and Swiggy order import | Needs partner API approval. Orders are entered by hand for now. |
+| UPI QR on the bill | Caffeza already has its own QR standee |
+| Inventory and recipe costing | Built, switched off. Turn on after go-live if they ask. |
+| Attendance | Built, switched off. Same. |
+| Payroll | M11, needs a CA and its own build |
+| Offline mode | The server is in the cloud. The cafe gets a backup internet line instead. |
+| Loyalty, WhatsApp, online ordering | Later modules |
+| More than one outlet | `branchId` is ready on every record. The screens come later. |
+
+If a request fits none of the prompts above, say so plainly, and do not build it.
+
+---
+
+## 9. How to work
+
+`CLAUDE.md` loads only the short docs automatically.
+The long specs are read in part, when a task needs them.
+That keeps each Claude Code session's memory free for the code itself.
+
+Before a session: pull, read the prompt, and check its "Depends on" prompts are merged.
+During a session: one prompt, committed directly to `main`.
+After a session: update `docs/PROJECT-STATE.md`, push, and ask the other developer to read it.
