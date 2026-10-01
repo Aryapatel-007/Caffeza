@@ -1,5 +1,56 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, P04 cancel reasons and the variant check
+
+What was built or decided:
+Cancelling an item, cancelling an order and voiding a bill now take a fixed
+`reasonCode` plus an optional `note`, required for `OTHER`. The three lists live
+in `server/config/cancelReasons.js` and are mirrored, codes and labels only, in
+`client/src/features/orders/cancelReasons.js`; a test keeps the two identical.
+The old `reason` field is refused with a 400. The stored text fields
+(`cancelReason`, `voidReason`) now hold the note; new `cancelReasonCode` and
+`voidReasonCode` fields hold the code. Old records are not converted.
+
+A line cancelled with `wasPrepared: true` writes `LINE_CANCELLED_AFTER_PREP`.
+Every whole-order cancel writes `ORDER_CANCELLED`, which was listed since M3 and
+never written. Both are written inside the cancel's transaction, so a version
+conflict leaves no audit line. `BILL_VOIDED` now carries `reasonCode` in
+`details` and "label: note" as its reason.
+
+An unavailable variant or add-on is refused with a 422 when ordered. The menu
+already carried `isAvailable` on both, so no contract change was needed there.
+The order screen greys them out with "Out of stock".
+
+On screen: one large button per reason in the cancel and void panels (a shared
+`ReasonPicker`), the note under them, and the label plus note shown on a
+cancelled line and a voided bill.
+
+Golden day B13 is built through the API in a test: the bill is ₹420.00, with
+exactly one after-preparation audit line for ₹390.00.
+
+Files or endpoints touched:
+New: `server/config/cancelReasons.js`, `client/src/features/orders/cancelReasons.js`,
+`client/src/features/orders/ReasonPicker.jsx`, `server/tests/cancelReasons.test.js`.
+Changed: `validators/common.js` (`reasonFields`, `requireNoteForOther`),
+`orderValidators.js`, `billValidators.js`, `models/Order.js`, `models/Bill.js`,
+`models/AuditLog.js`, `controllers/orderController.js`, `services/billService.js`,
+`services/orderService.js`, `scripts/seedDemo.js`, and on the client
+`api/orders.js`, `api/bills.js`, `CancelPanel.jsx`, `OrderScreenPage.jsx`,
+`OrderLineList.jsx`, `LineOptionsPanel.jsx`, `VoidBillPanel.jsx`,
+`BillScreenPage.jsx`. Existing tests that sent `reason` now send
+`reasonCode: 'OTHER'` with the old text as the note.
+Endpoints: the request shape of `POST /orders/:id/lines/:lineId/cancel`,
+`POST /orders/:id/cancel` and `POST /bills/:id/void`.
+
+Anything the other developer needs to know:
+A whole-order cancel stores its code on the order only; the lines it cancels get
+the note and a null line code, because the two lists differ. R15 should read the
+order's code for those lines. The variant check and the reason codes landed in
+one commit, not two.
+
+Anything now blocked or unblocked:
+P05 can start. Kitchen cancelling is an open question, deliberately unchanged.
+
 ### 2026-10-01 Rishi, P03 bill snapshots and line shares
 
 What was built or decided:

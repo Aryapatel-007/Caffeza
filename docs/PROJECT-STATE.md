@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P15, daily, money and GST reports.
+Next: P16, menu, captain and table reports.
 
 ---
 
@@ -46,7 +46,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M16 | Settlement and Day Close | Rishi | DONE | Day Close proven against the golden day in `tests/goldenDay.test.js`. No Charge (P08), On Hold accounts (P09), cash drawer, day figures, checks C1 C3 C4 C6 C8 C9, Day Close with the blind count, and the day lock (P10). Built by Rishi. Arya's read outstanding. |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M19 | Reports v2 | Arya | IN PROGRESS | Specified in P13: `docs/API-CONTRACT.md` section "M19 Reports v2". Built by Rishi, off the listed owner. Arya's read outstanding. |
+| M19 | Reports v2 | Arya | IN PROGRESS | Specified in P13. Engine and R19 built in P14; R2 to R10 in P15, server only. Screens come in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M20 | Floor Plan and Look | Arya | NOT STARTED | P19, P20. |
 
 ---
@@ -347,6 +347,10 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | C12 ignores payment method rows that are zero in both the stored snapshot and the fresh figures. | Section B lists every active method, so adding or retiring a method after a close would otherwise read as a changed day. |
 | 2026-10-01 | Day Close now runs every one-day check: C1 to C4, C5.4, C5.7, C6 to C11. | P14 asked Day Close to run every check that applies to one day. |
 | 2026-10-01 | The client gained `downloadFile` in `api/client.js` for report exports. | Every network call lives in `src/api`, and a file needs the same auth headers and refresh as JSON. |
+| 2026-10-01 | The Tally by-method block splits each bill's net sales, CGST and SGST across its payments and account charge with the largest remainder method, in `splitBillAcrossPayments` in `tax.js`. Both Tally blocks always total the same. | Caffeza's old export worked figures backwards from rounded amounts and its two blocks disagreed. |
+| 2026-10-01 | R9's On Hold row uses the Tally code `P03`, a constant, until accounts carry their own code. | The contract names P03 and no account has a Tally code field; adding one is a schema change for its own prompt. |
+| 2026-10-01 | R2 reads `dayCloseService.readDay` rather than computing anything itself, so the Day Close screen and the report are one calculation, and a closed day is the stored snapshot. | A second calculation is a second chance to disagree; C12 is what compares the snapshot with a fresh count. |
+| 2026-10-01 | A sectioned report's Excel export stacks its sections on the Report sheet; R9 alone writes one sheet per section. | Tally imports one block per sheet. Every other report reads top to bottom like the screen. |
 
 ---
 
@@ -369,6 +373,60 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P15 daily, money and GST reports
+
+What was built or decided:
+Nine report definitions in `server/services/reports/definitions/`, registered
+in `registry.js`: R2 Day Close (`day-close`, through `readDay`, blind count
+applied, C12 when closed), R3 Sales by Day (every date, zeros, `compare=previous`),
+R4 Hours and Weekdays (24 hours and a weekday by hour grid), R5 Payments
+(OWNER only, one column per method plus On Hold, Unpaid and collections),
+R6 Platform Money (payouts with expected from frozen commission, and uncovered
+payments with "Rate not set"), R7 Cash Till (OWNER only, stored close or the
+day so far), R8 GST (sections A to E), R9 Tally Export (a file only, two Tally
+sheets, refuses with 422 `CHECK_FAILED` while an ERROR check fails) and R10
+Invoice Register (voided included, "Missing number" rows, paged).
+
+`splitBillAcrossPayments` is new in `server/utils/tax.js`: one part per payment,
+then On Hold, then Unpaid, net sales, CGST and SGST each split by the largest
+remainder method and checked to add back. Shared column helpers in
+`definitions/shared.js`; `CheckFailedError` in `utils/errors.js`; Figure, Count
+and Value labels in GLOSSARY section 13 and both labels files. The engine gives
+definitions `ctx.paymentMethods` (names and order only) and supports
+`requiresPassingChecks` and `sheetPerSection`. `buildGoldenDay` takes a
+`commissions` option.
+
+`tests/reportsDaily.test.js` builds the golden day once with Swiggy at 2000
+basis points, closes 26 September as the Manager with ₹3,400.00 counted, and
+checks every report against TEST-DATA sections 4 and 5 to the paisa. Broken on
+purpose: B06's stored total (C12 fails, R2 still shows the snapshot), B03's
+round-off (R9 refuses and names C1), and B11 deleted (R10 shows the missing
+number, C6 fails). The split has unit cases and a property test over 1,000
+seeded random bills. Every report's workbook opens with its sheets, and every
+role gets 200 or 403 as the permission table says. M6's tests are unchanged and
+pass.
+
+Tests: 820 before, 843 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `definitions/` dayClose, salesByDay, hours, payments, platformMoney,
+cashTill, gst, tallyExport, invoiceRegister, shared; `tests/reportsDaily.test.js`.
+Changed: `utils/tax.js`, `utils/errors.js`, `reports/engine.js`,
+`reports/exportXlsx.js`, `reports/labels.js`, `reports/registry.js`, client
+`features/reports/labels.js`, `tests/helpers/goldenDay.js`, GLOSSARY section 13,
+API-CONTRACT M19 section 13.
+Endpoints: `GET /api/v1/reports/v2/{day-close, sales-by-day, hours, payments,
+platform-money, cash-till, gst, tally-export, invoice-register}`.
+
+Anything the other developer needs to know:
+No screens yet; P18 builds them on these envelopes. The Tally workbook was
+checked by opening it with exceljs in the test, not in Excel or Tally; the
+accountant should import one before go-live. Commission rates are TO CONFIRM,
+so R6 lists Caffeza's platform payments as "Rate not set" until they are set.
+
+Anything now blocked or unblocked:
+P16 and P17 can start. P18 has its daily and money reports.
 
 ### 2026-10-01 Rishi, P14 report engine
 
@@ -865,57 +923,6 @@ as the API returns it is in the P05 summary of this session.
 
 Anything now blocked or unblocked:
 P06 can start.
-
-### 2026-10-01 Rishi, P04 cancel reasons and the variant check
-
-What was built or decided:
-Cancelling an item, cancelling an order and voiding a bill now take a fixed
-`reasonCode` plus an optional `note`, required for `OTHER`. The three lists live
-in `server/config/cancelReasons.js` and are mirrored, codes and labels only, in
-`client/src/features/orders/cancelReasons.js`; a test keeps the two identical.
-The old `reason` field is refused with a 400. The stored text fields
-(`cancelReason`, `voidReason`) now hold the note; new `cancelReasonCode` and
-`voidReasonCode` fields hold the code. Old records are not converted.
-
-A line cancelled with `wasPrepared: true` writes `LINE_CANCELLED_AFTER_PREP`.
-Every whole-order cancel writes `ORDER_CANCELLED`, which was listed since M3 and
-never written. Both are written inside the cancel's transaction, so a version
-conflict leaves no audit line. `BILL_VOIDED` now carries `reasonCode` in
-`details` and "label: note" as its reason.
-
-An unavailable variant or add-on is refused with a 422 when ordered. The menu
-already carried `isAvailable` on both, so no contract change was needed there.
-The order screen greys them out with "Out of stock".
-
-On screen: one large button per reason in the cancel and void panels (a shared
-`ReasonPicker`), the note under them, and the label plus note shown on a
-cancelled line and a voided bill.
-
-Golden day B13 is built through the API in a test: the bill is ₹420.00, with
-exactly one after-preparation audit line for ₹390.00.
-
-Files or endpoints touched:
-New: `server/config/cancelReasons.js`, `client/src/features/orders/cancelReasons.js`,
-`client/src/features/orders/ReasonPicker.jsx`, `server/tests/cancelReasons.test.js`.
-Changed: `validators/common.js` (`reasonFields`, `requireNoteForOther`),
-`orderValidators.js`, `billValidators.js`, `models/Order.js`, `models/Bill.js`,
-`models/AuditLog.js`, `controllers/orderController.js`, `services/billService.js`,
-`services/orderService.js`, `scripts/seedDemo.js`, and on the client
-`api/orders.js`, `api/bills.js`, `CancelPanel.jsx`, `OrderScreenPage.jsx`,
-`OrderLineList.jsx`, `LineOptionsPanel.jsx`, `VoidBillPanel.jsx`,
-`BillScreenPage.jsx`. Existing tests that sent `reason` now send
-`reasonCode: 'OTHER'` with the old text as the note.
-Endpoints: the request shape of `POST /orders/:id/lines/:lineId/cancel`,
-`POST /orders/:id/cancel` and `POST /bills/:id/void`.
-
-Anything the other developer needs to know:
-A whole-order cancel stores its code on the order only; the lines it cancels get
-the note and a null line code, because the two lists differ. R15 should read the
-order's code for those lines. The variant check and the reason codes landed in
-one commit, not two.
-
-Anything now blocked or unblocked:
-P05 can start. Kitchen cancelling is an open question, deliberately unchanged.
 
 ---
 

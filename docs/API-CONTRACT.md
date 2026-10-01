@@ -5138,3 +5138,30 @@ close does not count as a change.
 The Excel number format for money is
 `[>=10000000]##\,##\,##\,##0.00;[>=100000]##\,##\,##0.00;##,##0.00`.
 
+
+## 13. Settled while building P15
+
+R2's sections share three columns, `line` (Figure), `count` (Count) and
+`amountInPaise` (Value), labels from GLOSSARY section 13. Two sections carry
+more on each row: `orderTypes` adds `netSalesInPaise` and `covers`, `gst` adds
+`cgstInPaise`, `sgstInPaise` and `gstInPaise`, and `invoices` rows are
+`{ line, first, last, issued, voided, gaps }`. R2 also returns `isClosed`,
+`status`, `figures` (the raw day figures, blind count applied) and `blockers`
+beside its sections, so the Day Close screen can read one envelope. A closed
+day's checks are its stored-day checks plus C12.
+
+`splitBillAcrossPayments(bill)` in `server/utils/tax.js` returns one part per
+payment, then `ON_HOLD` for `chargedToAccountInPaise`, then `UNPAID` for any
+remainder, each `{ kind, method, methodName, tallyLedgerCode, amountInPaise,
+netSalesInPaise, cgstInPaise, sgstInPaise }`. Net sales, CGST and SGST are each
+split by the largest remainder method weighted by `amountInPaise`, and the
+function throws if any figure does not add back exactly. A bill with no money
+against it is one `UNPAID` part carrying all of it.
+
+R9's On Hold row takes the Tally code `P03`, a constant in
+`definitions/tallyExport.js`, until accounts carry their own code. `format=json`
+or no format is a 400. The 422 `CHECK_FAILED` carries `checks`, the failed
+checks in the envelope's check shape, and its message names each one.
+
+An xlsx export of a report with sections writes them one under another on the
+Report sheet, each with its title; R9 writes one sheet per section instead.
