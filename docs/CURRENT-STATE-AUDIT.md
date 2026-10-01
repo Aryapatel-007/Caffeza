@@ -118,7 +118,7 @@ Uncommitted work that was copied into the snapshot:
 | Decision "Web app is online only" | Still stands. The server runs in the cloud, next to Atlas. | Yes |
 | Open question "Hosting provider and region" | Settled: a cloud server in the same region as a separate Atlas cluster for Caffeza | Needs updating |
 | Open question on recipe unit conversion | Listed twice, and already settled by M4 decision D11 | Needs updating |
-| `docs/PROJECT-PLAN_1.md` says M3 to M6 have no contract yet | They do. The file covers only M0 to M2 and is stale. | No |
+| `docs/PROJECT-PLAN_1.md` says M3 to M6 have no contract yet | They do. The file covered only M0 to M2 and was stale. Deleted in P02; git history keeps it. | No |
 
 Decisions in the docs that differ from what Caffeza needs:
 
