@@ -85,7 +85,44 @@ export function fromDatetimeLocalIst(local) {
   return new Date(Date.UTC(year, month - 1, day, hour, minute) - IST_OFFSET_MS).toISOString();
 }
 
-/** Today, as "YYYY-MM-DD" in IST. For the register's default date range. */
-export function todayIso() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: DISPLAY_TIMEZONE }).format(new Date());
+/* ------------------------------------------------------------------------- *
+ * THE BUSINESS DAY, client mirror.
+ *
+ * A line-for-line copy of `businessDateFor` in server/utils/time.js, which is
+ * the one rule for which business day an instant belongs to. This is a copy of
+ * that rule, not a second one: it MUST stay identical, and
+ * server/tests/timeDisplay.test.js runs both against the same instants to
+ * prove it.
+ *
+ * Why it exists: every list the cashier and the manager filter by date filters
+ * by business date. Defaulting to today's calendar date meant that at 12:30 AM,
+ * with the cafe still billing yesterday's business day, the bills list showed
+ * nothing at all.
+ *
+ * The client assumes the default 05:00 start, because cashiers cannot read
+ * `GET /settings`. A restaurant that moves its start will see default dates
+ * off by one around the boundary; see the known problems table.
+ * ------------------------------------------------------------------------- */
+
+/** Minutes past midnight IST at which the business day rolls over. 05:00. */
+export const DEFAULT_BUSINESS_DAY_START_MINUTES = 300;
+
+/** IST is UTC+05:30. India does not observe daylight saving, so this is fixed. */
+const IST_OFFSET_MINUTES = 330;
+const MINUTE_MS = 60_000;
+
+/** The business day an instant belongs to, as a "YYYY-MM-DD" string. */
+export function businessDateForIst(instant, startMinutes = DEFAULT_BUSINESS_DAY_START_MINUTES) {
+  const value = instant instanceof Date ? instant : new Date(instant);
+  if (Number.isNaN(value.getTime())) {
+    throw new TypeError('businessDateForIst received a value that is not a valid date.');
+  }
+
+  const shifted = new Date(value.getTime() + (IST_OFFSET_MINUTES - startMinutes) * MINUTE_MS);
+  return shifted.toISOString().slice(0, 10);
+}
+
+/** Today's business date. The default for every date filter on a list screen. */
+export function businessDateToday(startMinutes = DEFAULT_BUSINESS_DAY_START_MINUTES) {
+  return businessDateForIst(new Date(), startMinutes);
 }

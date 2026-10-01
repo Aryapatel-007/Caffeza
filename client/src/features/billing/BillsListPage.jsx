@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import { listBills } from '../../api/bills.js';
-import { todayIso } from '../../utils/formatDate.js';
+import { businessDateToday } from '../../utils/formatDate.js';
 import { formatPaise } from '../../utils/formatMoney.js';
 import BillStatusBadge from './BillStatusBadge.jsx';
 import { errorMessage } from './errorCopy.js';
@@ -19,8 +19,8 @@ import { errorMessage } from './errorCopy.js';
  * screen, per docs/API-CONTRACT.md section 14.3.
  */
 export default function BillsListPage() {
-  const [from, setFrom] = useState(todayIso());
-  const [to, setTo] = useState(todayIso());
+  const [from, setFrom] = useState(businessDateToday);
+  const [to, setTo] = useState(businessDateToday);
   const [status, setStatus] = useState('');
   const [includeVoided, setIncludeVoided] = useState(false);
 

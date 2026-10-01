@@ -12,6 +12,7 @@
  * with the printed bill by a rupee, which is the exact failure BUILD-PLAN
  * names and the reason `tax.js` exists as the only place tax is worked out.
  */
+import { config } from '../config/env.js';
 import { Bill } from '../models/Bill.js';
 import { Order, OCCUPYING_ORDER_STATUSES } from '../models/Order.js';
 import { liveInRange, tenantMatch } from './reportRangeService.js';
@@ -192,7 +193,7 @@ export async function hourly(req, { from, to }) {
     liveInRange(req, { from, to }),
     {
       $group: {
-        _id: { $hour: { date: '$billedAt', timezone: 'Asia/Kolkata' } },
+        _id: { $hour: { date: '$billedAt', timezone: config.DISPLAY_TIMEZONE } },
         grossSalesInPaise: { $sum: '$grandTotalInPaise' },
         billCount: { $sum: 1 },
       },

@@ -8,7 +8,7 @@ import Spinner from '../../components/ui/Spinner.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import * as attendanceApi from '../../api/attendance.js';
 import { listUsers } from '../../api/users.js';
-import { formatTimeIst, todayIso } from '../../utils/formatDate.js';
+import { businessDateToday, formatTimeIst } from '../../utils/formatDate.js';
 import { formatMinutes } from '../../utils/formatDuration.js';
 import CorrectionPanel from './CorrectionPanel.jsx';
 import { errorMessage } from './errorCopy.js';
@@ -32,8 +32,8 @@ function forRegister(a, b) {
 export default function AttendanceRegisterPage() {
   const queryClient = useQueryClient();
 
-  const [from, setFrom] = useState(todayIso);
-  const [to, setTo] = useState(todayIso);
+  const [from, setFrom] = useState(businessDateToday);
+  const [to, setTo] = useState(businessDateToday);
   const [panel, setPanel] = useState(null); // null | { mode: 'create' } | { mode: 'edit', entry }
   const [toast, setToast] = useState(null);
 

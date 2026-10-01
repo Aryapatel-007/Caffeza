@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import { listKots, markKotLineReady, markKotReady } from '../../api/kitchen.js';
+import { formatTimeIst } from '../../utils/formatDate.js';
 import { errorMessage } from '../orders/errorCopy.js';
 
 /**
@@ -218,7 +219,7 @@ function SinceFired({ firedAt }) {
   return (
     <span
       className="flex-none font-mono text-[18px] font-semibold leading-6"
-      title={new Date(firedAt).toLocaleTimeString()}
+      title={formatTimeIst(firedAt)}
     >
       {minutes}m
     </span>

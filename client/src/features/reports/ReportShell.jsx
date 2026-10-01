@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../context/AuthContext.jsx';
+import { businessDateForIst } from '../../utils/formatDate.js';
 import { ROLES } from '../users/roles.js';
 
 /**
@@ -118,14 +119,11 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
   );
 }
 
-/** A range ending today, in IST business dates. */
+/** A range ending today, in IST business dates, at the default 05:00 start. */
 export function lastNDays(days) {
-  const IST_OFFSET_MINUTES = 330;
-  const BOUNDARY_MINUTES = 300; // the default 05:00 business-day start
-  const nowShifted = Date.now() + (IST_OFFSET_MINUTES - BOUNDARY_MINUTES) * 60_000;
-
-  const to = new Date(nowShifted).toISOString().slice(0, 10);
-  const from = new Date(nowShifted - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const now = Date.now();
+  const to = businessDateForIst(now);
+  const from = businessDateForIst(now - days * 24 * 60 * 60 * 1000);
   return { from, to };
 }
 
