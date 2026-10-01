@@ -4196,6 +4196,38 @@ outstanding balance is refused with 422 `ACCOUNT_BALANCE_EXCEEDED`.
 Collections and adjustments are refused with 409 `DAY_CLOSED` when today's
 business date is closed (P10).
 
+### 2.4 Settled while building P09
+
+`POST /accounts/:id/collections` and `/adjustments` answer 201 with the ledger
+entry they wrote: `{ id, accountId, type, direction, amountInPaise, method,
+methodName, methodKind, reference, note, businessDate, at, by }`.
+
+`GET /accounts/:id/statement` answers:
+
+```json
+{
+  "account": { "id": "...", "name": "W-330 Office", "isActive": true },
+  "from": "2026-09-26", "to": "2026-09-27",
+  "openingBalanceInPaise": 0,
+  "entries": [
+    { "type": "CHARGE", "direction": "UP", "amountInPaise": 50400, "billNumber": "CFA/C/22451", "businessDate": "2026-09-26", "balanceInPaise": 50400 },
+    { "type": "COLLECTION", "direction": "DOWN", "amountInPaise": 50400, "methodName": "Cash", "businessDate": "2026-09-27", "balanceInPaise": 0 }
+  ],
+  "closingBalanceInPaise": 0
+}
+```
+
+`openingBalanceInPaise` is the balance from every entry before `from`;
+`closingBalanceInPaise` is the balance after the last entry on or before `to`.
+Both dates are business dates and both are optional.
+
+`oldestUncollectedDate` applies every DOWN amount to the UP entries oldest
+first; the first UP entry not fully covered gives the date.
+
+`ACCOUNT_BALANCE_ADJUSTED` carries the amount signed: negative for `DOWN`.
+
+Voiding an already voided payout is a 422.
+
 ## 3. The cash drawer
 
 Stored in `cashmovements`, DB-SCHEMA section 24.

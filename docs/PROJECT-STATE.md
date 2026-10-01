@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P09, On Hold accounts and platform payouts.
+Next: P10, cash drawer and Day Close.
 
 ---
 
@@ -43,8 +43,8 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M7 | Restaurant Settings | Rishi | DONE | Phase 1B's first module. Two endpoints, no new collection: `restaurants.settings` gains `tax`, `receipt` and `inventory`, every field with a schema default so there is no migration. `settingsService` is now the only way any module reads configuration. 27 new tests. Verified live against the Atlas cluster, including a genuine pre-M7 document reading back complete. Not done under BUILD-PLAN section 13: Arya has not read it. P02 added `settings.features` (inventory and attendance switches, enforced by `requireFeature`) and `settings.invoice` (financial-year or prefix numbering). |
 | M8 | Audit Trail | Rishi | NOT STARTED | Specified in API-CONTRACT.md. Pulled forward for Caffeza. Built in P17 part A. |
 | M10 | Payments | Rishi | IN PROGRESS | Specified in P07. Built in P08: configurable payment methods, frozen payment details, method corrections, discount reasons and funding. Arya's read outstanding. |
-| M16 | Settlement and Day Close | Rishi | IN PROGRESS | Specified in P07. No Charge built in P08. On Hold accounts (P09), cash drawer and Day Close (P10) to come. |
-| M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders and 0% platform tax built in P06. Payouts come in P09. Built by Rishi, off the listed owner. |
+| M16 | Settlement and Day Close | Rishi | IN PROGRESS | Specified in P07. No Charge built in P08, On Hold accounts in P09. Cash drawer and Day Close (P10) to come. |
+| M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | NOT STARTED | Every report in REPORT-SPEC.md. P13 to P18, proven by P21. |
 | M20 | Floor Plan and Look | Arya | NOT STARTED | P19, P20. |
@@ -309,6 +309,12 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | The receipt, the M6 discounts report and the audit line show a discount as its reason's label plus the note, through `discountReasonText`. The M6 test expecting the free text was changed on purpose. | From P08 `discount.reason` holds only the optional note, so printing it alone would print nothing, or `null` on a receipt. |
 | 2026-10-01 | `POST /bills/:id/discount` moved from the managers route list to the till list, and `billPermissionService.assertCanDiscount` decides. | A cashier may apply a platform discount when the owner allows it, and one function, not a route table, holds that rule. |
 | 2026-10-01 | Provisioning's no-transaction rollback now also removes the restaurant's payment methods. | Provisioning creates them, so a failed manual provisioning must not leave them behind. |
+| 2026-10-01 | An account's outstanding balance is never stored. `accountService.outstandingFor` adds up the ledger every time, and `accountService` is the only writer of `accountentries`. | A stored running balance drifts the first time a write half-fails, and nothing notices. |
+| 2026-10-01 | `oldestUncollectedDate` is worked out first-in, first-out: every DOWN amount covers the oldest UP entries first. | The spec named the field without the rule. FIFO is how a tab is actually settled. |
+| 2026-10-01 | Voiding a bill now runs in one transaction, so a void of an On Hold bill writes `CHARGE_REVERSED` together with the void or not at all. | The ledger and the bill must never disagree about whether a charge stands. |
+| 2026-10-01 | Payout expected amounts are computed on read, never stored, from each covered payment's frozen commission. A payment from before P08 with no payment business date reads as its bill's. | A commission changed later must not move an existing payout, and a stored figure could go stale. |
+| 2026-10-01 | The old M6 payments report now lists any method code used beyond Cash, UPI, Card and Other, after those four. | Found in P09: after P08 a platform payment was silently missing from that report's total. |
+| 2026-10-01 | `tests/tables.test.js` now waits for the counter index with `Counter.init()` before its concurrency test. | It failed two runs in three once P09 added three models whose indexes build at startup. The same fix `billNumber.test.js` already uses. |
 
 ---
 
@@ -331,6 +337,62 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P09 On Hold accounts and platform payouts
+
+What was built or decided:
+On Hold accounts: `accounts` and an append-only `accountentries` ledger, with
+the balance always computed from the entries. Create (an opening balance
+writes an OPENING entry in the same transaction), edit, list with outstanding
+balance and oldest uncollected date, and a statement with a running balance.
+`POST /bills/:id/charge-to-account` (OWNER, MANAGER) puts what is still owed on
+the account in one transaction: the bill becomes ON_ACCOUNT, the order BILLED
+and the table frees, a CHARGE entry and `BILL_CHARGED_TO_ACCOUNT`. Voiding an
+On Hold bill writes CHARGE_REVERSED in the same transaction. Collections take
+in-hand methods only and never more than is owed; owner adjustments write
+`ACCOUNT_BALANCE_ADJUSTED`.
+
+Where ON_ACCOUNT changed existing behaviour: taking a payment and applying a
+discount refuse it; voiding allows it with the reversal; the bill list filters
+and shows it as "On Hold"; the M6 sales figures count it as a sale like any
+live bill; the M6 payments and unpaid figures do not count it, because On Hold
+money is not received money and the bill is not unpaid.
+
+Platform payouts: `platformpayouts`, list (with expected, difference and
+rate-not-set payments), record (409 on an overlapping live period), void
+(owner, reason, kept). Expected is each covered payment's amount at
+(10000 − its frozen commission) basis points through `applyBasisPoints`, summed.
+
+Client: Charge to account on an unpaid bill, an On Hold accounts page
+(`/accounts`) with statements, collections and owner adjustments, and a
+Payouts page (`/payouts`) with a negative difference in `mirch`, both under a
+Money label on the dashboard.
+
+Golden day B09 (4700 to E-210 Office), B10 (50400 to W-330 Office), the
+section 5 collection at 1:15 PM on 27 September, and the Swiggy payout of
+74400 against 93000 at 2000 bps, are reproduced to the paisa. C3 is checked on
+a part-paid charged bill, C10 by hand, C11 in the payout test.
+
+Tests: 730 before, 749 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: Account, AccountEntry and PlatformPayout models, `accountService`,
+`payoutService`, account controller, routes and validators, tests
+`accounts.test.js`, client `api/accounts.js`, `ChargeToAccountPanel.jsx`,
+`features/settlement/AccountsPage.jsx` and `PayoutsPage.jsx`. Changed: Bill and
+AuditLog models, `billService` (transactional void), `billPermissionService`,
+`paymentMethodService` (`methodByCode`), `salesReportService`, `utils/errors.js`,
+`tests/tables.test.js`, and on the client the bill screen, badge, list, labels,
+dashboard, `App.jsx` and `formatDate.js` (`formatBusinessDate`).
+
+Anything the other developer needs to know:
+Write account entries only through `accountService`. The P10 closed-day
+refusal points are marked with comments in `accountService` and
+`payoutService`. Not done by hand in a browser yet: charging a bill and seeing
+the table free, the next-day collection, and a Swiggy payout on screen.
+
+Anything now blocked or unblocked:
+P10 can start.
 
 ### 2026-10-01 Rishi, P08 payment methods, discount reasons and No Charge
 
@@ -863,89 +925,6 @@ says must not run in parallel with M7 because both append to the same two
 
 **Still open:** Arya has not read M7. The two services still reading settings
 directly are in the known problems table.
-
-### 2026-08-31 Rishi, M6 Reports and Dashboard
-
-**What was built:** M6, server and screens, on `feat/m6/reports`, against the
-M6 contract that was already written into `docs/API-CONTRACT.md`. Ten
-read-only endpoints, no collection, 34 new tests, seven screens. This is the
-seventh and last module of Phase 1.
-
-**The spec section came first, as its own commit**, per BUILD-PLAN section 13:
-`docs/DB-SCHEMA.md` gains an M6 section whose entire content is that this
-module has no schema — which collection each figure is read from, which
-existing indexes the reads rely on, why there is no rollup collection, and the
-four things M6 must never do to data it reads.
-
-**What M6 owns: nothing**
-
-No model file, no field on any existing collection, no new index, and no write
-verb. A test asserts `reportRoutes.js` contains no `router.post`, `patch`,
-`put` or `delete`, because "M6 writes nothing" is exactly the kind of
-invariant that erodes the first time storing a rollup looks convenient.
-
-**Three rules, all negative-tested rather than assumed**
-
-Voided records leave every total. Removing `isVoided: false` from the shared
-opening `$match` fails exactly the two tests written to catch it.
-
-An open shift contributes ZERO minutes and is listed separately. M5 refuses to
-invent a clock-out time and M6 refuses identically; making an open shift
-contribute elapsed-time-so-far fails exactly two more tests. This matters
-beyond the report: M11 will pay people from these minutes.
-
-Tax is summed from `bills.taxBreakdown` and never recomputed, so the report
-cannot disagree with the printed bill by a rupee.
-
-**Verified live against the seeded Atlas data, not only against the suite**
-
-Every endpoint was driven over HTTP against Demo Restaurant A. The figures
-reconcile exactly with the independent verification from the previous session:
-gross sales of 128800 paise across five live bills with one voided at 18700,
-CGST 3091 plus SGST 3089 making the 6180 total with CGST taking the odd paisa,
-and all three GST slabs present including the zero-rated one. The two
-backdated bills at 23:45 and 00:30 IST both land on business date 2026-08-29,
-so the boundary holds in a report as well as on a bill. Every role gate was
-checked with a real token: a manager is refused the payment breakdown, a
-storekeeper gets stock consumption and nothing else, a cashier gets nothing.
-
-**Looking at the rendered screens found two things the tests could not**
-
-The x-axis labels were truncating to "11 A…", and the columns sat left of the
-labels they belonged to. Both came from positioning SVG rects with `min()` and
-`calc()` inside width attributes, which browsers support unevenly. The chart
-is now plain HTML and CSS: flexbox gives geometry the browser is certain about
-and centring becomes `justify-center` rather than arithmetic. No charting
-library was added, and none is needed — every chart in this module is one
-series of magnitudes.
-
-**On colour**
-
-Every M6 chart is single-series, so there is no categorical palette and the
-marks are `ink`. The dataviz validator FAILs `ink` on its lightness-band and
-chroma-floor checks, and both are out of scope by that validator's own footer:
-they govern categorical palettes and exist to keep hues apart from each other,
-which is meaningless with one series. DESIGN-SYSTEM section 3 binds instead —
-`chana`, `mirch` and `patta` are functional colour, so a data mark that means
-nothing in particular must use `ink` or `steel`. The check that does apply,
-contrast, passes at 16.46:1. No chroma was added to satisfy a check that does
-not govern this case.
-
-**What the other developer needs to know**
-
-`reportRangeService.js` holds the three rules every report shares: both dates
-required with no defaults, the 366-day cap, and the opening `$match`. That
-stage uses `scopedForAggregate`, never `scoped` — a pipeline is uncast and
-`req.restaurantId` is a string, so `scoped` would return a silent zero.
-
-`skipTenantGuard` is unchanged at four. M6 adds none, and its own tripwire test
-asserts it.
-
-**Unblocked:** Phase 1 is complete. Every module M0 to M6 has working code.
-
-**Still open:** Arya's read, now owed on four modules. M3's two pilot gates.
-Nothing in Phase 1B has been started, and BUILD-PLAN section 6 is explicit
-that it should not be until the conversation with Anshul and Om happens.
 
 ---
 

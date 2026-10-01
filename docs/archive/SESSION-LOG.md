@@ -1,5 +1,88 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-08-31 Rishi, M6 Reports and Dashboard
+
+**What was built:** M6, server and screens, on `feat/m6/reports`, against the
+M6 contract that was already written into `docs/API-CONTRACT.md`. Ten
+read-only endpoints, no collection, 34 new tests, seven screens. This is the
+seventh and last module of Phase 1.
+
+**The spec section came first, as its own commit**, per BUILD-PLAN section 13:
+`docs/DB-SCHEMA.md` gains an M6 section whose entire content is that this
+module has no schema — which collection each figure is read from, which
+existing indexes the reads rely on, why there is no rollup collection, and the
+four things M6 must never do to data it reads.
+
+**What M6 owns: nothing**
+
+No model file, no field on any existing collection, no new index, and no write
+verb. A test asserts `reportRoutes.js` contains no `router.post`, `patch`,
+`put` or `delete`, because "M6 writes nothing" is exactly the kind of
+invariant that erodes the first time storing a rollup looks convenient.
+
+**Three rules, all negative-tested rather than assumed**
+
+Voided records leave every total. Removing `isVoided: false` from the shared
+opening `$match` fails exactly the two tests written to catch it.
+
+An open shift contributes ZERO minutes and is listed separately. M5 refuses to
+invent a clock-out time and M6 refuses identically; making an open shift
+contribute elapsed-time-so-far fails exactly two more tests. This matters
+beyond the report: M11 will pay people from these minutes.
+
+Tax is summed from `bills.taxBreakdown` and never recomputed, so the report
+cannot disagree with the printed bill by a rupee.
+
+**Verified live against the seeded Atlas data, not only against the suite**
+
+Every endpoint was driven over HTTP against Demo Restaurant A. The figures
+reconcile exactly with the independent verification from the previous session:
+gross sales of 128800 paise across five live bills with one voided at 18700,
+CGST 3091 plus SGST 3089 making the 6180 total with CGST taking the odd paisa,
+and all three GST slabs present including the zero-rated one. The two
+backdated bills at 23:45 and 00:30 IST both land on business date 2026-08-29,
+so the boundary holds in a report as well as on a bill. Every role gate was
+checked with a real token: a manager is refused the payment breakdown, a
+storekeeper gets stock consumption and nothing else, a cashier gets nothing.
+
+**Looking at the rendered screens found two things the tests could not**
+
+The x-axis labels were truncating to "11 A…", and the columns sat left of the
+labels they belonged to. Both came from positioning SVG rects with `min()` and
+`calc()` inside width attributes, which browsers support unevenly. The chart
+is now plain HTML and CSS: flexbox gives geometry the browser is certain about
+and centring becomes `justify-center` rather than arithmetic. No charting
+library was added, and none is needed — every chart in this module is one
+series of magnitudes.
+
+**On colour**
+
+Every M6 chart is single-series, so there is no categorical palette and the
+marks are `ink`. The dataviz validator FAILs `ink` on its lightness-band and
+chroma-floor checks, and both are out of scope by that validator's own footer:
+they govern categorical palettes and exist to keep hues apart from each other,
+which is meaningless with one series. DESIGN-SYSTEM section 3 binds instead —
+`chana`, `mirch` and `patta` are functional colour, so a data mark that means
+nothing in particular must use `ink` or `steel`. The check that does apply,
+contrast, passes at 16.46:1. No chroma was added to satisfy a check that does
+not govern this case.
+
+**What the other developer needs to know**
+
+`reportRangeService.js` holds the three rules every report shares: both dates
+required with no defaults, the 366-day cap, and the opening `$match`. That
+stage uses `scopedForAggregate`, never `scoped` — a pipeline is uncast and
+`req.restaurantId` is a string, so `scoped` would return a silent zero.
+
+`skipTenantGuard` is unchanged at four. M6 adds none, and its own tripwire test
+asserts it.
+
+**Unblocked:** Phase 1 is complete. Every module M0 to M6 has working code.
+
+**Still open:** Arya's read, now owed on four modules. M3's two pilot gates.
+Nothing in Phase 1B has been started, and BUILD-PLAN section 6 is explicit
+that it should not be until the conversation with Anshul and Om happens.
+
 ### 2026-08-30 Rishi, seed data and the end-to-end Atlas verification
 
 **What was built:** `scripts/seedDemo.js`, wired to `npm run seed:demo`, plus a
