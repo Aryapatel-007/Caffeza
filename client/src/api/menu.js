@@ -30,10 +30,12 @@ export function createCategory({ name, displayOrder }) {
 }
 
 /** name and displayOrder only. isActive has its own endpoint. */
-export function updateCategory(categoryId, { name, displayOrder }) {
+export function updateCategory(categoryId, { name, displayOrder, stationId }) {
   const body = {};
   if (name !== undefined) body.name = name;
   if (displayOrder !== undefined) body.displayOrder = displayOrder;
+  // P05. A station id, or null for the default station.
+  if (stationId !== undefined) body.stationId = stationId;
   return api.patch(`/categories/${categoryId}`, body);
 }
 

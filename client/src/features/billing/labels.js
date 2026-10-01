@@ -21,7 +21,7 @@ export const BILL_LABELS = {
   amountReceived: { en: 'Amount received', gu: 'મળેલી રકમ' },
   recordPayment: { en: 'Record payment', gu: 'ચુકવણી નોંધો' },
   voidBill: { en: 'Void bill', gu: 'બિલ રદ કરો' },
-  printReceipt: { en: 'Print receipt', gu: 'રસીદ છાપો' },
+  printReceipt: { en: 'Print bill', gu: 'બિલ છાપો' },
   reason: { en: 'Reason', gu: 'કારણ' },
   total: { en: 'Total', gu: 'કુલ' },
   outstanding: { en: 'Outstanding', gu: 'બાકી રકમ' },

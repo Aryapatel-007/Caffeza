@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import * as menuApi from '../../api/menu.js';
+import { listStations } from '../../api/stations.js';
 import Button from '../../components/ui/Button.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
@@ -75,6 +76,18 @@ export default function MenuBuilderPage() {
       setToast({ tone: 'success', message: 'Category renamed.' });
     },
     onError: (error, { name }) => handleFailure(error, { name }),
+  });
+
+  // P05. Stations, for the category's station picker.
+  const stations = useQuery({ queryKey: ['stations'], queryFn: () => listStations() });
+
+  const setCategoryStation = useMutation({
+    mutationFn: ({ id, stationId }) => menuApi.updateCategory(id, { stationId }),
+    onSuccess: () => {
+      refreshAll();
+      setToast({ tone: 'success', message: 'Station changed. New orders go there from now on.' });
+    },
+    onError: (error) => handleFailure(error, {}),
   });
 
   const toggleCategoryActive = useMutation({
@@ -180,6 +193,8 @@ export default function MenuBuilderPage() {
             onCreate={(name) => createCategory.mutate(name)}
             onRename={(id, name) => renameCategory.mutate({ id, name })}
             onToggleActive={(category) => toggleCategoryActive.mutate(category)}
+            stations={stations.data ?? []}
+            onStationChange={(id, stationId) => setCategoryStation.mutate({ id, stationId })}
           />
 
           <section className="flex-1 overflow-y-auto p-5 sm:px-7">

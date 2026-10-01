@@ -18,6 +18,8 @@ export default function CategoryRail({
   onToggleActive,
   onCreate,
   isBusy,
+  stations = [],
+  onStationChange,
 }) {
   const [renamingId, setRenamingId] = useState(null);
   const [draftName, setDraftName] = useState('');
@@ -115,6 +117,26 @@ export default function CategoryRail({
             {categories.find((c) => c.id === selectedId)?.isActive ? 'Turn off' : 'Turn on'}
           </button>
         </div>
+      )}
+
+      {/* P05. Which station this category's dishes go to. */}
+      {selectedId && stations.length > 0 && onStationChange && (
+        <label className="mt-3 block px-3">
+          <span className="mb-1 block text-xs font-medium tracking-[0.06em] text-steel">STATION</span>
+          <select
+            value={categories.find((c) => c.id === selectedId)?.stationId ?? ''}
+            disabled={isBusy}
+            onChange={(event) => onStationChange(selectedId, event.target.value || null)}
+            className="h-11 w-full rounded-lg border-2 border-steel/40 bg-paper px-2 text-[13px] focus:border-ink focus:outline-none"
+          >
+            <option value="">First station (default)</option>
+            {stations.map((station) => (
+              <option key={station.id} value={station.id}>
+                {station.name}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
 
       {isAdding ? (

@@ -1,0 +1,91 @@
+/**
+ * Prints a block of plain text on a thermal roll, from the browser. P05.
+ *
+ * Used for both bills and KOTs. The server has already laid the text out at a
+ * fixed column width (receiptService.js, kotTicketService.js); this does no
+ * wrapping, padding or column arithmetic of its own.
+ *
+ * It writes the text into a hidden iframe as a <pre>, sized for 58mm or 80mm
+ * paper, and calls print() on that iframe only, never on the whole page. With
+ * Chrome started with --kiosk-printing (docs/DEPLOYMENT.md section 10) the
+ * print goes straight to the default printer with no dialog. Without the flag,
+ * the normal print dialog opens.
+ *
+ * The server never talks to a printer. This is the only path to paper.
+ */
+
+/** 32 characters across 58mm paper, 48 across 80mm. */
+const PAPER = {
+  58: { characters: 32, widthMm: 58 },
+  80: { characters: 48, widthMm: 80 },
+};
+
+function escapeHtml(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Resolves when the print call has been made. Rejects if the browser refused,
+ * so a caller can show "Not printed" rather than believing it worked.
+ */
+export function printText(text, paperMm = 80) {
+  const paper = PAPER[paperMm] ?? PAPER[80];
+
+  return new Promise((resolve, reject) => {
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.position = 'fixed';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    document.body.appendChild(frame);
+
+    const cleanUp = () => setTimeout(() => frame.remove(), 1000);
+
+    try {
+      const doc = frame.contentWindow.document;
+      // A monospace font sized so `characters` columns fill the printable width.
+      // 0.6em is the advance width of a typical monospace glyph.
+      const fontMm = (paper.widthMm - 4) / paper.characters / 0.6;
+      doc.open();
+      doc.write(`<!doctype html><html><head><meta charset="utf-8" /><title>Print</title>
+<style>
+  @page { size: ${paper.widthMm}mm auto; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  pre {
+    margin: 0;
+    padding: 2mm;
+    font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    font-size: ${fontMm.toFixed(2)}mm;
+    line-height: 1.25;
+    white-space: pre;
+    color: #000;
+  }
+</style></head><body><pre>${escapeHtml(text)}</pre></body></html>`);
+      doc.close();
+
+      // Let the content paint before printing, or some browsers print a blank page.
+      setTimeout(() => {
+        try {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+          resolve();
+        } catch (error) {
+          reject(error);
+        } finally {
+          cleanUp();
+        }
+      }, 50);
+    } catch (error) {
+      cleanUp();
+      reject(error);
+    }
+  });
+}
+
+/** The character width the server should lay text out at, for a paper size. */
+export function charactersFor(paperMm) {
+  return (PAPER[paperMm] ?? PAPER[80]).characters;
+}

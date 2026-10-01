@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { createUser, getUser, updateUser } from '../../api/users.js';
+import { listStations } from '../../api/stations.js';
 import Button from '../../components/ui/Button.jsx';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import Input from '../../components/ui/Input.jsx';
@@ -10,7 +12,7 @@ import Spinner from '../../components/ui/Spinner.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { ROLES, roleOptions } from './roles.js';
 
-const EMPTY = { name: '', phone: '', email: '', role: ROLES.CASHIER, password: '' };
+const EMPTY = { name: '', phone: '', email: '', role: ROLES.CASHIER, password: '', stationId: '' };
 
 /** Add and edit share a form, because they are the same fields. */
 export default function StaffFormPage() {
@@ -21,6 +23,8 @@ export default function StaffFormPage() {
   const isEditing = Boolean(userId);
 
   const [form, setForm] = useState(EMPTY);
+  // P05. Stations, for a KITCHEN user's station picker.
+  const stations = useQuery({ queryKey: ['stations'], queryFn: () => listStations() });
   const [isLoading, setIsLoading] = useState(isEditing);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -39,6 +43,7 @@ export default function StaffFormPage() {
             email: staff.email ?? '',
             role: staff.role,
             password: '',
+            stationId: staff.stationId ?? '',
           });
         }
       } catch (loadError) {
@@ -121,6 +126,20 @@ export default function StaffFormPage() {
             options={roleOptions(actor?.role)}
             disabled={isSaving}
           />
+
+          {/* P05. A kitchen login opens on its own station's tickets. */}
+          {form.role === ROLES.KITCHEN && (stations.data ?? []).length > 0 && (
+            <Select
+              label="Station"
+              value={form.stationId}
+              onChange={set('stationId')}
+              options={[
+                { value: '', label: 'All stations' },
+                ...(stations.data ?? []).map((station) => ({ value: station.id, label: station.name })),
+              ]}
+              disabled={isSaving}
+            />
+          )}
 
           {!isEditing && (
             <Input

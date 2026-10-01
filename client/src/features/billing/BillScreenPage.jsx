@@ -14,7 +14,8 @@ import DiscountPanel from './DiscountPanel.jsx';
 import { errorMessage } from './errorCopy.js';
 import { BILL_LABELS } from './labels.js';
 import PaymentPanel from './PaymentPanel.jsx';
-import { printReceiptText } from './printReceipt.js';
+import { charactersFor, printText } from '../printing/printText.js';
+import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import VoidBillPanel from './VoidBillPanel.jsx';
 import { BILL_VOID_REASONS, describeReason } from '../orders/cancelReasons.js';
 
@@ -86,11 +87,14 @@ export default function BillScreenPage() {
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
   });
 
-  const print = async (width) => {
+  // P05. The paper width belongs to this device, not to whoever signs in.
+  const [device] = useDeviceSettings();
+
+  const print = async () => {
     setPrinting(true);
     try {
-      const { text } = await getReceipt(billId, width);
-      printReceiptText(text);
+      const { text } = await getReceipt(billId, charactersFor(device.paperMm));
+      await printText(text, device.paperMm);
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error) });
     } finally {
@@ -258,7 +262,7 @@ export default function BillScreenPage() {
 
           <ActionButton
             primary={!isSettleable}
-            onClick={() => print(32)}
+            onClick={() => print()}
             disabled={printing}
           >
             <Bilingual label={BILL_LABELS.printReceipt} align="center" />

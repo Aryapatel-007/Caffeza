@@ -187,6 +187,21 @@ export default function DashboardPage() {
               Attendance
             </Link>
           )}
+          {canManageStaff && (
+            <Link
+              to="/stations"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Stations
+            </Link>
+          )}
+          {/* P05. Printer width and auto-print for this computer or tablet. */}
+          <Link
+            to="/device"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            This device
+          </Link>
           <Button variant="secondary" size="sm" onClick={logout}>
             Sign out
           </Button>

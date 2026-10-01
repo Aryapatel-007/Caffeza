@@ -18,6 +18,8 @@ import PaymentsReportPage from './features/reports/PaymentsPage.jsx';
 import SalesReportPage from './features/reports/SalesPage.jsx';
 import StockReportPage from './features/reports/StockPage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
+import DeviceSettingsPage from './features/printing/DeviceSettingsPage.jsx';
+import StationsPage from './features/stations/StationsPage.jsx';
 import TaxReportPage from './features/reports/TaxPage.jsx';
 import TodayReportPage from './features/reports/TodayPage.jsx';
 import DashboardPage from './features/dashboard/DashboardPage.jsx';
@@ -394,6 +396,28 @@ export default function App() {
           <ProtectedRoute>
             <RequireRole roles={SETTINGS_ROLES}>
               <SettingsPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P05. Printer settings for this device. Every role. */}
+      <Route
+        path="/device"
+        element={
+          <ProtectedRoute>
+            <DeviceSettingsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P05. Kitchen stations. The server enforces OWNER and MANAGER. */}
+      <Route
+        path="/stations"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={STAFF_ADMIN_ROLES}>
+              <StationsPage />
             </RequireRole>
           </ProtectedRoute>
         }

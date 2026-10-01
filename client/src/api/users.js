@@ -26,13 +26,18 @@ export function getUser(userId) {
   return api.get(`/users/${userId}`);
 }
 
-export function createUser({ name, phone, email, role, password }) {
-  return api.post('/users', { name, phone, email: email || null, role, password });
+export function createUser({ name, phone, email, role, password, stationId }) {
+  const body = { name, phone, email: email || null, role, password };
+  // P05. Only a KITCHEN user has a station.
+  if (role === 'KITCHEN') body.stationId = stationId || null;
+  return api.post('/users', body);
 }
 
 /** Only name, email and role. Phone is the login identity and cannot change. */
-export function updateUser(userId, { name, email, role }) {
-  return api.patch(`/users/${userId}`, { name, email: email || null, role });
+export function updateUser(userId, { name, email, role, stationId }) {
+  const body = { name, email: email || null, role };
+  if (role === 'KITCHEN') body.stationId = stationId || null;
+  return api.patch(`/users/${userId}`, body);
 }
 
 export function setUserStatus(userId, isActive) {

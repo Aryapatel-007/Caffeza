@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 
 import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
@@ -293,6 +294,15 @@ export default function SettingsPage() {
             checked={form.inventory.lowStockAlertsEnabled}
             onChange={set('inventory', 'lowStockAlertsEnabled')}
           />
+        </Section>
+
+        <Section
+          title="Kitchen stations"
+          description="Which counter cooks which dishes. Managed on its own page, so a manager can change it too."
+        >
+          <Link to="/stations" className="text-[15px] font-medium underline underline-offset-4">
+            Open kitchen stations
+          </Link>
         </Section>
 
         <Section

@@ -27,8 +27,16 @@ function toQuery(params = {}) {
  * the server filters them after reading rather than in the query, and why a
  * page can come back shorter than its limit.
  */
-export function listKots({ status, page, limit } = {}) {
-  return requestWithMeta(`/kots${toQuery({ status, page, limit })}`);
+export function listKots({ status, page, limit, stationId } = {}) {
+  return requestWithMeta(`/kots${toQuery({ status, page, limit, stationId })}`);
+}
+
+/**
+ * The ticket as plain text, laid out by the server at 32 or 48 characters.
+ * P05. `reprint` adds a REPRINT line.
+ */
+export function getKotTicket(kotId, { width = 48, reprint = false } = {}) {
+  return api.get(`/kots/${kotId}/ticket${toQuery({ width, reprint: reprint ? 'true' : undefined })}`);
 }
 
 export function getKot(kotId) {
