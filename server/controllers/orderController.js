@@ -54,6 +54,7 @@ import { sumPaise } from '../utils/money.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
+import { nowUtc } from '../utils/time.js';
 
 const MONGO_DUPLICATE_KEY = 11000;
 
@@ -184,7 +185,7 @@ export async function createOrder(req, res) {
     taxTreatment,
     lines: snapshotLines,
     openedBy: req.user.id,
-    openedAt: new Date(),
+    openedAt: nowUtc(),
   });
 
   const saved = await order
@@ -355,7 +356,7 @@ export async function cancelOrderLine(req, res) {
       update: {
         $set: {
           'lines.$[line].status': ORDER_LINE_STATUSES.CANCELLED,
-          'lines.$[line].cancelledAt': new Date(),
+          'lines.$[line].cancelledAt': nowUtc(),
           'lines.$[line].cancelledBy': req.user.id,
           'lines.$[line].cancelReasonCode': reasonCode,
           // P04: the free-text field now holds the optional note.
@@ -468,7 +469,7 @@ export async function markLineServed(req, res) {
     );
   }
 
-  const servedAt = new Date();
+  const servedAt = nowUtc();
 
   /**
    * Whether this is the last one is worked out from the order as read, with
@@ -580,7 +581,7 @@ export async function cancelOrder(req, res) {
   // kitchen make any of this", not auditing it dish by dish.
   assertOrderWasPreparedRule(order, wasPrepared);
 
-  const now = new Date();
+  const now = nowUtc();
 
   const liveLines = order.lines.filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED);
   const stillLive = liveLines.map((line) => line._id);

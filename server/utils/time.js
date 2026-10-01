@@ -9,9 +9,47 @@
  */
 import { config } from '../config/env.js';
 
+/*
+ * The clock every service reads. Tests replace it so the golden day in
+ * docs/TEST-DATA.md can happen at its real times, including a payment at
+ * 12:02 AM that still belongs to the day before. Token times do not read it:
+ * tokenService keeps the real clock, or signed tokens break in tests. P08.
+ */
+const realClock = () => new Date();
+let clock = realClock;
+
 /** The current instant. Store this. Do not store a formatted string. */
 export function nowUtc() {
-  return new Date();
+  return clock();
+}
+
+function assertTestEnvironment(name) {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error(`${name} may only be called when NODE_ENV is test.`);
+  }
+}
+
+/**
+ * Sets the clock for tests. Takes a Date, an ISO string, or a function that
+ * returns a Date. A fixed instant stays fixed until it is changed or reset.
+ */
+export function setClockForTests(fnOrDate) {
+  assertTestEnvironment('setClockForTests');
+  if (typeof fnOrDate === 'function') {
+    clock = () => new Date(fnOrDate().getTime());
+    return;
+  }
+  const fixed = new Date(fnOrDate);
+  if (Number.isNaN(fixed.getTime())) {
+    throw new TypeError('setClockForTests received a value that is not a valid date.');
+  }
+  clock = () => new Date(fixed.getTime());
+}
+
+/** Puts the real clock back. */
+export function resetClockForTests() {
+  assertTestEnvironment('resetClockForTests');
+  clock = realClock;
 }
 
 /**

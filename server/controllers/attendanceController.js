@@ -13,7 +13,7 @@ import * as attendance from '../services/attendanceService.js';
 import { getSetting } from '../services/settingsService.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
-import { businessDateFor } from '../utils/time.js';
+import { businessDateFor, nowUtc } from '../utils/time.js';
 
 /**
  * The business-day boundary for the caller's restaurant.
@@ -87,7 +87,7 @@ export async function getMyAttendance(req, res) {
 /** GET /attendance */
 export async function listRegister(req, res) {
   const { page, limit, from, to, openOnly, includeVoided } = req.query;
-  const today = businessDateFor(new Date(), await businessDayStartMinutes(req));
+  const today = businessDateFor(nowUtc(), await businessDayStartMinutes(req));
 
   const { entries, total } = await attendance.listRegister(scoped(req), {
     fromDate: from ?? today,

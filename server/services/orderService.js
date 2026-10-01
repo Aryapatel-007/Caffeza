@@ -25,6 +25,7 @@ import {
 } from '../utils/errors.js';
 import { sumPaise } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
+import { nowUtc } from '../utils/time.js';
 
 /* --------------------------------------------------------------------------
  * Reading
@@ -148,7 +149,7 @@ export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX
   );
   const categoryNames = new Map(categories.map((category) => [String(category._id), category.name]));
 
-  const now = new Date();
+  const now = nowUtc();
 
   return lineRequests.map((request) => {
     const item = itemsById.get(String(request.menuItemId));

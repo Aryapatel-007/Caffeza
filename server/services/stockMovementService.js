@@ -12,7 +12,7 @@ import { Ingredient } from '../models/Ingredient.js';
 import { MOVEMENT_TYPES, SOURCE_TYPES, StockMovement } from '../models/StockMovement.js';
 import { NotFoundError } from '../utils/errors.js';
 import { scoped, scopedForAggregate } from '../utils/scopedQuery.js';
-import { businessDateRangeToUtc } from '../utils/time.js';
+import { businessDateRangeToUtc, nowUtc } from '../utils/time.js';
 import { resolveRecipe } from './recipeService.js';
 
 /** Mongo's duplicate key error. */
@@ -113,7 +113,7 @@ export async function recordMovement(
  * not read off each line, because the lines passed in are the pre-update
  * in-memory copies from before this fire and do not carry it themselves yet.
  */
-export async function deductForFiredLines(req, { lines, orderId, at = new Date() }, session = null) {
+export async function deductForFiredLines(req, { lines, orderId, at = nowUtc() }, session = null) {
   for (const line of lines) {
     const recipe = await resolveRecipe(
       req,
@@ -163,7 +163,7 @@ export async function returnStockForCancelledLine(req, { orderLineId, orderId },
     type: MOVEMENT_TYPES.DEDUCTION,
   }).setOptions(options);
 
-  const now = new Date();
+  const now = nowUtc();
 
   for (const deduction of deductions) {
     await recordMovement(
@@ -198,7 +198,7 @@ export async function recordManualMovement(req, { ingredientId, type, qtyInBase,
     eventKey: `MANUAL:${new mongoose.Types.ObjectId()}`,
     sourceType: SOURCE_TYPES.MANUAL,
     reason,
-    at: new Date(),
+    at: nowUtc(),
   });
   return { movement, ingredient };
 }
