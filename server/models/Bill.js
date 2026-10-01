@@ -60,6 +60,12 @@ const wholeNumber = {
   message: 'Must be a whole number.',
 };
 
+/** The same check for a field that may be null. Mongoose still runs a validator on null. */
+const wholeNumberOrEmpty = {
+  validator: (value) => value === null || value === undefined || Number.isInteger(value),
+  message: 'Must be a whole number.',
+};
+
 /**
  * One line, frozen.
  *
@@ -108,6 +114,21 @@ const billLineSchema = new mongoose.Schema(
       min: 0,
       validate: wholeNumber,
     },
+
+    /** Copied from the order line. P03. Null for orders from before P03. */
+    categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
+    categoryName: { type: String, trim: true, default: null },
+
+    /**
+     * This line's share of the bill discount, its net sales, and its share of
+     * its rate's GST. P03. Written by allocateLineShares in utils/tax.js on
+     * every bill created or re-discounted, and always adding up exactly to the
+     * bill's discount and slab figures. Null on bills from before P03, which a
+     * report reads as "not recorded". Old bills are not back-filled.
+     */
+    discountShareInPaise: { type: Number, min: 0, default: null, validate: wholeNumberOrEmpty },
+    taxableInPaise: { type: Number, min: 0, default: null, validate: wholeNumberOrEmpty },
+    taxInPaise: { type: Number, min: 0, default: null, validate: wholeNumberOrEmpty },
   },
   { _id: false },
 );
@@ -266,6 +287,16 @@ const billSchema = new mongoose.Schema({
   voidedAt: { type: Date, default: null },
   voidedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   voidReason: { type: String, trim: true, maxlength: VOID_REASON_MAX_LENGTH, default: null },
+
+  /**
+   * Frozen from the order at bill creation. P03. "Captain" is whoever opened
+   * the order (GLOSSARY section 8). The name is read once, so renaming the user
+   * later does not rewrite who served last month. Null on bills from before P03.
+   */
+  captainId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  captainName: { type: String, trim: true, default: null },
+  guestCount: { type: Number, min: 0, default: null, validate: wholeNumberOrEmpty },
+  orderOpenedAt: { type: Date, default: null },
 });
 
 billSchema.plugin(baseSchemaPlugin);

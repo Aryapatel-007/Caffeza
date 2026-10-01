@@ -25,6 +25,7 @@ import mongoose from 'mongoose';
 import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
+import { User } from '../models/User.js';
 import { recordAudit } from './auditService.js';
 import { reserveBillNumber } from './billNumberService.js';
 import { getSettings } from './settingsService.js';
@@ -40,7 +41,7 @@ import { applyVersionedUpdate, computeLineTotalInPaise } from './orderService.js
 import { BillAlreadyExistsError, NotFoundError, TransactionRequiredError } from '../utils/errors.js';
 import { sumPaise } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
-import { computeBillTotals, resolveDiscountAmount } from '../utils/tax.js';
+import { allocateLineShares, computeBillTotals, resolveDiscountAmount } from '../utils/tax.js';
 import { businessDateFor, nowUtc } from '../utils/time.js';
 
 /** Mongo's duplicate key error. */
@@ -78,16 +79,52 @@ function toBillLine(line) {
     unitPriceInPaise,
     taxRateBps: line.taxRateBps,
     lineTotalInPaise,
+    // P03. Frozen on the order line when it was added; null on older orders.
+    categoryId: line.categoryId ?? null,
+    categoryName: line.categoryName ?? null,
   };
 }
 
-/** Writes the computed figures onto a bill document. Never partially applied. */
-function applyTotals(bill, totals) {
+/**
+ * Writes the computed figures onto a bill, and each line's share of them.
+ * Never partially applied.
+ *
+ * `bill` is a Bill document or the plain object about to become one, and
+ * `lines` are its lines in the same shape. Creating a bill and discounting one
+ * both come through here, so the line shares are written by one piece of code
+ * and can never drift from the totals beside them. allocateLineShares checks
+ * C2 itself and throws before anything is saved if the shares do not balance.
+ */
+function applyTotals(bill, lines, totals) {
+  const shares = allocateLineShares(lines, totals);
+  lines.forEach((line, index) => {
+    line.discountShareInPaise = shares[index].discountShareInPaise;
+    line.taxableInPaise = shares[index].taxableInPaise;
+    line.taxInPaise = shares[index].taxInPaise;
+  });
+
   bill.subtotalInPaise = totals.subtotalInPaise;
   bill.taxBreakdown = totals.taxBreakdown;
   bill.totalTaxInPaise = totals.totalTaxInPaise;
   bill.roundOffInPaise = totals.roundOffInPaise;
   bill.grandTotalInPaise = totals.grandTotalInPaise;
+}
+
+/**
+ * The captain's name as it is right now, frozen onto the bill. P03.
+ * "Unknown" rather than a failed bill if the user record cannot be found.
+ */
+async function captainNameFor(req, userId, session) {
+  if (!userId) return 'Unknown';
+  const user = await User.findOne({ ...scopedToRestaurant(req), _id: userId })
+    .select('name')
+    .session(session);
+  return user?.name ?? 'Unknown';
+}
+
+/** The restaurant filter alone: a captain may have been created on another branch. */
+function scopedToRestaurant(req) {
+  return { restaurantId: req.restaurantId };
 }
 
 /**
@@ -131,33 +168,33 @@ export async function createBill(req, { orderId, version }) {
         session,
       );
 
-      const [bill] = await Bill.create(
-        [
-          {
-            restaurantId: req.restaurantId,
-            branchId: req.branchId,
-            ...numbering,
-            orderId: order._id,
-            orderNumber: order.orderNumber,
-            orderType: order.orderType,
-            tableName: order.tableName ?? null,
-            businessDate: businessDateFor(at, startMinutes),
-            status: BILL_STATUSES.UNPAID,
-            lines,
-            subtotalInPaise: totals.subtotalInPaise,
-            discount: null,
-            taxBreakdown: totals.taxBreakdown,
-            totalTaxInPaise: totals.totalTaxInPaise,
-            roundOffInPaise: totals.roundOffInPaise,
-            grandTotalInPaise: totals.grandTotalInPaise,
-            payments: [],
-            amountPaidInPaise: 0,
-            billedBy: req.user.id,
-            billedAt: at,
-          },
-        ],
-        { session },
-      );
+      const captainName = await captainNameFor(req, order.openedBy, session);
+
+      const draft = {
+        restaurantId: req.restaurantId,
+        branchId: req.branchId,
+        ...numbering,
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        orderType: order.orderType,
+        tableName: order.tableName ?? null,
+        businessDate: businessDateFor(at, startMinutes),
+        status: BILL_STATUSES.UNPAID,
+        lines,
+        discount: null,
+        payments: [],
+        amountPaidInPaise: 0,
+        billedBy: req.user.id,
+        billedAt: at,
+        // P03. Frozen from the order, so captain and covers reports never join back to it.
+        captainId: order.openedBy ?? null,
+        captainName,
+        guestCount: order.guestCount ?? null,
+        orderOpenedAt: order.openedAt ?? null,
+      };
+      applyTotals(draft, lines, totals);
+
+      const [bill] = await Bill.create([draft], { session });
 
       /**
        * The order keeps its status. It moves to BILLED when the bill is PAID,
@@ -237,7 +274,7 @@ export async function applyDiscount(req, billId, { kind, valueInPaise, rateBps, 
     appliedBy: req.user.id,
     appliedAt: nowUtc(),
   };
-  applyTotals(bill, totals);
+  applyTotals(bill, bill.lines, totals);
   await bill.save();
 
   await recordAudit(req, {
