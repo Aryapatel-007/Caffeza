@@ -13,7 +13,8 @@
     "seed:demo": "node scripts/seedDemo.js",
     "db:indexes": "node scripts/buildIndexes.js",
     "setup:restaurant": "node scripts/setupRestaurant.js",
-    "import:menu": "node scripts/importMenu.js"
+    "import:menu": "node scripts/importMenu.js",
+    "smoke": "node scripts/smokeCheck.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

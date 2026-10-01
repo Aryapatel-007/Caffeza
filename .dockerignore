@@ -1,0 +1,18 @@
+# Never in the image: dependencies are installed inside it, secrets come from
+# the host at run time, and the client is built inside the build stage.
+node_modules
+**/node_modules
+.env
+.env.*
+**/.env
+**/.env.*
+client/dist
+.git
+.gitignore
+docs
+server/tests
+**/*.test.js
+coverage
+*.log
+Dockerfile
+.dockerignore

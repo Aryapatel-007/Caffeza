@@ -11,7 +11,9 @@
  * so a blocked request still appears in the log, and the error handler last so
  * it catches everything in front of it.
  */
-import { pathToFileURL } from 'node:url';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import cors from 'cors';
 import express from 'express';
@@ -30,6 +32,54 @@ import { describeKey, findMissingIndexes } from './services/indexService.js';
 export const API_PREFIX = '/api/v1';
 
 /**
+ * The built client, found from this file's own location, never from the
+ * working directory: a host may start the process from anywhere. P12.
+ */
+export const CLIENT_DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'client', 'dist');
+
+export const CLIENT_NOT_BUILT_MESSAGE = 'The client has not been built. Run npm run build, then start again.';
+
+/** True when the built client's index.html is where production will serve it from. */
+export function isClientBuilt(clientDist = CLIENT_DIST) {
+  return existsSync(path.join(clientDist, 'index.html'));
+}
+
+/**
+ * Serves the built client from the same address as the API. P12.
+ *
+ * One address means the Secure refresh cookie and the single CORS origin just
+ * work. Vite names every file under /assets/ by its content hash, so those are
+ * cached for a year; index.html is never cached, so a new deploy is picked up
+ * on the next page load. Any other GET that is not under /api/ gets index.html,
+ * so a reload of /day-close lands in the React router. Anything under /api/
+ * that no route matched falls through to the JSON 404, never to the HTML.
+ */
+function serveClient(app, clientDist) {
+  const indexFile = path.join(clientDist, 'index.html');
+  const assetsDir = `${path.sep}assets${path.sep}`;
+
+  app.use(
+    express.static(clientDist, {
+      index: false,
+      setHeaders(res, filePath) {
+        res.set(
+          'Cache-Control',
+          filePath.includes(assetsDir) ? 'public, max-age=31536000, immutable' : 'no-cache',
+        );
+      },
+    }),
+  );
+
+  app.use((req, res, next) => {
+    if ((req.method !== 'GET' && req.method !== 'HEAD') || req.path === '/api' || req.path.startsWith('/api/')) {
+      return next();
+    }
+    res.set('Cache-Control', 'no-cache');
+    return res.sendFile(indexFile);
+  });
+}
+
+/**
  * A price, a name and a few ids. Nothing this API accepts is large, and a
  * generous limit is free capacity for someone else.
  */
@@ -41,7 +91,12 @@ const JSON_BODY_LIMIT = '100kb';
  * Exported so tests can drive the real middleware chain without a database or
  * an open port. The app is exactly the one that runs in production.
  */
-export function createApp() {
+/**
+ * `serveClient` and `clientDist` exist so a test can point the static files at
+ * a temporary folder; by default the client is served in production only.
+ * Development keeps Vite on its own port, proxying /api to this server.
+ */
+export function createApp({ serveClient: shouldServeClient = config.isProduction, clientDist = CLIENT_DIST } = {}) {
   const app = express();
 
   // Do not advertise what we are running.
@@ -64,6 +119,8 @@ export function createApp() {
   app.use(generalLimiter);
 
   app.use(API_PREFIX, routes);
+
+  if (shouldServeClient) serveClient(app, clientDist);
 
   app.use(notFound);
   app.use(errorHandler);
@@ -140,6 +197,13 @@ export async function startServer() {
   installCrashHandlers();
 
   logger.info(describeTrustProxy(config.TRUST_PROXY));
+
+  // P12. Production serves the screens too, so a missing build is a refusal to
+  // start, the same way a missing index is.
+  if (config.isProduction && !isClientBuilt()) {
+    logger.fatal(CLIENT_NOT_BUILT_MESSAGE);
+    process.exit(1);
+  }
 
   await connectDatabase();
   await assertIndexesPresent();

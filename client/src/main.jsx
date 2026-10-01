@@ -5,6 +5,21 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
+
+/*
+ * Fonts are served from our own server (P12). At the cafe, on a 4G backup
+ * line, a request to another site is a delay before the till can draw. Only
+ * the weights the design uses: Sans 400, 500, 600 and Mono 400 to 700. The
+ * family names these register, 'IBM Plex Sans' and 'IBM Plex Mono', are the
+ * ones the tokens in index.css already use.
+ */
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '@fontsource/ibm-plex-mono/600.css';
+import '@fontsource/ibm-plex-mono/700.css';
 import './index.css';
 
 /**

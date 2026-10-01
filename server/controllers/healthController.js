@@ -18,5 +18,7 @@ export function getHealth(req, res) {
     // is wrong at 9pm.
     database: isDatabaseConnected() ? 'connected' : 'disconnected',
     environment: config.NODE_ENV,
+    // P12. The commit the host deployed, or null when RELEASE_VERSION is unset.
+    release: config.RELEASE_VERSION,
   });
 }

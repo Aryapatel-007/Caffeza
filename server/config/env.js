@@ -184,6 +184,15 @@ const envSchema = z
     ),
 
     TRUST_PROXY: trustProxyVar,
+
+    /**
+     * P12. The git commit being deployed, shown on GET /api/v1/health so a
+     * smoke check can tell which version answered. Optional; null when unset.
+     */
+    RELEASE_VERSION: z.preprocess((value) => {
+      const text = value === undefined || value === null ? '' : String(value).trim();
+      return text === '' ? null : text;
+    }, z.string().max(100, 'RELEASE_VERSION must be at most 100 characters.').nullable()),
   })
   .refine((values) => values.JWT_ACCESS_SECRET !== values.JWT_REFRESH_SECRET, {
     error: 'JWT_REFRESH_SECRET must be a different value from JWT_ACCESS_SECRET.',
