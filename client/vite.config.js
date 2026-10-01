@@ -12,6 +12,19 @@ const DEFAULT_SERVER_PORT = 5000;
 const DEFAULT_CLIENT_PORT = 5173;
 
 /**
+ * The port in an origin, or the default when the origin is missing or not a
+ * URL. A host that builds the client usually has no .env at build time, and
+ * `new URL('')` throws, which used to fail the whole production build.
+ */
+function portFromOrigin(origin, fallback) {
+  try {
+    return Number(new URL(origin).port) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * The dev server reads the same .env the API reads, so the port the client
  * proxies to and the origin the API allows cannot drift apart.
  *
@@ -22,7 +35,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, REPO_ROOT, '');
 
   const apiPort = Number(env.PORT) || DEFAULT_SERVER_PORT;
-  const clientPort = Number(new URL(env.CLIENT_ORIGIN ?? '').port) || DEFAULT_CLIENT_PORT;
+  const clientPort = portFromOrigin(env.CLIENT_ORIGIN, DEFAULT_CLIENT_PORT);
 
   return {
     plugins: [react(), tailwindcss()],
