@@ -154,7 +154,7 @@ describe('creating a bill', () => {
     const cancelled = (
       await request('POST', `/api/v1/orders/${opened.id}/lines/${opened.lines[1].id}/cancel`, {
         token: floor.tokens.MANAGER,
-        body: { version: opened.version, reason: 'Changed their mind' },
+        body: { version: opened.version, reasonCode: 'OTHER', note: 'Changed their mind' },
       })
     ).body.data;
     assert.equal(cancelled.lines[1].status, 'CANCELLED');
@@ -284,7 +284,7 @@ describe('bill numbers are never reused', () => {
      */
     const { bill, order, tokens } = await billedFloor();
 
-    await voidBill(tokens.MANAGER, bill.id, { reason: 'Wrong table billed' });
+    await voidBill(tokens.MANAGER, bill.id, { reasonCode: 'OTHER', note: 'Wrong table billed' });
 
     const current = (await readOrder(tokens.CASHIER, order.id)).body.data;
     assert.equal(current.status, 'READY_TO_BILL', 'the order is billable again');
@@ -472,7 +472,7 @@ describe('voiding a bill', () => {
   it('keeps the bill, records who and why, and frees the order', async () => {
     const { bill, order, tokens } = await billedFloor();
 
-    const response = await voidBill(tokens.OWNER, bill.id, { reason: 'Wrong table billed' });
+    const response = await voidBill(tokens.OWNER, bill.id, { reasonCode: 'OTHER', note: 'Wrong table billed' });
 
     assert.equal(response.status, 200);
     assert.equal(response.body.data.isVoided, true);
@@ -488,22 +488,22 @@ describe('voiding a bill', () => {
 
   it('is refused to a cashier', async () => {
     const { bill, tokens } = await billedFloor();
-    const response = await voidBill(tokens.CASHIER, bill.id, { reason: 'Nope' });
+    const response = await voidBill(tokens.CASHIER, bill.id, { reasonCode: 'OTHER', note: 'Nope' });
     assert.equal(response.status, 403);
   });
 
   it('refuses to void twice', async () => {
     const { bill, tokens } = await billedFloor();
-    await voidBill(tokens.MANAGER, bill.id, { reason: 'First' });
+    await voidBill(tokens.MANAGER, bill.id, { reasonCode: 'OTHER', note: 'First' });
 
-    const again = await voidBill(tokens.MANAGER, bill.id, { reason: 'Second' });
+    const again = await voidBill(tokens.MANAGER, bill.id, { reasonCode: 'OTHER', note: 'Second' });
     assert.equal(again.status, 422);
     assert.equal(again.body.error.code, 'ENTRY_VOIDED');
   });
 
   it('writes an audit row carrying the amount voided', async () => {
     const { bill, tokens } = await billedFloor();
-    await voidBill(tokens.MANAGER, bill.id, { reason: 'Duplicate' });
+    await voidBill(tokens.MANAGER, bill.id, { reasonCode: 'OTHER', note: 'Duplicate' });
 
     const entries = await AuditLog.find({
       restaurantId: bill.restaurantId,
@@ -532,7 +532,7 @@ describe('voided bills leave every total', () => {
     const doomed = (
       await createBill(tokens.CASHIER, { orderId: secondOrder.id, version: secondOrder.version })
     ).body.data;
-    await voidBill(tokens.MANAGER, doomed.id, { reason: 'Rung up twice' });
+    await voidBill(tokens.MANAGER, doomed.id, { reasonCode: 'OTHER', note: 'Rung up twice' });
 
     const list = await request('GET', '/api/v1/bills', { token: tokens.CASHIER });
     assert.equal(list.body.meta.totals.billCount, 1, 'one live bill');
@@ -555,7 +555,7 @@ describe('voided bills leave every total', () => {
 
   it('hides voided bills from the list unless asked for them', async () => {
     const { bill, tokens } = await billedFloor();
-    await voidBill(tokens.MANAGER, bill.id, { reason: 'Gone' });
+    await voidBill(tokens.MANAGER, bill.id, { reasonCode: 'OTHER', note: 'Gone' });
 
     const hidden = await request('GET', '/api/v1/bills', { token: tokens.CASHIER });
     assert.equal(hidden.body.data.length, 0);

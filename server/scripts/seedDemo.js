@@ -539,7 +539,7 @@ async function seedOrdersAndBills(tokens, menu, tables) {
   ]);
   const voided = await request('POST', `/api/v1/bills/${billToVoid.id}/void`, {
     token: tokens.MANAGER,
-    body: { reason: 'Wrong table billed' },
+    body: { reasonCode: 'OTHER', note: 'Wrong table billed' },
   });
   bills.push(voided);
 
@@ -567,7 +567,7 @@ async function seedOrdersAndBills(tokens, menu, tables) {
     `/api/v1/orders/${returnOrder.id}/lines/${returnFired.order.lines[0].id}/cancel`,
     {
       token: tokens.MANAGER,
-      body: { version: returnFired.order.version, reason: 'Kitchen ran out mid-cook', wasPrepared: false },
+      body: { version: returnFired.order.version, reasonCode: 'OTHER', note: 'Kitchen ran out mid-cook', wasPrepared: false },
     },
   );
 
@@ -583,7 +583,7 @@ async function seedOrdersAndBills(tokens, menu, tables) {
   });
   await request('POST', `/api/v1/orders/${madeOrder.id}/lines/${madeFired.order.lines[0].id}/cancel`, {
     token: tokens.MANAGER,
-    body: { version: madeFired.order.version, reason: 'Walked out', wasPrepared: true },
+    body: { version: madeFired.order.version, reasonCode: 'OTHER', note: 'Walked out', wasPrepared: true },
   });
 
   // THE NO-RECIPE DISH, fired at least once, so GET /inventory/unmapped has

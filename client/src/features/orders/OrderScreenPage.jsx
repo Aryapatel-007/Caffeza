@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { formatPaise } from '../../utils/formatMoney.js';
 import BillOrderButton from '../billing/BillOrderButton.jsx';
 import CancelPanel from './CancelPanel.jsx';
+import { LINE_CANCEL_REASONS, ORDER_CANCEL_REASONS } from './cancelReasons.js';
 import LineOptionsPanel from './LineOptionsPanel.jsx';
 import MenuPicker from './MenuPicker.jsx';
 import OrderLineList from './OrderLineList.jsx';
@@ -252,6 +253,7 @@ export default function OrderScreenPage() {
       {cancelling?.kind === 'line' && (
         <CancelPanel
           title={`Cancel ${cancelling.line.itemName}`}
+          reasons={LINE_CANCEL_REASONS}
           description="It stays on the order, marked cancelled, with the reason."
           needsWasPrepared={REACHED_KITCHEN.includes(cancelling.line.status)}
           isBusy={write.isPending}
@@ -273,6 +275,7 @@ export default function OrderScreenPage() {
       {cancelling?.kind === 'order' && (
         <CancelPanel
           title={`Cancel order #${order.orderNumber}`}
+          reasons={ORDER_CANCEL_REASONS}
           description="Every line goes with it. Nothing is deleted."
           needsWasPrepared={order.lines.some((line) => REACHED_KITCHEN.includes(line.status))}
           isBusy={write.isPending}

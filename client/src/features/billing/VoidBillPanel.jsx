@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
 import { formatPaise } from '../../utils/formatMoney.js';
+import { BILL_VOID_REASONS } from '../orders/cancelReasons.js';
+import ReasonPicker, { isReasonComplete, reasonBody } from '../orders/ReasonPicker.jsx';
 import { BILL_LABELS } from './labels.js';
 import PanelShell from './PanelShell.jsx';
 
@@ -14,8 +16,8 @@ import PanelShell from './PanelShell.jsx';
  * carry; one who does not can back out having actually learned what happens.
  */
 export default function VoidBillPanel({ bill, isBusy, error, onCancel, onConfirm }) {
-  const [reason, setReason] = useState('');
-  const canConfirm = reason.trim().length > 0 && !isBusy;
+  const [reason, setReason] = useState({ reasonCode: null, note: '' });
+  const canConfirm = isReasonComplete(reason) && !isBusy;
 
   return (
     <PanelShell title={BILL_LABELS.voidBill.en} onCancel={onCancel}>
@@ -32,19 +34,12 @@ export default function VoidBillPanel({ bill, isBusy, error, onCancel, onConfirm
         </p>
       </div>
 
-      <label className="mb-4 block">
-        <span className="mb-1 block text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
-          {BILL_LABELS.reason.en}
-        </span>
-        <textarea
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          rows={2}
-          maxLength={500}
-          placeholder="Wrong table billed"
-          className="w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
-        />
-      </label>
+      <ReasonPicker
+        reasons={BILL_VOID_REASONS}
+        value={reason}
+        onChange={setReason}
+        noteMaxLength={500}
+      />
 
       {error && <p className="mb-3 text-[13px] leading-[18px] text-mirch">{error}</p>}
 
@@ -59,7 +54,7 @@ export default function VoidBillPanel({ bill, isBusy, error, onCancel, onConfirm
         <button
           type="button"
           disabled={!canConfirm}
-          onClick={() => onConfirm(reason.trim())}
+          onClick={() => onConfirm(reasonBody(reason))}
           className="h-14 flex-[2] rounded-xl bg-mirch text-[15px] font-semibold text-paper transition-transform duration-100 active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-50"
         >
           {isBusy ? 'Voiding…' : BILL_LABELS.voidBill.en}

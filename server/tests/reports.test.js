@@ -144,7 +144,7 @@ describe('VOIDED RECORDS LEAVE EVERY TOTAL', () => {
     const doomed = await billedAndPaid({ ...floor, table: secondTable });
     await request('POST', `/api/v1/bills/${doomed.bill.id}/void`, {
       token: tokens.MANAGER,
-      body: { reason: 'Rung up twice' },
+      body: { reasonCode: 'OTHER', note: 'Rung up twice' },
     });
 
     const summary = (await report(tokens.OWNER, `sales-summary?from=${today}&to=${today}`)).body.data;
@@ -619,7 +619,7 @@ describe('stock consumption', () => {
     const current = (await readOrder(tokens.WAITER, order.id)).body.data;
     await request('POST', `/api/v1/orders/${order.id}/lines/${current.lines[0].id}/cancel`, {
       token: tokens.MANAGER,
-      body: { version: current.version, reason: 'Never made', wasPrepared: false },
+      body: { version: current.version, reasonCode: 'OTHER', note: 'Never made', wasPrepared: false },
     });
 
     const after = (await report(tokens.OWNER, `stock-consumption?from=${today}&to=${today}`)).body.data;

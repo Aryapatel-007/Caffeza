@@ -71,7 +71,7 @@ describe('creating an order', () => {
     const first = await openOrder(a.tokens.WAITER, { tableId: a.table.id });
     await request('POST', `/api/v1/orders/${first.body.data.id}/cancel`, {
       token: a.tokens.OWNER,
-      body: { version: 1, reason: 'test' },
+      body: { version: 1, reasonCode: 'OTHER', note: 'test' },
     });
     const second = await openOrder(a.tokens.WAITER, { tableId: a.table.id });
 
@@ -185,7 +185,7 @@ describe('the two waiters problem, on one table', () => {
 
     await request('POST', `/api/v1/orders/${first.body.data.id}/cancel`, {
       token: tokens.OWNER,
-      body: { version: 1, reason: 'Customer left' },
+      body: { version: 1, reasonCode: 'OTHER', note: 'Customer left' },
     });
 
     const afterCancel = await openOrder(tokens.WAITER, { tableId: table.id });
@@ -323,7 +323,7 @@ describe('table occupancy includes READY_TO_BILL', () => {
     const cancelled = (
       await request('POST', `/api/v1/orders/${withSecond.id}/cancel`, {
         token: tokens.OWNER,
-        body: { version: withSecond.version, reason: 'Walked out', wasPrepared: true },
+        body: { version: withSecond.version, reasonCode: 'OTHER', note: 'Walked out', wasPrepared: true },
       })
     ).body.data;
 
@@ -351,7 +351,7 @@ describe('table occupancy includes READY_TO_BILL', () => {
     // kitchen just as much as a fired one.
     const cancelled = await request('POST', `/api/v1/orders/${order.id}/cancel`, {
       token: floor.tokens.OWNER,
-      body: { version: order.version, reason: 'Walked out without paying', wasPrepared: true },
+      body: { version: order.version, reasonCode: 'OTHER', note: 'Walked out without paying', wasPrepared: true },
     });
     assert.equal(cancelled.status, 200);
 
@@ -602,7 +602,7 @@ describe('reading orders', () => {
 
     await request('POST', `/api/v1/orders/${cancelled.id}/cancel`, {
       token: tokens.OWNER,
-      body: { version: 1, reason: 'Customer left' },
+      body: { version: 1, reasonCode: 'OTHER', note: 'Customer left' },
     });
 
     const onlyOpen = await request('GET', '/api/v1/orders?status=OPEN', { token: tokens.WAITER });
@@ -767,7 +767,7 @@ describe('cancelling a line', () => {
 
     const response = await cancelLine(tokens.WAITER, order.id, order.lines[0].id, {
       version: order.version,
-      reason: 'Customer changed their mind',
+      reasonCode: 'OTHER', note: 'Customer changed their mind',
     });
 
     assert.equal(response.status, 200);
@@ -790,7 +790,7 @@ describe('cancelling a line', () => {
 
     const response = await cancelLine(tokens.WAITER, order.id, order.lines[0].id, {
       version: order.version,
-      reason: 'Changed their mind',
+      reasonCode: 'OTHER', note: 'Changed their mind',
       wasPrepared: false,
     });
 
@@ -814,7 +814,7 @@ describe('cancelling a line', () => {
 
     const response = await cancelLine(tokens.WAITER, order.id, order.lines[0].id, {
       version: order.version,
-      reason: 'Changed their mind',
+      reasonCode: 'OTHER', note: 'Changed their mind',
     });
 
     // A zero-value order must not drift into the cashier's queue by itself.
@@ -844,7 +844,7 @@ describe('cancelling a whole order', () => {
 
       const response = await request(`POST`, `/api/v1/orders/${order.id}/cancel`, {
         token: tokens[role],
-        body: { version: order.version, reason: 'Customer left' },
+        body: { version: order.version, reasonCode: 'OTHER', note: 'Customer left' },
       });
 
       assert.equal(response.status, 403, `${role} must not cancel a whole order`);
@@ -853,7 +853,7 @@ describe('cancelling a whole order', () => {
       // Clear the table for the next role.
       await request('POST', `/api/v1/orders/${order.id}/cancel`, {
         token: tokens.OWNER,
-        body: { version: order.version, reason: 'cleanup' },
+        body: { version: order.version, reasonCode: 'OTHER', note: 'cleanup' },
       });
     }
   });
@@ -872,7 +872,7 @@ describe('cancelling a whole order', () => {
 
     const response = await request('POST', `/api/v1/orders/${order.id}/cancel`, {
       token: tokens.MANAGER,
-      body: { version: order.version, reason: 'Customer left' },
+      body: { version: order.version, reasonCode: 'OTHER', note: 'Customer left' },
     });
 
     assert.equal(response.status, 200);
@@ -895,13 +895,13 @@ describe('cancelling a whole order', () => {
 
     const first = await request('POST', `/api/v1/orders/${order.id}/cancel`, {
       token: tokens.OWNER,
-      body: { version: order.version, reason: 'Customer left' },
+      body: { version: order.version, reasonCode: 'OTHER', note: 'Customer left' },
     });
     assert.equal(first.status, 200);
 
     const second = await request('POST', `/api/v1/orders/${order.id}/cancel`, {
       token: tokens.OWNER,
-      body: { version: first.body.data.version, reason: 'again' },
+      body: { version: first.body.data.version, reasonCode: 'OTHER', note: 'again' },
     });
     assert.equal(second.status, 422);
   });
@@ -912,7 +912,7 @@ describe('cancelling a whole order', () => {
 
     const cancelled = await request('POST', `/api/v1/orders/${order.id}/cancel`, {
       token: tokens.OWNER,
-      body: { version: order.version, reason: 'Customer left' },
+      body: { version: order.version, reasonCode: 'OTHER', note: 'Customer left' },
     });
 
     const response = await addLines(tokens.WAITER, order.id, {

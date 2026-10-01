@@ -12,7 +12,10 @@ import { formatPaise } from '../../utils/formatMoney.js';
  * them out, and sends back ids and a quantity. The server prices the line.
  */
 export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) {
-  const [variantId, setVariantId] = useState(item.variants[0]?.id ?? null);
+  // P04. Start on the first size that can actually be ordered.
+  const [variantId, setVariantId] = useState(
+    item.variants.find((variant) => variant.isAvailable !== false)?.id ?? null,
+  );
   const [addOnIds, setAddOnIds] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
@@ -64,29 +67,39 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
                 Size
               </legend>
               <div className="space-y-2">
-                {item.variants.map((variant) => (
-                  <label
-                    key={variant.id}
-                    className={[
-                      'flex min-h-[48px] cursor-pointer items-center justify-between gap-3 rounded-[10px] border-2 px-3',
-                      variantId === variant.id ? 'border-ink' : 'border-steel/40',
-                    ].join(' ')}
-                  >
-                    <span className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="variant"
-                        checked={variantId === variant.id}
-                        onChange={() => setVariantId(variant.id)}
-                        className="size-4 accent-[var(--color-ink)]"
-                      />
-                      <span className="text-[15px] leading-[22px]">{variant.name}</span>
-                    </span>
-                    <span className="font-mono text-[15px] font-medium leading-5">
-                      {formatPaise(variant.priceInPaise)}
-                    </span>
-                  </label>
-                ))}
+                {item.variants.map((variant) => {
+                  // P04. An unavailable size is shown, greyed, and cannot be picked.
+                  const out = variant.isAvailable === false;
+                  return (
+                    <label
+                      key={variant.id}
+                      className={[
+                        'flex min-h-[48px] items-center justify-between gap-3 rounded-[10px] border-2 px-3',
+                        out ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+                        variantId === variant.id ? 'border-ink' : 'border-steel/40',
+                      ].join(' ')}
+                    >
+                      <span className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="variant"
+                          checked={variantId === variant.id}
+                          disabled={out}
+                          onChange={() => setVariantId(variant.id)}
+                          className="size-4 accent-[var(--color-ink)]"
+                        />
+                        <span className="text-[15px] leading-[22px]">{variant.name}</span>
+                      </span>
+                      <span className="font-mono text-[15px] font-medium leading-5">
+                        {out ? (
+                          <span className="font-sans text-[13px] text-mirch">Out of stock</span>
+                        ) : (
+                          formatPaise(variant.priceInPaise)
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </fieldset>
           )}
@@ -97,28 +110,38 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
                 Extras
               </legend>
               <div className="space-y-2">
-                {item.addOns.map((addOn) => (
-                  <label
-                    key={addOn.id}
-                    className={[
-                      'flex min-h-[48px] cursor-pointer items-center justify-between gap-3 rounded-[10px] border-2 px-3',
-                      addOnIds.includes(addOn.id) ? 'border-ink' : 'border-steel/40',
-                    ].join(' ')}
-                  >
-                    <span className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={addOnIds.includes(addOn.id)}
-                        onChange={() => toggleAddOn(addOn.id)}
-                        className="size-4 accent-[var(--color-ink)]"
-                      />
-                      <span className="text-[15px] leading-[22px]">{addOn.name}</span>
-                    </span>
-                    <span className="font-mono text-[15px] font-medium leading-5">
-                      +{formatPaise(addOn.priceInPaise)}
-                    </span>
-                  </label>
-                ))}
+                {item.addOns.map((addOn) => {
+                  // P04. An unavailable extra is shown, greyed, and cannot be picked.
+                  const out = addOn.isAvailable === false;
+                  return (
+                    <label
+                      key={addOn.id}
+                      className={[
+                        'flex min-h-[48px] items-center justify-between gap-3 rounded-[10px] border-2 px-3',
+                        out ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+                        addOnIds.includes(addOn.id) ? 'border-ink' : 'border-steel/40',
+                      ].join(' ')}
+                    >
+                      <span className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={addOnIds.includes(addOn.id)}
+                          disabled={out}
+                          onChange={() => toggleAddOn(addOn.id)}
+                          className="size-4 accent-[var(--color-ink)]"
+                        />
+                        <span className="text-[15px] leading-[22px]">{addOn.name}</span>
+                      </span>
+                      <span className="font-mono text-[15px] font-medium leading-5">
+                        {out ? (
+                          <span className="font-sans text-[13px] text-mirch">Out of stock</span>
+                        ) : (
+                          `+${formatPaise(addOn.priceInPaise)}`
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </fieldset>
           )}
@@ -163,7 +186,8 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
             </button>
             <button
               type="button"
-              disabled={isBusy}
+              // Every size out of stock means nothing here can be ordered.
+              disabled={isBusy || (item.variants.length > 0 && !variantId)}
               onClick={() =>
                 onConfirm({
                   menuItemId: item.id,

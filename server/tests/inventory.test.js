@@ -487,7 +487,7 @@ describe('END TO END: fire deducts stock, cancel-before-made returns it', () => 
       `/api/v1/orders/${opened.id}/lines/${current.lines[0].id}/cancel`,
       {
         token: tokens.MANAGER,
-        body: { version: current.version, reason: 'Kitchen ran out mid-cook', wasPrepared: false },
+        body: { version: current.version, reasonCode: 'OTHER', note: 'Kitchen ran out mid-cook', wasPrepared: false },
       },
     );
     assert.equal(cancelResponse.status, 200);
@@ -516,7 +516,7 @@ describe('END TO END: fire deducts stock, cancel-before-made returns it', () => 
     const current = (await readOrder(tokens.WAITER, opened.id)).body.data;
     await request('POST', `/api/v1/orders/${opened.id}/lines/${current.lines[0].id}/cancel`, {
       token: tokens.MANAGER,
-      body: { version: current.version, reason: 'Walked out', wasPrepared: true },
+      body: { version: current.version, reasonCode: 'OTHER', note: 'Walked out', wasPrepared: true },
     });
 
     const after = await listIngredients(tokens.OWNER);
@@ -541,7 +541,7 @@ describe('END TO END: fire deducts stock, cancel-before-made returns it', () => 
     // Never fired.
     await request('POST', `/api/v1/orders/${opened.id}/lines/${opened.lines[0].id}/cancel`, {
       token: tokens.WAITER,
-      body: { version: opened.version, reason: 'Changed their mind' },
+      body: { version: opened.version, reasonCode: 'OTHER', note: 'Changed their mind' },
     });
 
     const after = await listIngredients(tokens.OWNER);
@@ -721,7 +721,7 @@ describe('GET /inventory/consumption', () => {
     // Cancel it unmade to create a CANCELLATION_RETURN and prove netting.
     await request('POST', `/api/v1/orders/${opened.id}/lines/${current.lines[0].id}/cancel`, {
       token: tokens.MANAGER,
-      body: { version: current.version, reason: 'Kitchen ran out', wasPrepared: false },
+      body: { version: current.version, reasonCode: 'OTHER', note: 'Kitchen ran out', wasPrepared: false },
     });
 
     const today = new Date().toISOString().slice(0, 10);

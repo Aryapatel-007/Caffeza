@@ -1,5 +1,6 @@
 import { formatPaise } from '../../utils/formatMoney.js';
 import { QuantityStepper } from './LineOptionsPanel.jsx';
+import { describeReason, LINE_CANCEL_REASONS } from './cancelReasons.js';
 
 /**
  * How far along one line is.
@@ -87,6 +88,14 @@ export default function OrderLineList({
                   {isCancelled && line.wasPrepared === true && ' · was made'}
                   {isCancelled && line.wasPrepared === false && ' · not made'}
                 </p>
+
+                {/* P04. The fixed reason's label and the note. A line cancelled
+                    with the whole order carries only the note. */}
+                {isCancelled && describeReason(LINE_CANCEL_REASONS, line.cancelReasonCode, line.cancelReason) && (
+                  <p className="text-[13px] leading-[18px] text-steel">
+                    {describeReason(LINE_CANCEL_REASONS, line.cancelReasonCode, line.cancelReason)}
+                  </p>
+                )}
               </div>
 
               <div className="flex-none text-right">

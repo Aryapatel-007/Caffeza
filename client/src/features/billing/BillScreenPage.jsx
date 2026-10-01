@@ -16,6 +16,7 @@ import { BILL_LABELS } from './labels.js';
 import PaymentPanel from './PaymentPanel.jsx';
 import { printReceiptText } from './printReceipt.js';
 import VoidBillPanel from './VoidBillPanel.jsx';
+import { BILL_VOID_REASONS, describeReason } from '../orders/cancelReasons.js';
 
 const CAN_DISCOUNT_OR_VOID = [ROLES.OWNER, ROLES.MANAGER];
 
@@ -146,6 +147,13 @@ export default function BillScreenPage() {
       </header>
 
       <div className="mx-auto max-w-2xl px-4 py-6">
+        {/* P04. Why it was voided: the fixed reason's label and the note. */}
+        {bill.isVoided && (
+          <p className="mb-4 rounded-[10px] border-2 border-mirch/40 bg-mirch/5 px-3 py-2 text-[13px] leading-[18px] text-ink">
+            Voided: {describeReason(BILL_VOID_REASONS, bill.voidReasonCode, bill.voidReason) ?? 'no reason recorded'}
+          </p>
+        )}
+
         {/* The lines. A dense list, per DESIGN-SYSTEM section 6: staff scan a
             list faster than a grid of cards, and there is nothing here to tap. */}
         <ul className="mb-4 divide-y divide-steel/15 border-y-2 border-ink/10">

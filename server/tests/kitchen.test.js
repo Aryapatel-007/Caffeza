@@ -346,7 +346,7 @@ describe('cancelling something the kitchen already has', () => {
 
     const without = await request('POST', `/api/v1/orders/${order.id}/lines/${lineId}/cancel`, {
       token: tokens.WAITER,
-      body: { version: afterFire.version, reason: 'Customer changed their mind' },
+      body: { version: afterFire.version, reasonCode: 'OTHER', note: 'Customer changed their mind' },
     });
 
     assert.equal(without.status, 422, 'a fired line cannot be cancelled without an answer');
@@ -354,7 +354,7 @@ describe('cancelling something the kitchen already has', () => {
 
     const withAnswer = await request('POST', `/api/v1/orders/${order.id}/lines/${lineId}/cancel`, {
       token: tokens.WAITER,
-      body: { version: afterFire.version, reason: 'Customer changed their mind', wasPrepared: true },
+      body: { version: afterFire.version, reasonCode: 'OTHER', note: 'Customer changed their mind', wasPrepared: true },
     });
 
     assert.equal(withAnswer.status, 200);
@@ -376,7 +376,7 @@ describe('cancelling something the kitchen already has', () => {
 
     const response = await request('POST', `/api/v1/orders/${order.id}/cancel`, {
       token: tokens.OWNER,
-      body: { version: afterFire.version, reason: 'Customer left', wasPrepared: false },
+      body: { version: afterFire.version, reasonCode: 'OTHER', note: 'Customer left', wasPrepared: false },
     });
 
     assert.equal(response.status, 200);

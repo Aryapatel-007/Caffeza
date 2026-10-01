@@ -55,9 +55,12 @@ export function recordPayment(billId, { method, amountInPaise, reference }) {
   return api.post(`/bills/${billId}/payments`, body);
 }
 
-/** OWNER and MANAGER only on the server. The number stays spent, never reissued. */
-export function voidBill(billId, reason) {
-  return api.post(`/bills/${billId}/void`, { reason });
+/**
+ * OWNER and MANAGER only on the server. The number stays spent, never reissued.
+ * A fixed reason code plus an optional note, required for OTHER (P04).
+ */
+export function voidBill(billId, { reasonCode, note }) {
+  return api.post(`/bills/${billId}/void`, { reasonCode, note: note || null });
 }
 
 /** width is 32 (58mm) or 48 (80mm). The server lays it out; the client only prints it. */

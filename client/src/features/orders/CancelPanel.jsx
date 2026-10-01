@@ -1,8 +1,11 @@
 import { useState } from 'react';
 
+import ReasonPicker, { isReasonComplete, reasonBody } from './ReasonPicker.jsx';
+
 /**
  * Cancelling a line, or a whole order. One panel, because the two ask the same
- * two questions.
+ * two questions. The reasons are a fixed list passed in (P04): the line list
+ * for a line, the order list for an order.
  *
  * `needsWasPrepared` decides whether the kitchen question appears. It is true
  * when the thing being cancelled has already been sent, and the server enforces
@@ -16,6 +19,7 @@ import { useState } from 'react';
  */
 export default function CancelPanel({
   title,
+  reasons,
   description,
   needsWasPrepared,
   isBusy,
@@ -23,11 +27,11 @@ export default function CancelPanel({
   onCancel,
   onConfirm,
 }) {
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState({ reasonCode: null, note: '' });
   const [wasPrepared, setWasPrepared] = useState(null);
 
   const canConfirm =
-    reason.trim().length > 0 && (!needsWasPrepared || wasPrepared !== null) && !isBusy;
+    isReasonComplete(reason) && (!needsWasPrepared || wasPrepared !== null) && !isBusy;
 
   return (
     <div className="fixed inset-0 z-30 flex">
@@ -46,19 +50,7 @@ export default function CancelPanel({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <label className="mb-6 block">
-            <span className="mb-2 block text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
-              Reason
-            </span>
-            <textarea
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              rows={2}
-              maxLength={200}
-              placeholder="Customer changed their mind"
-              className="w-full rounded-[10px] border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
-            />
-          </label>
+          <ReasonPicker reasons={reasons} value={reason} onChange={setReason} />
 
           {needsWasPrepared && (
             <fieldset>
@@ -111,7 +103,7 @@ export default function CancelPanel({
             disabled={!canConfirm}
             onClick={() =>
               onConfirm({
-                reason: reason.trim(),
+                ...reasonBody(reason),
                 ...(needsWasPrepared ? { wasPrepared } : {}),
               })
             }

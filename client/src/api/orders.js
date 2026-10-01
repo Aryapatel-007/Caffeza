@@ -101,8 +101,8 @@ export function editOrderLine(orderId, lineId, { version, quantity, notes }) {
  * absent when it has not. The caller decides from the line's own status; the
  * server refuses the wrong shape either way.
  */
-export function cancelOrderLine(orderId, lineId, { version, reason, wasPrepared }) {
-  const body = { version, reason };
+export function cancelOrderLine(orderId, lineId, { version, reasonCode, note, wasPrepared }) {
+  const body = { version, reasonCode, note: note || null };
   if (wasPrepared !== undefined) body.wasPrepared = wasPrepared;
   return api.post(`/orders/${orderId}/lines/${lineId}/cancel`, body);
 }
@@ -132,8 +132,8 @@ export function moveOrderToTable(orderId, { version, tableId }) {
  * refuses it, and it refuses it because a whole-order cancel is how a table
  * disappears.
  */
-export function cancelOrder(orderId, { version, reason, wasPrepared }) {
-  const body = { version, reason };
+export function cancelOrder(orderId, { version, reasonCode, note, wasPrepared }) {
+  const body = { version, reasonCode, note: note || null };
   if (wasPrepared !== undefined) body.wasPrepared = wasPrepared;
   return api.post(`/orders/${orderId}/cancel`, body);
 }
