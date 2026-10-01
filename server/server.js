@@ -24,6 +24,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { notFound } from './middleware/notFound.js';
 import { generalLimiter } from './middleware/rateLimit.js';
 import routes from './routes/index.js';
+import { describeKey, findMissingIndexes } from './services/indexService.js';
 
 export const API_PREFIX = '/api/v1';
 
@@ -99,10 +100,45 @@ function installCrashHandlers() {
   });
 }
 
+/**
+ * Refuses to start a production server whose database is missing an index.
+ *
+ * `autoIndex` is off in production, so nothing builds indexes on boot, and the
+ * unique ones are what stop a duplicate bill number, a second open order on a
+ * table and a double stock deduction. A server running without them looks
+ * perfectly healthy until the day two of those collide. There is deliberately
+ * no setting that skips this check. Development and test skip it only because
+ * `autoIndex` builds the indexes there already.
+ */
+async function assertIndexesPresent() {
+  if (!config.isProduction) return;
+
+  const { missing, extra } = await findMissingIndexes();
+
+  for (const index of extra) {
+    logger.warn(
+      { collection: index.collection, index: index.name },
+      'Index in the database that no schema declares. Left alone.',
+    );
+  }
+
+  if (missing.length === 0) return;
+
+  for (const index of missing) {
+    logger.fatal(
+      { collection: index.collection, key: describeKey(index.key) },
+      'Index missing from the database.',
+    );
+  }
+  logger.fatal('Indexes are missing. Run npm run db:indexes against this database, then start again.');
+  process.exit(1);
+}
+
 export async function startServer() {
   installCrashHandlers();
 
   await connectDatabase();
+  await assertIndexesPresent();
 
   const app = createApp();
   const server = app.listen(config.PORT, () => {

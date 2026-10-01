@@ -10,7 +10,8 @@
     "start": "node server.js",
     "test": "node --env-file=.env.test --test",
     "provision:restaurant": "node scripts/provisionRestaurant.js",
-    "seed:demo": "node scripts/seedDemo.js"
+    "seed:demo": "node scripts/seedDemo.js",
+    "db:indexes": "node scripts/buildIndexes.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
