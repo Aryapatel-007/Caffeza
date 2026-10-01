@@ -23,6 +23,7 @@ import restaurantRoutes from './restaurantRoutes.js';
 import settingsRoutes from './settingsRoutes.js';
 import accountRoutes from './accountRoutes.js';
 import dayCloseRoutes from './dayCloseRoutes.js';
+import reportV2Routes from './reportV2Routes.js';
 import paymentMethodRoutes from './paymentMethodRoutes.js';
 import stationRoutes from './stationRoutes.js';
 import userRoutes from './userRoutes.js';
@@ -45,5 +46,6 @@ router.use(stationRoutes);
 router.use(paymentMethodRoutes);
 router.use(accountRoutes);
 router.use(dayCloseRoutes);
+router.use(reportV2Routes);
 
 export default router;

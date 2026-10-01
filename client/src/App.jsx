@@ -26,6 +26,8 @@ import DeviceSettingsPage from './features/printing/DeviceSettingsPage.jsx';
 import StationsPage from './features/stations/StationsPage.jsx';
 import TaxReportPage from './features/reports/TaxPage.jsx';
 import TodayReportPage from './features/reports/TodayPage.jsx';
+import BillListPage from './features/reports/v2/BillListPage.jsx';
+import BillDetailPage from './features/reports/v2/BillDetailPage.jsx';
 import DashboardPage from './features/dashboard/DashboardPage.jsx';
 import KitchenDisplayPage from './features/kitchen/KitchenDisplayPage.jsx';
 import AvailabilityBoardPage from './features/menu/AvailabilityBoardPage.jsx';
@@ -369,6 +371,28 @@ export default function App() {
                 <RecipeEditorPage />
               </RequireRole>
             </RequireFeature>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* M19, P14. The Bill List every drill down opens, and one bill in full. */}
+      <Route
+        path="/reports/bills"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={REPORT_ROLES}>
+              <BillListPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports/bills/:billId"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={REPORT_ROLES}>
+              <BillDetailPage />
+            </RequireRole>
           </ProtectedRoute>
         }
       />

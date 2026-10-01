@@ -497,6 +497,18 @@ orderSchema.index(
 /** For M6, which will ask what sold. */
 orderSchema.index({ restaurantId: 1, 'lines.menuItemId': 1 });
 
+/** P14. Cancelled lines by cancel time: R15 and Day Close controls. */
+orderSchema.index({ restaurantId: 1, branchId: 1, 'lines.cancelledAt': 1 });
+
+/** P14. Whole orders by cancel time: R15. */
+orderSchema.index(
+  { restaurantId: 1, branchId: 1, cancelledAt: 1 },
+  { partialFilterExpression: { isCancelled: true } },
+);
+
+/** P14. No Charge orders by date: R16 and Day Close controls. */
+orderSchema.index({ restaurantId: 1, branchId: 1, status: 1, 'noCharge.businessDate': 1 });
+
 /**
  * One live order per platform order number. P06.
  *

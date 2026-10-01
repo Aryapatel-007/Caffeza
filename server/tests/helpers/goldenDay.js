@@ -511,3 +511,50 @@ export async function buildGoldenDay({ name = 'Caffeza' } = {}) {
     resetClockForTests();
   }
 }
+
+/**
+ * TEST-DATA section 5, the next day: W-330 Office pays ₹504.00 in cash at
+ * 1:15 PM on 27 September, and a dine-in bill of ₹420.00 is issued at 5:00 PM
+ * and left unpaid. Returns the new bill.
+ */
+export async function addNextDay(golden) {
+  const next = '2026-09-27';
+  const { tokens, people, ids } = golden;
+  try {
+    setClockForTests(ist('13:15', next));
+    ok(
+      await request('POST', `/api/v1/accounts/${ids.accounts['W-330 Office']}/collections`, {
+        token: tokens.CASHIER,
+        body: { method: 'CASH', amountInPaise: 50400 },
+      }),
+      'W-330 collection',
+    );
+
+    setClockForTests(ist('16:20', next));
+    const captain = people['Khuman Singh'];
+    const opened = ok(
+      await request('POST', '/api/v1/orders', {
+        token: captain,
+        body: {
+          orderType: 'DINE_IN',
+          tableId: ids.tables['Table 5'],
+          guestCount: 2,
+          lines: [{ menuItemId: ids.items['Mexican Bowl'], quantity: 1 }],
+        },
+      }),
+      'open 27 Sep order',
+    );
+    const fired = await fireReadyServe(captain, opened.id, opened.version);
+    setClockForTests(ist('17:00', next));
+    const order = await readyAndServe(captain, opened.id, fired.kots);
+    const bill = ok(
+      await request('POST', '/api/v1/bills', { token: tokens.CASHIER, body: { orderId: order.id, version: order.version } }),
+      'bill 27 Sep',
+    );
+    ids.bills.NEXT = bill.id;
+    ids.orders.NEXT = order.id;
+    return bill;
+  } finally {
+    resetClockForTests();
+  }
+}

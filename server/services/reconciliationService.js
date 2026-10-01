@@ -2,8 +2,9 @@
  * The balance checks. M16 and M19. docs/RECONCILIATION-RULES.md.
  *
  * Started in P10 with the checks Day Close needs for one business date: C1,
- * C3, C4, C6, C8 and C9. P14 adds C2, C5, C7, C10, C11 and C12, and the range
- * versions. Each check is its own function below, returning one result:
+ * C3, C4, C6, C8 and C9. Completed in P14 with C2, C5, C7, C10, C11 and C12,
+ * and the range versions, `runRangeChecks`. Each check is its own function
+ * below, returning one result:
  *
  *   { id, severity, passed, message, expected, actual, difference, refs }
  *
@@ -13,11 +14,17 @@
  * A check never changes data and never throws for a broken rule: it returns a
  * failed result. A check compares whole paise and never rounds first.
  */
+import { ACCOUNT_ENTRY_TYPES, AccountEntry, ENTRY_DIRECTIONS } from '../models/AccountEntry.js';
+import { Account } from '../models/Account.js';
 import { Bill, BILL_STATUSES } from '../models/Bill.js';
+import { DAY_STATUSES, DayClosure } from '../models/DayClosure.js';
+import { ORDER_LINE_STATUSES, ORDER_STATUSES, Order } from '../models/Order.js';
+import { PlatformPayout } from '../models/PlatformPayout.js';
 import { paiseToRupees, sumPaise } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { businessDateFor, businessDateRangeToUtc, toIst } from '../utils/time.js';
-import { numberInSeries, seriesOf } from './dayFiguresService.js';
+import { computeDayFigures, numberInSeries, seriesOf } from './dayFiguresService.js';
+import { expectedFor } from './payoutService.js';
 import { getSetting } from './settingsService.js';
 
 export const SEVERITY = Object.freeze({ ERROR: 'ERROR', WARNING: 'WARNING' });
@@ -233,25 +240,215 @@ export function checkC9(cash, countedCashInPaise = null) {
   });
 }
 
-/**
- * Every one-day check for `businessDate`, given its figures. C6 and C8 also
- * look at bills whose clock falls in the day, so a bill stored on the wrong
- * date is caught by C8 alone rather than also opening a gap in C6.
- */
-export async function runDayChecks(req, businessDate, figures, { countedCashInPaise = null, session = null } = {}) {
-  const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', { req });
-  const { start, end } = businessDateRangeToUtc(businessDate, businessDate, startMinutes);
-  const options = session ? { session } : {};
+/** C2 Line shares. Bills from before P03 have no shares and are skipped. */
+export function checkC2(bills) {
+  const failures = [];
+  for (const bill of bills) {
+    if (bill.lines.some((line) => line.discountShareInPaise === null || line.discountShareInPaise === undefined)) continue;
+    const rules = [['Discount shares', bill.discount?.amountInPaise ?? 0, sum(bill.lines, (line) => line.discountShareInPaise)]];
+    for (const slab of bill.taxBreakdown) {
+      const lines = bill.lines.filter((line) => line.taxRateBps === slab.taxRateBps);
+      const percent = slab.taxRateBps / 100;
+      rules.push([`Line net sales at ${percent}%`, slab.taxableInPaise, sum(lines, (line) => line.taxableInPaise)]);
+      rules.push([`Line GST at ${percent}%`, slab.taxInPaise, sum(lines, (line) => line.taxInPaise)]);
+    }
+    const broken = rules.find(([, expected, actual]) => expected !== actual);
+    if (broken) failures.push({ bill, rule: broken[0], expected: broken[1], actual: broken[2] });
+  }
+  if (failures.length === 0) {
+    return result('C2', SEVERITY.ERROR, { passed: true, message: 'C2 Line shares: every bill\'s lines add up to the bill.' });
+  }
+  const [first] = failures;
+  return result('C2', SEVERITY.ERROR, {
+    passed: false,
+    message: `C2 Line shares: bill ${first.bill.billNumber}, the line shares do not add up to the bill. ${first.rule} expected ${rupees(first.expected)}, found ${rupees(first.actual)}.`,
+    expected: first.expected,
+    actual: first.actual,
+    refs: failures.map((failure) => failure.bill.billNumber),
+  });
+}
 
-  const register = await Bill.find({
+/** The groupings C5 knows, by number. */
+export const C5_GROUPINGS = Object.freeze({
+  1: 'categories',
+  2: 'items',
+  3: 'captains',
+  4: 'order types',
+  5: 'hours',
+  6: 'days',
+  7: 'tax rates',
+});
+
+/**
+ * C5 Groups add up to the whole. A report passes its own grouped rows and the
+ * ungrouped total; `field` is the figure being added up.
+ */
+export function checkC5(number, rows, field, total) {
+  const id = `C5.${number}`;
+  const grouping = C5_GROUPINGS[number];
+  const added = sum(rows, (row) => row[field] ?? 0);
+  const passed = added === total;
+  return result(id, SEVERITY.ERROR, {
+    passed,
+    message: passed
+      ? `C5 Totals: the ${grouping} totals add up to the whole.`
+      : `C5 Totals: the ${grouping} totals add up to ${rupees(added)}, but the whole is ${rupees(total)}. ${rupees(Math.abs(total - added))} is missing from one of the groups.`,
+    expected: total,
+    actual: added,
+  });
+}
+
+/**
+ * C7 Cancelled never sold. No bill line points at a cancelled order line, and
+ * no No Charge order has a live bill.
+ */
+export function checkC7(bills, orders) {
+  const failures = [];
+  const ordersById = new Map(orders.map((order) => [String(order._id), order]));
+  for (const bill of bills) {
+    const order = ordersById.get(String(bill.orderId));
+    if (!order) continue;
+    if (order.status === ORDER_STATUSES.NO_CHARGE) {
+      failures.push({ text: `C7 Cancelled: No Charge order ${order.orderNumber} has bill ${bill.billNumber}.`, ref: bill.billNumber });
+    }
+    const cancelled = new Map(
+      order.lines.filter((line) => line.status === ORDER_LINE_STATUSES.CANCELLED).map((line) => [String(line._id), line]),
+    );
+    for (const line of bill.lines) {
+      const hit = cancelled.get(String(line.orderLineId));
+      if (hit) {
+        failures.push({
+          text: `C7 Cancelled: item ${hit.itemName} on order ${order.orderNumber} was cancelled but appears on bill ${bill.billNumber}.`,
+          ref: bill.billNumber,
+        });
+      }
+    }
+  }
+  if (failures.length === 0) {
+    return result('C7', SEVERITY.ERROR, { passed: true, message: 'C7 Cancelled: nothing cancelled was billed.' });
+  }
+  return result('C7', SEVERITY.ERROR, {
+    passed: false,
+    message: failures[0].text,
+    refs: [...new Set(failures.map((failure) => failure.ref))],
+  });
+}
+
+const TYPE_SIGN = Object.freeze({
+  [ACCOUNT_ENTRY_TYPES.OPENING]: 1,
+  [ACCOUNT_ENTRY_TYPES.CHARGE]: 1,
+  [ACCOUNT_ENTRY_TYPES.CHARGE_REVERSED]: -1,
+  [ACCOUNT_ENTRY_TYPES.COLLECTION]: -1,
+});
+
+/**
+ * C10 Account balances. The balance by each entry's stored direction must
+ * equal the balance by the rules for its type (an ERROR if not), and a
+ * negative balance is a WARNING.
+ */
+export function checkC10(accounts, entries) {
+  const errors = [];
+  const negative = [];
+  for (const account of accounts) {
+    const mine = entries.filter((entry) => String(entry.accountId) === String(account._id));
+    const outstanding = sum(mine, (entry) => (entry.direction === ENTRY_DIRECTIONS.UP ? entry.amountInPaise : -entry.amountInPaise));
+    const computed = sum(mine, (entry) => {
+      const sign = TYPE_SIGN[entry.type] ?? (entry.direction === ENTRY_DIRECTIONS.UP ? 1 : -1);
+      return sign * entry.amountInPaise;
+    });
+    if (outstanding !== computed) errors.push({ account, outstanding, computed });
+    else if (outstanding < 0) negative.push({ account, outstanding });
+  }
+  if (errors.length > 0) {
+    const [first] = errors;
+    return result('C10', SEVERITY.ERROR, {
+      passed: false,
+      message: `C10 Account: ${first.account.name} shows ${rupees(first.outstanding)} outstanding, but its entries add up to ${rupees(first.computed)}.`,
+      expected: first.computed,
+      actual: first.outstanding,
+      refs: errors.map((error) => String(error.account._id)),
+    });
+  }
+  if (negative.length > 0) {
+    const [first] = negative;
+    return result('C10', SEVERITY.WARNING, {
+      passed: false,
+      message: `C10 Account: ${first.account.name} shows ${rupees(first.outstanding)} outstanding: it has paid more than it owes.`,
+      actual: first.outstanding,
+      refs: negative.map((row) => String(row.account._id)),
+    });
+  }
+  return result('C10', SEVERITY.ERROR, { passed: true, message: 'C10 Account: every account balance adds up.' });
+}
+
+/**
+ * C11 Platform payouts. For each live payout: received against expected,
+ * each payment at its own frozen commission. A difference, or payments with
+ * no rate set, is a WARNING for review. `payouts` carry their expectedFor.
+ */
+export function checkC11(payouts) {
+  const flagged = payouts.filter(
+    (payout) => payout.amountReceivedInPaise !== payout.expectedInPaise || payout.rateNotSet.length > 0,
+  );
+  if (flagged.length === 0) {
+    return result('C11', SEVERITY.WARNING, { passed: true, message: 'C11 Platform: every payout matches what was expected.' });
+  }
+  const [first] = flagged;
+  const difference = first.amountReceivedInPaise - first.expectedInPaise;
+  const notSet = first.rateNotSet.length > 0 ? ` ${first.rateNotSet.length} payment${first.rateNotSet.length === 1 ? '' : 's'} with no commission rate set.` : '';
+  return result('C11', SEVERITY.WARNING, {
+    passed: false,
+    message: `C11 Platform: ${first.methodName} paid ${rupees(first.amountReceivedInPaise)} for ${first.includedPaymentCount} bills against ${rupees(first.expectedInPaise)} expected. Difference ${rupees(difference)}.${notSet}`,
+    expected: first.expectedInPaise,
+    actual: first.amountReceivedInPaise,
+    refs: flagged.map((payout) => String(payout._id)),
+  });
+}
+
+/** The parts of a snapshot C12 compares: a zero row for an unused method is not a figure. */
+function comparable(figures) {
+  const copy = structuredClone(figures);
+  copy.money.methods = copy.money.methods.filter((row) => row.amountInPaise !== 0 || row.paymentCount !== 0);
+  return JSON.stringify(copy);
+}
+
+/** C12 Closed days do not change. `closures` with their fresh figures. */
+export function checkC12(comparisons) {
+  const changed = comparisons.filter(({ closure, now }) => comparable(closure.snapshot) !== comparable(now));
+  if (changed.length === 0) {
+    return result('C12', SEVERITY.ERROR, { passed: true, message: 'C12 Closed day: every closed day still adds up to its close.' });
+  }
+  const [{ closure, now }] = changed;
+  return result('C12', SEVERITY.ERROR, {
+    passed: false,
+    message: `C12 Closed day: ${closure.businessDate} was closed at ${toIst(closure.closedAt)} with bill total ${rupees(closure.snapshot.sales.billTotalInPaise)}. The records now add up to ${rupees(now.sales.billTotalInPaise)}.`,
+    expected: closure.snapshot.sales.billTotalInPaise,
+    actual: now.sales.billTotalInPaise,
+    refs: changed.map(({ closure: row }) => row.businessDate),
+  });
+}
+
+/* ------------------------------------------------------------------------ *
+ * Reading what the checks need
+ * ------------------------------------------------------------------------ */
+
+function startMinutesOf(req) {
+  return getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', { req });
+}
+
+/** Every bill stored on a date in the range or issued during its hours. */
+function registerFor(req, from, to, startMinutes, options) {
+  const { start, end } = businessDateRangeToUtc(from, to, startMinutes);
+  return Bill.find({
     ...scoped(req),
-    $or: [{ businessDate }, { billedAt: { $gte: start, $lt: end } }],
+    $or: [{ businessDate: { $gte: from, $lte: to } }, { billedAt: { $gte: start, $lt: end } }],
   })
     .setOptions(options)
     .lean();
-  const dayBills = register.filter((bill) => bill.businessDate === businessDate);
-  const liveDayBills = dayBills.filter((bill) => !bill.isVoided);
+}
 
+/** The highest earlier sequence of each series in the register, for C6. */
+async function earlierHighestFor(req, register, options) {
   const earlierHighest = new Map();
   const lowest = new Map();
   for (const bill of register) {
@@ -259,7 +456,8 @@ export async function runDayChecks(req, businessDate, figures, { countedCashInPa
     lowest.set(series, Math.min(lowest.get(series) ?? Infinity, bill.billSequence));
   }
   for (const [series, low] of lowest) {
-    const seriesFilter = series === register.find((bill) => seriesOf(bill) === series)?.financialYear
+    const isFinancialYear = register.some((bill) => seriesOf(bill) === series && !bill.invoiceSeries);
+    const seriesFilter = isFinancialYear
       ? { $or: [{ invoiceSeries: series }, { invoiceSeries: null, financialYear: series }] }
       : { invoiceSeries: series };
     const [previous] = await Bill.find({ ...scoped(req), ...seriesFilter, billSequence: { $lt: low } })
@@ -270,15 +468,138 @@ export async function runDayChecks(req, businessDate, figures, { countedCashInPa
       .lean();
     if (previous) earlierHighest.set(series, previous.billSequence);
   }
+  return earlierHighest;
+}
 
+/** The orders behind a set of bills, for C7. */
+function ordersFor(req, bills, options) {
+  const ids = [...new Set(bills.map((bill) => String(bill.orderId)))];
+  if (ids.length === 0) return Promise.resolve([]);
+  return Order.find({ ...scoped(req), _id: { $in: ids } }).select('orderNumber status lines').setOptions(options).lean();
+}
+
+async function accountsCheck(req, options) {
+  const [accounts, entries] = await Promise.all([
+    Account.find({ ...scoped(req) }).select('name').setOptions(options).lean(),
+    AccountEntry.find({ ...scoped(req) }).select('accountId type direction amountInPaise').setOptions(options).lean(),
+  ]);
+  return checkC10(accounts, entries);
+}
+
+async function payoutsCheck(req, from, to, options) {
+  const payouts = await PlatformPayout.find({ ...scoped(req), isVoided: false, periodFrom: { $lte: to }, periodTo: { $gte: from } })
+    .setOptions(options)
+    .lean();
+  const withExpected = [];
+  for (const payout of payouts) withExpected.push({ ...payout, ...(await expectedFor(req, payout)) });
+  return checkC11(withExpected);
+}
+
+async function closedDaysCheck(req, from, to, options) {
+  const closures = await DayClosure.find({ ...scoped(req), status: DAY_STATUSES.CLOSED, businessDate: { $gte: from, $lte: to } })
+    .setOptions(options)
+    .lean();
+  const comparisons = [];
+  for (const closure of closures) {
+    comparisons.push({ closure, now: await computeDayFigures(req, closure.businessDate, options) });
+  }
+  return checkC12(comparisons);
+}
+
+/** The business dates from `from` to `to`, inclusive. */
+export function datesBetween(from, to) {
+  const dates = [];
+  for (let at = Date.parse(`${from}T00:00:00Z`); at <= Date.parse(`${to}T00:00:00Z`); at += 86_400_000) {
+    dates.push(new Date(at).toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
+/** C3 over a range: every day checked, one result listing every failing day. */
+function checkC3Range(from, to, liveBills) {
+  const failing = [];
+  let first = null;
+  for (const date of datesBetween(from, to)) {
+    const day = checkC3(date, liveBills.filter((bill) => bill.businessDate === date));
+    if (!day.passed) {
+      failing.push(date);
+      first ??= day;
+    }
+  }
+  if (!first) {
+    return result('C3', SEVERITY.ERROR, { passed: true, message: `C3 Money: every day from ${from} to ${to} is accounted for.` });
+  }
+  return { ...first, refs: failing };
+}
+
+/**
+ * Runs the named checks over a range, for a report. `ids` names them: C1, C2,
+ * C3, C4, C6, C7, C8, C10, C11, C12. C5 and C9 need a report's own figures and
+ * are run by the report itself.
+ */
+export async function runRangeChecks(req, { from, to }, ids, { session = null } = {}) {
+  const options = session ? { session } : {};
+  const startMinutes = await startMinutesOf(req);
+  const register = await registerFor(req, from, to, startMinutes, options);
+  const inRange = register.filter((bill) => bill.businessDate >= from && bill.businessDate <= to);
+  const live = inRange.filter((bill) => !bill.isVoided);
+
+  const results = [];
+  for (const id of ids) {
+    if (id === 'C1') results.push(checkC1(live));
+    else if (id === 'C2') results.push(checkC2(live));
+    else if (id === 'C3') results.push(checkC3Range(from, to, live));
+    else if (id === 'C4') results.push(checkC4(live));
+    else if (id === 'C6') results.push(checkC6(register, await earlierHighestFor(req, register, options)));
+    else if (id === 'C7') results.push(checkC7(live, await ordersFor(req, live, options)));
+    else if (id === 'C8') results.push(checkC8(register, startMinutes));
+    else if (id === 'C10') results.push(await accountsCheck(req, options));
+    else if (id === 'C11') results.push(await payoutsCheck(req, from, to, options));
+    else if (id === 'C12') results.push(await closedDaysCheck(req, from, to, options));
+    else throw new Error(`runRangeChecks does not run ${id}; a report runs it with its own figures.`);
+  }
+  return results;
+}
+
+/**
+ * Every one-day check for `businessDate`, given its figures. C6 and C8 also
+ * look at bills whose clock falls in the day, so a bill stored on the wrong
+ * date is caught by C8 alone rather than also opening a gap in C6.
+ */
+export async function runDayChecks(req, businessDate, figures, { countedCashInPaise = null, session = null } = {}) {
+  const ranged = await runRangeChecks(req, { from: businessDate, to: businessDate }, ['C1', 'C2', 'C3', 'C4', 'C6', 'C7', 'C8', 'C10', 'C11'], { session });
+  const byId = Object.fromEntries(ranged.map((check) => [check.id, check]));
   return [
-    checkC1(liveDayBills),
-    checkC3(businessDate, liveDayBills),
-    checkC4(liveDayBills),
-    checkC6(register, earlierHighest),
-    checkC8(register, startMinutes),
+    byId.C1,
+    byId.C2,
+    byId.C3,
+    byId.C4,
+    checkC5(4, figures.orderTypes, 'billTotalInPaise', figures.sales.billTotalInPaise),
+    checkC5(7, figures.gst, 'netSalesInPaise', figures.sales.netSalesInPaise),
+    byId.C6,
+    byId.C7,
+    byId.C8,
     checkC9(figures.cash, countedCashInPaise),
+    byId.C10,
+    byId.C11,
   ];
 }
 
-export default { checkC1, checkC3, checkC4, checkC6, checkC8, checkC9, runDayChecks, SEVERITY };
+export default {
+  checkC1,
+  checkC2,
+  checkC3,
+  checkC4,
+  checkC5,
+  checkC6,
+  checkC7,
+  checkC8,
+  checkC9,
+  checkC10,
+  checkC11,
+  checkC12,
+  datesBetween,
+  runDayChecks,
+  runRangeChecks,
+  SEVERITY,
+};

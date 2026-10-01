@@ -418,6 +418,12 @@ billSchema.index(
 /** The day's bill list, and every M6 sales read. */
 billSchema.index({ restaurantId: 1, branchId: 1, businessDate: 1, isVoided: 1 });
 
+/** P14. Payments by their own business date: R5, R6 and the cash drawer. */
+billSchema.index({ restaurantId: 1, branchId: 1, 'payments.businessDate': 1 });
+
+/** P14. A series in sequence order: R10 and check C6. */
+billSchema.index({ restaurantId: 1, branchId: 1, invoiceSeries: 1, billSequence: 1 });
+
 export const Bill = mongoose.model('Bill', billSchema);
 
 export default Bill;

@@ -167,3 +167,34 @@ export async function requestWithMeta(path, options) {
   const envelope = await request(path, options);
   return { data: envelope.data, meta: envelope.meta };
 }
+
+/**
+ * A file download, such as a report's Excel export (P14). Same headers and the
+ * same one refresh on an expired token as every other call; the body is a file
+ * rather than the JSON envelope, unless the server answers with an error.
+ */
+export async function downloadFile(path) {
+  const send = () =>
+    fetch(`${API_BASE_URL}${path}`, {
+      headers: {
+        'X-Requested-With': 'fetch',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      credentials: 'include',
+    });
+
+  let response = await send();
+  if (response.status === 401 && refreshSession) {
+    const newToken = await refreshSession().catch(() => null);
+    if (newToken) {
+      setAccessToken(newToken);
+      response = await send();
+    }
+  }
+  if (!response.ok) await readEnvelope(response);
+
+  const disposition = response.headers.get('content-disposition') ?? '';
+  const fileName = /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'report.xlsx';
+  return { blob: await response.blob(), fileName };
+}
+
