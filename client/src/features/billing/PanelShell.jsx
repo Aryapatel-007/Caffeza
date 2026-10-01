@@ -9,7 +9,7 @@
  * shell, the same reasoning that pulled shared code out anywhere else in this
  * project: two copies is how one drifts.
  */
-export default function PanelShell({ title, onCancel, children }) {
+export default function PanelShell({ title, subtitle = null, wide = false, onCancel, children }) {
   return (
     <div className="fixed inset-0 z-30 flex">
       <button type="button" aria-label="Close" onClick={onCancel} className="flex-1 bg-[#141210]/55" />
@@ -17,10 +17,16 @@ export default function PanelShell({ title, onCancel, children }) {
       <aside
         role="dialog"
         aria-label={title}
-        className="flex w-full max-w-md flex-col overflow-y-auto bg-white px-5 py-5 shadow-[-8px_0_30px_rgba(28,27,25,0.18)]"
+        className={[
+          'flex w-full flex-col overflow-y-auto bg-white px-5 py-5 shadow-[-8px_0_30px_rgba(28,27,25,0.18)]',
+          wide ? 'max-w-[580px] sm:px-8' : 'max-w-md',
+        ].join(' ')}
       >
         <header className="mb-4 flex items-center justify-between">
-          <h2 className="text-[20px] font-semibold leading-7">{title}</h2>
+          <div>
+            <h2 className="text-[20px] font-semibold leading-7">{title}</h2>
+            {subtitle && <p className="mt-1 font-mono text-[13px] text-steel">{subtitle}</p>}
+          </div>
           <button
             type="button"
             onClick={onCancel}

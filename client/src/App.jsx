@@ -9,6 +9,7 @@ import ClockScreen from './features/attendance/ClockScreen.jsx';
 import MyAttendancePage from './features/attendance/MyAttendancePage.jsx';
 import LoginPage from './features/auth/LoginPage.jsx';
 import BillScreenPage from './features/billing/BillScreenPage.jsx';
+import ReceiptPreviewPage from './features/billing/ReceiptPreviewPage.jsx';
 import BillsListPage from './features/billing/BillsListPage.jsx';
 import RecipeEditorPage from './features/inventory/RecipeEditorPage.jsx';
 import StockListPage from './features/inventory/StockListPage.jsx';
@@ -345,6 +346,16 @@ export default function App() {
         element={
           <ProtectedRoute>
             <BillScreenPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* The receipt preview reads the same two endpoints as the bill, both open to all six. */}
+      <Route
+        path="/bills/:billId/receipt"
+        element={
+          <ProtectedRoute>
+            <ReceiptPreviewPage />
           </ProtectedRoute>
         }
       />

@@ -31,9 +31,9 @@ export default function ReasonPicker({ reasons, value, onChange, noteMaxLength =
                 aria-pressed={chosen}
                 onClick={() => onChange({ reasonCode: reason.code, note })}
                 className={[
-                  'min-h-[48px] rounded-xl border-2 px-3 py-2 text-left text-[15px] leading-5',
+                  'min-h-[48px] rounded-xl px-3 py-2 text-left text-[14px] leading-5 transition-colors',
                   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                  chosen ? 'border-ink bg-chana/20 font-semibold' : 'border-steel/40',
+                  chosen ? 'bg-chana-soft font-semibold ring-2 ring-chana' : 'bg-linen text-steel hover:bg-linen-2 hover:text-ink',
                 ].join(' ')}
               >
                 {reason.label}
@@ -53,7 +53,7 @@ export default function ReasonPicker({ reasons, value, onChange, noteMaxLength =
           rows={2}
           maxLength={noteMaxLength}
           placeholder={noteRequired ? 'Say what happened' : 'Anything worth adding'}
-          className="w-full rounded-xl border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
+          className="w-full rounded-xl bg-linen px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:bg-white focus:outline-none focus:ring-2 focus:ring-chana"
         />
       </label>
     </div>

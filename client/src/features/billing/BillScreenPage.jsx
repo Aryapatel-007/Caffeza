@@ -227,6 +227,12 @@ export default function BillScreenPage() {
             <PillButton onClick={() => print()} disabled={printing}>
               <Bilingual label={BILL_LABELS.printReceipt} align="center" />
             </PillButton>
+            <Link
+              to={`/bills/${bill.id}/receipt`}
+              className="flex min-h-[44px] items-center rounded-full bg-white px-4 text-[13px] font-medium shadow-card hover:bg-linen focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              Receipt preview
+            </Link>
             {canVoid && (
               <button
                 type="button"
@@ -426,6 +432,7 @@ export default function BillScreenPage() {
 
       {panel === 'discount' && (
         <DiscountPanel
+          billNumber={bill.billNumber}
           subtotalInPaise={bill.subtotalInPaise}
           platformOnly={!canManage}
           isBusy={discountMutation.isPending}
