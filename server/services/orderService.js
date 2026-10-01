@@ -8,6 +8,7 @@
  *   applyVersionedUpdate writes through the version filter, never read-modify-save
  *   serialiseOrder       derives the totals rather than storing them
  */
+import { Category } from '../models/Category.js';
 import { MenuItem } from '../models/MenuItem.js';
 import {
   Order,
@@ -135,6 +136,17 @@ export async function buildLineSnapshots(req, lineRequests) {
   const items = await MenuItem.find({ ...scoped(req), _id: { $in: wantedIds } });
   const itemsById = new Map(items.map((item) => [String(item._id), item]));
 
+  /**
+   * P03. The category is frozen onto the line too, so a category report reads
+   * the line rather than today's menu. One scoped query for every distinct
+   * category, the same shape as the item query above.
+   */
+  const categoryIds = [...new Set(items.map((item) => String(item.categoryId)))];
+  const categories = await Category.find({ ...scoped(req), _id: { $in: categoryIds } }).select(
+    'name',
+  );
+  const categoryNames = new Map(categories.map((category) => [String(category._id), category.name]));
+
   const now = new Date();
 
   return lineRequests.map((request) => {
@@ -186,6 +198,10 @@ export async function buildLineSnapshots(req, lineRequests) {
       variantName,
       unitPriceInPaise,
       taxRateBps: item.taxRateBps,
+      // A missing category should not happen. If it does, the id is still
+      // kept and the order is not blocked over it.
+      categoryId: item.categoryId ?? null,
+      categoryName: categoryNames.get(String(item.categoryId)) ?? null,
       quantity: request.quantity,
       addOns,
       notes: request.notes ?? null,

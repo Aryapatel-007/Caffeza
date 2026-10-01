@@ -197,6 +197,17 @@ const orderLineSchema = new mongoose.Schema(
      * ingredients are gone. M2 records it and does nothing else with it.
      */
     wasPrepared: { type: Boolean, default: null },
+
+    /**
+     * The menu item's category when the line was added. P03.
+     *
+     * Frozen at add time for the same reason the price is: if a dish moves
+     * category between the order and the bill, the sale belongs to the category
+     * it was ordered under, and a category report never reads today's menu for
+     * an old sale. Null on lines added before P03.
+     */
+    categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
+    categoryName: { type: String, trim: true, default: null },
   },
   { _id: true },
 );
