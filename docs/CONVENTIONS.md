@@ -197,6 +197,15 @@ INTERNAL_ERROR
 
 Modules may add their own, in the same shape. For example `ORDER_ALREADY_FIRED`, `INSUFFICIENT_STOCK`.
 
+Added by P02:
+
+```
+FEATURE_DISABLED         403  the feature is switched off in settings.features
+INVOICE_START_TOO_LOW    422  a new prefix series would reuse a sequence this financial year
+INVOICE_SERIES_STARTED   422  a prefix that has issued bills would be restarted
+INVOICE_SERIES_LOCKED    422  switching back to financial-year numbering mid-year
+```
+
 ### Paging
 
 Every list endpoint takes `?page=1&limit=50`.

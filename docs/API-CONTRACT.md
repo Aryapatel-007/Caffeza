@@ -244,12 +244,15 @@ Response 200:
     "branch": {
       "id": "652b...",
       "name": "Main"
-    }
+    },
+    "features": { "inventory": true, "attendance": true }
   }
 }
 ```
 
 Reads live from the database, not from the token. A role changed five minutes ago must show here.
+
+`features` (added by P02) is `settings.features`, returned to every role, because every screen needs to know what to hide and `GET /settings` is owner and manager only.
 
 ### 1.6 Change own password
 
@@ -2000,6 +2003,17 @@ bill's id travels with it as `existingBillId`, the same shape M2's
 creation is the one write in this project that refuses to degrade, because a
 gap-free sequence has no degraded mode; see DB-SCHEMA.md section 12.
 
+**The bill number format depends on `settings.invoice` (P02).** In
+`FINANCIAL_YEAR` mode it is `"2026-27/000148"`, exactly as before. In `PREFIX`
+mode it is the prefix followed by an unpadded running number, `"CFA/C/22442"`,
+and the series never resets. `billSequence` is the running number in both
+modes, and `financialYear` is always the financial year the bill falls in.
+
+Every bill created from P02 onwards carries `invoiceSeries`: the financial year,
+like `"2026-27"`, in `FINANCIAL_YEAR` mode, and the prefix, like `"CFA/C/"`, in
+`PREFIX` mode. Bills created before P02 have `null`, which means the financial
+year series.
+
 ### 14.2 Read one bill
 
 ```
@@ -2976,6 +2990,32 @@ Forty characters is not arbitrary. A standard 80mm thermal roll fits roughly 42 
 |---|---|---|---|
 | `lowStockAlertsEnabled` | Boolean | true | Whether the low-stock list appears on the dashboard and in the stock screens. |
 
+### `settings.features` (added by P02)
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `inventory` | Boolean | true | M4 is in use for this restaurant. When false, every inventory route and `GET /reports/stock-consumption` refuse with 403 `FEATURE_DISABLED`, and firing or cancelling an order writes no stock movement. |
+| `attendance` | Boolean | true | M5 is in use for this restaurant. When false, every attendance route, including the station clock, and `GET /reports/labour-hours` refuse with 403 `FEATURE_DISABLED`. |
+
+Both default to `true`, so nothing changes for an existing restaurant. Switching a feature off never deletes data. Switching it back on does not back-fill anything: stock levels resume from where they stopped and are wrong until someone does a stock count.
+
+### `settings.invoice` (added by P02)
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `mode` | String | `FINANCIAL_YEAR` | Enum `FINANCIAL_YEAR`, `PREFIX` |
+| `prefix` | String or null | `null` | Used only in `PREFIX` mode. 1 to 7 characters: letters, digits, `/` and `-`. Like `CFA/C/`. |
+| `startingNumber` | Number or null | `null` | Used only in `PREFIX` mode. The first number the series issues. Whole number, 1 to 999,999,999. |
+
+| Mode | Example | Counter scope | Resets |
+|---|---|---|---|
+| `FINANCIAL_YEAR` | `2026-27/000148` | the financial year | Every 1 April. Unchanged from M3. |
+| `PREFIX` | `CFA/C/22442` | `PREFIX:` followed by the prefix, for example `PREFIX:CFA/C/` | Never. It runs on across financial years. |
+
+In `PREFIX` mode the number is not padded: `CFA/C/22442`, not `CFA/C/000022442`.
+
+Why 7 characters and 9 digits: GST rules allow an invoice number of at most 16 characters, using only letters, numbers, `-` and `/`, unique within the financial year. 7 plus 9 is 16, so no number this series issues can break that rule.
+
 ---
 
 ## 2. `GET /api/v1/settings`
@@ -2998,7 +3038,9 @@ No parameters. Returns the full settings object for the restaurant in the token,
       "showFssai": true,
       "showServerName": false
     },
-    "inventory": { "lowStockAlertsEnabled": true }
+    "inventory": { "lowStockAlertsEnabled": true },
+    "features": { "inventory": true, "attendance": true },
+    "invoice": { "mode": "FINANCIAL_YEAR", "prefix": null, "startingNumber": null }
   }
 }
 ```
@@ -3042,6 +3084,30 @@ details: { "field": "tax.defaultTaxRateBps", "previousValue": "500", "newValue":
 
 A field sent with a value identical to the stored one writes no audit line and is not an error.
 
+### Feature switches and the invoice series (added by P02)
+
+`features.inventory` and `features.attendance` must be booleans. Nothing else.
+
+`invoice` is validated as a whole group. If any of its three fields is sent, all three must be sent, so the stored group is never half-changed.
+
+| Rule | Error |
+|---|---|
+| Only some of `invoice.mode`, `invoice.prefix`, `invoice.startingNumber` sent | 400 `VALIDATION_FAILED` |
+| `mode` is `FINANCIAL_YEAR` and `prefix` or `startingNumber` is not null | 400 `VALIDATION_FAILED` |
+| `mode` is `PREFIX` and `prefix` or `startingNumber` is missing or null | 400 `VALIDATION_FAILED` |
+| `prefix` is not 1 to 7 characters of letters, digits, `/` and `-` | 400 `VALIDATION_FAILED`, field message "An invoice prefix can use letters, numbers, / and -, up to 7 characters." |
+| `startingNumber` is not a whole number from 1 to 999,999,999 | 400 `VALIDATION_FAILED` |
+
+Three business rules protect the two unique indexes on `bills`, `{ restaurantId, billNumber }` and `{ restaurantId, branchId, financialYear, billSequence }`. Breaking either would make bill creation fail at the till. They read the database, so they run in the service, not the validator. Each is 422 with its own code.
+
+| Rule | Code | Message |
+|---|---|---|
+| A prefix that has never issued a bill (no `PREFIX:<prefix>` counter above zero) must start above the highest `billSequence` on any bill of this restaurant in the current financial year, in any series. With no bills this year, any start from 1 is fine. | `INVOICE_START_TOO_LOW` | "The starting number must be above {highest}, the highest bill number already used this financial year." |
+| A prefix that has issued bills cannot have its `startingNumber` changed, and cannot be switched back to after moving to another prefix. Sending the stored values back unchanged is not an error. | `INVOICE_SERIES_STARTED` | "{prefix} has already issued bills up to {prefix}{last}. Its starting number cannot change, and it cannot be started again." |
+| Switching `mode` to `FINANCIAL_YEAR` while this restaurant has any bill in the current financial year whose `invoiceSeries` is a prefix. | `INVOICE_SERIES_LOCKED` | "Bills have already been issued under {prefix} this financial year. You can switch back on or after 1 April." |
+
+Every change still writes one `SETTINGS_CHANGED` line per field that changed, for example `features.inventory` or `invoice.prefix`.
+
 `auditlogs.action` gains `SETTINGS_CHANGED` and `entityType` gains `SETTINGS`. Both are additive to a closed enum, the same append-only discipline `errors.js` follows.
 
 ---
@@ -3066,6 +3132,10 @@ The settings screen shows both fields with a short note saying they take effect 
 
 Both are one-line reads through `settingsService`. Neither changes stored data or frozen arithmetic.
 
+`features.inventory` and `features.attendance` (P02) — read by the `requireFeature(name)` middleware, which runs after `authenticate` and `tenant` and before `requireRole`, so anyone reaching a switched-off feature is told it is switched off rather than that they lack the role. It throws 403 `FEATURE_DISABLED` with "Inventory is switched off for this restaurant. An owner can switch it on in Settings." (or "Attendance ..."). With inventory off, `kitchenService.fireOrder` skips `deductForFiredLines` and the line and order cancels skip `returnStockForCancelledLine`; firing and cancelling otherwise behave exactly as before. The dashboard keeps its shape: `lowStock` is `[]` when inventory is off and `staffOnShift` is `null` when attendance is off.
+
+`invoice.*` (P02) — read by `createBill` inside its transaction and passed to `reserveBillNumber`. See section 14.1.
+
 ---
 
 ## 6. `settingsService`
@@ -3088,6 +3158,17 @@ Cache within a single request only, on `req`. Do not add a process-level cache w
 |---|---|---|---|---|---|---|
 | GET /settings | yes | yes | no | no | no | no |
 | PATCH /settings | yes | no | no | no | no | no |
+
+`PATCH /settings` also sets `features` and `invoice` (P02); its roles are unchanged. Inventory routes, attendance routes and the two reports keep their roles and are now also refused for everyone when the feature is off.
+
+## Error codes added by P02
+
+| Code | Status | When |
+|---|---|---|
+| `FEATURE_DISABLED` | 403 | The route belongs to a feature switched off in `settings.features` |
+| `INVOICE_START_TOO_LOW` | 422 | A new prefix series would start at or below a sequence already used this financial year |
+| `INVOICE_SERIES_STARTED` | 422 | A prefix that has issued bills would be restarted or returned to |
+| `INVOICE_SERIES_LOCKED` | 422 | Switching back to financial-year numbering mid-year after prefix bills |
 
 ---
 

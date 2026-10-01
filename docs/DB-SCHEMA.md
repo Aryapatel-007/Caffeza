@@ -995,7 +995,8 @@ about.
 | `branchId` | ObjectId | yes | `branches._id` | From `baseSchema` |
 | `billNumber` | String | yes | | The printed number, `"2026-27/000148"`. Unique per restaurant. Never reused. |
 | `financialYear` | String | yes | | `"2026-27"`. Indian FY, 1 April to 31 March. The sequence resets here and nowhere else. |
-| `billSequence` | Number | yes | | The integer behind `billNumber`, 1 upwards within a financial year. Stored so a gap can be found by arithmetic rather than by parsing strings. |
+| `billSequence` | Number | yes | | The integer behind `billNumber`, 1 upwards within a financial year. Stored so a gap can be found by arithmetic rather than by parsing strings. In `PREFIX` mode (P02) it is the prefix series' running number, which does not reset each year. |
+| `invoiceSeries` | String | no | | Added by P02. The series the number belongs to: the financial year, like `"2026-27"`, in `FINANCIAL_YEAR` mode, or the prefix, like `"CFA/C/"`, in `PREFIX` mode. `null` on bills created before P02, meaning the financial year series. The M19 invoice register groups by it. |
 | `orderId` | ObjectId | yes | `orders._id` | One bill per order. See the partial unique index below. |
 | `orderNumber` | Number | yes | | Snapshot, so a bill reads without a join |
 | `orderType` | String | yes | | Enum `DINE_IN`, `TAKEAWAY`. Snapshot. |
@@ -1174,6 +1175,13 @@ year while `name` stays `BILL`:
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `scope` | String | no | Default `null`. `"2026-27"` on a `BILL` counter. `ORDER` and `KOT` counters leave it null. |
+
+P02 adds a second kind of `BILL` scope. In `PREFIX` invoice mode the scope is
+`"PREFIX:"` followed by the prefix, for example `"PREFIX:CFA/C/"`. That counter
+never resets. It is created with `$setOnInsert: { value: startingNumber - 1 }`,
+inside the bill transaction, so the first bill of a new series is
+`startingNumber`. A `PREFIX:` counter whose value is above zero is how the
+settings rules know a prefix "has issued bills".
 
 The unique index becomes `{ restaurantId: 1, branchId: 1, name: 1, scope: 1 }`.
 This is additive: existing `ORDER` and `KOT` documents have no `scope`, which
@@ -1711,6 +1719,28 @@ entry rather than in a kitchen during Phase 2.
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
 | `lowStockAlertsEnabled` | Boolean | yes | true | Whether the low-stock list is surfaced. When false the low-stock reads return an empty list and the dashboard returns an empty `lowStock` array. Stock quantities are untouched; only the surfacing is switched off. |
+
+### `settings.features` (added by P02)
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `inventory` | Boolean | yes | true | M4 is in use. When false, the inventory routes and the stock report refuse with `FEATURE_DISABLED`, and firing or cancelling writes no `stockmovements`. Existing movements are never touched. |
+| `attendance` | Boolean | yes | true | M5 is in use. When false, the attendance routes and the labour report refuse with `FEATURE_DISABLED`. |
+
+The defaults are `true` so nothing changes for an existing restaurant. Caffeza's
+setup in P11 switches both off.
+
+### `settings.invoice` (added by P02)
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `mode` | String | yes | `FINANCIAL_YEAR` | Enum `FINANCIAL_YEAR`, `PREFIX` |
+| `prefix` | String | no | `null` | `PREFIX` mode only. 1 to 7 characters of letters, digits, `/` and `-`. |
+| `startingNumber` | Number | no | `null` | `PREFIX` mode only. Integer 1 to 999,999,999. The first number a new prefix series issues. |
+
+Seven plus nine is sixteen, the GST limit on an invoice number's length. The
+rules that stop a change from breaking the unique indexes on `bills` are in
+API-CONTRACT.md section M7 3, and live in `settingsService`.
 
 ---
 
