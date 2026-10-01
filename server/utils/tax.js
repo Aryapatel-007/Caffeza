@@ -227,8 +227,153 @@ export function computeBillTotals({ lines, discount = null }) {
   };
 }
 
+/* --------------------------------------------------------------------------
+ * Line shares. P03.
+ *
+ * computeBillTotals works per tax slab, which is how a GST invoice prints. A
+ * category or item report needs each LINE's part of the discount and the GST,
+ * and those parts must add up exactly to the slab figures already on the bill,
+ * or a report and the bill it came from disagree by a paisa. The functions
+ * below read computeBillTotals' output and split it. They never change it.
+ * ----------------------------------------------------------------------- */
+
+function assertNonNegativeInteger(value, label) {
+  if (!Number.isInteger(value)) {
+    throw new TypeError(`${label} must be a whole number, received ${value}.`);
+  }
+  if (value < 0) {
+    throw new RangeError(`${label} cannot be negative, received ${value}.`);
+  }
+}
+
+/**
+ * Splits a whole number of paise across weights so the parts add up exactly to
+ * `amount`. The largest remainder method, GLOSSARY section 3:
+ *
+ *   1. Each part's exact share is amount × weight ÷ total weight.
+ *   2. Each part gets the whole paise of its share, rounded down.
+ *   3. The paise left over go one at a time to the parts with the biggest
+ *      leftover fraction. A tie goes to the earlier part.
+ *
+ * BigInt throughout. `amount` can be MAX_PAISE and a weight just as large, so
+ * the product passes Number.MAX_SAFE_INTEGER, and comparing leftover fractions
+ * as floating point would let two equal remainders compare unequal. The
+ * remainders are compared as exact BigInt numerators over the same total.
+ */
+export function largestRemainderSplit(amount, weights) {
+  assertNonNegativeInteger(amount, 'largestRemainderSplit amount');
+  if (!Array.isArray(weights)) {
+    throw new TypeError('largestRemainderSplit needs an array of weights.');
+  }
+  weights.forEach((weight, index) =>
+    assertNonNegativeInteger(weight, `largestRemainderSplit weight ${index}`),
+  );
+
+  const total = weights.reduce((sum, weight) => sum + BigInt(weight), 0n);
+  if (amount === 0 || total === 0n) return weights.map(() => 0);
+
+  const exact = weights.map((weight) => BigInt(amount) * BigInt(weight));
+  const parts = exact.map((product) => product / total);
+  const remainders = exact.map((product) => product % total);
+
+  let leftover = BigInt(amount) - parts.reduce((sum, part) => sum + part, 0n);
+
+  const order = weights
+    .map((_, index) => index)
+    .sort((a, b) => {
+      if (remainders[a] === remainders[b]) return a - b;
+      return remainders[a] > remainders[b] ? -1 : 1;
+    });
+
+  for (const index of order) {
+    if (leftover === 0n) break;
+    parts[index] += 1n;
+    leftover -= 1n;
+  }
+
+  return parts.map(Number);
+}
+
+/**
+ * Each line's share of the bill's discount and GST. GLOSSARY section 3.
+ *
+ * `lines` are bill lines, each with `lineTotalInPaise` and `taxRateBps`.
+ * `totals` is exactly what computeBillTotals returned for those lines.
+ * Returns one `{ discountShareInPaise, taxableInPaise, taxInPaise }` per line,
+ * in the same order.
+ *
+ * Inside each tax rate, separately, because computeBillTotals has already
+ * shared the discount between rates (apportionDiscount) and that split is part
+ * of the frozen arithmetic. Working inside each rate is what makes the line
+ * figures add up to the slab figures that are already printed on the bill.
+ *
+ * Before returning, it checks C2 from docs/RECONCILIATION-RULES.md itself and
+ * throws if the shares do not add up. That can only happen through a bug here,
+ * and a bill with shares that do not balance must never be saved.
+ */
+export function allocateLineShares(lines, totals) {
+  if (!Array.isArray(lines) || lines.length === 0) {
+    throw new RangeError('allocateLineShares needs at least one line.');
+  }
+
+  const shares = new Array(lines.length).fill(null);
+
+  for (const slab of totals.taxBreakdown) {
+    const indexes = lines
+      .map((line, index) => (line.taxRateBps === slab.taxRateBps ? index : -1))
+      .filter((index) => index !== -1);
+
+    const lineTotals = indexes.map((index) => lines[index].lineTotalInPaise);
+    const rateTotal = sumPaise(...lineTotals);
+    const rateDiscount = rateTotal - slab.taxableInPaise;
+
+    const discountShares = largestRemainderSplit(rateDiscount, lineTotals);
+    const taxables = lineTotals.map((total, i) => total - discountShares[i]);
+    const taxShares = largestRemainderSplit(slab.taxInPaise, taxables);
+
+    indexes.forEach((lineIndex, i) => {
+      shares[lineIndex] = {
+        discountShareInPaise: discountShares[i],
+        taxableInPaise: taxables[i],
+        taxInPaise: taxShares[i],
+      };
+    });
+
+    const taxableSum = sumPaise(...taxables);
+    if (taxableSum !== slab.taxableInPaise) {
+      throw new Error(
+        `C2 Line shares: at rate ${slab.taxRateBps} line net sales add up to ${taxableSum}, the slab says ${slab.taxableInPaise}. Difference ${taxableSum - slab.taxableInPaise}.`,
+      );
+    }
+    const taxSum = sumPaise(...taxShares);
+    if (taxSum !== slab.taxInPaise) {
+      throw new Error(
+        `C2 Line shares: at rate ${slab.taxRateBps} line GST adds up to ${taxSum}, the slab says ${slab.taxInPaise}. Difference ${taxSum - slab.taxInPaise}.`,
+      );
+    }
+  }
+
+  const unassigned = shares.findIndex((share) => share === null);
+  if (unassigned !== -1) {
+    throw new Error(
+      `C2 Line shares: line ${unassigned} at rate ${lines[unassigned].taxRateBps} has no slab on the bill.`,
+    );
+  }
+
+  const discountSum = sumPaise(...shares.map((share) => share.discountShareInPaise));
+  if (discountSum !== totals.discountAmountInPaise) {
+    throw new Error(
+      `C2 Line shares: discount shares add up to ${discountSum}, the bill discount is ${totals.discountAmountInPaise}. Difference ${discountSum - totals.discountAmountInPaise}.`,
+    );
+  }
+
+  return shares;
+}
+
 export default {
+  allocateLineShares,
   computeBillTotals,
+  largestRemainderSplit,
   proportionalShare,
   resolveDiscountAmount,
   roundOffFor,
