@@ -1,5 +1,67 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Arya, P01 production safety
+
+What was built or decided:
+The existing code is now safe on a fresh production database behind a cloud
+host's proxy. No endpoint, model, schema or validator changed.
+
+Indexes: `server/models/index.js` lists all 16 models, and a test fails if a
+model file is left off it. `services/indexService.js` finds missing and extra
+indexes with `Model.diffIndexes()` (checked against the installed Mongoose
+8.24.4 first) and builds missing ones one at a time with `createIndexes`. It
+never drops anything. `npm run db:indexes` runs it and exits 1 on any failure.
+In production, `startServer()` logs every missing index and exits until the
+script has been run. There is no flag that skips it.
+
+`TRUST_PROXY`: parsed by `config/trustProxy.js` into false, a hop count from 1
+to 10, or a list of addresses. `true` is refused with a sentence saying why.
+Required in production, even if only `false`. `app.set('trust proxy', ...)`
+reads it, and startup logs it in plain words.
+
+Time: the kitchen screen formats fire time through `formatTimeIst`. The hourly
+report reads `config.DISPLAY_TIMEZONE`. The bills list and the attendance
+register default to today's business date through `businessDateToday()`, a
+mirror of `businessDateFor` in `client/src/utils/formatDate.js`, tested to agree
+with the server. `lastNDays` now uses the same mirror, and its output was
+checked to be identical to the old version. `todayIso` is gone.
+
+`client/vite.config.js` builds without a `.env` and without `CLIENT_ORIGIN`.
+
+The seed script was not changed. It already refuses in production before
+connecting, and that was confirmed.
+
+Verified live, not only by tests, against a throwaway local MongoDB: a
+production boot on an empty database refused with 82 missing indexes;
+`db:indexes` in production mode created all 82; the server then booted and
+listened; a second `db:indexes` run created nothing.
+
+Tests: 551 passing before, 578 after, 0 failing either time. The two
+"no hardcoded time zone" tests were broken on purpose by putting the old bugs
+back, and each failed.
+
+Files or endpoints touched:
+New: `server/models/index.js`, `server/services/indexService.js`,
+`server/scripts/buildIndexes.js`, `server/config/trustProxy.js`, tests
+`indexes.test.js`, `trustProxy.test.js`, `timeDisplay.test.js`.
+Changed: `server/server.js`, `server/config/env.js`,
+`server/services/salesReportService.js`, `server/tests/app.test.js`, both
+`package.json` files, `.env.example`, `client/vite.config.js`,
+`client/src/utils/formatDate.js`, `KitchenDisplayPage.jsx`,
+`BillsListPage.jsx`, `AttendanceRegisterPage.jsx`, `ReportShell.jsx`.
+
+Anything the other developer needs to know:
+Add `TRUST_PROXY=` to your own `.env` if you want it explicit; absent means
+false outside production. Every deploy runs `npm run db:indexes` before
+starting the server. A new model file goes into `server/models/index.js` or the
+suite fails. `npm test` needs a root `.env` with real-looking secrets, as well as
+`server/.env.test`: a fresh clone without one fails 18 test files at the
+environment check, not in the code.
+
+Anything now blocked or unblocked:
+P02 can start. P12 (deployment) now has a deploy step to run and an
+environment variable to set.
+
 ### 2026-09-30 Arya, P00 adopt the Caffeza docs
 
 What was built or decided:

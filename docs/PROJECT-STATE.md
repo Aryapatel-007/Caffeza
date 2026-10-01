@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P12, cloud deployment.
+Next: P13, the reports spec. Staging is brought up by hand from the P12 checklist.
 
 ---
 
@@ -330,6 +330,11 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | Both scripts resolve file paths from the folder `npm` was run in (`INIT_CWD`), not from `server/`. | `npm run setup:restaurant` from the repo root runs inside the server workspace, so `setup/caffeza.json` would otherwise not be found. |
 | 2026-10-01 | `setup/caffeza-menu.csv` uses the golden day's category for every golden day item, and a category from the profile's list for the rest; the noodle bowl keeps Caffeza's own name, Chilli Garlic Chimichurri Noodle Bowl. | The prompt asked for the golden day's categories. Items it does not cover needed a category, and the profile's names are the ones staff know. The file is marked partial and is replaced by Caffeza's export. |
 | 2026-10-01 | `scripts/seedDemo.js` wipes every collection in the model registry, not a fixed list. | Its list stopped at M4, so re-seeding left stations, payment methods, accounts and Day Close records behind. |
+| 2026-10-01 | In production, Express serves the built client from `client/dist` on the same address as the API, with long caching for hashed assets and none for `index.html`. | One address for the cookie and CORS, and new deploys are picked up on the next page load. |
+| 2026-10-01 | Fonts are served from our own server through `@fontsource`. | A slow outside font server must not delay the till on a 4G line. |
+| 2026-10-01 | A host-neutral `Dockerfile` is the deploy unit. Index building is a release step, run before traffic moves. | Any host that runs containers works, and indexes are never built under live traffic. |
+| 2026-10-01 | The helmet content security policy is unchanged. | Checked in a browser against the production build: no blocked script, style, font or image, the print iframe's inline styles apply, and the page makes no request to another site. |
+| 2026-10-01 | `createApp` takes `{ serveClient, clientDist }` options; by default the client is served only in production. | So a test can serve a temporary folder without a real build, while development keeps Vite on its own port. |
 
 ---
 
@@ -352,6 +357,60 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P12 cloud deployment
+
+What was built or decided:
+In production `createApp` serves `client/dist` after the API routes: `/assets/`
+for a year as immutable, `index.html` with `no-cache`, and `index.html` for any
+other GET outside `/api/`, so reloading `/day-close` works. An unknown `/api/`
+address still gets the JSON 404. A production start refuses with "The client has
+not been built. Run npm run build, then start again." when the build is missing.
+
+IBM Plex Sans (400, 500, 600) and Mono (400 to 700) now come from
+`@fontsource`, imported in `main.jsx`; the Google Fonts lines are gone.
+`GET /api/v1/health` gains `release`, from the new optional `RELEASE_VERSION`.
+A host-neutral `Dockerfile` (Node 20 build, Node 20 slim run as the `node` user,
+health check on `/api/v1/health`, no secret, no index building on start) and
+`.dockerignore`. `npm run smoke -- --url <address>` makes only reading requests
+and prints one line per check. `docs/DEPLOYMENT.md` sections 2 and 6 and a new
+section 13 are the runbook.
+
+Verified by hand: built the client, built indexes, and started with
+`NODE_ENV=production` against a local replica set on port 5000. The smoke check
+passed every line, with the https check skipped for http, and health showed the
+release. In Chrome the production build showed no CSP violation, no request to
+another site, both font families loaded from our own server, and a reload of
+`/day-close` landed in the app. Docker is installed on this machine but its
+daemon was not running, so `docker build .` was not run.
+
+Tests: 784 before, 793 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `Dockerfile`, `.dockerignore`, `server/scripts/smokeCheck.js`,
+`server/tests/production.test.js`. Changed: `server/server.js`,
+`server/config/env.js`, `server/controllers/healthController.js`,
+`server/tests/app.test.js` (the health field list gains `release`, on purpose),
+`.env.example`, both `package.json` files and the lock file, `client/index.html`,
+`client/src/main.jsx`, `client/package.json`.
+
+Anything the other developer needs to know:
+Arya brings staging up by hand from the checklist below. A coding session must
+not: these need accounts, payment and judgement.
+1. Choose the host, against docs/DEPLOYMENT.md section 2. It must give a fixed outbound address, or stop and decide together.
+2. Create the Atlas staging cluster, docs/DEPLOYMENT.md section 3, allowing only the host's address.
+3. Buy the domain and point caffeza-staging.<domain> at the host.
+4. Set every environment variable from docs/DEPLOYMENT.md section 4 on the host. NODE_ENV=production, TRUST_PROXY per the host's documentation, CLIENT_ORIGIN exactly the staging address, new secrets from openssl rand -base64 48.
+5. Deploy. Run npm run db:indexes against staging. Start.
+6. Run npm run smoke -- --url https://caffeza-staging.<domain>. Every line must pass.
+7. npm run provision:restaurant against staging for Caffeza's owner.
+8. npm run setup:restaurant and npm run import:menu, dry run first, then --apply.
+9. Sign in on a phone and on a laptop. Open a table, fire, bill, print, pay, close the day.
+10. Set up the uptime monitor on /api/v1/health.
+11. Record the host choice and these dates in docs/PROJECT-STATE.md.
+
+Anything now blocked or unblocked:
+P13 can start. Staging waits on the checklist.
 
 ### 2026-10-01 Rishi, P11 Caffeza setup and menu import
 
@@ -847,68 +906,6 @@ Not done: the local manual checks in each prompt's "Done when" (a prefix bill
 on screen and on the receipt, the switched-off screens in a browser,
 `npm run seed:demo` and a discounted bill, the phone-sized cancel and void
 flows). They need a running dev server and database.
-
-### 2026-10-01 Arya, P01 production safety
-
-What was built or decided:
-The existing code is now safe on a fresh production database behind a cloud
-host's proxy. No endpoint, model, schema or validator changed.
-
-Indexes: `server/models/index.js` lists all 16 models, and a test fails if a
-model file is left off it. `services/indexService.js` finds missing and extra
-indexes with `Model.diffIndexes()` (checked against the installed Mongoose
-8.24.4 first) and builds missing ones one at a time with `createIndexes`. It
-never drops anything. `npm run db:indexes` runs it and exits 1 on any failure.
-In production, `startServer()` logs every missing index and exits until the
-script has been run. There is no flag that skips it.
-
-`TRUST_PROXY`: parsed by `config/trustProxy.js` into false, a hop count from 1
-to 10, or a list of addresses. `true` is refused with a sentence saying why.
-Required in production, even if only `false`. `app.set('trust proxy', ...)`
-reads it, and startup logs it in plain words.
-
-Time: the kitchen screen formats fire time through `formatTimeIst`. The hourly
-report reads `config.DISPLAY_TIMEZONE`. The bills list and the attendance
-register default to today's business date through `businessDateToday()`, a
-mirror of `businessDateFor` in `client/src/utils/formatDate.js`, tested to agree
-with the server. `lastNDays` now uses the same mirror, and its output was
-checked to be identical to the old version. `todayIso` is gone.
-
-`client/vite.config.js` builds without a `.env` and without `CLIENT_ORIGIN`.
-
-The seed script was not changed. It already refuses in production before
-connecting, and that was confirmed.
-
-Verified live, not only by tests, against a throwaway local MongoDB: a
-production boot on an empty database refused with 82 missing indexes;
-`db:indexes` in production mode created all 82; the server then booted and
-listened; a second `db:indexes` run created nothing.
-
-Tests: 551 passing before, 578 after, 0 failing either time. The two
-"no hardcoded time zone" tests were broken on purpose by putting the old bugs
-back, and each failed.
-
-Files or endpoints touched:
-New: `server/models/index.js`, `server/services/indexService.js`,
-`server/scripts/buildIndexes.js`, `server/config/trustProxy.js`, tests
-`indexes.test.js`, `trustProxy.test.js`, `timeDisplay.test.js`.
-Changed: `server/server.js`, `server/config/env.js`,
-`server/services/salesReportService.js`, `server/tests/app.test.js`, both
-`package.json` files, `.env.example`, `client/vite.config.js`,
-`client/src/utils/formatDate.js`, `KitchenDisplayPage.jsx`,
-`BillsListPage.jsx`, `AttendanceRegisterPage.jsx`, `ReportShell.jsx`.
-
-Anything the other developer needs to know:
-Add `TRUST_PROXY=` to your own `.env` if you want it explicit; absent means
-false outside production. Every deploy runs `npm run db:indexes` before
-starting the server. A new model file goes into `server/models/index.js` or the
-suite fails. `npm test` needs a root `.env` with real-looking secrets, as well as
-`server/.env.test`: a fresh clone without one fails 18 test files at the
-environment check, not in the code.
-
-Anything now blocked or unblocked:
-P02 can start. P12 (deployment) now has a deploy step to run and an
-environment variable to set.
 
 ---
 

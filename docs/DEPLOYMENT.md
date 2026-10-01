@@ -30,7 +30,7 @@ P12 makes Express serve `client/dist` in production to get there.
 
 ## 2. Choosing a host
 
-Pick the host in P12, and record the choice in the decision log.
+P12 made the app ready for any host that runs a container or a Node service. Arya picks the host and records the choice in the decision log.
 Any host is fine if it meets all of these:
 
 | Need | Why |
@@ -47,6 +47,17 @@ If a host cannot give a fixed outbound address, stop and decide together before 
 Opening Atlas to every address is not an acceptable workaround.
 
 Check each candidate's current regions, prices and outbound IP options on its own website before choosing.
+
+**Fill this in once the host is chosen:**
+
+| Item | Value |
+|---|---|
+| Host | |
+| Region | |
+| How a deploy happens | |
+| How the release step (`npm run db:indexes`) runs before traffic moves | |
+| Where the logs are | |
+| Fixed outbound address, allowed in Atlas | |
 
 ---
 
@@ -108,15 +119,21 @@ Point them at the host, and let the host issue the certificates.
 Deploy outside service hours only: after the last bill has been paid, or before 10:00 AM.
 Never during service.
 
-1. On `main`: `npm test`, `npm run lint` and `npm run build` all pass.
-2. Deploy to staging first.
-3. On staging: sign in, open a table, send a KOT, bill it, pay it, open R2 Day Close. Staging bills are fine.
-4. Deploy the same version to production.
-5. Run `npm run db:indexes` against production. Every deploy, not only the first. P01 adds this script.
-6. The service starts. P01's boot check refuses to start if a critical index is missing, and the logs say which.
-7. Open `/api/v1/health` and confirm the database shows as connected.
-8. On production: sign in, open the menu, open a report. **Do not create a bill in production to test.** Every production bill takes a real GST invoice number that can never be reused.
-9. Add a line to `docs/PROJECT-STATE.md`: what was deployed, when, by whom.
+One service serves both the screens and the API from one address (P12). In
+production it serves the built client from `client/dist`, and it refuses to
+start if that build is missing or a declared index is missing.
+
+1. On `main`: `npm ci`, then `npm test`, `npm run lint` and `npm run build` all pass.
+2. Note the commit being deployed: `git rev-parse --short HEAD`. Set it on the host as `RELEASE_VERSION`.
+3. Deploy to staging first. With the container, build it from this commit (section 13).
+4. **Release step**, before traffic moves to the new version: `npm run db:indexes` against staging's database. Every deploy, not only the first. It only adds missing indexes and never drops one.
+5. Start the new version. The server refuses to start if the client is not built or an index is missing, and the logs say which.
+6. `npm run smoke -- --url https://caffeza-staging.<domain>`. Every line must pass, and the health line must show the commit from step 2.
+7. On staging: sign in, open a table, send a KOT, bill it, pay it, open Day Close. Staging bills are fine.
+8. Deploy the same commit to production: the release step against production's database, then start.
+9. `npm run smoke -- --url https://<production address>`. It only reads and never signs in, so it is safe against production.
+10. On production: sign in, open the menu, open a report. **Do not create a bill in production to test.** Every production bill takes a real GST invoice number that can never be reused.
+11. Add a line to `docs/PROJECT-STATE.md`: what was deployed, when, by whom.
 
 **Rolling back:**
 Redeploy the previous version.
@@ -235,3 +252,44 @@ A card at the counter with both developers' phone numbers, and who to call first
 2. Secrets live only in the host's environment settings. Every environment has its own.
 3. If anyone with access leaves, rotate every secret they could have seen.
 4. Only Arya and Rishi can deploy.
+
+---
+
+## 13. Deploying with the container
+
+The `Dockerfile` at the repo root is the deploy unit for any host that runs
+containers. It holds no secret: every variable comes from the host at run time.
+
+**Build** (from the repo root, at the commit being deployed):
+
+```
+docker build -t caffeza:$(git rev-parse --short HEAD) .
+```
+
+The build stage runs `npm ci` and `npm run build`. The run stage is Node 20
+slim with production dependencies only, the server, the setup files and
+`client/dist`, running as the non-root `node` user, started with `npm start`.
+
+**Environment variables to set on the host** (section 4 has the details):
+
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `PORT` | What the host routes to, default 5000 |
+| `MONGO_URI` | The environment's own Atlas cluster |
+| `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | Two different values from `openssl rand -base64 48` |
+| `CLIENT_ORIGIN` | Exactly the address people open, for example `https://caffeza-staging.<domain>` |
+| `TRUST_PROXY` | Per the host's documentation, usually `1`. Never `true`. |
+| `RELEASE_VERSION` | The commit being deployed |
+| `BCRYPT_ROUNDS`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `LOGIN_RATE_LIMIT_*`, `DISPLAY_TIMEZONE` | As in `.env.example` |
+
+**Release step**, before traffic moves: run `npm run db:indexes` in a one-off
+container from the same image with the same variables, for example
+`docker run --rm --env-file <host env> caffeza:<commit> npm run db:indexes`.
+The image does not run it on start: indexes are never built under live traffic.
+
+**Health check:** the image declares one that calls `GET /api/v1/health` every
+30 seconds. Point the host's own health check and the uptime monitor at the
+same address.
+
+Run one instance only. The rate limiter keeps its counts in memory.

@@ -18,7 +18,7 @@ The full table, with dependencies and owners, is in
 | P09 | On Hold accounts and platform payouts | Done |
 | P10 | Cash drawer and Day Close | Done |
 | P11 | Caffeza setup and menu import | Done |
-| P12 | Cloud deployment | Not run |
+| P12 | Cloud deployment | Done |
 | P13 | Reports spec | Not run |
 | P14 | Report engine | Not run |
 | P15 | Daily, money and GST reports | Not run |
