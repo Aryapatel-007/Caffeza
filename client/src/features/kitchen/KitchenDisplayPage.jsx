@@ -12,6 +12,26 @@ import { rememberPrinted, useDeviceSettings } from '../printing/useDeviceSetting
 
 const ALL_STATIONS = 'ALL';
 
+/** Display thresholds, from the kitchen board design: under 10 minutes is normal. */
+const WARN_MINUTES = 10;
+const LATE_MINUTES = 15;
+
+const ORDER_TYPE_LABELS = { DINE_IN: 'Dine-in', TAKEAWAY: 'Takeaway', DELIVERY: 'Delivery' };
+
+function minutesSince(instant, now) {
+  return Math.max(0, Math.floor((now - new Date(instant).getTime()) / 60_000));
+}
+
+/** The current time, refreshed on an interval so waits and the clock move on their own. */
+function useNow(intervalMs) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
+
 /**
  * The kitchen display.
  *
@@ -120,57 +140,78 @@ export default function KitchenDisplayPage() {
   }, [tickets.data, device.autoPrintKots, device.autoPrintSeededFor, device.autoPrintArmedAt, stationFilter]);
 
   const kots = tickets.data?.data ?? [];
+  const now = useNow(15_000);
+
+  const lateCount = kots.filter((kot) => minutesSince(kot.firedAt, now) > LATE_MINUTES).length;
 
   return (
     <main className="min-h-full bg-paper">
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-[20px] font-semibold leading-7">Kitchen</h1>
-            <p className="text-[13px] leading-[18px] text-steel">
-              <span className="font-mono">{kots.length}</span> tickets waiting
-            </p>
+      <header className="flex flex-wrap items-center justify-between gap-4 bg-linen px-4 py-4 shadow-card sm:px-6">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3">
+            <span aria-hidden className="size-3.5 animate-pulse rounded-full bg-patta" />
+            <h1 className="text-[28px] font-semibold leading-9 tracking-[-0.02em]">Kitchen</h1>
           </div>
-          <Link
-            to="/floor"
-            className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-          >
-            Floor
-          </Link>
-        </div>
 
-        {/* P05. The station picker. Remembered on this device. */}
-        {(stations.data ?? []).length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2" role="tablist" aria-label="Station">
-            {[{ id: ALL_STATIONS, name: 'All stations' }, ...(stations.data ?? [])].map((station) => {
-              const active = chosenStation === station.id;
-              return (
-                <button
-                  key={station.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => updateDevice({ kitchenStationId: station.id })}
-                  className={[
-                    'h-11 rounded-full px-4 text-[15px] font-medium',
-                    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                    active ? 'border border-black/5 shadow-card bg-chana/20 text-ink' : 'border-2 border-steel/40 text-steel',
-                  ].join(' ')}
-                >
-                  {station.name}
-                </button>
-              );
-            })}
-            {device.autoPrintKots && stationFilter && (
-              <span className="flex h-11 items-center text-[13px] text-steel">Printing new tickets</span>
+          {/* P05. The station picker. Remembered on this device. */}
+          {(stations.data ?? []).length > 0 && (
+            <div
+              className="flex flex-wrap items-center gap-1 rounded-full bg-linen-2 p-1"
+              role="tablist"
+              aria-label="Station"
+            >
+              {[{ id: ALL_STATIONS, name: 'All stations' }, ...(stations.data ?? [])].map((station) => {
+                const active = chosenStation === station.id;
+                return (
+                  <button
+                    key={station.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => updateDevice({ kitchenStationId: station.id })}
+                    className={[
+                      'h-11 rounded-full px-5 text-[14px] font-semibold transition-colors',
+                      'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
+                      active ? 'bg-ink text-white shadow-card' : 'text-steel hover:text-ink',
+                    ].join(' ')}
+                  >
+                    {station.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 rounded-full bg-linen-3 px-3.5 py-1.5 text-[12px] font-bold uppercase tracking-wider">
+              <span aria-hidden className="size-2 rounded-full bg-steel" />
+              <span className="font-mono">{kots.length}</span> open
+            </span>
+            {lateCount > 0 && (
+              <span className="flex items-center gap-1.5 rounded-full bg-mirch-soft px-3.5 py-1.5 text-[12px] font-bold uppercase tracking-wider text-mirch shadow-card">
+                <span aria-hidden className="size-2 rounded-full bg-mirch" />
+                <span className="font-mono">{lateCount}</span> late (&gt;{LATE_MINUTES}m)
+              </span>
             )}
           </div>
-        )}
+        </div>
 
-        {error && <p className="mt-2 text-[13px] leading-[18px] text-mirch">{error}</p>}
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="font-mono text-[28px] font-bold leading-9 tracking-tighter">
+              {formatTimeIst(now)}
+            </p>
+            <p className="font-mono text-[12px] text-steel">
+              Updates every 10 seconds
+              {device.autoPrintKots && stationFilter && ' · Printing new tickets'}
+            </p>
+          </div>
+        </div>
+
+        {error && <p className="w-full text-[13px] leading-[18px] text-mirch">{error}</p>}
       </header>
 
-      <div className="px-4 py-4 sm:px-6">
+      <div className="p-4 sm:p-6">
         {tickets.isPending && <p className="text-[15px] text-steel">Loading tickets…</p>}
 
         {tickets.isError && (
@@ -186,11 +227,12 @@ export default function KitchenDisplayPage() {
           </div>
         )}
 
-        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {kots.map((kot) => (
             <li key={kot.id}>
               <Ticket
                 kot={kot}
+                now={now}
                 notPrinted={notPrinted.has(kot.id)}
                 onReprint={() => printKot(kot.id, { reprint: true })}
                 isBusy={markReady.isPending}
@@ -205,32 +247,48 @@ export default function KitchenDisplayPage() {
   );
 }
 
-/** One chit. Ink on paper, like the thing it replaces. */
-function Ticket({ kot, notPrinted, onReprint, isBusy, onLineReady, onAllReady }) {
+/** One chit. */
+function Ticket({ kot, now, notPrinted, onReprint, isBusy, onLineReady, onAllReady }) {
   const outstanding = kot.lines.filter((line) => line.status === 'PENDING');
+  const minutes = minutesSince(kot.firedAt, now);
+  const tone =
+    minutes > LATE_MINUTES
+      ? { bar: 'bg-mirch', chip: 'bg-mirch-soft text-mirch', late: true }
+      : minutes >= WARN_MINUTES
+        ? { bar: 'bg-chana', chip: 'bg-chana-soft text-ink', late: false }
+        : { bar: 'bg-patta', chip: 'bg-patta-tint text-ink', late: false };
 
   return (
-    <article className="flex h-full flex-col rounded-xl border border-black/5 shadow-card bg-white">
-      <header className="flex items-baseline justify-between gap-2 border-b border-black/5 px-3 py-2.5">
-        <div>
-          <p className="text-[15px] font-semibold leading-5">
-            {kot.tableName ?? 'Takeaway'}
+    <article className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-card transition-shadow hover:shadow-lift">
+      <div aria-hidden className={`h-3 w-full ${tone.bar}`} />
+
+      <header className="flex items-start justify-between gap-2 border-b border-black/5 px-5 pb-4 pt-5">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[22px] font-bold leading-none">KOT {kot.kotNumber}</span>
+            <span className="rounded-full bg-linen-3 px-2.5 py-1 text-[11px] font-bold uppercase">
+              {ORDER_TYPE_LABELS[kot.orderType] ?? kot.orderType}
+            </span>
+          </div>
+          <p className="mt-2 truncate text-[22px] font-bold leading-7 tracking-tight">
+            {kot.tableName ?? `Order #${kot.orderNumber}`}
           </p>
           <p className="font-mono text-[12px] leading-4 text-steel">
-            #{kot.orderNumber} · KOT {kot.kotNumber}
+            #{kot.orderNumber}
+            {kot.stationName && ` · ${kot.stationName}`}
           </p>
-          {kot.stationName && (
-            <p className="text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
-              {kot.stationName}
-            </p>
-          )}
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <SinceFired firedAt={kot.firedAt} />
+        <div className="flex flex-none flex-col items-end gap-1">
+          <span
+            className={`flex items-center gap-1 rounded-full px-3 py-1 font-mono text-[13px] font-bold ${tone.chip}`}
+            title={formatTimeIst(kot.firedAt)}
+          >
+            {minutes}m{tone.late && ' (late)'}
+          </span>
           <button
             type="button"
             onClick={onReprint}
-            className="h-9 rounded-[8px] px-2 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="h-9 rounded-lg px-2 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             Reprint
           </button>
@@ -238,115 +296,95 @@ function Ticket({ kot, notPrinted, onReprint, isBusy, onLineReady, onAllReady })
       </header>
 
       {notPrinted && (
-        <p className="border-b-2 border-mirch/40 bg-mirch/5 px-3 py-1.5 text-[13px] font-medium text-mirch">
+        <p className="bg-mirch-soft px-5 py-1.5 text-[13px] font-medium text-mirch">
           Not printed. Tap Reprint.
         </p>
       )}
 
-      <ul className="flex-1 divide-y divide-steel/20 px-3">
+      <ul className="flex flex-1 flex-col gap-1 px-5 py-3">
         {kot.lines.map((line) => {
           const isDone = line.status === 'READY';
           const isCancelled = line.status === 'CANCELLED';
 
           return (
-            <li key={line.id}>
+            <li key={line.id} className={isCancelled ? 'rounded-xl bg-linen p-3' : ''}>
               <button
                 type="button"
                 disabled={isBusy || isDone || isCancelled}
                 onClick={() => onLineReady(line.id)}
                 className={[
-                  'flex min-h-[56px] w-full items-start gap-3 py-3 text-left',
-                  'transition-transform active:translate-y-0.5',
+                  'flex min-h-[56px] w-full items-start gap-3 py-2 text-left',
                   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
                   'disabled:cursor-default',
-                  isDone || isCancelled ? 'opacity-50' : '',
+                  isDone ? 'opacity-70' : '',
                 ].join(' ')}
               >
-                {/* Quantity is a number, so it is Mono, and it is the first
-                    thing a cook needs to read. */}
-                <span className="font-mono text-[18px] font-semibold leading-6">
-                  {line.quantity}×
-                </span>
-
                 <span className="min-w-0 flex-1">
                   <span
                     className={[
-                      'block text-[15px] leading-[22px]',
-                      isCancelled ? 'line-through' : '',
+                      'block text-[19px] leading-[26px]',
+                      isDone ? 'font-medium line-through decoration-2 decoration-patta' : 'font-bold',
+                      isCancelled ? 'font-medium text-steel line-through decoration-mirch decoration-2' : '',
                     ].join(' ')}
                   >
+                    {/* Quantity is a number, so it is Mono, and it is the first
+                        thing a cook needs to read. */}
+                    <span className="mr-1.5 font-mono text-chana">{line.quantity} ×</span>
                     {line.itemName}
                     {line.variantName && <span className="text-steel"> · {line.variantName}</span>}
                   </span>
 
                   {line.addOnNames.length > 0 && (
-                    <span className="block text-[13px] leading-[18px] text-steel">
+                    <span className="block pl-6 text-[14px] italic leading-5 text-steel">
                       + {line.addOnNames.join(', ')}
                     </span>
                   )}
 
                   {line.notes && (
-                    <span className="block text-[13px] leading-[18px] text-mirch">
+                    <span className="block pl-6 text-[14px] italic leading-5 text-mirch">
                       {line.notes}
                     </span>
                   )}
 
                   {isCancelled && (
-                    <span className="block text-[13px] font-medium leading-[18px] text-mirch">
+                    <span className="mt-1 inline-block rounded-full bg-mirch-soft px-2 py-0.5 text-[11px] font-bold uppercase text-mirch">
                       Cancelled — do not make
                     </span>
                   )}
                 </span>
 
-                {isDone && (
-                  <span className="flex-none text-[13px] font-medium leading-[18px] text-patta">
-                    Ready
+                {!isCancelled && (
+                  <span
+                    aria-hidden
+                    className={[
+                      'flex size-12 flex-none items-center justify-center rounded-full text-[22px] shadow-card',
+                      isDone ? 'bg-patta text-white' : 'bg-linen-2 text-steel',
+                    ].join(' ')}
+                  >
+                    ✓
                   </span>
                 )}
+                {isDone && <span className="sr-only">Ready</span>}
               </button>
             </li>
           );
         })}
       </ul>
 
-      <footer className="border-t border-black/5 px-3 py-2.5">
+      <div className="flex items-center justify-between border-t border-black/5 px-5 py-2 font-mono text-[12px] text-steel">
+        <span>Placed {formatTimeIst(kot.firedAt)}</span>
+      </div>
+
+      <footer className="bg-linen px-4 py-4">
         <button
           type="button"
           disabled={isBusy || outstanding.length === 0}
           onClick={onAllReady}
-          className="h-14 w-full rounded-xl bg-chana text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-ink text-[15px] font-bold tracking-wide text-white shadow-card transition-transform active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
         >
-          {outstanding.length === 0
-            ? 'All ready'
-            : `All ${outstanding.length} ready`}
+          {outstanding.length === 0 ? 'All ready' : `All ${outstanding.length} ready · complete`}
         </button>
       </footer>
     </article>
-  );
-}
-
-/**
- * How long this has been waiting.
- *
- * The number a cook actually cares about, so it ticks on its own once a minute
- * rather than only when the poll happens to land.
- */
-function SinceFired({ firedAt }) {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const minutes = Math.max(0, Math.floor((now - new Date(firedAt).getTime()) / 60_000));
-
-  return (
-    <span
-      className="flex-none font-mono text-[18px] font-semibold leading-6"
-      title={formatTimeIst(firedAt)}
-    >
-      {minutes}m
-    </span>
   );
 }

@@ -379,6 +379,18 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-01 Rishi, takeaway, delivery, kitchen and bill screens restyled (ahead of P18 to P20)
+
+What was built or decided:
+From the user's pasted designs, client only, same endpoints and fields.
+Takeaway and Delivery start pages are cards. On a wide screen a takeaway or delivery order shows the menu with a "Current order" ledger beside it, instead of the bottom bar; on a phone the bar stays.
+Kitchen board: a dark-on-linen header with station tabs, an open count, a late count and the time; ticket cards with a coloured top bar (under 10 minutes green, 10 to 15 gold, over 15 red, display constants only), the order type, big lines, a tick per line and "All ready · complete".
+Bill screen: the bill as a receipt card on the left, and payment on the right, beside it. `InlinePayment.jsx` replaces the payment slide-over: method tiles with the first allowed one selected, a reference field, and the keypad starting at what is still owed. Discount, charge to account, print and void are buttons in the header; their panels are unchanged.
+
+Left out, with no data or rule behind them: the designs' rider details, Own Delivery, "Aggregator Bridge", Scan QR, dish photos and codes, customer attach, GSTIN, WhatsApp e-bill, split by seat, a UPI QR and Quick UPI buttons (no UPI QR for go-live), captain and average ticket time on the kitchen board (KOTs do not carry the captain), and "Inclusive of all taxes" (prices are before GST).
+
+Checked by hand in headless Chromium against the local demo data: a delivery order and a takeaway order sent to the kitchen, both tickets shown, a takeaway billed and paid in cash. Lint and build pass. No server change, so the tests were not rerun. `PaymentPanel.jsx` is no longer used by the bill screen.
+
 ### 2026-10-01 Rishi, floor and order screen restyle (ahead of P19 and P20)
 
 What was built or decided:

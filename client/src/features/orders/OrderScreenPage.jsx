@@ -145,6 +145,9 @@ export default function OrderScreenPage() {
   const isOpen = order.status === 'OPEN';
   const canCancelOrder = CAN_CANCEL_ORDER.includes(user?.role);
   const canMove = isOpen && order.orderType === 'DINE_IN';
+  // Takeaway and delivery have no table, so on a wide screen the order is a
+  // ledger beside the menu rather than a bar and a slide-over.
+  const isCounter = order.orderType !== 'DINE_IN';
 
   const changeQuantity = (line, quantity) =>
     run({
@@ -248,12 +251,14 @@ export default function OrderScreenPage() {
       </header>
 
       {isOpen ? (
-        <>
+        <div className={isCounter ? 'flex flex-1 flex-col gap-4 lg:flex-row lg:items-start' : 'contents'}>
+          <div className={isCounter ? 'flex min-w-0 flex-1 flex-col gap-4' : 'contents'}>
           <MenuPicker
             tree={menuQuery.data}
             isPending={menuQuery.isPending}
             isError={menuQuery.isError}
             search={search}
+            compact={isCounter}
             disabled={write.isPending}
             simpleLines={simpleLines}
             pendingCounts={pendingCounts}
@@ -280,7 +285,12 @@ export default function OrderScreenPage() {
             }}
           />
 
-          <div className="sticky bottom-4 z-20 mx-auto mt-auto w-full max-w-5xl">
+          <div
+            className={[
+              'sticky bottom-4 z-20 mx-auto mt-auto w-full max-w-5xl',
+              isCounter ? 'lg:hidden' : '',
+            ].join(' ')}
+          >
             <div className="flex items-center justify-between gap-3 rounded-2xl bg-ink p-2 pl-4 text-white shadow-[0_8px_30px_rgba(28,27,25,0.25)]">
               <button
                 type="button"
@@ -326,7 +336,30 @@ export default function OrderScreenPage() {
               </div>
             </div>
           </div>
-        </>
+          </div>
+
+          {isCounter && (
+            <aside
+              aria-label="This order"
+              className="sticky top-4 hidden max-h-[calc(100vh-2rem)] w-[360px] flex-none flex-col overflow-hidden rounded-2xl bg-white shadow-lift lg:flex xl:w-[420px]"
+            >
+              <div className="flex items-center justify-between bg-linen/60 px-5 py-4">
+                <div>
+                  <h2 className="text-[20px] font-semibold leading-7">Current order</h2>
+                  <p className="text-[12px] text-steel">
+                    {placeLabel(order)}
+                    {order.customerName && ` · ${order.customerName}`}
+                    {order.customerPhone && ` · ${order.customerPhone}`}
+                  </p>
+                </div>
+                <span className="rounded bg-ink px-2 py-0.5 font-mono text-[11px] font-bold text-white">
+                  #{order.orderNumber}
+                </span>
+              </div>
+              {details}
+            </aside>
+          )}
+        </div>
       ) : (
         <section aria-label="This order" className="mx-auto w-full max-w-3xl rounded-2xl bg-white shadow-card">
           {details}

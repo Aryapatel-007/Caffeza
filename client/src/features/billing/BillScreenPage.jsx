@@ -16,6 +16,7 @@ import { chargeToAccount, createAccount } from '../../api/accounts.js';
 import { listPaymentMethods } from '../../api/paymentMethods.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { formatBasisPoints, formatPaise } from '../../utils/formatMoney.js';
+import { formatDateIst, formatTimeIst } from '../../utils/formatDate.js';
 import { ROLES } from '../users/roles.js';
 import Bilingual from './Bilingual.jsx';
 import BillStatusBadge from './BillStatusBadge.jsx';
@@ -25,7 +26,7 @@ import DiscountPanel from './DiscountPanel.jsx';
 import { discountReasonLabel } from './discountReasons.js';
 import { errorMessage } from './errorCopy.js';
 import { BILL_LABELS } from './labels.js';
-import PaymentPanel from './PaymentPanel.jsx';
+import InlinePayment from './InlinePayment.jsx';
 import { methodsForBill, paymentMethodName } from './paymentMethodsForBill.js';
 import { charactersFor, printText } from '../printing/printText.js';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
@@ -194,204 +195,234 @@ export default function BillScreenPage() {
   const canVoid = canManage && !bill.isVoided;
 
   return (
-    <main className="min-h-full bg-paper pb-28">
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3">
-        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-mono text-[15px] font-semibold leading-6">{bill.billNumber}</h1>
-              <BillStatusBadge bill={bill} />
+    <main className="min-h-full bg-paper px-4 py-6 lg:px-8">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link
+              to="/bills"
+              aria-label="All bills"
+              className="flex size-11 items-center justify-center rounded-full bg-linen-2 text-[20px] hover:bg-linen-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              ←
+            </Link>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-[20px] font-semibold leading-7">Billing and payment</h1>
+                <span className="rounded-full bg-chana-soft px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide">
+                  {placeLabel(bill)}
+                </span>
+              </div>
+              <p className="text-[12px] leading-4 text-steel">{bill.businessDate}</p>
             </div>
-            <p className="text-[13px] leading-[18px] text-steel">
-              {placeLabel(bill)} · {bill.businessDate}
-            </p>
           </div>
-          <Link
-            to="/bills"
-            className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-          >
-            All bills
-          </Link>
-        </div>
-      </header>
 
-      <div className="mx-auto max-w-2xl px-4 py-6">
-        {/* P04. Why it was voided: the fixed reason's label and the note. */}
-        {bill.isVoided && (
-          <p className="mb-4 rounded-xl border-2 border-mirch/40 bg-mirch/5 px-3 py-2 text-[13px] leading-[18px] text-ink">
-            Voided: {describeReason(BILL_VOID_REASONS, bill.voidReasonCode, bill.voidReason) ?? 'no reason recorded'}
-          </p>
-        )}
+          <div className="flex flex-wrap items-center gap-2">
+            {canDiscount && (
+              <PillButton onClick={() => setPanel('discount')}>
+                <Bilingual label={BILL_LABELS.applyDiscount} align="center" />
+              </PillButton>
+            )}
+            {canCharge && <PillButton onClick={() => setPanel('charge')}>Charge to account</PillButton>}
+            <PillButton onClick={() => print()} disabled={printing}>
+              <Bilingual label={BILL_LABELS.printReceipt} align="center" />
+            </PillButton>
+            {canVoid && (
+              <button
+                type="button"
+                onClick={() => setPanel('void')}
+                className="flex min-h-[44px] items-center rounded-full bg-mirch-soft px-4 text-[13px] font-semibold text-mirch hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
+              >
+                <Bilingual label={BILL_LABELS.voidBill} align="center" />
+              </button>
+            )}
+          </div>
+        </header>
 
-        {/* The lines. A dense list, per DESIGN-SYSTEM section 6: staff scan a
-            list faster than a grid of cards, and there is nothing here to tap. */}
-        <ul className="mb-4 divide-y divide-steel/15 border-y border-black/10">
-          {bill.lines.map((line) => (
-            <li key={line.orderLineId} className="flex items-start justify-between gap-3 py-2.5">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+          {/* The bill, as it prints. */}
+          <article className="relative overflow-hidden rounded-2xl bg-white p-6 shadow-card lg:col-span-5">
+            <div aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-chana" />
+
+            <div className="mb-4 flex items-start justify-between gap-3 pt-1">
               <div>
-                <p className="text-[15px] leading-[22px]">
-                  {line.itemName}
-                  {line.variantName ? ` (${line.variantName})` : ''}
+                <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-steel">
+                  Tax invoice
                 </p>
-                {line.addOnNames.length > 0 && (
-                  <p className="text-[13px] leading-[18px] text-steel">
-                    + {line.addOnNames.join(', ')}
-                  </p>
-                )}
-                <p className="font-mono text-[12px] leading-4 text-steel">
-                  {line.quantity} × {formatPaise(line.unitPriceInPaise)}
+                <p className="font-mono text-[22px] font-bold leading-tight tracking-tight">
+                  {bill.billNumber}
                 </p>
               </div>
-              <p className="font-mono text-[15px] leading-[22px]">
-                {formatPaise(line.lineTotalInPaise)}
-              </p>
-            </li>
-          ))}
-        </ul>
-
-        {/* Subtotal, discount, tax, round-off. */}
-        <dl className="mb-4 space-y-1.5 text-[13px] leading-[18px]">
-          <Row label="Subtotal" value={formatPaise(bill.subtotalInPaise)} />
-          {bill.discount && (
-            <Row
-              label={
-                bill.discount.kind === 'PERCENT'
-                  ? `Discount (${formatBasisPoints(bill.discount.rateBps)}) — ${discountText(bill.discount)}`
-                  : `Discount — ${discountText(bill.discount)}`
-              }
-              value={`− ${formatPaise(bill.discount.amountInPaise)}`}
-            />
-          )}
-          {bill.taxBreakdown.map((slab) => (
-            <div key={slab.taxRateBps}>
-              <Row
-                label={`CGST @ ${formatBasisPoints(slab.taxRateBps / 2)}`}
-                value={formatPaise(slab.cgstInPaise)}
-              />
-              <Row
-                label={`SGST @ ${formatBasisPoints(slab.taxRateBps / 2)}`}
-                value={formatPaise(slab.sgstInPaise)}
-              />
+              <BillStatusBadge bill={bill} />
             </div>
-          ))}
-          {bill.roundOffInPaise !== 0 && (
-            <Row label="Round off" value={formatPaise(bill.roundOffInPaise)} />
-          )}
-        </dl>
 
-        {/* The total. The largest thing on this screen, per the M3 operator
-            constraints: numbers carry the meaning, words support it. */}
-        <div className="mb-6 flex items-baseline justify-between border-t border-black/5 pt-3">
-          <span className="text-[15px] font-semibold uppercase tracking-[0.04em]">
-            {BILL_LABELS.total.en}
-          </span>
-          <span className="font-mono text-[40px] font-semibold leading-none text-ink">
-            {formatPaise(bill.grandTotalInPaise)}
-          </span>
-        </div>
+            <dl className="mb-4 grid grid-cols-2 gap-3 rounded-xl bg-linen p-3 sm:grid-cols-3">
+              <Meta label="Table or order" value={placeLabel(bill)} mono />
+              {bill.captainName && <Meta label="Captain" value={bill.captainName} />}
+              {bill.guestCount != null && <Meta label="Covers" value={String(bill.guestCount)} mono />}
+              <div className="col-span-2 flex items-center justify-between sm:col-span-3">
+                <dt className="text-[10px] uppercase tracking-wider text-steel">Issued</dt>
+                <dd className="font-mono text-[13px]">
+                  {formatDateIst(bill.billedAt)} · {formatTimeIst(bill.billedAt)}
+                </dd>
+              </div>
+            </dl>
 
-        {/* P09. On Hold: who it is charged to, and how much. */}
-        {bill.status === 'ON_ACCOUNT' && !bill.isVoided && bill.account && (
-          <p className="mb-6 rounded-xl border border-black/5 shadow-card px-3 py-2 text-center text-[13px] leading-[18px]">
-            On Hold on <span className="font-semibold">{bill.account.accountName}</span>:{' '}
-            <span className="font-mono">{formatPaise(bill.chargedToAccountInPaise)}</span>
-          </p>
-        )}
+            {/* P04. Why it was voided: the fixed reason's label and the note. */}
+            {bill.isVoided && (
+              <p className="mb-4 rounded-xl bg-mirch-soft px-3 py-2 text-[13px] leading-[18px]">
+                Voided: {describeReason(BILL_VOID_REASONS, bill.voidReasonCode, bill.voidReason) ?? 'no reason recorded'}
+              </p>
+            )}
 
-        {outstandingInPaise > 0 && !bill.isVoided && bill.status === 'UNPAID' && (
-          <p className="mb-6 text-center text-[15px] leading-[22px] text-steel">
-            {BILL_LABELS.outstanding.en}:{' '}
-            <span className="font-mono font-semibold text-ink">{formatPaise(outstandingInPaise)}</span>
-          </p>
-        )}
-
-        {bill.payments.length > 0 && (
-          <div className="mb-6">
-            <p className="mb-2 text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
-              Payments
-            </p>
-            <ul className="space-y-1.5">
-              {bill.payments.map((payment) => (
-                <li key={payment.id} className="text-[13px] leading-[18px]">
-                  <div className="flex items-center justify-between gap-3">
-                    <span>
-                      {paymentMethodName(payment)}
-                      {payment.reference ? ` · ${payment.reference}` : ''}
-                    </span>
-                    <span className="font-mono">{formatPaise(payment.amountInPaise)}</span>
-                  </div>
-                  {(payment.corrections ?? []).map((change) => (
-                    <p key={`${change.at}-${change.toMethod}`} className="text-[12px] leading-4 text-steel">
-                      Changed from {change.fromMethod} to {change.toMethod}: {change.reason}
+            <div className="border-t border-dashed border-steel/40 pt-3">
+              <div className="flex justify-between pb-1 text-[11px] font-semibold uppercase tracking-wider text-steel">
+                <span>Item</span>
+                <span>Line total</span>
+              </div>
+              <ul className="divide-y divide-linen-3">
+                {bill.lines.map((line) => (
+                  <li key={line.orderLineId} className="flex items-start justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-semibold leading-[22px]">
+                        <span className="mr-1.5 rounded bg-linen-3 px-1.5 font-mono text-[12px]">
+                          {line.quantity}
+                        </span>
+                        {line.itemName}
+                        {line.variantName ? ` (${line.variantName})` : ''}
+                      </p>
+                      {line.addOnNames.length > 0 && (
+                        <p className="pl-6 text-[12px] italic leading-4 text-steel">
+                          + {line.addOnNames.join(', ')}
+                        </p>
+                      )}
+                      <p className="pl-6 font-mono text-[12px] leading-4 text-steel">
+                        {line.quantity} × {formatPaise(line.unitPriceInPaise)}
+                      </p>
+                    </div>
+                    <p className="font-mono text-[15px] font-bold leading-[22px]">
+                      {formatPaise(line.lineTotalInPaise)}
                     </p>
-                  ))}
-                  {canCorrect && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCorrecting(payment);
-                        setPanel('correct');
-                      }}
-                      className="mt-1 min-h-[40px] text-[13px] font-medium text-steel underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-                    >
-                      Change payment method
-                    </button>
-                  )}
-                </li>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <dl className="mt-3 space-y-1.5 border-t border-dashed border-steel/40 pt-3 text-[13px] leading-[18px]">
+              <Row label="Item total" value={formatPaise(bill.subtotalInPaise)} />
+              {bill.discount && (
+                <Row
+                  tone="patta"
+                  label={
+                    bill.discount.kind === 'PERCENT'
+                      ? `Discount (${formatBasisPoints(bill.discount.rateBps)}) — ${discountText(bill.discount)}`
+                      : `Discount — ${discountText(bill.discount)}`
+                  }
+                  value={`− ${formatPaise(bill.discount.amountInPaise)}`}
+                />
+              )}
+              {bill.taxBreakdown.map((slab) => (
+                <div key={slab.taxRateBps}>
+                  <Row
+                    label={`CGST @ ${formatBasisPoints(slab.taxRateBps / 2)}`}
+                    value={formatPaise(slab.cgstInPaise)}
+                  />
+                  <Row
+                    label={`SGST @ ${formatBasisPoints(slab.taxRateBps / 2)}`}
+                    value={formatPaise(slab.sgstInPaise)}
+                  />
+                </div>
               ))}
-            </ul>
+              {bill.roundOffInPaise !== 0 && (
+                <Row label="Round-off" value={formatPaise(bill.roundOffInPaise)} />
+              )}
+            </dl>
+
+            {/* The total. The largest thing on this screen: numbers carry the
+                meaning, words support it. */}
+            <div className="mt-4 flex items-center justify-between rounded-xl bg-linen-2 p-4">
+              <span className="text-[12px] font-semibold uppercase tracking-wider text-steel">
+                {BILL_LABELS.total.en}
+              </span>
+              <span className="font-mono text-[34px] font-bold leading-none">
+                {formatPaise(bill.grandTotalInPaise)}
+              </span>
+            </div>
+
+            {/* P09. On Hold: who it is charged to, and how much. */}
+            {bill.status === 'ON_ACCOUNT' && !bill.isVoided && bill.account && (
+              <p className="mt-3 rounded-xl bg-linen px-3 py-2 text-center text-[13px] leading-[18px]">
+                On Hold on <span className="font-semibold">{bill.account.accountName}</span>:{' '}
+                <span className="font-mono">{formatPaise(bill.chargedToAccountInPaise)}</span>
+              </p>
+            )}
+
+            {bill.payments.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-steel">
+                  Payments
+                </p>
+                <ul className="space-y-1.5">
+                  {bill.payments.map((payment) => (
+                    <li key={payment.id} className="text-[13px] leading-[18px]">
+                      <div className="flex items-center justify-between gap-3">
+                        <span>
+                          {paymentMethodName(payment)}
+                          {payment.reference ? ` · ${payment.reference}` : ''}
+                        </span>
+                        <span className="font-mono">{formatPaise(payment.amountInPaise)}</span>
+                      </div>
+                      {(payment.corrections ?? []).map((change) => (
+                        <p key={`${change.at}-${change.toMethod}`} className="text-[12px] leading-4 text-steel">
+                          Changed from {change.fromMethod} to {change.toMethod}: {change.reason}
+                        </p>
+                      ))}
+                      {canCorrect && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCorrecting(payment);
+                            setPanel('correct');
+                          }}
+                          className="mt-1 min-h-[40px] text-[13px] font-medium text-steel underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+                        >
+                          Change payment method
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </article>
+
+          {/* Taking the payment, beside the bill. */}
+          <div className="flex flex-col gap-4 lg:col-span-7">
+            {isSettleable && canTakePayment ? (
+              <InlinePayment
+                methods={allowedMethods}
+                outstandingInPaise={outstandingInPaise}
+                isBusy={paymentMutation.isPending}
+                error={paymentMutation.isError ? errorMessage(paymentMutation.error) : null}
+                onConfirm={(body) => paymentMutation.mutate(body)}
+              />
+            ) : (
+              <div className="rounded-2xl bg-white p-6 shadow-card">
+                <BillStatusBadge bill={bill} />
+                <p className="mt-3 text-[15px] leading-[22px] text-steel">
+                  {bill.isVoided
+                    ? 'This bill is voided.'
+                    : bill.status === 'PAID'
+                      ? 'This bill is paid in full.'
+                      : bill.status === 'ON_ACCOUNT'
+                        ? 'This bill is on an On Hold account.'
+                        : 'Nothing to collect on this bill.'}
+                </p>
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Actions. Exactly one of these is chana at any moment: whichever is
-            the next useful thing given the bill's current state. */}
-        <div className="flex flex-col gap-2">
-          {isSettleable && canTakePayment && (
-            <ActionButton primary onClick={() => setPanel('payment')}>
-              <Bilingual label={BILL_LABELS.recordPayment} align="center" />
-            </ActionButton>
-          )}
-
-          <ActionButton
-            primary={!isSettleable}
-            onClick={() => print()}
-            disabled={printing}
-          >
-            <Bilingual label={BILL_LABELS.printReceipt} align="center" />
-          </ActionButton>
-
-          {canCharge && (
-            <ActionButton onClick={() => setPanel('charge')}>Charge to account</ActionButton>
-          )}
-
-          {canDiscount && (
-            <ActionButton onClick={() => setPanel('discount')}>
-              <Bilingual label={BILL_LABELS.applyDiscount} align="center" />
-            </ActionButton>
-          )}
-
-          {canVoid && (
-            <button
-              type="button"
-              onClick={() => setPanel('void')}
-              className="min-h-[48px] rounded-xl border-2 border-mirch/50 text-[15px] font-semibold text-mirch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
-            >
-              <Bilingual label={BILL_LABELS.voidBill} align="center" />
-            </button>
-          )}
         </div>
       </div>
-
-      {panel === 'payment' && (
-        <PaymentPanel
-          methods={allowedMethods}
-          outstandingInPaise={outstandingInPaise}
-          isBusy={paymentMutation.isPending}
-          error={paymentMutation.isError ? errorMessage(paymentMutation.error) : null}
-          onCancel={() => setPanel(null)}
-          onConfirm={(body) => paymentMutation.mutate(body)}
-        />
-      )}
 
       {panel === 'discount' && (
         <DiscountPanel
@@ -451,27 +482,31 @@ function discountText(discount) {
   return discount.reason ? `${label}: ${discount.reason}` : label;
 }
 
-function Row({ label, value }) {
+function Row({ label, value, tone }) {
   return (
     <div className="flex justify-between gap-3">
-      <dt className="text-steel">{label}</dt>
-      <dd className="font-mono text-ink">{value}</dd>
+      <dt className={tone === 'patta' ? 'text-patta' : 'text-steel'}>{label}</dt>
+      <dd className={['font-mono', tone === 'patta' ? 'text-patta' : 'text-ink'].join(' ')}>{value}</dd>
     </div>
   );
 }
 
-function ActionButton({ primary = false, disabled = false, onClick, children }) {
+function Meta({ label, value, mono = false }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10px] uppercase tracking-wider text-steel">{label}</dt>
+      <dd className={['truncate text-[13px] font-semibold', mono ? 'font-mono' : ''].join(' ')}>{value}</dd>
+    </div>
+  );
+}
+
+function PillButton({ disabled = false, onClick, children }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={[
-        'min-h-[56px] rounded-xl border-2 text-[15px] font-semibold transition-transform duration-100 active:translate-y-0.5',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-        'disabled:opacity-50',
-        primary ? 'border-ink bg-chana' : 'border-ink bg-paper',
-      ].join(' ')}
+      className="flex min-h-[44px] items-center rounded-full bg-white px-4 text-[13px] font-medium shadow-card hover:bg-linen focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
     >
       {children}
     </button>
