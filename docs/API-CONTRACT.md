@@ -252,6 +252,9 @@ Response 200:
 
 Reads live from the database, not from the token. A role changed five minutes ago must show here.
 
+`user.stationId` (P05) is the station a `KITCHEN` user's screen opens on, or
+`null`.
+
 `features` (added by P02) is `settings.features`, returned to every role, because every screen needs to know what to hide and `GET /settings` is owner and manager only.
 
 ### 1.6 Change own password
@@ -602,6 +605,10 @@ Response 200 returns the updated category.
 another restaurant. 409 `DUPLICATE_CATEGORY_NAME` on a name clash.
 
 `isActive` cannot be changed here. It has its own endpoint.
+
+`stationId` (P05): an active station of this restaurant, or `null` to route
+the category to the default station. A station from another restaurant or an
+inactive one is 422 `BUSINESS_RULE_VIOLATED`. See M18 Kitchen Stations.
 
 ### 4.4 Activate or deactivate category
 
@@ -1830,6 +1837,10 @@ the moved-on order together:
 This is the one M2 endpoint whose `data` is not a single record. A client
 reading `data.id` here gets `undefined`; read `data.order.id`.
 
+From P05, one fire makes one KOT per station (see M18 Kitchen Stations). The
+response then also carries `kots`, every ticket created, in station order;
+`kot` stays the first of them, so a client written before P05 keeps working.
+
 Firing twice is not an error: the second call fires whatever is `PENDING` now,
 which is how a table that ordered mains later gets a second ticket. If nothing
 is pending it is `422 BUSINESS_RULE_VIOLATED`.
@@ -1900,6 +1911,9 @@ Roles: all six. Sorted oldest first: the kitchen works the queue in order.
 A ticket's status is **derived from its lines**, not stored, so the `status`
 filter is applied after the rollup is computed rather than in the database
 query. This is noted in the known problems table.
+
+`stationId` (P05), optional: a station id returns only that station's tickets;
+the word `none` returns only tickets with no station.
 
 ### 13.2 Read one ticket
 
@@ -3552,3 +3566,157 @@ There is no escape hatch. `tenantGuard` needed one because three legitimate look
 **No hash chain or cryptographic tamper evidence.** The append-only guard plus no update path is proportionate at this scale. Revisit if a customer ever asks a question this cannot answer.
 
 **No CSV export.** Same call as M6. A day of work whenever someone asks.
+
+---
+
+# M18 Kitchen Stations
+
+Owner: Arya. Built in P05.
+
+A station is a place a KOT goes: "Live Kitchen", "Beverages". Categories are
+routed to stations, so firing an order makes one KOT per station and the coffee
+bar never reads the kitchen's ticket. Printing, of KOTs and bills, happens from
+the browser on a device in the cafe. The server never talks to a printer.
+
+## 1. Station endpoints
+
+### 1.1 List stations
+
+```
+GET /api/v1/stations?includeInactive=false
+```
+
+Roles: all six. Active stations by `displayOrder`. `includeInactive=true` is
+for OWNER and MANAGER only; any other role sending it is 403.
+
+```json
+{
+  "success": true,
+  "data": [
+    { "id": "6540...", "name": "Live Kitchen", "displayOrder": 0, "printsTickets": false, "isActive": true },
+    { "id": "6541...", "name": "Beverages", "displayOrder": 1, "printsTickets": true, "isActive": true }
+  ]
+}
+```
+
+Not paginated: a restaurant has a handful of stations.
+
+### 1.2 Create a station
+
+```
+POST /api/v1/stations
+```
+
+Roles: OWNER, MANAGER.
+
+```json
+{ "name": "Beverages", "displayOrder": 1, "printsTickets": true }
+```
+
+`name` 1 to 40 characters, trimmed. `displayOrder` integer 0 or more, default 0.
+`printsTickets` boolean, default false.
+
+201 with the station. 409 `DUPLICATE` on a name already used in this branch,
+compared case-insensitively. 400 on anything else.
+
+### 1.3 Update a station
+
+```
+PATCH /api/v1/stations/:stationId
+```
+
+Roles: OWNER, MANAGER. Any of `name`, `displayOrder`, `printsTickets`,
+`isActive`, at least one.
+
+Deactivating a station that categories still point at is allowed. Those
+categories fall back to the default station. The response carries
+`meta.categoriesFallingBack`, the number of categories that now route to the
+default station because of this station, so the manager knows to fix them.
+
+404 for another restaurant's station. 409 `DUPLICATE` on a name clash.
+
+## 2. Routing when an order fires
+
+In `fireOrder`:
+
+1. Load the restaurant's active stations, by `displayOrder`.
+2. No active stations: one KOT with `stationId: null`, exactly as before P05.
+3. Otherwise, for each line being fired, find its station through the
+   category's **current** `stationId`, using the line's frozen `categoryId`.
+4. A line whose category has no station, whose category is missing, or whose
+   station is inactive, goes to the default station: the first active station
+   by `displayOrder`.
+5. One KOT per station that has lines, each with its own `kotNumber`, and its
+   own frozen `stationId` and `stationName`. KOTs are created in station order,
+   so their numbers follow it.
+6. Each order line's `kotId` points at the KOT it actually went on. The same
+   transaction, the same order update, and the same stock deduction as before.
+
+## 3. KOT changes
+
+`GET /api/v1/kots` takes an optional `stationId`: a station id, or `none` for
+tickets with no station. Every ticket carries `stationId` and `stationName`.
+
+### 3.1 The ticket text
+
+```
+GET /api/v1/kots/:kotId/ticket?width=32&reprint=false
+```
+
+Roles: all six. `width` is 32 (58mm) or 48 (80mm), default 32, anything else is
+400. `reprint=true` adds a REPRINT line.
+
+```json
+{ "success": true, "data": { "width": 48, "text": "..." } }
+```
+
+Laid out on the server, like the receipt in section 15, for the same reason: one
+layout can be snapshot tested. Top to bottom:
+
+1. The station name in capitals, centred. `KITCHEN` when there is no station.
+2. `KOT {kotNumber}` and the time fired, India time, 12-hour.
+3. Dine-in: the table name and the guest count. Takeaway: `TAKEAWAY`.
+   Delivery (P06): `DELIVERY  {PLATFORM} {platformOrderId}`, and the customer
+   name below it when there is one.
+4. `By {name}`: who fired it.
+5. A rule line.
+6. Each line: quantity and item name; the variant on its own indented line; each
+   add-on on its own indented line starting with `+`; the note on its own
+   indented line starting with `Note:`.
+7. A rule line, and `REPRINT` when asked for.
+
+No prices, anywhere. A long name wraps onto an indented continuation line and is
+never cut off.
+
+## 4. Category and user changes
+
+`PATCH /api/v1/categories/:categoryId` accepts `stationId`: an active station of
+this restaurant, or `null`. Another restaurant's station or an inactive one is
+422 `BUSINESS_RULE_VIOLATED`.
+
+`POST /api/v1/users` and `PATCH /api/v1/users/:userId` accept `stationId` for
+`KITCHEN` users: an active station of this restaurant, or `null`. Sending a
+station for any other role is 400 `VALIDATION_FAILED`. A user changed away from
+`KITCHEN` has its station cleared. `GET /auth/me` and every user response carry
+`stationId`.
+
+## 5. Printing, on the client
+
+One small piece of printing code writes plain text into a hidden iframe as a
+`<pre>` sized for 58mm or 80mm paper and calls `print()` on that iframe only.
+With Chrome started with `--kiosk-printing` (DEPLOYMENT.md section 10) it prints
+with no dialog.
+
+Paper width and KOT auto-print belong to the device, not the user: they are kept
+in the browser's `localStorage`. The kitchen screen can print every new ticket
+once, remembering the last 500 printed KOT ids on the device.
+
+## Permission summary for M18
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| GET /stations | yes | yes | yes | yes | yes | yes |
+| GET /stations?includeInactive=true | yes | yes | no | no | no | no |
+| POST /stations | yes | yes | no | no | no | no |
+| PATCH /stations/:id | yes | yes | no | no | no | no |
+| GET /kots/:id/ticket | yes | yes | yes | yes | yes | yes |

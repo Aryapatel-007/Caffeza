@@ -130,6 +130,7 @@ Every person who logs in. Owners, managers, and floor staff, all in one collecti
 | `pinHash` | String | no | | bcrypt hash of a 4 to 6 digit PIN for the M5 shared-tablet clock. `select: false`. Null until set. Never returned, never logged. Added by M0-D. |
 | `pinFailedAttempts` | Number | no | | `select: false`. Default 0. Consecutive failed PIN checks. Reset to 0 on a correct PIN or a PIN reset. Added by M0-D. |
 | `pinLockedUntil` | Date | no | | UTC. Set when the PIN locks after 5 consecutive failures. Not a timeout: the PIN stays locked until an OWNER or MANAGER sets a new one. The date is kept for the audit line and the staff message. Added by M0-D. |
+| `stationId` | ObjectId | no | `stations._id` | Added by P05. Only for `KITCHEN` users: which station their kitchen screen opens on. Null otherwise. Setting it on any other role is refused. |
 | `createdAt` | Date | auto | | UTC |
 | `updatedAt` | Date | auto | | UTC |
 
@@ -275,6 +276,7 @@ A menu section. "Starters", "Main Course", "Beverages".
 | `nameLower` | String | yes | Internal. Derived from `name`. Never in a response. |
 | `displayOrder` | Number | yes | Integer, minimum 0, default 0 |
 | `isActive` | Boolean | yes | Default true. This is the delete. |
+| `stationId` | ObjectId | no | Added by P05. `stations._id`, the station this category's dishes are cooked at. Null routes to the default station. |
 | `createdAt` | Date | auto | UTC |
 | `updatedAt` | Date | auto | UTC |
 
@@ -887,6 +889,8 @@ to mark lines ready or cancelled.
 | `lines` | [KotLine] | yes | | Default `[]` |
 | `firedBy` | ObjectId | yes | `users._id` | |
 | `firedAt` | Date | yes | | UTC |
+| `stationId` | ObjectId | no | `stations._id` | Added by P05. Frozen when the KOT is created. Null when the restaurant has no active stations. |
+| `stationName` | String | no | | Added by P05. The station's name, frozen at the same moment, so renaming a station never rewrites a printed ticket. |
 | `createdAt` | Date | auto | | UTC |
 | `updatedAt` | Date | auto | | UTC |
 
@@ -1828,3 +1832,52 @@ chartered accountant in the room.
 it one deliberately, and M7 does not reopen it. Neither the six roles, the three
 inventory base units, nor the counter names become configurable; all three are
 deliberately closed lists.
+
+---
+
+# M18 Kitchen Stations
+
+Owner: Arya. Built in P05.
+
+One new collection, `stations`, and one additive field each on `categories`,
+`kots` and `users`.
+
+## 19. `stations`
+
+A place a KOT goes, like "Live Kitchen" or "Beverages". Ordinary tenant
+collection: `baseSchemaPlugin` then `tenantGuardPlugin`.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `_id` | ObjectId | auto | `categories.stationId`, `kots.stationId` and `users.stationId` point here |
+| `restaurantId` | ObjectId | yes | From `baseSchema` |
+| `branchId` | ObjectId | yes | From `baseSchema` |
+| `name` | String | yes | Trimmed, 1 to 40 characters. Unique per restaurant and branch, ignoring case. |
+| `nameLower` | String | yes | Internal, derived from `name`, never in a response. Same technique as `categories`. |
+| `displayOrder` | Number | yes | Integer, minimum 0, default 0. The first active station by this order is the default station. |
+| `printsTickets` | Boolean | yes | Default false. Whether this station wants paper KOTs. Read by the kitchen screen's auto-print. |
+| `isActive` | Boolean | yes | Default true. This is the delete. A station is never removed. |
+| `createdAt` | Date | auto | UTC |
+| `updatedAt` | Date | auto | UTC |
+
+Indexes:
+
+`{ restaurantId: 1, branchId: 1, nameLower: 1 }` unique. Two stations in one
+branch cannot share a name, compared case-insensitively.
+
+`{ restaurantId: 1, branchId: 1, isActive: 1, displayOrder: 1 }` for the
+routing read at fire time: the active stations, in order.
+
+### Routing, and why it is decided at fire time
+
+When an order fires, each pending line is routed through its frozen
+`categoryId` (P03) to that category's **current** `stationId`. A line whose
+category has no station, is missing, or points at an inactive station goes to
+the default station, the first active one by `displayOrder`. One KOT is created
+per station that has lines, numbered in station order. With no active stations
+at all, firing makes one KOT with `stationId: null`, exactly as before P05.
+
+Routing reads the category at fire time on purpose: which counter cooks a dish
+is a question about today, not history. The KOT then freezes `stationId` and
+`stationName`, so moving a category to another station never changes a ticket
+already printed.
