@@ -86,13 +86,14 @@ A comparison sheet for every pilot and standby day:
 
 Do these in this order.
 
-1. After the last bill on the old system, write down its invoice number, and take a photo of the screen showing it.
-2. In our settings, set the invoice prefix, and set the starting number to that number plus one.
-3. Enter the On Hold opening balances from gate 10.
-4. Count the opening float, and enter it.
-5. Every captain signs in on their own device.
-6. Print the first real bill, and check it: invoice number, GSTIN, FSSAI number, tax lines, total.
-7. A developer stays on site for the whole first day, and again for the first Friday, Saturday and Sunday.
+1. Before cutover, run the menu import again with Caffeza's final menu, as a dry run, and read the summary.
+2. After the last bill on the old system, write down its invoice number, and take a photo of the screen showing it.
+3. In our settings, set the invoice prefix, and set the starting number to that number plus one.
+4. Enter the On Hold opening balances from gate 10.
+5. Count the opening float, and enter it.
+6. Every captain signs in on their own device.
+7. Print the first real bill, and check it: invoice number, GSTIN, FSSAI number, tax lines, total.
+8. A developer stays on site for the whole first day, and again for the first Friday, Saturday and Sunday.
 
 ---
 

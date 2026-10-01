@@ -132,7 +132,16 @@ If it is not, the prompt must include its own rollback steps.
 2. First deploy, section 6.
 3. `npm run db:indexes`.
 4. `npm run provision:restaurant` with Caffeza's details. The owner's password is prompted for, never typed into a file.
-5. The Caffeza setup script from P11: area and tables, stations, payment methods, On Hold accounts with opening balances, staff logins, and the menu import.
+5. The Caffeza setup and menu import from P11, each as a dry run first, read in full, then with `--apply`. See `setup/README.md`.
+
+   ```
+   npm run setup:restaurant -- --config setup/caffeza.json --owner-phone <owner phone>
+   npm run setup:restaurant -- --config setup/caffeza.json --owner-phone <owner phone> --apply
+   npm run import:menu -- --file setup/caffeza-menu.csv --config setup/caffeza.json --owner-phone <owner phone>
+   npm run import:menu -- --file setup/caffeza-menu.csv --config setup/caffeza.json --owner-phone <owner phone> --apply
+   ```
+
+   Each asks for the owner's password at the terminal. New staff passwords are printed once; hand them over privately. Fill in every `TO CONFIRM` value in `setup/caffeza.json` before the production run.
 6. Settings: GSTIN, FSSAI number, receipt header lines, business day start.
 7. The owner checks every menu item and price on staging before the same import runs on production.
 8. On cutover day only: set the invoice prefix and starting number. See `docs/GO-LIVE.md`.

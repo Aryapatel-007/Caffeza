@@ -17,7 +17,7 @@ The full table, with dependencies and owners, is in
 | P08 | Payment methods, discount reasons and No Charge | Done |
 | P09 | On Hold accounts and platform payouts | Done |
 | P10 | Cash drawer and Day Close | Done |
-| P11 | Caffeza setup and menu import | Not run |
+| P11 | Caffeza setup and menu import | Done |
 | P12 | Cloud deployment | Not run |
 | P13 | Reports spec | Not run |
 | P14 | Report engine | Not run |

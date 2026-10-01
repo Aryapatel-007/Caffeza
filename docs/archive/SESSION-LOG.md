@@ -1,5 +1,24 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-09-30 Arya, P00 adopt the Caffeza docs
+
+What was built or decided:
+The Caffeza plan was adopted. New docs: CURRENT-STATE-AUDIT, CAFFEZA-PROFILE,
+GLOSSARY, REPORT-SPEC, RECONCILIATION-RULES, TEST-DATA, CAFFEZA-BUILD-PLAN,
+DEPLOYMENT, GO-LIVE, PROJECT-INSTRUCTIONS, and docs/prompts/. CLAUDE.md was
+replaced. The decisions are in the decision log under 2026-09-28 and 2026-09-30.
+
+Files or endpoints touched:
+Docs only. No code, no endpoint, no model.
+
+Anything the other developer needs to know:
+Read docs/CAFFEZA-BUILD-PLAN.md first. New modules start at M16. Owners are
+suggested in its section 3, change any you disagree with and log it.
+CLAUDE.md now loads only the short docs; the long specs are read on demand.
+
+Anything now blocked or unblocked:
+P01 production safety can start.
+
 ### 2026-08-31 Rishi, M7 Restaurant Settings
 
 **What was built:** M7, server and screen, on `feat/m7/restaurant-settings`.

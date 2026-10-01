@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P11, Caffeza setup and menu import.
+Next: P12, cloud deployment.
 
 ---
 
@@ -324,6 +324,12 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | The day lock is checked before any rule about the bill. Charging to an account also checks today; correcting a payment also checks the payment's own business date. | On a closed day the answer must always be 409 DAY_CLOSED, not a 422 about a paid bill. The charge entry is written today, and a correction changes the day its money arrived. |
 | 2026-10-01 | An order waiting on an unpaid bill is reported once at Day Close, as the bill. | Listing it twice made one problem look like two. |
 | 2026-10-01 | Voiding a cash entry or a payout asks for its reason inline (`features/settlement/InlineVoid.jsx`), not in a browser dialog. | A tablet at the till handles an inline field better than a modal prompt. |
+| 2026-10-01 | Restaurants are set up from one JSON file and one menu CSV, through the real API, with a dry run by default. The scripts never delete anything, never set the invoice series, and never handle a password except the owner's, typed at the terminal. | Staging and production must be set up identically, and cutover-day changes stay deliberate. |
+| 2026-10-01 | The setup file is validated with the server's own request schemas (settings, tables, stations, payment methods, accounts, users) before anything changes. | One definition of a valid value. A file that passes the dry run will not be refused halfway through `--apply`. |
+| 2026-10-01 | The menu import takes `--config` and routes each category it touches through the setup file's `categoryStations` and `defaultStation`. The setup script routes categories that already exist. | The prompt routes categories from the setup file, but categories are created by the menu import, which runs second. Either order now ends with every category on its station. |
+| 2026-10-01 | Both scripts resolve file paths from the folder `npm` was run in (`INIT_CWD`), not from `server/`. | `npm run setup:restaurant` from the repo root runs inside the server workspace, so `setup/caffeza.json` would otherwise not be found. |
+| 2026-10-01 | `setup/caffeza-menu.csv` uses the golden day's category for every golden day item, and a category from the profile's list for the rest; the noodle bowl keeps Caffeza's own name, Chilli Garlic Chimichurri Noodle Bowl. | The prompt asked for the golden day's categories. Items it does not cover needed a category, and the profile's names are the ones staff know. The file is marked partial and is replaced by Caffeza's export. |
+| 2026-10-01 | `scripts/seedDemo.js` wipes every collection in the model registry, not a fixed list. | Its list stopped at M4, so re-seeding left stations, payment methods, accounts and Day Close records behind. |
 
 ---
 
@@ -346,6 +352,51 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P11 Caffeza setup and menu import
+
+What was built or decided:
+`npm run setup:restaurant` (`server/scripts/setupRestaurant.js`) sets a
+restaurant up from one JSON file: profile, settings, stations, category
+routing, tables, payment methods, On Hold accounts and staff logins.
+`npm run import:menu` (`server/scripts/importMenu.js`) imports a menu CSV,
+with sizes and an optional add-ons CSV. Both start the app in-process, sign in
+as the owner with the password typed hidden, validate everything first and
+list every problem, change nothing without `--apply`, match by name so a re-run
+is safe, and never delete, deactivate, create a bill or set the invoice
+series. `"TO CONFIRM"` values are skipped and listed; a staff member without a
+phone is not created; new logins get a password printed once. Shared code is
+in `server/scripts/lib/scriptApi.js`.
+
+Caffeza's files: `setup/caffeza.json` from the profile (34 tables in Cafe,
+Live Kitchen and Beverages, the nine Beverages categories, eight payment
+methods with their Tally codes, both office accounts, eight staff with phones
+to confirm), `setup/caffeza-menu.csv` (a partial menu of 34 items in 16
+categories, marked to be replaced), and `setup/README.md`.
+
+Verified by hand against a local replica set: a throwaway restaurant was
+provisioned, the setup dry run printed create 43, update 5, skip 29, then
+`--apply` did exactly that; the menu dry run printed 16 categories and 34
+items, then applied; a second setup dry run reported 64 unchanged. The
+database then held 34 active tables in Cafe, Italian Coffees on Beverages,
+Water Bottle at 4761 paise and 8 active payment methods.
+
+Tests: 774 before, 784 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: the two scripts, `scripts/lib/scriptApi.js`,
+`tests/setupScripts.test.js`, `setup/`. Changed: both `package.json` files,
+`scripts/seedDemo.js`, `docs/DEPLOYMENT.md` section 7, `docs/GO-LIVE.md`
+section 4. No endpoint, model or screen changed.
+
+Anything the other developer needs to know:
+Fill in every `TO CONFIRM` in `setup/caffeza.json`, including the On Hold
+opening balances, before the production run: an opening balance is set only
+when an account is created. The order screen with the imported menu was not
+opened in a browser; the menu and tables were checked in the database.
+
+Anything now blocked or unblocked:
+P12 can start.
 
 ### 2026-10-01 Rishi, P10 cash drawer and Day Close
 
@@ -858,25 +909,6 @@ environment check, not in the code.
 Anything now blocked or unblocked:
 P02 can start. P12 (deployment) now has a deploy step to run and an
 environment variable to set.
-
-### 2026-09-30 Arya, P00 adopt the Caffeza docs
-
-What was built or decided:
-The Caffeza plan was adopted. New docs: CURRENT-STATE-AUDIT, CAFFEZA-PROFILE,
-GLOSSARY, REPORT-SPEC, RECONCILIATION-RULES, TEST-DATA, CAFFEZA-BUILD-PLAN,
-DEPLOYMENT, GO-LIVE, PROJECT-INSTRUCTIONS, and docs/prompts/. CLAUDE.md was
-replaced. The decisions are in the decision log under 2026-09-28 and 2026-09-30.
-
-Files or endpoints touched:
-Docs only. No code, no endpoint, no model.
-
-Anything the other developer needs to know:
-Read docs/CAFFEZA-BUILD-PLAN.md first. New modules start at M16. Owners are
-suggested in its section 3, change any you disagree with and log it.
-CLAUDE.md now loads only the short docs; the long specs are read on demand.
-
-Anything now blocked or unblocked:
-P01 production safety can start.
 
 ---
 
