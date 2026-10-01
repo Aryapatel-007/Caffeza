@@ -78,7 +78,7 @@ export default function StationsPage() {
       <div className="mx-auto grid max-w-2xl gap-4 px-4 py-6">
         {stations.isPending && <Spinner label="Loading stations" />}
 
-        <ul className="divide-y divide-steel/20 border-y border-black/5/10">
+        <ul className="divide-y divide-steel/20 border-y border-black/10">
           {list.map((station, index) => (
             <li key={station.id} className={['flex flex-wrap items-center gap-3 py-3', station.isActive ? '' : 'opacity-55'].join(' ')}>
               <span className="w-6 font-mono text-[13px] text-steel">{index + 1}</span>

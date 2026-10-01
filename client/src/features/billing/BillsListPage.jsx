@@ -134,7 +134,7 @@ export default function BillsListPage() {
         )}
 
         {bills.length > 0 && (
-          <ul className="divide-y divide-steel/15 border-y border-black/5/10">
+          <ul className="divide-y divide-steel/15 border-y border-black/10">
             {bills.map((bill) => (
               <li key={bill.id}>
                 <Link

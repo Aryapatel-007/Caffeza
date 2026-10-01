@@ -35,7 +35,7 @@ export default function NoChargePanel({ order, isBusy, onCancel, onConfirm }) {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <div className="mb-6 flex items-baseline justify-between border-b border-black/5/10 pb-3">
+          <div className="mb-6 flex items-baseline justify-between border-b border-black/10 pb-3">
             <span className="text-[13px] leading-[18px] text-steel">No Charge value, before GST</span>
             <span className="font-mono text-[24px] font-semibold leading-8">
               {formatPaise(order.totals.subtotalInPaise)}

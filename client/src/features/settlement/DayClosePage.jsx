@@ -228,7 +228,7 @@ export default function DayClosePage() {
             )}
 
             {!day.isClosed && (
-              <section className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
+              <section className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
                 <Input
                   label="Cash counted in the drawer"
                   inputMode="decimal"

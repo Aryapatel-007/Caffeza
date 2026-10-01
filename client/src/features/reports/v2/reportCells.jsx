@@ -44,7 +44,7 @@ export function OpenDaysBanner({ openDays }) {
   const names = openDays.map((date) => formatBusinessDate(date).replace(/ \d{4}$/, ''));
   const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
   return (
-    <p className="rounded-xl border border-black/5 shadow-card/30 px-3 py-2 text-[13px] leading-[18px]">
+    <p className="rounded-xl border border-black/5 shadow-card px-3 py-2 text-[13px] leading-[18px]">
       {list} {names.length === 1 ? 'is' : 'are'} still open. These numbers will change until Day Close.
     </p>
   );

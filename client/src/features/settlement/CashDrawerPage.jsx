@@ -41,7 +41,7 @@ function EntryForm({ type, onDone, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
+    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
       <p className="text-[15px] font-semibold leading-6">{WORDS[type]}</p>
       <Input label="Amount" inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
       {needsReason && (
@@ -111,7 +111,7 @@ export default function CashDrawerPage() {
         {query.isError && <p className="text-[15px] text-mirch">{errorMessage(query.error)}</p>}
 
         {query.isSuccess && (
-          <ul className="divide-y divide-steel/15 border-y border-black/5/10">
+          <ul className="divide-y divide-steel/15 border-y border-black/10">
             {movements.map((entry) => (
               <li key={entry.id} className={`flex items-center justify-between gap-3 py-3 ${entry.isVoided ? 'text-steel line-through' : ''}`}>
                 <span>

@@ -53,7 +53,7 @@ function PayoutForm({ methods, onDone, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
+    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
       <p className="text-[15px] font-semibold leading-6">Record payout</p>
       <Select
         label="Platform"

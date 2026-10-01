@@ -86,7 +86,7 @@ export default function TableManagementPage() {
 
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
         <form
-          className="mb-8 flex flex-wrap items-end gap-3 border-b border-black/5/10 pb-6"
+          className="mb-8 flex flex-wrap items-end gap-3 border-b border-black/10 pb-6"
           onSubmit={(event) => {
             event.preventDefault();
             if (draft.name.trim()) add.mutate();

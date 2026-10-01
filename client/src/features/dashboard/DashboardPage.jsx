@@ -1,112 +1,247 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
-
 import { getCurrentUser } from '../../api/authApi.js';
+import { listTables } from '../../api/orders.js';
+import { getDashboard } from '../../api/reports.js';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
-import Spinner from '../../components/ui/Spinner.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { formatDateIst, formatTimeIst } from '../../utils/formatDate.js';
+import { formatPaise } from '../../utils/formatMoney.js';
 import UnclosedDayWarning from '../settlement/UnclosedDayWarning.jsx';
 
 /**
- * Dashboard. Still a placeholder.
- *
- * It shows who is signed in and where, read live from GET /auth/me rather than
- * from the token, so a role changed five minutes ago shows here. The real
- * dashboard is M6, built once orders, bills and attendance produce data.
+ * Home. Every figure here is read from the server, none is drawn for show: the
+ * day's totals from the M6 dashboard read (back-office roles only), the seated
+ * tables from the floor read (roles that take orders). A role that cannot read
+ * a block simply does not see it.
  */
+function greetingFor(now) {
+  const hour = Number(formatTimeIst(now).split(':')[0]);
+  const isPm = /pm/i.test(formatTimeIst(now));
+  const h24 = (hour % 12) + (isPm ? 12 : 0);
+  if (h24 < 12) return 'Good morning';
+  if (h24 < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function Card({ className = '', children }) {
+  return <div className={`rounded-2xl bg-white shadow-card ${className}`}>{children}</div>;
+}
+
+function Stat({ label, value, hint }) {
+  return (
+    <Card className="flex flex-col justify-between p-5">
+      <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-steel">{label}</span>
+      <div className="mt-4">
+        <span className="font-mono text-[28px] font-bold leading-9 tracking-tight">{value}</span>
+        {hint && <p className="mt-1 text-[13px] text-steel">{hint}</p>}
+      </div>
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
+  const role = user?.role;
+  const isManager = role === 'OWNER' || role === 'MANAGER';
+  const canTakeOrders = ['OWNER', 'MANAGER', 'CASHIER', 'WAITER'].includes(role);
+  const canBill = ['OWNER', 'MANAGER', 'CASHIER'].includes(role);
 
-  const canManageStaff = user?.role === 'OWNER' || user?.role === 'MANAGER';
+  const profile = useQuery({ queryKey: ['me'], queryFn: getCurrentUser });
+  const today = useQuery({
+    queryKey: ['reports', 'dashboard'],
+    queryFn: getDashboard,
+    enabled: isManager,
+    refetchInterval: 60_000,
+  });
+  const tables = useQuery({
+    queryKey: ['tables', { includeInactive: false }],
+    queryFn: () => listTables(),
+    enabled: canTakeOrders,
+    refetchInterval: 15_000,
+  });
 
-  /**
-   * The kitchen and the storekeeper do not take orders, so the floor is not
-   * offered to them. They still reach the kitchen display, which everyone does.
-   * Both of these are conveniences; the server is what refuses the endpoints.
-   */
-  const canTakeOrders = ['OWNER', 'MANAGER', 'CASHIER', 'WAITER'].includes(user?.role);
+  const now = new Date();
+  const firstName = profile.data?.user?.name?.split(' ')[0];
+  const seated = (tables.data ?? []).filter((table) => table.occupancy.isOccupied);
+  const data = today.data;
 
-  /** M3. The till: creating a bill, taking payment, discounting, voiding. */
-  const canBill = ['OWNER', 'MANAGER', 'CASHIER'].includes(user?.role);
-
-  const [profile, setProfile] = useState(null);
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const data = await getCurrentUser();
-        if (!cancelled) setProfile(data);
-      } catch (loadError) {
-        if (!cancelled) setError(loadError);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const greeting = profile?.user?.name ? `Hello, ${profile.user.name.split(' ')[0]}` : 'Hello';
-
-  // The shortcuts for the work done most. The sidebar has every other place.
   const actions = [
-    { to: '/floor', title: 'Tables', note: 'Open or continue an order', show: canTakeOrders, primary: true },
+    { to: '/floor', title: 'New dine-in order', note: 'Pick a table', show: canTakeOrders, primary: true },
     { to: '/orders/takeaway', title: 'Takeaway', note: 'Counter order', show: canTakeOrders },
-    { to: '/orders/delivery', title: 'Delivery', note: 'Zomato or Swiggy', show: canTakeOrders },
-    { to: '/bills', title: 'Bills', note: 'Collect payment', show: canBill },
-    { to: '/kitchen', title: 'Kitchen', note: 'Tickets at the pass', show: true },
-    { to: '/day-close', title: 'Day Close', note: 'Count the cash and lock the day', show: canManageStaff },
-    { to: '/reports', title: 'Reports', note: 'Sales, GST and payments', show: canManageStaff },
-    { to: '/menu/availability', title: 'Availability', note: 'Mark a dish out', show: true },
+    { to: '/orders/delivery', title: 'Delivery order', note: 'Zomato or Swiggy', show: canTakeOrders },
+    { to: '/day-close', title: 'Day Close', note: 'Count the cash and lock the day', show: isManager },
+    { to: '/bills', title: 'Bills', note: 'Collect payment', show: canBill && !isManager },
+    { to: '/menu/availability', title: 'Availability', note: 'Mark a dish out', show: !canTakeOrders },
   ].filter((action) => action.show);
 
   return (
     <main className="min-h-full bg-paper">
       {/* P10. Yesterday traded and was not closed. */}
-      {canManageStaff && <UnclosedDayWarning />}
+      {isManager && <UnclosedDayWarning />}
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 lg:p-8">
-        {isLoading && <Spinner label="Loading your details" />}
-        {error && <ErrorMessage error={error} />}
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 lg:p-8">
+        {profile.isError && <ErrorMessage error={profile.error} />}
 
-        <section className="rounded-2xl bg-white p-6 shadow-card lg:p-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-steel">
-            {profile?.restaurant?.name ?? 'Caffeza'}
-            {profile?.branch ? ` · ${profile.branch.name}` : ''}
-          </p>
-          <h1 className="mt-1 text-[32px] font-semibold leading-10 tracking-tight">{greeting}</h1>
+        <Card className="p-6 lg:p-8">
+          <span className="inline-flex items-center gap-2 rounded-full bg-linen-2 px-3 py-1 text-[13px] text-steel">
+            <span className="size-1.5 rounded-full bg-patta" aria-hidden="true" />
+            {profile.data?.restaurant?.name ?? 'Caffeza'}
+            {profile.data?.branch ? ` · ${profile.data.branch.name}` : ''}
+          </span>
+          <h1 className="mt-3 text-[32px] font-semibold leading-10 tracking-tight">
+            {greetingFor(now)}
+            {firstName ? `, ${firstName}` : ''}
+          </h1>
           <p className="mt-1 text-sm text-steel">
-            {profile?.user?.role ? `Signed in as ${profile.user.role.toLowerCase()}.` : ''}
+            {formatDateIst(now)} · signed in as {role?.toLowerCase()}
           </p>
+          {actions.length > 0 && (
+            <div className="mt-6 flex flex-wrap gap-3">
+              {actions.slice(0, 2).map((action, index) => (
+                <Link
+                  key={action.to}
+                  to={action.to}
+                  className={[
+                    'flex h-14 items-center rounded-full px-8 text-base font-semibold shadow-card transition active:scale-[0.98]',
+                    index === 0 ? 'bg-chana text-ink hover:brightness-105' : 'bg-linen-2 hover:bg-linen-3',
+                  ].join(' ')}
+                >
+                  {action.title}
+                </Link>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {isManager && (
+          <section aria-label="Today" className={['grid gap-4 sm:grid-cols-2 lg:grid-cols-4', today.isFetching ? 'opacity-70' : ''].join(' ')}>
+            {today.isError && <ErrorMessage error={today.error} />}
+            {data && (
+              <>
+                <Stat label="Bill total today" value={formatPaise(data.sales.grossSalesInPaise)} hint={`Business day ${data.businessDate}`} />
+                <Stat label="Bills" value={data.sales.billCount} hint={`Average bill ${formatPaise(data.sales.averageBillInPaise)}`} />
+                <Stat
+                  label="Open orders"
+                  value={data.openOrders.count}
+                  hint={`${formatPaise(data.openOrders.runningValueInPaise)} on the floor`}
+                />
+                <Stat
+                  label="Unpaid bills"
+                  value={data.unpaidBills.count}
+                  hint={data.unpaidBills.count > 0 ? `${formatPaise(data.unpaidBills.amountInPaise)} outstanding` : 'Everything settled'}
+                />
+              </>
+            )}
+          </section>
+        )}
+
+        <section className="grid gap-6 lg:grid-cols-12">
+          <div className="flex flex-col gap-3 lg:col-span-5">
+            <h2 className="px-1 text-xl font-semibold">Quick actions</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {actions.map((action) => (
+                <Link
+                  key={action.to}
+                  to={action.to}
+                  className={[
+                    'flex min-h-[96px] flex-col justify-between rounded-2xl p-4 shadow-card transition active:scale-[0.98]',
+                    action.primary ? 'bg-chana text-ink' : 'bg-white hover:bg-linen',
+                  ].join(' ')}
+                >
+                  <span className="text-base font-semibold">{action.title}</span>
+                  <span className={action.primary ? 'text-[13px] text-ink/75' : 'text-[13px] text-steel'}>{action.note}</span>
+                </Link>
+              ))}
+              <Link to="/kitchen" className="flex min-h-[96px] flex-col justify-between rounded-2xl bg-white p-4 shadow-card transition hover:bg-linen active:scale-[0.98]">
+                <span className="text-base font-semibold">Kitchen</span>
+                <span className="text-[13px] text-steel">Tickets at the pass</span>
+              </Link>
+              {isManager && (
+                <Link to="/reports" className="flex min-h-[96px] flex-col justify-between rounded-2xl bg-white p-4 shadow-card transition hover:bg-linen active:scale-[0.98]">
+                  <span className="text-base font-semibold">Reports</span>
+                  <span className="text-[13px] text-steel">Sales, GST and payments</span>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {canTakeOrders && (
+            <div className="flex flex-col gap-3 lg:col-span-7">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold">Tables seated</h2>
+                  <span className="rounded-full bg-linen-2 px-2 py-0.5 font-mono text-[12px] text-steel">
+                    {seated.length} of {tables.data?.length ?? 0}
+                  </span>
+                </div>
+                <Link to="/floor" className="text-sm font-semibold hover:underline">
+                  Open the floor →
+                </Link>
+              </div>
+              {tables.isPending && <p className="px-1 text-sm text-steel">Loading the floor…</p>}
+              {tables.isError && <ErrorMessage error={tables.error} />}
+              {tables.data && seated.length === 0 && (
+                <Card className="p-6 text-center text-sm text-steel">No table has an open order.</Card>
+              )}
+              <ul className="flex flex-col gap-2">
+                {seated.map((table) => (
+                  <li key={table.id}>
+                    <Link
+                      to={`/orders/${table.occupancy.orderId}`}
+                      className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-card transition hover:bg-linen"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 min-w-12 items-center justify-center whitespace-nowrap rounded-xl bg-linen-2 px-3 font-mono text-base font-semibold">
+                          {table.name}
+                        </div>
+                        <div className="leading-tight">
+                          <p className="font-mono text-sm text-steel">Order #{table.occupancy.orderNumber}</p>
+                          {table.occupancy.openedAt && (
+                            <p className="text-[13px] text-steel">Opened {formatTimeIst(table.occupancy.openedAt)}</p>
+                          )}
+                        </div>
+                      </div>
+                      <span className="font-mono text-base font-bold">
+                        {formatPaise(table.occupancy.runningTotalInPaise ?? 0)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
 
-        <section aria-label="Shortcuts" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {actions.map((action) => (
-            <Link
-              key={action.to}
-              to={action.to}
-              className={[
-                'flex min-h-[112px] flex-col justify-between rounded-2xl p-5 shadow-card transition active:scale-[0.98]',
-                action.primary ? 'bg-chana text-ink' : 'bg-white text-ink hover:bg-linen',
-              ].join(' ')}
-            >
-              <span className="text-lg font-semibold">{action.title}</span>
-              <span className={action.primary ? 'text-sm text-ink/75' : 'text-sm text-steel'}>
-                {action.note}
-              </span>
-            </Link>
-          ))}
-        </section>
+        {isManager && data && (
+          <section className="flex flex-col gap-3 pb-6">
+            <div className="flex items-baseline justify-between px-1">
+              <h2 className="text-xl font-semibold">Top sellers today</h2>
+              <Link to="/reports/sales" className="text-sm font-semibold hover:underline">
+                Sales report →
+              </Link>
+            </div>
+            {data.topItems.length === 0 ? (
+              <Card className="p-6 text-center text-sm text-steel">Nothing sold yet today.</Card>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {data.topItems.slice(0, 4).map((item, index) => (
+                  <Card key={item.itemName} className="flex flex-col justify-between p-5">
+                    <span className="font-mono text-[12px] text-steel">#{index + 1}</span>
+                    <h3 className="mt-2 text-base font-semibold leading-6">{item.itemName}</h3>
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="font-mono text-base font-bold">{formatPaise(item.revenueInPaise)}</span>
+                      <span className="rounded-full bg-linen-2 px-2.5 py-1 font-mono text-[12px] text-steel">
+                        {item.quantity} sold
+                      </span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </main>
   );

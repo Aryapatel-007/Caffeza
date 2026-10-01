@@ -36,7 +36,7 @@ export default function MenuPicker({ tree, isPending, isError, onPick, disabled 
 
   return (
     <section aria-label="Menu" className="flex min-h-0 flex-1 flex-col">
-      <div className="border-b border-black/5/10 px-4 py-3">
+      <div className="border-b border-black/10 px-4 py-3">
         <label className="block">
           <span className="sr-only">Search the menu</span>
           <input

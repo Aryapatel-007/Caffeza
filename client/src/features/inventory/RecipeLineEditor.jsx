@@ -86,7 +86,7 @@ export default function RecipeLineEditor({ menuItemId, variantId, ingredients, o
         </p>
       )}
 
-      <ul className="mb-4 divide-y divide-steel/15 border-y border-black/5/10">
+      <ul className="mb-4 divide-y divide-steel/15 border-y border-black/10">
         {rows.map((row) => (
           <li key={row.ingredientId} className="flex items-center justify-between gap-3 py-2">
             <span className="text-[14px]">{nameFor(row.ingredientId)}</span>

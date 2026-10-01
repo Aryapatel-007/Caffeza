@@ -225,7 +225,7 @@ export default function BillScreenPage() {
 
         {/* The lines. A dense list, per DESIGN-SYSTEM section 6: staff scan a
             list faster than a grid of cards, and there is nothing here to tap. */}
-        <ul className="mb-4 divide-y divide-steel/15 border-y border-black/5/10">
+        <ul className="mb-4 divide-y divide-steel/15 border-y border-black/10">
           {bill.lines.map((line) => (
             <li key={line.orderLineId} className="flex items-start justify-between gap-3 py-2.5">
               <div>
@@ -292,7 +292,7 @@ export default function BillScreenPage() {
 
         {/* P09. On Hold: who it is charged to, and how much. */}
         {bill.status === 'ON_ACCOUNT' && !bill.isVoided && bill.account && (
-          <p className="mb-6 rounded-xl border border-black/5 shadow-card/30 px-3 py-2 text-center text-[13px] leading-[18px]">
+          <p className="mb-6 rounded-xl border border-black/5 shadow-card px-3 py-2 text-center text-[13px] leading-[18px]">
             On Hold on <span className="font-semibold">{bill.account.accountName}</span>:{' '}
             <span className="font-mono">{formatPaise(bill.chargedToAccountInPaise)}</span>
           </p>

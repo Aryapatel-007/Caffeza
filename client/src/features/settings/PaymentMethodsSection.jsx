@@ -118,7 +118,7 @@ function MethodEditor({ method, onSaved, onError }) {
   });
 
   return (
-    <li className="grid gap-3 border-b border-black/5/10 py-4">
+    <li className="grid gap-3 border-b border-black/10 py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="font-mono text-[13px] leading-[18px]">{method.code}</p>
         <p className="text-[12px] uppercase leading-4 tracking-[0.06em] text-steel">
@@ -205,7 +205,7 @@ function NewMethodForm({ onSaved, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
+    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
       <p className="text-[15px] font-semibold leading-6">Add a payment method</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Input

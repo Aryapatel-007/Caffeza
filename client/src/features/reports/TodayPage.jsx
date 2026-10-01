@@ -109,7 +109,7 @@ export default function TodayPage() {
                 Nothing is running low.
               </p>
             ) : (
-              <ul className="divide-y divide-steel/15 border-y border-black/5/10">
+              <ul className="divide-y divide-steel/15 border-y border-black/10">
                 {data.lowStock.map((row) => (
                   <li key={row.ingredientId} className="flex items-center justify-between gap-3 py-2.5">
                     <span className="text-[14px] leading-[20px]">{row.name}</span>

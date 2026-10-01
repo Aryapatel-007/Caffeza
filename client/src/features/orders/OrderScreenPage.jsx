@@ -161,7 +161,7 @@ export default function OrderScreenPage() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <section
           aria-label="This order"
-          className="flex min-h-0 flex-1 flex-col border-b border-black/5/10 lg:border-b-0 lg:border-r-2"
+          className="flex min-h-0 flex-1 flex-col border-b border-black/10 lg:border-b-0 lg:border-r-2"
         >
           <div className="min-h-0 flex-1 overflow-y-auto">
             <OrderLineList
@@ -216,12 +216,12 @@ export default function OrderScreenPage() {
 
           {/* P08. Manager work, on an open order or one waiting for the cashier. */}
           {canCancelOrder && (isOpen || order.status === 'READY_TO_BILL') && (
-            <div className="border-t border-black/5/10 px-4 py-2">
+            <div className="border-t border-black/10 px-4 py-2">
               <button
                 type="button"
                 disabled={write.isPending}
                 onClick={() => setCancelling({ kind: 'noCharge' })}
-                className="h-12 w-full rounded-xl border border-black/5 shadow-card/20 text-[13px] font-medium text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+                className="h-12 w-full rounded-xl border border-black/5 shadow-card text-[13px] font-medium text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
               >
                 No Charge
               </button>

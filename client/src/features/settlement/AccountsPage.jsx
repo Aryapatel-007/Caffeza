@@ -63,7 +63,7 @@ function CollectionForm({ account, onDone, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
+    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
       <p className="text-[15px] font-semibold leading-6">Record collection</p>
       <div className="flex flex-wrap gap-2">
         {inHand.map((entry) => (
@@ -110,7 +110,7 @@ function AdjustForm({ account, onDone, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
+    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
       <p className="text-[15px] font-semibold leading-6">Adjust balance</p>
       <div className="grid grid-cols-2 gap-2">
         {[
@@ -243,7 +243,7 @@ export default function AccountsPage() {
         {query.isPending && <Spinner label="Loading accounts" />}
         {query.isError && <p className="text-[15px] text-mirch">{errorMessage(query.error)}</p>}
 
-        <ul className="divide-y divide-steel/15 border-y border-black/5/10">
+        <ul className="divide-y divide-steel/15 border-y border-black/10">
           {accounts.map((account) => {
             const open = openId === account.id;
             return (
@@ -289,7 +289,7 @@ export default function AccountsPage() {
         </ul>
 
         {isManager && (
-          <div className="grid gap-3 rounded-xl border border-black/5 shadow-card/20 p-3">
+          <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
             <p className="text-[15px] font-semibold leading-6">Add account</p>
             <Input label="Name" maxLength={40} value={newName} onChange={(e) => setNewName(e.target.value)} />
             <MoneyField label="Opening balance, optional" value={newOpening} onChange={setNewOpening} />

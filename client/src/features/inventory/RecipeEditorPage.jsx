@@ -67,7 +67,7 @@ export default function RecipeEditorPage() {
             className="mb-3 h-11 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
           />
           {itemsQuery.isPending && <p className="text-[13px] text-steel">Loading…</p>}
-          <ul className="divide-y divide-steel/15 border-y border-black/5/10">
+          <ul className="divide-y divide-steel/15 border-y border-black/10">
             {items.map((item) => (
               <li key={item.id}>
                 <button

@@ -117,7 +117,7 @@ export default function StockListPage() {
           </p>
         )}
 
-        <ul className="divide-y divide-steel/15 border-y border-black/5/10">
+        <ul className="divide-y divide-steel/15 border-y border-black/10">
           {ingredients.map((ingredient) => (
             <li key={ingredient.id}>
               <button

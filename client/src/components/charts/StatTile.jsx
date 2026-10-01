@@ -20,7 +20,7 @@
  */
 export function StatTile({ label, value, hint, className = '' }) {
   return (
-    <div className={`rounded-xl border border-black/5 shadow-card/15 px-4 py-3 ${className}`}>
+    <div className={`rounded-xl border border-black/5 shadow-card px-4 py-3 ${className}`}>
       <p className="text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
         {label}
       </p>
