@@ -7,7 +7,7 @@ The full table, with dependencies and owners, is in
 | Prompt | Title | Status |
 |---|---|---|
 | P00 | Adopt the Caffeza docs | Done |
-| P01 | Production safety | Not run |
+| P01 | Production safety | Done |
 | P02 | Settings: feature switches and invoice series | Not run |
 | P03 | Bill snapshots and line shares | Not run |
 | P04 | Cancel reasons and variant check | Not run |

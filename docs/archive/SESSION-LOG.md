@@ -1,5 +1,50 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-08-30 Rishi, M5 pushed and merged with M2
+
+**What happened:** no new feature work. The M5 chain was pushed to the remote for
+the first time and brought up to date with the M2 module that had landed on
+`main` in the meantime.
+
+`origin/main` had moved eight commits ahead with M2 Order Taking (pull request
+#4) while the M5 chain was being built locally on top of M1. The two had never
+met. All five M5-era branches are now on the remote, and
+`feat/m5/attendance-screens` has `origin/main` merged into it, so it is the one
+branch carrying M0, M1, M2 and M5 together.
+
+**The four merge conflicts, and how each was settled**
+
+`server/routes/index.js` and `client/src/App.jsx`: both sides appended to a
+list. Resolved as a union, M2's mounts and routes before M5's.
+
+`server/utils/errors.js`: both sides appended error codes and error classes.
+Resolved as a union; all ten classes and all four new codes
+(`ALREADY_CLOCKED_IN`, `PIN_LOCKED`, `TABLE_OCCUPIED`, `VERSION_CONFLICT`)
+survive, verified by importing the module.
+
+`docs/PROJECT-STATE.md`: this file. Both sides rewrote the stage, the decision
+log, the open questions and the session log. Nothing was dropped from either
+decision log; both blocks are kept.
+
+**Two open questions closed by the merge, not by new work**
+
+The two waiters problem was answered by M2 and the business day boundary by M5
+D1. Both were still listed as open on one side or the other because neither side
+could see the other's answer. Both are now removed from Open Questions; the
+decision rows stay in the log.
+
+**One thing removed before the push**
+
+The previous tip commit carried a `scratch/` folder with two ad-hoc scripts, one
+of which set every user's password to a fixed string across every tenant with no
+`restaurantId` filter. It was rewritten out of the commit before anything was
+pushed, so it never reached the remote, and `/scratch/` is now in `.gitignore`.
+The useful parts of that commit, the dashboard attendance links and a
+`server.js` shutdown fix, were kept.
+
+**Still open:** M5 is on a branch, not on `main`, and Arya still has to read both
+M1 and M5.
+
 ### 2026-08-30 Rishi, M5 screens and the station clock
 
 **What was built:** branch `feat/m5/attendance-screens`. It merges

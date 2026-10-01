@@ -239,6 +239,8 @@ For example, orders is indexed on `{ restaurantId: 1, createdAt: -1 }`.
 
 An index that does not start with `restaurantId` is almost always a mistake.
 
+Indexes are built by `npm run db:indexes`, on every deploy. In production the server refuses to start while any declared index is missing. A new model file is added to `server/models/index.js`, and a test enforces it. Indexes are never dropped by a script.
+
 ---
 
 ## 5. Money
@@ -360,6 +362,8 @@ Every variable used anywhere is listed in `.env.example` with a fake value.
 If you add a variable, add it to `.env.example` in the same commit, and tell the other developer.
 
 The server refuses to start if a required variable is missing. Fail loudly at boot, not quietly at 9pm.
+
+`TRUST_PROXY` must be set explicitly in production. Never `true`.
 
 ---
 

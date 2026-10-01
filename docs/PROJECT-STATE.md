@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-09-30 by Arya
+Last updated: 2026-10-01 by Arya
 
 ---
 
@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P01, production safety.
+Next: P02, settings for feature switches and the invoice series.
 
 ---
 
@@ -268,6 +268,9 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-09-30 | Work is committed directly to `main`. No feature branches. This replaces the branch rule in `docs/CONVENTIONS.md` section 9. | Two developers, one owner per module, so branches add steps without preventing conflicts. Pull before starting and push after finishing still apply. |
 | 2026-09-30 | `CLAUDE.md` loads only the short docs every session. The long specs are read in part, when a task needs them. | The old imports loaded about 7,800 lines into every session |
 | 2026-09-30 | Session entries older than the newest ten moved to `docs/archive/SESSION-LOG.md`, and `docs/PROJECT-PLAN_1.md` moved to `docs/archive/` | This file said to keep about ten entries. The plan file only covered M0 to M2 and was out of date. |
+| 2026-10-01 | Indexes are built by an explicit script on every deploy, never on boot and never by `syncIndexes`. The production server refuses to start while a declared index is missing. | `autoIndex` stays off in production so a live server never builds an index mid-service, and the boot check makes a missing guard impossible to miss. `syncIndexes` drops indexes it does not know about, so it is never used. |
+| 2026-10-01 | `TRUST_PROXY` must be set explicitly in production, and `true` is refused. | Off behind a proxy makes one failed login lock out every device. `true` lets any client fake its address and skip the login limit. |
+| 2026-10-01 | Client default dates use the business date, mirrored from `server/utils/time.js` in `client/src/utils/formatDate.js`. | The bills list showed nothing after midnight while the cafe was still billing the same business day. |
 
 ---
 
@@ -287,6 +290,68 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Arya, P01 production safety
+
+What was built or decided:
+The existing code is now safe on a fresh production database behind a cloud
+host's proxy. No endpoint, model, schema or validator changed.
+
+Indexes: `server/models/index.js` lists all 16 models, and a test fails if a
+model file is left off it. `services/indexService.js` finds missing and extra
+indexes with `Model.diffIndexes()` (checked against the installed Mongoose
+8.24.4 first) and builds missing ones one at a time with `createIndexes`. It
+never drops anything. `npm run db:indexes` runs it and exits 1 on any failure.
+In production, `startServer()` logs every missing index and exits until the
+script has been run. There is no flag that skips it.
+
+`TRUST_PROXY`: parsed by `config/trustProxy.js` into false, a hop count from 1
+to 10, or a list of addresses. `true` is refused with a sentence saying why.
+Required in production, even if only `false`. `app.set('trust proxy', ...)`
+reads it, and startup logs it in plain words.
+
+Time: the kitchen screen formats fire time through `formatTimeIst`. The hourly
+report reads `config.DISPLAY_TIMEZONE`. The bills list and the attendance
+register default to today's business date through `businessDateToday()`, a
+mirror of `businessDateFor` in `client/src/utils/formatDate.js`, tested to agree
+with the server. `lastNDays` now uses the same mirror, and its output was
+checked to be identical to the old version. `todayIso` is gone.
+
+`client/vite.config.js` builds without a `.env` and without `CLIENT_ORIGIN`.
+
+The seed script was not changed. It already refuses in production before
+connecting, and that was confirmed.
+
+Verified live, not only by tests, against a throwaway local MongoDB: a
+production boot on an empty database refused with 82 missing indexes;
+`db:indexes` in production mode created all 82; the server then booted and
+listened; a second `db:indexes` run created nothing.
+
+Tests: 551 passing before, 578 after, 0 failing either time. The two
+"no hardcoded time zone" tests were broken on purpose by putting the old bugs
+back, and each failed.
+
+Files or endpoints touched:
+New: `server/models/index.js`, `server/services/indexService.js`,
+`server/scripts/buildIndexes.js`, `server/config/trustProxy.js`, tests
+`indexes.test.js`, `trustProxy.test.js`, `timeDisplay.test.js`.
+Changed: `server/server.js`, `server/config/env.js`,
+`server/services/salesReportService.js`, `server/tests/app.test.js`, both
+`package.json` files, `.env.example`, `client/vite.config.js`,
+`client/src/utils/formatDate.js`, `KitchenDisplayPage.jsx`,
+`BillsListPage.jsx`, `AttendanceRegisterPage.jsx`, `ReportShell.jsx`.
+
+Anything the other developer needs to know:
+Add `TRUST_PROXY=` to your own `.env` if you want it explicit; absent means
+false outside production. Every deploy runs `npm run db:indexes` before
+starting the server. A new model file goes into `server/models/index.js` or the
+suite fails. `npm test` needs a root `.env` with real-looking secrets, as well as
+`server/.env.test`: a fresh clone without one fails 18 test files at the
+environment check, not in the code.
+
+Anything now blocked or unblocked:
+P02 can start. P12 (deployment) now has a deploy step to run and an
+environment variable to set.
 
 ### 2026-09-30 Arya, P00 adopt the Caffeza docs
 
@@ -1009,51 +1074,6 @@ to read. M3 Billing was already unblocked by M2 and is the obvious next module.
 **Still open:** Arya's read of M1 and M5. The all-roles `GET /attendance/board`
 for the clock screen. The Atlas credential in git history at 177ed9c.
 
-### 2026-08-30 Rishi, M5 pushed and merged with M2
-
-**What happened:** no new feature work. The M5 chain was pushed to the remote for
-the first time and brought up to date with the M2 module that had landed on
-`main` in the meantime.
-
-`origin/main` had moved eight commits ahead with M2 Order Taking (pull request
-#4) while the M5 chain was being built locally on top of M1. The two had never
-met. All five M5-era branches are now on the remote, and
-`feat/m5/attendance-screens` has `origin/main` merged into it, so it is the one
-branch carrying M0, M1, M2 and M5 together.
-
-**The four merge conflicts, and how each was settled**
-
-`server/routes/index.js` and `client/src/App.jsx`: both sides appended to a
-list. Resolved as a union, M2's mounts and routes before M5's.
-
-`server/utils/errors.js`: both sides appended error codes and error classes.
-Resolved as a union; all ten classes and all four new codes
-(`ALREADY_CLOCKED_IN`, `PIN_LOCKED`, `TABLE_OCCUPIED`, `VERSION_CONFLICT`)
-survive, verified by importing the module.
-
-`docs/PROJECT-STATE.md`: this file. Both sides rewrote the stage, the decision
-log, the open questions and the session log. Nothing was dropped from either
-decision log; both blocks are kept.
-
-**Two open questions closed by the merge, not by new work**
-
-The two waiters problem was answered by M2 and the business day boundary by M5
-D1. Both were still listed as open on one side or the other because neither side
-could see the other's answer. Both are now removed from Open Questions; the
-decision rows stay in the log.
-
-**One thing removed before the push**
-
-The previous tip commit carried a `scratch/` folder with two ad-hoc scripts, one
-of which set every user's password to a fixed string across every tenant with no
-`restaurantId` filter. It was rewritten out of the commit before anything was
-pushed, so it never reached the remote, and `/scratch/` is now in `.gitignore`.
-The useful parts of that commit, the dashboard attendance links and a
-`server.js` shutdown fix, were kept.
-
-**Still open:** M5 is on a branch, not on `main`, and Arya still has to read both
-M1 and M5.
-
 ---
 
 ## Known problems
@@ -1088,10 +1108,11 @@ Things that are broken or half done, so nobody rediscovers them.
 | `scripts/provisionRestaurant.js` has its own copy of the optional-transaction dance now that `utils/transaction.js` exists. Two copies of the same fallback logic is how one of them drifts, exactly like the `escapeRegex` row above. | Rishi, 2026-08-29 | OPEN. Left alone deliberately because M2 was not allowed to edit M0 code. Worth switching over in the next M0 touch. |
 | The kitchen display polls every ten seconds, so two people at the pass can briefly disagree about whether a dish is ready, and a ticket can sit on screen for up to ten seconds after it is complete. | Rishi, 2026-08-29 | OPEN by design for v1, same shape as the availability board row above. Revisit only if a pilot kitchen finds ten seconds too slow. |
 | `GET /kots` filters on a status that is derived from the ticket's lines, so the filter is applied after the page is read from the database. A page can therefore come back with fewer rows than its limit while more matching tickets exist further on. | Rishi, 2026-08-29 | OPEN and harmless at one restaurant's volume, where the whole board fits in one page. Becomes real if a kitchen ever has more than 50 open tickets. The fix is a stored status, which brings its own drift problem, so it is not obviously worth it. |
-| Unique indexes are never built in production. `config/database.js` turns `autoIndex` off when `NODE_ENV=production`, and no script runs `syncIndexes`. On a fresh production database the guards against duplicate bills and double-booked tables would not exist. | Audit, 2026-09-29 | OPEN. P01 adds `npm run db:indexes` and a boot check. |
-| `trust proxy` is off, so behind a host's proxy every device shares one address, and one failed login rate-limits everyone | Audit, 2026-09-29 | OPEN. P01. |
-| `npm run build` crashes with "Invalid URL" when `.env` is missing, from `client/vite.config.js` | Audit, 2026-09-29 | OPEN. P01. |
-| The kitchen display shows ticket times in the tablet's own time zone, `KitchenDisplayPage.jsx` line 221 | Audit, 2026-09-29 | OPEN. P01. |
-| The hourly report hardcodes `'Asia/Kolkata'` instead of reading `DISPLAY_TIMEZONE`, `salesReportService.js` line 195 | Audit, 2026-09-29 | OPEN. P01. |
-| `scripts/seedDemo.js` can run against a production database | Audit, 2026-09-29 | OPEN. P01 blocks it when `NODE_ENV=production`. |
-| The database-backed tests were not run during the audit. Only the money, tax and unit tests were. | Audit, 2026-09-29 | OPEN. Run `npm test` and record the count here. |
+| Unique indexes are never built in production. `config/database.js` turns `autoIndex` off when `NODE_ENV=production`, and no script runs `syncIndexes`. On a fresh production database the guards against duplicate bills and double-booked tables would not exist. | Audit, 2026-09-29 | FIXED in P01. |
+| `trust proxy` is off, so behind a host's proxy every device shares one address, and one failed login rate-limits everyone | Audit, 2026-09-29 | FIXED in P01. |
+| `npm run build` crashes with "Invalid URL" when `.env` is missing, from `client/vite.config.js` | Audit, 2026-09-29 | FIXED in P01. |
+| The kitchen display shows ticket times in the tablet's own time zone, `KitchenDisplayPage.jsx` line 221 | Audit, 2026-09-29 | FIXED in P01. |
+| The hourly report hardcodes `'Asia/Kolkata'` instead of reading `DISPLAY_TIMEZONE`, `salesReportService.js` line 195 | Audit, 2026-09-29 | FIXED in P01. |
+| `scripts/seedDemo.js` can run against a production database | Audit, 2026-09-29 | NOT A PROBLEM. `assertSafeToSeed` already refuses outside development and test, before connecting. Confirmed in P01. |
+| The database-backed tests were not run during the audit. Only the money, tax and unit tests were. | Audit, 2026-09-29 | DONE in P01: 578 passing, 0 failing. Before P01 changed anything: 551 passing, 0 failing. |
+| Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |

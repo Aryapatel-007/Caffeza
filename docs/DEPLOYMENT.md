@@ -63,7 +63,7 @@ Check each candidate's current regions, prices and outbound IP options on its ow
 9. Write down the backup frequency and how long backups are kept, from the tier you chose. Put it in the decision log.
 
 Never run `npm run seed:demo` against either Caffeza cluster.
-P01 makes the script refuse to run when `NODE_ENV=production`.
+The script already refuses to run unless `NODE_ENV` is development or test, and refuses any host but localhost unless it is listed in `SEED_DEMO_ALLOWED_HOSTS`.
 
 ---
 

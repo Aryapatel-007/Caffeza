@@ -397,7 +397,7 @@ Run `npm test` on a laptop and record the real count.
 | Serving the built client | Missing | `server.js` does not serve `client/dist`. Serve it from Express in production, on the same domain as the API. |
 | `trust proxy` | Off | Switch on for the host's proxy |
 | Backups | Depends on the Atlas tier | A paid tier with backups switched on, plus a restore drill before go-live |
-| Separation from demo data | Missing | A separate Atlas cluster for Caffeza. `seedDemo.js` blocked when `NODE_ENV=production`. |
+| Separation from demo data | Partly done | A separate Atlas cluster for Caffeza. `seedDemo.js` already refuses to run in production. P01 confirmed it. |
 | Atlas network access | Needs setting | Allow only the server's fixed outbound address |
 | Internet at the cafe | Now required for billing | A router with a 4G or 5G backup line |
 | Printers | Cannot be reached from the cloud | Bills and KOTs print from the device in the cafe, through the browser. Chrome kiosk printing makes it silent. |
