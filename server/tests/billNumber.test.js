@@ -104,6 +104,8 @@ describe('reserveBillNumber', () => {
       billNumber: '2026-27/000001',
       financialYear: '2026-27',
       billSequence: 1,
+      // P02: the series this number belongs to. The financial year in this mode.
+      invoiceSeries: '2026-27',
     });
     assert.equal(second.billSequence, 2);
     assert.equal(second.billNumber, '2026-27/000002');

@@ -25,9 +25,9 @@ import mongoose from 'mongoose';
 import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
-import { Restaurant } from '../models/Restaurant.js';
 import { recordAudit } from './auditService.js';
 import { reserveBillNumber } from './billNumberService.js';
+import { getSettings } from './settingsService.js';
 import {
   assertBillHasLines,
   assertDiscountFits,
@@ -41,7 +41,7 @@ import { BillAlreadyExistsError, NotFoundError, TransactionRequiredError } from 
 import { sumPaise } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { computeBillTotals, resolveDiscountAmount } from '../utils/tax.js';
-import { businessDateFor, DEFAULT_BUSINESS_DAY_START_MINUTES, nowUtc } from '../utils/time.js';
+import { businessDateFor, nowUtc } from '../utils/time.js';
 
 /** Mongo's duplicate key error. */
 const DUPLICATE_KEY = 11000;
@@ -79,17 +79,6 @@ function toBillLine(line) {
     taxRateBps: line.taxRateBps,
     lineTotalInPaise,
   };
-}
-
-/** The restaurant's business-day boundary, or the default when unset. */
-async function businessDayStartFor(restaurantId, session) {
-  // Legitimate unguarded pattern: Restaurant is a tenancy root, looked up by
-  // _id taken from a verified token. DB-SCHEMA "the tenancy root exception".
-  const restaurant = await Restaurant.findById(restaurantId)
-    .select('settings')
-    .setOptions(session ? { session } : {});
-
-  return restaurant?.settings?.businessDayStartsAtMinutes ?? DEFAULT_BUSINESS_DAY_START_MINUTES;
 }
 
 /** Writes the computed figures onto a bill document. Never partially applied. */
@@ -130,9 +119,15 @@ export async function createBill(req, { orderId, version }) {
 
       const at = nowUtc();
       const totals = computeBillTotals({ lines, discount: null });
-      const startMinutes = await businessDayStartFor(req.restaurantId, session);
+      /**
+       * Read inside the transaction, so the bill is numbered from the invoice
+       * series as it is at this moment. Through settingsService, the one place
+       * any module reads configuration from.
+       */
+      const settings = await getSettings(req.restaurantId, { session });
+      const startMinutes = settings.business.businessDayStartsAtMinutes;
       const numbering = await reserveBillNumber(
-        { restaurantId: req.restaurantId, branchId: req.branchId, at },
+        { restaurantId: req.restaurantId, branchId: req.branchId, at, invoice: settings.invoice },
         session,
       );
 

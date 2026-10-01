@@ -213,6 +213,14 @@ const billSchema = new mongoose.Schema({
   /** The integer behind billNumber, so a gap is found by arithmetic. */
   billSequence: { type: Number, required: true, min: 1, validate: wholeNumber },
 
+  /**
+   * Which series the number belongs to. P02. The financial year, "2026-27", in
+   * FINANCIAL_YEAR mode, or the prefix, "CFA/C/", in PREFIX mode. Null on bills
+   * created before P02, which means the financial year series. The M19 invoice
+   * register groups by it.
+   */
+  invoiceSeries: { type: String, trim: true, default: null },
+
   orderId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Order' },
 
   /** Snapshots, so a bill reads without a join. */

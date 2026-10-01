@@ -17,14 +17,24 @@
  * and it is the reason a session is a required argument rather than an option.
  */
 import { Counter, COUNTER_NAMES } from '../models/Counter.js';
+import { INVOICE_MODES } from '../models/Restaurant.js';
 import { TransactionRequiredError } from '../utils/errors.js';
 import { financialYearFor } from '../utils/time.js';
+import { prefixCounterScope } from './settingsService.js';
 
 /** 2026-27/000148. Zero-padded so numbers sort as strings and read as a series. */
 const SEQUENCE_PAD = 6;
 
 export function formatBillNumber(financialYear, sequence) {
   return `${financialYear}/${String(sequence).padStart(SEQUENCE_PAD, '0')}`;
+}
+
+/**
+ * CFA/C/22442. P02. Not padded: the series continues an existing printed run,
+ * and padding it would change how every number looks on the day of cutover.
+ */
+export function formatPrefixBillNumber(prefix, sequence) {
+  return `${prefix}${sequence}`;
 }
 
 /**
@@ -38,7 +48,7 @@ export function formatBillNumber(financialYear, sequence) {
  *
  * Returns `{ billNumber, financialYear, billSequence }`.
  */
-export async function reserveBillNumber({ restaurantId, branchId, at }, session) {
+export async function reserveBillNumber({ restaurantId, branchId, at, invoice = null }, session) {
   if (!restaurantId || !branchId) {
     throw new Error('reserveBillNumber() needs a restaurantId and a branchId.');
   }
@@ -47,6 +57,10 @@ export async function reserveBillNumber({ restaurantId, branchId, at }, session)
   }
 
   const financialYear = financialYearFor(at);
+
+  if (invoice?.mode === INVOICE_MODES.PREFIX) {
+    return reservePrefixNumber({ restaurantId, branchId, financialYear, invoice }, session);
+  }
 
   const counter = await Counter.findOneAndUpdate(
     { restaurantId, branchId, name: COUNTER_NAMES.BILL, scope: financialYear },
@@ -58,7 +72,55 @@ export async function reserveBillNumber({ restaurantId, branchId, at }, session)
     billNumber: formatBillNumber(financialYear, counter.value),
     financialYear,
     billSequence: counter.value,
+    invoiceSeries: financialYear,
   };
 }
 
-export default { formatBillNumber, reserveBillNumber };
+/**
+ * PREFIX mode. P02.
+ *
+ * The counter is scoped to the prefix, not the financial year, so it never
+ * resets. A brand-new series is created at `startingNumber - 1` by
+ * $setOnInsert, then the same atomic $inc as the financial-year path hands out
+ * `startingNumber` itself. Both writes are inside the bill's transaction, so a
+ * failed insert rolls the series back with it, including its creation.
+ *
+ * Two steps rather than one upsert with both operators, because $setOnInsert
+ * and $inc cannot both write `value` in one update. The filter names every
+ * field of the unique index, so two transactions racing to create the series
+ * collide on it and `withTransaction` retries the loser.
+ */
+async function reservePrefixNumber({ restaurantId, branchId, financialYear, invoice }, session) {
+  const { prefix, startingNumber } = invoice;
+  if (!prefix || !Number.isInteger(startingNumber) || startingNumber < 1) {
+    throw new Error('A PREFIX invoice series needs a prefix and a whole starting number.');
+  }
+
+  const filter = {
+    restaurantId,
+    branchId,
+    name: COUNTER_NAMES.BILL,
+    scope: prefixCounterScope(prefix),
+  };
+
+  await Counter.updateOne(
+    filter,
+    { $setOnInsert: { value: startingNumber - 1 } },
+    { upsert: true, session },
+  );
+
+  const counter = await Counter.findOneAndUpdate(
+    filter,
+    { $inc: { value: 1 } },
+    { new: true, session },
+  );
+
+  return {
+    billNumber: formatPrefixBillNumber(prefix, counter.value),
+    financialYear,
+    billSequence: counter.value,
+    invoiceSeries: prefix,
+  };
+}
+
+export default { formatBillNumber, formatPrefixBillNumber, reserveBillNumber };
