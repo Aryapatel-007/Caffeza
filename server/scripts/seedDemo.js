@@ -31,6 +31,7 @@ import mongoose from 'mongoose';
 
 import { config } from '../config/env.js';
 import { connectDatabase, disconnectDatabase } from '../config/database.js';
+import { ALL_MODELS } from '../models/index.js';
 import { createApp } from '../server.js';
 import { runProvisioning } from './provisionRestaurant.js';
 
@@ -97,22 +98,14 @@ async function request(method, path, { body, token } = {}) {
  * Idempotency: wipe any prior demo restaurant by name before rebuilding.
  * ---------------------------------------------------------------------- */
 
-const SCOPED_COLLECTIONS = [
-  'attendanceentries',
-  'auditlogs',
-  'bills',
-  'categories',
-  'counters',
-  'ingredients',
-  'kots',
-  'menuitems',
-  'orders',
-  'recipes',
-  'refreshtokens',
-  'stockmovements',
-  'tables',
-  'users',
-];
+/**
+ * Every collection scoped to a restaurant, from the model registry, so a model
+ * added later is wiped too. The fixed list this replaced stopped at M4 and left
+ * stations, payment methods, accounts and Day Close records behind (fixed in P11).
+ */
+const SCOPED_COLLECTIONS = ALL_MODELS.map((model) => model.collection.collectionName).filter(
+  (name) => name !== 'restaurants' && name !== 'branches',
+);
 
 async function wipeExistingDemoRestaurant(name) {
   const db = mongoose.connection.db;

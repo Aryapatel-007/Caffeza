@@ -1,0 +1,37 @@
+# PARTIAL MENU for staging and training only. Built from docs/CAFFEZA-PROFILE.md section 9 and the golden day in docs/TEST-DATA.md.
+# Replace it with Caffeza's full menu export, converted to this format, before cutover.
+category,item,size,price,gst_percent,available
+Back To School,Piri Piri Crinkle Fries,,240.00,5,yes
+Back To School,Mexican Nachos,,240.00,5,yes
+Dessert,Tiramisu Brownie,,320.00,5,yes
+Dessert,Chocolate Fondue,,350.00,5,yes
+Dessert,Cafezza Sunday,,260.00,5,yes
+Pasta,Creamy Pesto Pasta,,430.00,5,yes
+Pasta,Lasagna Roll Ups with Truffle Cream,,360.00,5,yes
+Pizza,Half & Half Pizza,,380.00,5,yes
+Pizza,Piri Piri Paneer Pizza,,330.00,5,yes
+Pizza,Cheesy Tornado,,360.00,5,yes
+Deconstructed Bowls,Chilli Garlic Chimichurri Noodle Bowl,,400.00,5,yes
+Deconstructed Bowls,Mexican Bowl,,400.00,5,yes
+Deconstructed Bowls,Korean Ramen Noodle Bowl,,400.00,5,yes
+Cafezza Shakes,Ferrero Hazelnut Shake,,330.00,5,yes
+Italian Coffees,Mocha Flower,,280.00,5,yes
+Italian Coffees,Caffe Latte,,220.00,5,yes
+Cafezza Mains,Indian Platters,,450.00,5,yes
+Cafezza Mains,Chole Kulcha Platter,,350.00,5,yes
+Cafezza Mains,Mumbaiya Pav Bhaji Platter,,450.00,5,yes
+Cafezza Mains,Thecha Paneer Chilli,,390.00,5,yes
+Coolers Cafezza,Passion Fruit Orange Mojito,,280.00,5,yes
+Sandwiches & Wraps,Grilled Tofu Cream Cheese Avocado Focaccia Bagel,,320.00,5,yes
+Sandwiches & Wraps,Masala Pav Sandwich,,175.00,5,yes
+Sandwiches & Wraps,College Sandwich,,230.00,5,yes
+Flavoured Coffee,Classic Cold Cafezza,,260.00,5,yes
+Flavoured Coffee,Hot Chocolate,,250.00,5,yes
+Cold Beverages,Water Bottle,,47.61,5,yes
+Cold Beverages,Fanta,,95.23,5,yes
+Extras,Extra Charges,,30.00,5,yes
+Extras,Extra Pav,,60.00,5,yes
+Assorted Teas,Masala Tea,,90.00,5,yes
+Bhel 2.0,Sev Poori,,180.00,5,yes
+Accompaniments,Roasted Papad,,80.00,5,yes
+Accompaniments,Laccha Tawa Paratha,,80.00,5,yes

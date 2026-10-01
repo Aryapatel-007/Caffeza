@@ -1,0 +1,247 @@
+{
+  "restaurant": {
+    "name": "Cafezza",
+    "legalName": "TO CONFIRM",
+    "gstin": "24AARFT4546K1ZM",
+    "fssaiLicenseNumber": "TO CONFIRM",
+    "address": {
+      "line1": "TO CONFIRM",
+      "city": "Gandhinagar",
+      "state": "Gujarat",
+      "pincode": "TO CONFIRM"
+    },
+    "contactPhone": "TO CONFIRM"
+  },
+  "settings": {
+    "businessDayStartsAtMinutes": 300,
+    "features": {
+      "inventory": false,
+      "attendance": false
+    },
+    "receipt": {
+      "headerLine2": "TO CONFIRM"
+    },
+    "delivery": {
+      "platformCollectsGst": true
+    },
+    "discounts": {
+      "cashierMayApplyPlatformDiscounts": false
+    },
+    "dayClose": {
+      "showCashDifferenceToManager": false
+    }
+  },
+  "stations": [
+    {
+      "name": "Live Kitchen",
+      "displayOrder": 0,
+      "printsTickets": false
+    },
+    {
+      "name": "Beverages",
+      "displayOrder": 1,
+      "printsTickets": false
+    }
+  ],
+  "categoryStations": {
+    "Italian Coffees": "Beverages",
+    "Flavoured Coffee": "Beverages",
+    "Cafezza Shakes": "Beverages",
+    "Coolers Cafezza": "Beverages",
+    "Cold Beverages": "Beverages",
+    "Fresh Fruit Juices And Detox": "Beverages",
+    "Boba Teas": "Beverages",
+    "Iced Tea": "Beverages",
+    "Assorted Teas": "Beverages"
+  },
+  "defaultStation": "Live Kitchen",
+  "tables": {
+    "section": "Cafe",
+    "names": [
+      "Table 1",
+      "Table 2",
+      "Table 3",
+      "Table 4",
+      "Table 5",
+      "Table 6",
+      "Table 7",
+      "Table 8",
+      "Table 9",
+      "Table 10",
+      "Table 11",
+      "Table 12",
+      "Table 14",
+      "Table 15",
+      "Table 16",
+      "Table 17",
+      "Table 18",
+      "Table 19",
+      "Table 20",
+      "Table 21",
+      "Table 22",
+      "Table 23",
+      "Table 24",
+      "Table 25",
+      "Table 26",
+      "Table 27",
+      "Table 28",
+      "Table 29",
+      "Table 30",
+      "Table 31",
+      "Table 32",
+      "Table 33",
+      "Table 34",
+      "Table 35"
+    ],
+    "seats": 4
+  },
+  "paymentMethods": [
+    {
+      "code": "CASH",
+      "name": "Cash",
+      "kind": "IN_HAND",
+      "orderTypes": [
+        "DINE_IN",
+        "TAKEAWAY",
+        "DELIVERY"
+      ],
+      "tallyLedgerCode": "P01",
+      "displayOrder": 0
+    },
+    {
+      "code": "CARD",
+      "name": "Card",
+      "kind": "IN_HAND",
+      "orderTypes": [
+        "DINE_IN",
+        "TAKEAWAY",
+        "DELIVERY"
+      ],
+      "tallyLedgerCode": "P02",
+      "displayOrder": 1
+    },
+    {
+      "code": "UPI",
+      "name": "UPI",
+      "kind": "IN_HAND",
+      "orderTypes": [
+        "DINE_IN",
+        "TAKEAWAY",
+        "DELIVERY"
+      ],
+      "tallyLedgerCode": "543",
+      "displayOrder": 2
+    },
+    {
+      "code": "ZOMATO_GOLD",
+      "name": "Zomato Gold",
+      "kind": "PLATFORM",
+      "orderTypes": [
+        "DINE_IN"
+      ],
+      "tallyLedgerCode": "645",
+      "commissionBps": "TO CONFIRM",
+      "displayOrder": 3
+    },
+    {
+      "code": "DINEOUT",
+      "name": "Dine out",
+      "kind": "PLATFORM",
+      "orderTypes": [
+        "DINE_IN"
+      ],
+      "tallyLedgerCode": "654",
+      "commissionBps": "TO CONFIRM",
+      "displayOrder": 4
+    },
+    {
+      "code": "EAZYDINER",
+      "name": "Easydiner",
+      "kind": "PLATFORM",
+      "orderTypes": [
+        "DINE_IN"
+      ],
+      "tallyLedgerCode": "821",
+      "commissionBps": "TO CONFIRM",
+      "displayOrder": 5
+    },
+    {
+      "code": "ZOMATO",
+      "name": "Zomato",
+      "kind": "PLATFORM",
+      "orderTypes": [
+        "DELIVERY"
+      ],
+      "platformCode": "ZOMATO",
+      "tallyLedgerCode": "827",
+      "commissionBps": "TO CONFIRM",
+      "displayOrder": 6
+    },
+    {
+      "code": "SWIGGY",
+      "name": "Swiggy",
+      "kind": "PLATFORM",
+      "orderTypes": [
+        "DELIVERY"
+      ],
+      "platformCode": "SWIGGY",
+      "tallyLedgerCode": "868",
+      "commissionBps": "TO CONFIRM",
+      "displayOrder": 7
+    }
+  ],
+  "accounts": [
+    {
+      "name": "E-210 Office",
+      "openingBalanceInPaise": "TO CONFIRM"
+    },
+    {
+      "name": "W-330 Office",
+      "openingBalanceInPaise": "TO CONFIRM"
+    }
+  ],
+  "staff": [
+    {
+      "name": "Ranjeet Paswan",
+      "phone": "TO CONFIRM",
+      "role": "WAITER"
+    },
+    {
+      "name": "Budha Singh",
+      "phone": "TO CONFIRM",
+      "role": "WAITER"
+    },
+    {
+      "name": "Ratandip",
+      "phone": "TO CONFIRM",
+      "role": "WAITER"
+    },
+    {
+      "name": "Khuman Singh",
+      "phone": "TO CONFIRM",
+      "role": "WAITER"
+    },
+    {
+      "name": "Devendra Singh",
+      "phone": "TO CONFIRM",
+      "role": "WAITER"
+    },
+    {
+      "name": "Counter",
+      "phone": "TO CONFIRM",
+      "role": "CASHIER"
+    },
+    {
+      "name": "Live Kitchen",
+      "phone": "TO CONFIRM",
+      "role": "KITCHEN",
+      "station": "Live Kitchen"
+    },
+    {
+      "name": "Beverages",
+      "phone": "TO CONFIRM",
+      "role": "KITCHEN",
+      "station": "Beverages"
+    }
+  ]
+}

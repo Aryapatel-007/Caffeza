@@ -21,7 +21,9 @@
     "lint": "eslint .",
     "provision:restaurant": "npm run provision:restaurant --workspace=server",
     "seed:demo": "npm run seed:demo --workspace=server",
-    "db:indexes": "npm run db:indexes --workspace=server"
+    "db:indexes": "npm run db:indexes --workspace=server",
+    "setup:restaurant": "npm run setup:restaurant --workspace=server --",
+    "import:menu": "npm run import:menu --workspace=server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
