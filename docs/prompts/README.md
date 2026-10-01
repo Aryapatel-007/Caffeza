@@ -8,9 +8,9 @@ The full table, with dependencies and owners, is in
 |---|---|---|
 | P00 | Adopt the Caffeza docs | Done |
 | P01 | Production safety | Done |
-| P02 | Settings: feature switches and invoice series | Not run |
-| P03 | Bill snapshots and line shares | Not run |
-| P04 | Cancel reasons and variant check | Not run |
+| P02 | Settings: feature switches and invoice series | Done |
+| P03 | Bill snapshots and line shares | Done |
+| P04 | Cancel reasons and variant check | Done |
 | P05 | Kitchen stations | Not run |
 | P06 | Delivery and platform orders | Not run |
 | P07 | Settlement spec | Not run |

@@ -1,5 +1,194 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-08-30 Rishi, M3 backend and the pre-flight fixes
+
+**What was built:** the M3 Billing server, on `feat/m3/billing`, against the
+spec committed first on `chore/m3/pre-flight`. Eight endpoints, two collections,
+75 new tests. 427 in the suite overall, all passing. Lint clean, client builds.
+No React screens yet.
+
+**Five pre-flight fixes, before any M3 code**
+
+The order line's `taxRateBasisPoints` was renamed to `taxRateBps`, matching M1
+and DB-SCHEMA section 6, so M3 does not inherit two spellings of one quantity.
+No production data exists; the four demo orders on Atlas carrying the old key
+were migrated in place rather than dropped, because a teammate is actively
+using that cluster.
+
+The `skipTenantGuard` tripwire now counts call sites per file instead of
+listing filenames, and was verified by adding a fifth use and watching the
+suite fail. The real sanctioned count is four, not three.
+
+Email login was audited against the three anti-enumeration guarantees the phone
+path has. All three were already met; the only defect was a comment on
+`models/User.js` still calling email "never a login identity", which is the
+sentence that talks someone into deleting the unique index.
+
+BUILD-PLAN section 9 gained spec-before-code as its first condition of done.
+
+The M2 spec backfill was reviewed rather than trusted, and that found three
+gaps and one code inconsistency. See the decision log.
+
+**Endpoints, eight, all under `/api/v1`**
+
+`POST /bills`, `GET /bills`, `GET /bills/:billId`,
+`POST /bills/:billId/discount`, `POST /bills/:billId/payments`,
+`POST /bills/:billId/void`, `GET /bills/summary`,
+`GET /bills/:billId/receipt`.
+
+**Files created**
+
+Models: `Bill.js`, `AuditLog.js`. `Counter.js` gained an additive `scope` field.
+
+Services: `billService.js`, `billPermissionService.js`, `billNumberService.js`,
+`auditService.js`, `receiptService.js`. Controller: `billController.js`.
+Routes: `billRoutes.js`. Validators: `billValidators.js`. Utils: `tax.js`.
+
+Tests: `tax.test.js` (28), `billNumber.test.js` (9), `bills.test.js` (38).
+
+**The arithmetic, which is this module's whole risk**
+
+All of it is in `server/utils/tax.js` and nothing outside that file computes
+tax. Written and tested before any controller existed, per CONVENTIONS 13.
+Three tests are marked in the file as the ones that matter: per-slab rounding
+really does differ from per-line (three lines of 3333 paise at 5% give 501 per
+line and 500 per slab), CGST takes the odd paisa across every value 0 to 500,
+and an apportioned discount puts every paisa on exactly one slab so the grand
+total reconciles with its own parts.
+
+**Three real bugs the tests found**
+
+`Bill.aggregate` was matching a string `restaurantId` against an ObjectId, so
+the bill list's running total was silently zero. An aggregation pipeline is not
+cast against the schema and `req.restaurantId` comes off the JWT as a string.
+Fixed with `scopedForAggregate` in `utils/scopedQuery.js`, which M6 will need
+too, because that module is nothing but aggregates.
+
+Adding `scope` to the counters index broke M2's `nextNumber` under concurrency.
+MongoDB can only retry a racing upsert when the query covers every field of the
+unique index, and the filter did not name `scope`. The existing M2 test caught
+it.
+
+The bill-number concurrency test passed alone and failed under the full suite,
+because index creation is asynchronous and the unique index had not finished
+building. That index is what makes the first bill of a financial year safe
+against two concurrent upserts; without it both callers get sequence 1.
+
+**What the other developer needs to know**
+
+Bill creation refuses to run without a transaction. Every other write in this
+project degrades gracefully on a standalone `mongod`; this one does not,
+because a gap-free number sequence has no degraded mode and silently issuing
+gappy numbers in development is how the pattern reaches production.
+
+The order moves to `BILLED` when the bill is **paid**, not when it is created.
+M2 decided `BILLED` frees the table, and the customers are still sitting there
+until they have paid.
+
+`billService.js` does not import the MenuItem model and must not start. A bill
+copies from the order line, which copied from the menu when the line was added.
+
+A cashier can bill and take payment but cannot discount or void. That asymmetry
+is the control this module exists to sell, not an inconsistency to tidy up.
+
+**Unblocked:** M3 screens. M4's deduction service has `wasPrepared` and the
+`auditlogs` collection to build on.
+
+**Still open:** M3 has no React screens, so it is backend-done, not done. The CA
+review and the thermal printer test are pilot gates in the known problems table
+and neither can be closed by code.
+
+### 2026-08-30 Rishi, the M2 spec backfill
+
+**What was written:** the M2 sections of `docs/API-CONTRACT.md` (sections 11 to
+13, eighteen endpoints) and `docs/DB-SCHEMA.md` (sections 8 to 11, four
+collections). No server or client code. This unblocks M3.
+
+**Why it was needed**
+
+M2 shipped and merged with no section in either spec file. M1 and M5 both wrote
+their contract first and committed it before any code; M2 did not, and nobody
+noticed until M3 was about to start. M3 is a function of M2's order shape — a
+bill is built from an order line — so specifying M3 against undocumented code
+would have been the exact guesswork CLAUDE.md forbids.
+
+Everything in the backfill was read out of the shipped models, validators,
+routes and tests. Where a claim was not obvious it was checked against the test
+that proves it: the `wasPrepared` 400-versus-422 split and the `includeInactive`
+parameter name were both verified this way rather than assumed.
+
+**What M3 most needs from it**
+
+The order line's snapshot fields are `itemName`, `unitPriceInPaise` and
+`taxRateBps`. Not `priceInPaiseSnapshot`, not `taxRateBpsSnapshot`. A bill
+copies from the line, and the line already copied from the menu. (The tax field
+was `taxRateBasisPoints` when this entry was written and was renamed later the
+same day; see the decision log.)
+
+`orders.billId` and the `BILLED` status are reserved and untouched. M2 writes
+neither.
+
+Every order write goes through `applyVersionedUpdate` with the version in the
+filter. M3 setting `BILLED` must be version-safe the same way.
+
+`counters` has no `BILL` name on purpose. The gap-tolerant reserve-then-write
+pattern is fine for order and KOT numbers and is **not** fine for bill numbers.
+M3 reserves inside the transaction that inserts the bill.
+
+**Two problems found while reading, both in the known problems table**
+
+The order line and the menu item use different names for the same price and tax
+fields. And the `skipTenantGuard` tripwire asserts on file names rather than
+call counts, so the fourth production use, added inside an already-listed file
+by the email-login work, slipped past it. The fourth use is legitimate; the
+tripwire and the "exactly three" in the docs are both now wrong.
+
+**Unblocked:** M3 Phase 0 can specify bills against a documented order shape.
+
+**Still open:** M3 and M4 have no spec sections yet. That is Phase 0 and it is
+the next session.
+
+### 2026-08-30 Rishi, M5 merged to main
+
+**What happened:** pull request #5 was merged. No code changed; this entry
+records the merge and what it means for anyone starting the next module.
+
+`main` now carries M0 (all four parts), M1, M2 and M5. 352 tests pass on `main`,
+lint is clean, and the client builds. Four of the seven v1 modules are done.
+
+**What arrived on `main` with this merge**
+
+M5 Employee Attendance in full: the `attendanceentries` collection, eleven
+endpoints, and the three React screens at `/attendance`, `/attendance/register`
+and `/attendance/me`.
+
+M0-D, which had never been on `main`: the refresh token is an httpOnly cookie
+rather than a localStorage value, `/auth/refresh` and `/auth/logout` require an
+`X-Requested-With` header, and `users` carries the `pinHash` credential.
+
+Email as a second login identity, and `--email` / `--password` on the
+provisioning script.
+
+**The one thing to know if you had the old client running**
+
+The refresh token is a cookie now and `client/src/utils/sessionStorage.js` is
+deleted. A test or a script that logs in and reads `body.data.refreshToken` will
+not find it; read the `Set-Cookie` header instead. Anyone with a stale dev
+session should sign in again rather than debug why a restore fails.
+
+**Merged without the second read**
+
+BUILD-PLAN section 9 makes "the other developer has read the code" part of the
+definition of done. Arya has read neither M1 nor M5. Rishi merged anyway, as a
+deliberate call rather than an oversight, and the review debt is recorded in the
+known problems table so it is not lost.
+
+**Unblocked:** M6's hours-worked report has `GET /attendance/summary` on `main`
+to read. M3 Billing was already unblocked by M2 and is the obvious next module.
+
+**Still open:** Arya's read of M1 and M5. The all-roles `GET /attendance/board`
+for the clock screen. The Atlas credential in git history at 177ed9c.
+
 ### 2026-08-30 Rishi, M5 pushed and merged with M2
 
 **What happened:** no new feature work. The M5 chain was pushed to the remote for

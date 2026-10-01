@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-01 by Arya
+Last updated: 2026-10-01 by Rishi
 
 ---
 
@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P02, settings for feature switches and the invoice series.
+Next: P05, kitchen stations.
 
 ---
 
@@ -40,7 +40,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M4 | Inventory with recipe deduction | Arya | IN PROGRESS | Feature-complete on `feat/m4/inventory` and verified end to end against the live Atlas cluster. Eleven endpoints, three collections, 51 tests, three screens. Built by Rishi, off the listed owner, the same crossing as M1 and M5. Not done under BUILD-PLAN section 9: Arya has not read it. Switched off for the Caffeza go-live by P02. |
 | M5 | Employee Attendance | Arya | DONE | Built by Rishi, not the listed owner, the same crossing as M1. Merged to `main` on 2026-08-30 via pull request #5. Eleven endpoints including `POST /attendance/station/clock` wired to `authService.verifyPin`, and three React screens (the clock, the register, my hours). Marked DONE on the code and the tests; Arya's read is still outstanding and is in the known problems table. Switched off for the Caffeza go-live by P02. |
 | M6 | Reports and Dashboard | Rishi | IN PROGRESS | Server and screens both built on `feat/m6/reports`: ten read-only endpoints, no collection, 34 tests, seven screens. Verified live against the seeded Atlas data, where its figures reconcile exactly with the independent Section 11 verification. Not done under BUILD-PLAN section 13: Arya has not read it. |
-| M7 | Restaurant Settings | Rishi | DONE | Phase 1B's first module. Two endpoints, no new collection: `restaurants.settings` gains `tax`, `receipt` and `inventory`, every field with a schema default so there is no migration. `settingsService` is now the only way any module reads configuration. 27 new tests. Verified live against the Atlas cluster, including a genuine pre-M7 document reading back complete. Not done under BUILD-PLAN section 13: Arya has not read it. |
+| M7 | Restaurant Settings | Rishi | DONE | Phase 1B's first module. Two endpoints, no new collection: `restaurants.settings` gains `tax`, `receipt` and `inventory`, every field with a schema default so there is no migration. `settingsService` is now the only way any module reads configuration. 27 new tests. Verified live against the Atlas cluster, including a genuine pre-M7 document reading back complete. Not done under BUILD-PLAN section 13: Arya has not read it. P02 added `settings.features` (inventory and attendance switches, enforced by `requireFeature`) and `settings.invoice` (financial-year or prefix numbering). |
 | M8 | Audit Trail | Rishi | NOT STARTED | Specified in API-CONTRACT.md. Pulled forward for Caffeza. Built in P17 part A. |
 | M10 | Payments | Rishi | NOT STARTED | Pulled forward for Caffeza with an adjusted scope: configurable payment methods including platforms. No UPI QR for go-live. P07, P08. |
 | M16 | Settlement and Day Close | Rishi | NOT STARTED | No Charge, On Hold accounts, cash drawer, Day Close. P07 to P10. |
@@ -271,6 +271,20 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | Indexes are built by an explicit script on every deploy, never on boot and never by `syncIndexes`. The production server refuses to start while a declared index is missing. | `autoIndex` stays off in production so a live server never builds an index mid-service, and the boot check makes a missing guard impossible to miss. `syncIndexes` drops indexes it does not know about, so it is never used. |
 | 2026-10-01 | `TRUST_PROXY` must be set explicitly in production, and `true` is refused. | Off behind a proxy makes one failed login lock out every device. `true` lets any client fake its address and skip the login limit. |
 | 2026-10-01 | Client default dates use the business date, mirrored from `server/utils/time.js` in `client/src/utils/formatDate.js`. | The bills list showed nothing after midnight while the cafe was still billing the same business day. |
+| 2026-10-01 | Inventory and attendance can be switched off per restaurant with `settings.features`. Enforced on the server by `requireFeature`. Inventory off also stops stock movements from firing and cancelling. | Caffeza launches without either, and a switched-off module must not quietly keep writing data. |
+| 2026-10-01 | Invoice numbering is a setting: `FINANCIAL_YEAR`, today's format, or `PREFIX`, a prefix plus a running number that never resets. Prefix up to 7 characters, number up to 9 digits. | Caffeza continues its `CFA/C/` series. The limits keep every number within the GST rule of 16 characters. |
+| 2026-10-01 | A new prefix series must start above the highest bill sequence used in the current financial year, a started series cannot be restarted, and switching back to financial-year numbering mid-year is refused. | All three protect the two unique indexes on bills, which would otherwise fail at the till. |
+| 2026-10-01 | Removed `docs/archive/PROJECT-PLAN_1.md` and `docs/PROJECT-INSTRUCTIONS.md` | Stale or duplicated elsewhere. Git history keeps both. |
+| 2026-10-01 | `requireFeature` runs after `tenant` and before `requireRole`, and with attendance off the dashboard's `staffOnShift` is `null`, not 0 | A waiter on a switched-off feature is told it is off, not that the role is wrong. Zero would claim nobody is on shift when nobody knows. |
+| 2026-10-01 | `createBill` reads settings through `settingsService.getSettings(id, { session })`, fresh and inside its own transaction | The bill is numbered from the invoice series as it is at that moment. It also retires `billService`'s private read of `businessDayStartsAtMinutes`. |
+| 2026-10-01 | The client reads `features` with one extra `GET /auth/me` after login, rather than adding it to the login response | The contract only names `GET /auth/me`. Links never draw and then disappear, because the read finishes before the user is set. |
+| 2026-10-01 | Order lines freeze `categoryId` and `categoryName` when added. Bills freeze `captainId`, `captainName`, `guestCount` and `orderOpenedAt`. | Reports must not read the live menu or join back to orders. A sale belongs to the category it was ordered under. |
+| 2026-10-01 | Each bill line stores its discount share, taxable value and GST share, split by the largest remainder method inside each tax rate, in `allocateLineShares` in `tax.js`. `computeBillTotals` is unchanged. | Category and item reports add up exactly to the bill. The split reproduces Caffeza's real bill C22276. |
+| 2026-10-01 | Old bills are not back-filled with shares or categories. | Caffeza's production database starts empty, and demo data is rebuilt by `npm run seed:demo`. |
+| 2026-10-01 | Cancel and void reasons are fixed code lists in `server/config/cancelReasons.js`, mirrored on the client, with an optional note that is required for Other. | Reports group by reason, and free text cannot be grouped. Caffeza already works with fixed reasons. |
+| 2026-10-01 | An item cancelled after preparation writes `LINE_CANCELLED_AFTER_PREP`, and a whole-order cancel now writes `ORDER_CANCELLED`, which was listed but never written. | Thrown-away food and disappearing orders are the exceptions an owner needs to see. |
+| 2026-10-01 | Ordering an unavailable variant or add-on is refused. | The kitchen switched it off for a reason. |
+| 2026-10-01 | A whole-order cancel stores its code on the order only. The lines it cancels get the note and a null `cancelReasonCode`. | The order and line lists are different, and `WRONG_TABLE` is not a line reason. R15 reads the order's code for these lines. |
 
 ---
 
@@ -284,12 +298,159 @@ Things not yet decided. Move them to the decision log once settled.
 - Everything listed in `docs/CAFFEZA-PROFILE.md` section 15, from Caffeza and from their CA.
 - Which cloud host. Decided in P12, against the rules in `docs/DEPLOYMENT.md` section 2.
 - Who applies platform discounts at the till. Our current rule allows only OWNER and MANAGER.
+- Should kitchen station logins be able to cancel items? Caffeza's stations do it today. Our rule allows OWNER, MANAGER, CASHIER and WAITER only.
 
 ---
 
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P04 cancel reasons and the variant check
+
+What was built or decided:
+Cancelling an item, cancelling an order and voiding a bill now take a fixed
+`reasonCode` plus an optional `note`, required for `OTHER`. The three lists live
+in `server/config/cancelReasons.js` and are mirrored, codes and labels only, in
+`client/src/features/orders/cancelReasons.js`; a test keeps the two identical.
+The old `reason` field is refused with a 400. The stored text fields
+(`cancelReason`, `voidReason`) now hold the note; new `cancelReasonCode` and
+`voidReasonCode` fields hold the code. Old records are not converted.
+
+A line cancelled with `wasPrepared: true` writes `LINE_CANCELLED_AFTER_PREP`.
+Every whole-order cancel writes `ORDER_CANCELLED`, which was listed since M3 and
+never written. Both are written inside the cancel's transaction, so a version
+conflict leaves no audit line. `BILL_VOIDED` now carries `reasonCode` in
+`details` and "label: note" as its reason.
+
+An unavailable variant or add-on is refused with a 422 when ordered. The menu
+already carried `isAvailable` on both, so no contract change was needed there.
+The order screen greys them out with "Out of stock".
+
+On screen: one large button per reason in the cancel and void panels (a shared
+`ReasonPicker`), the note under them, and the label plus note shown on a
+cancelled line and a voided bill.
+
+Golden day B13 is built through the API in a test: the bill is ₹420.00, with
+exactly one after-preparation audit line for ₹390.00.
+
+Files or endpoints touched:
+New: `server/config/cancelReasons.js`, `client/src/features/orders/cancelReasons.js`,
+`client/src/features/orders/ReasonPicker.jsx`, `server/tests/cancelReasons.test.js`.
+Changed: `validators/common.js` (`reasonFields`, `requireNoteForOther`),
+`orderValidators.js`, `billValidators.js`, `models/Order.js`, `models/Bill.js`,
+`models/AuditLog.js`, `controllers/orderController.js`, `services/billService.js`,
+`services/orderService.js`, `scripts/seedDemo.js`, and on the client
+`api/orders.js`, `api/bills.js`, `CancelPanel.jsx`, `OrderScreenPage.jsx`,
+`OrderLineList.jsx`, `LineOptionsPanel.jsx`, `VoidBillPanel.jsx`,
+`BillScreenPage.jsx`. Existing tests that sent `reason` now send
+`reasonCode: 'OTHER'` with the old text as the note.
+Endpoints: the request shape of `POST /orders/:id/lines/:lineId/cancel`,
+`POST /orders/:id/cancel` and `POST /bills/:id/void`.
+
+Anything the other developer needs to know:
+A whole-order cancel stores its code on the order only; the lines it cancels get
+the note and a null line code, because the two lists differ. R15 should read the
+order's code for those lines. The variant check and the reason codes landed in
+one commit, not two.
+
+Anything now blocked or unblocked:
+P05 can start. Kitchen cancelling is an open question, deliberately unchanged.
+
+### 2026-10-01 Rishi, P03 bill snapshots and line shares
+
+What was built or decided:
+Order lines now freeze `categoryId` and `categoryName` when added. Bills freeze
+`captainId`, `captainName` ("Unknown" if the user is gone), `guestCount` and
+`orderOpenedAt`. Every bill line stores `discountShareInPaise`,
+`taxableInPaise` and `taxInPaise`.
+
+`largestRemainderSplit` and `allocateLineShares` are new in `server/utils/tax.js`.
+BigInt throughout. The split works inside each tax rate and checks C2 itself
+before returning, throwing if the shares do not add up. `computeBillTotals` is
+untouched. `applyTotals` in `billService.js` now writes the shares, so creating
+a bill and discounting one use the same code.
+
+Tests reproduce every table in `docs/TEST-DATA.md` section 3 (B01, B02, B05,
+B08, B14, B16) to the paisa, and B02 again through the real API: the stored
+shares are 2268/2016/1411/403×4 and GST 2137/1899/1329/380×4, total ₹1,446.00,
+matching Caffeza bill C22276. A property test runs 2,000 seeded random bills
+(seed 20261001) and checks C1 and C2 on every one.
+
+Files or endpoints touched:
+`server/utils/tax.js`, `models/Order.js`, `models/Bill.js`,
+`services/orderService.js`, `services/billService.js`; tests in `tax.test.js`,
+`bills.test.js`, `orders.test.js`. No new endpoint. Responses gain the new
+fields; the strict request schemas still refuse them.
+
+Anything the other developer needs to know:
+Old bills have null shares and null categories, read as "not recorded". Nothing
+is back-filled; rerun `npm run seed:demo` to get demo bills with shares. There is
+no remove-discount endpoint, so test 11's "removing a discount" case does not
+apply.
+
+Anything now blocked or unblocked:
+The M19 reports have frozen values to add up.
+
+### 2026-10-01 Rishi, P02 feature switches and invoice series
+
+What was built or decided:
+Deleted `docs/archive/PROJECT-PLAN_1.md` and `docs/PROJECT-INSTRUCTIONS.md`.
+
+`settings.features` (`inventory`, `attendance`, both default true) and
+`settings.invoice` (`mode`, `prefix`, `startingNumber`) on M7. Every inventory
+route, every attendance route including the station clock, and the two matching
+reports run `requireFeature` after `tenant` and before `requireRole`, and refuse
+with 403 `FEATURE_DISABLED`. With inventory off, firing and cancelling skip the
+two stock-movement calls; nothing else about them changes. The dashboard keeps
+its shape: `lowStock` is `[]` and `staffOnShift` is `null`. `GET /auth/me` gains
+`features` for every role.
+
+`PREFIX` mode numbers bills `CFA/C/22442` onwards, never resetting, through a
+`PREFIX:<prefix>` counter created at `startingNumber - 1` inside the bill
+transaction. Every bill now has `invoiceSeries`. The three rules
+(`INVOICE_START_TOO_LOW`, `INVOICE_SERIES_STARTED`, `INVOICE_SERIES_LOCKED`) run
+in `settingsService` before the write.
+
+On screen: links, tiles and report tabs for a switched-off module are hidden; a
+switched-off screen opened by its address says so, with a link back. The
+settings page gained Features and Invoice numbers sections, a preview line and
+the accountant warning.
+
+Files or endpoints touched:
+New: `middleware/requireFeature.js`, `components/RequireFeature.jsx`, tests
+`featureSwitches.test.js` and `invoiceSeries.test.js`.
+Changed: `models/Restaurant.js`, `models/Bill.js`, `services/settingsService.js`,
+`services/billNumberService.js`, `services/billService.js`,
+`services/kitchenService.js`, `services/operationsReportService.js`,
+`controllers/orderController.js`, `controllers/authController.js`,
+`validators/settingsValidators.js`, `utils/errors.js`, the inventory, attendance
+and report routes; on the client `AuthContext.jsx`, `App.jsx`, `DashboardPage.jsx`,
+`ReportShell.jsx`, `TodayPage.jsx`, `SettingsPage.jsx`, `api/settings.js`.
+Docs: API-CONTRACT M7 and 14, DB-SCHEMA 11, 12 and 17, CONVENTIONS 3,
+CAFFEZA-PROFILE section 1 now points the legal name at `restaurants.legalName`.
+
+Anything the other developer needs to know:
+`settingsService.getSettings(id, { session })` reads fresh inside a transaction;
+`isFeatureOn(req, name)` is the one way to ask about a switch. The settings
+screen preview is exact only for a new prefix series; for a running series it
+describes the format, because the next number needs a counter read and there is
+no endpoint for it.
+
+Anything now blocked or unblocked:
+P03 can start. P11 switches both features off and sets `CFA/C/` for Caffeza.
+
+Run together for all three prompts, at the user's request, with one test run
+at the end rather than one per prompt:
+Tests: 578 passing before (P01's recorded count, not re-run first), 660 after,
+0 failing. `npm run lint` and `npm run build` pass. This machine had no
+`node_modules`, no root `.env` and no `server/.env.test`, so the suite ran after
+`npm ci` with a throwaway env file outside the repo. No env file was added to the
+repo.
+Not done: the local manual checks in each prompt's "Done when" (a prefix bill
+on screen and on the receipt, the switched-off screens in a browser,
+`npm run seed:demo` and a discounted bill, the phone-sized cancel and void
+flows). They need a running dev server and database.
 
 ### 2026-10-01 Arya, P01 production safety
 
@@ -885,195 +1046,6 @@ follow the same DESIGN-SYSTEM section 10 rules without re-deriving them.
 **Still open:** M3's two pilot gates (CA review, real printer) are unchanged.
 M4 backend and screens, and the seed data / end-to-end Atlas pass, are next.
 
-### 2026-08-30 Rishi, M3 backend and the pre-flight fixes
-
-**What was built:** the M3 Billing server, on `feat/m3/billing`, against the
-spec committed first on `chore/m3/pre-flight`. Eight endpoints, two collections,
-75 new tests. 427 in the suite overall, all passing. Lint clean, client builds.
-No React screens yet.
-
-**Five pre-flight fixes, before any M3 code**
-
-The order line's `taxRateBasisPoints` was renamed to `taxRateBps`, matching M1
-and DB-SCHEMA section 6, so M3 does not inherit two spellings of one quantity.
-No production data exists; the four demo orders on Atlas carrying the old key
-were migrated in place rather than dropped, because a teammate is actively
-using that cluster.
-
-The `skipTenantGuard` tripwire now counts call sites per file instead of
-listing filenames, and was verified by adding a fifth use and watching the
-suite fail. The real sanctioned count is four, not three.
-
-Email login was audited against the three anti-enumeration guarantees the phone
-path has. All three were already met; the only defect was a comment on
-`models/User.js` still calling email "never a login identity", which is the
-sentence that talks someone into deleting the unique index.
-
-BUILD-PLAN section 9 gained spec-before-code as its first condition of done.
-
-The M2 spec backfill was reviewed rather than trusted, and that found three
-gaps and one code inconsistency. See the decision log.
-
-**Endpoints, eight, all under `/api/v1`**
-
-`POST /bills`, `GET /bills`, `GET /bills/:billId`,
-`POST /bills/:billId/discount`, `POST /bills/:billId/payments`,
-`POST /bills/:billId/void`, `GET /bills/summary`,
-`GET /bills/:billId/receipt`.
-
-**Files created**
-
-Models: `Bill.js`, `AuditLog.js`. `Counter.js` gained an additive `scope` field.
-
-Services: `billService.js`, `billPermissionService.js`, `billNumberService.js`,
-`auditService.js`, `receiptService.js`. Controller: `billController.js`.
-Routes: `billRoutes.js`. Validators: `billValidators.js`. Utils: `tax.js`.
-
-Tests: `tax.test.js` (28), `billNumber.test.js` (9), `bills.test.js` (38).
-
-**The arithmetic, which is this module's whole risk**
-
-All of it is in `server/utils/tax.js` and nothing outside that file computes
-tax. Written and tested before any controller existed, per CONVENTIONS 13.
-Three tests are marked in the file as the ones that matter: per-slab rounding
-really does differ from per-line (three lines of 3333 paise at 5% give 501 per
-line and 500 per slab), CGST takes the odd paisa across every value 0 to 500,
-and an apportioned discount puts every paisa on exactly one slab so the grand
-total reconciles with its own parts.
-
-**Three real bugs the tests found**
-
-`Bill.aggregate` was matching a string `restaurantId` against an ObjectId, so
-the bill list's running total was silently zero. An aggregation pipeline is not
-cast against the schema and `req.restaurantId` comes off the JWT as a string.
-Fixed with `scopedForAggregate` in `utils/scopedQuery.js`, which M6 will need
-too, because that module is nothing but aggregates.
-
-Adding `scope` to the counters index broke M2's `nextNumber` under concurrency.
-MongoDB can only retry a racing upsert when the query covers every field of the
-unique index, and the filter did not name `scope`. The existing M2 test caught
-it.
-
-The bill-number concurrency test passed alone and failed under the full suite,
-because index creation is asynchronous and the unique index had not finished
-building. That index is what makes the first bill of a financial year safe
-against two concurrent upserts; without it both callers get sequence 1.
-
-**What the other developer needs to know**
-
-Bill creation refuses to run without a transaction. Every other write in this
-project degrades gracefully on a standalone `mongod`; this one does not,
-because a gap-free number sequence has no degraded mode and silently issuing
-gappy numbers in development is how the pattern reaches production.
-
-The order moves to `BILLED` when the bill is **paid**, not when it is created.
-M2 decided `BILLED` frees the table, and the customers are still sitting there
-until they have paid.
-
-`billService.js` does not import the MenuItem model and must not start. A bill
-copies from the order line, which copied from the menu when the line was added.
-
-A cashier can bill and take payment but cannot discount or void. That asymmetry
-is the control this module exists to sell, not an inconsistency to tidy up.
-
-**Unblocked:** M3 screens. M4's deduction service has `wasPrepared` and the
-`auditlogs` collection to build on.
-
-**Still open:** M3 has no React screens, so it is backend-done, not done. The CA
-review and the thermal printer test are pilot gates in the known problems table
-and neither can be closed by code.
-
-### 2026-08-30 Rishi, the M2 spec backfill
-
-**What was written:** the M2 sections of `docs/API-CONTRACT.md` (sections 11 to
-13, eighteen endpoints) and `docs/DB-SCHEMA.md` (sections 8 to 11, four
-collections). No server or client code. This unblocks M3.
-
-**Why it was needed**
-
-M2 shipped and merged with no section in either spec file. M1 and M5 both wrote
-their contract first and committed it before any code; M2 did not, and nobody
-noticed until M3 was about to start. M3 is a function of M2's order shape — a
-bill is built from an order line — so specifying M3 against undocumented code
-would have been the exact guesswork CLAUDE.md forbids.
-
-Everything in the backfill was read out of the shipped models, validators,
-routes and tests. Where a claim was not obvious it was checked against the test
-that proves it: the `wasPrepared` 400-versus-422 split and the `includeInactive`
-parameter name were both verified this way rather than assumed.
-
-**What M3 most needs from it**
-
-The order line's snapshot fields are `itemName`, `unitPriceInPaise` and
-`taxRateBps`. Not `priceInPaiseSnapshot`, not `taxRateBpsSnapshot`. A bill
-copies from the line, and the line already copied from the menu. (The tax field
-was `taxRateBasisPoints` when this entry was written and was renamed later the
-same day; see the decision log.)
-
-`orders.billId` and the `BILLED` status are reserved and untouched. M2 writes
-neither.
-
-Every order write goes through `applyVersionedUpdate` with the version in the
-filter. M3 setting `BILLED` must be version-safe the same way.
-
-`counters` has no `BILL` name on purpose. The gap-tolerant reserve-then-write
-pattern is fine for order and KOT numbers and is **not** fine for bill numbers.
-M3 reserves inside the transaction that inserts the bill.
-
-**Two problems found while reading, both in the known problems table**
-
-The order line and the menu item use different names for the same price and tax
-fields. And the `skipTenantGuard` tripwire asserts on file names rather than
-call counts, so the fourth production use, added inside an already-listed file
-by the email-login work, slipped past it. The fourth use is legitimate; the
-tripwire and the "exactly three" in the docs are both now wrong.
-
-**Unblocked:** M3 Phase 0 can specify bills against a documented order shape.
-
-**Still open:** M3 and M4 have no spec sections yet. That is Phase 0 and it is
-the next session.
-
-### 2026-08-30 Rishi, M5 merged to main
-
-**What happened:** pull request #5 was merged. No code changed; this entry
-records the merge and what it means for anyone starting the next module.
-
-`main` now carries M0 (all four parts), M1, M2 and M5. 352 tests pass on `main`,
-lint is clean, and the client builds. Four of the seven v1 modules are done.
-
-**What arrived on `main` with this merge**
-
-M5 Employee Attendance in full: the `attendanceentries` collection, eleven
-endpoints, and the three React screens at `/attendance`, `/attendance/register`
-and `/attendance/me`.
-
-M0-D, which had never been on `main`: the refresh token is an httpOnly cookie
-rather than a localStorage value, `/auth/refresh` and `/auth/logout` require an
-`X-Requested-With` header, and `users` carries the `pinHash` credential.
-
-Email as a second login identity, and `--email` / `--password` on the
-provisioning script.
-
-**The one thing to know if you had the old client running**
-
-The refresh token is a cookie now and `client/src/utils/sessionStorage.js` is
-deleted. A test or a script that logs in and reads `body.data.refreshToken` will
-not find it; read the `Set-Cookie` header instead. Anyone with a stale dev
-session should sign in again rather than debug why a restore fails.
-
-**Merged without the second read**
-
-BUILD-PLAN section 9 makes "the other developer has read the code" part of the
-definition of done. Arya has read neither M1 nor M5. Rishi merged anyway, as a
-deliberate call rather than an oversight, and the review debt is recorded in the
-known problems table so it is not lost.
-
-**Unblocked:** M6's hours-worked report has `GET /attendance/summary` on `main`
-to read. M3 Billing was already unblocked by M2 and is the obvious next module.
-
-**Still open:** Arya's read of M1 and M5. The all-roles `GET /attendance/board`
-for the clock screen. The Atlas credential in git history at 177ed9c.
-
 ---
 
 ## Known problems
@@ -1102,8 +1074,8 @@ Things that are broken or half done, so nobody rediscovers them.
 | The bill has never printed on a real thermal printer. The receipt is generated server-side at a fixed column width and snapshot tested with a 60-character dish name, but a snapshot test is not paper. | Rishi, 2026-08-30 | OPEN, and it cannot be closed by code. BUILD-PLAN section 10 requires it. To close: print on the pilot restaurant's actual printer model at both 32 and 48 columns and check that a long dish name wraps rather than pushing the amount column out of alignment. Verified 2026-08-30 over HTTP against a real 66-character seeded dish name at both widths: every line fits, the wrap indents under itself, and the amount column stays aligned -- confirms the layout logic is correct, which is not the same thing as confirming what a specific printer model does with it. |
 | M4 is Arya's module on paper and was built by Rishi: the third module built off-owner, after M1 and M5, and CONVENTIONS section 9 says one module, one owner. | Rishi, 2026-08-30 | OPEN. Logged plainly rather than left to surface in the git log. Arya has now reviewed the M2 spec backfill and caught a real error in it, so the review habit exists; the debt is that M1, M5 and now M4 all still need their owner's read. |
 | The M0 screens (login, dashboard, staff) still use the `slate-*` palette and the `brand-*` alias rather than the design system tokens. They work and look coherent because `brand-*` now points at `chana`, but they are not on the real palette. | Rishi, 2026-08-29 | OPEN. Not in M1's scope to restyle. Worth doing in the next M0 touch. |
-| Ordering an out-of-stock **variant** of an available item is not blocked. `buildLineSnapshots` checks that the menu item is active and available, exactly as section 9.3 of the M2 brief lists, and that list does not mention `variants[].isAvailable`. So "Paneer Tikka available, Half plate marked out of stock" still lets a Half plate onto an order. | Rishi, 2026-08-29 | OPEN. Implemented to the brief deliberately rather than inventing a rejection it did not ask for. One line in `services/orderService.js` if the answer is that it should be blocked. |
-| `services/billService.js` and `services/operationsReportService.js` still read `restaurant.settings.businessDayStartsAtMinutes` directly, each with its own query and its own default, rather than going through `settingsService`. The three controllers that did the same were migrated by M7; these two were not. | Rishi, 2026-08-31 | OPEN and harmless today: both reads are correct and return the same number. Left alone deliberately because they are M3 and M6 files and M7 had no mandate to touch M3's. The point of `settingsService` is that there is one place, so this should be finished on the next M3 or M6 touch. Two lines. |
+| Ordering an out-of-stock **variant** of an available item is not blocked. `buildLineSnapshots` checks that the menu item is active and available, exactly as section 9.3 of the M2 brief lists, and that list does not mention `variants[].isAvailable`. So "Paneer Tikka available, Half plate marked out of stock" still lets a Half plate onto an order. | Rishi, 2026-08-29 | FIXED in P04. Add-ons are checked too. |
+| `services/billService.js` and `services/operationsReportService.js` still read `restaurant.settings.businessDayStartsAtMinutes` directly, each with its own query and its own default, rather than going through `settingsService`. The three controllers that did the same were migrated by M7; these two were not. | Rishi, 2026-08-31 | HALF FIXED in P02: `billService.js` now reads through `settingsService`. `operationsReportService.js` still reads directly. OPEN and harmless today: both reads are correct and return the same number. Left alone deliberately because they are M3 and M6 files and M7 had no mandate to touch M3's. The point of `settingsService` is that there is one place, so this should be finished on the next M3 or M6 touch. Two lines. |
 | M2 has a second error copy map, `client/src/features/orders/errorCopy.js`, alongside M1's `features/menu/errorCopy.js`. DESIGN-SYSTEM.md section 8 asks for one. They cannot merge as they stand: M1's hard-codes menu wording for codes both modules use. | Rishi, 2026-08-29 | OPEN. The end state is one shared base map with per-module overrides, which means rewriting M1's. M2 was not scoped to change M1 code. |
 | `scripts/provisionRestaurant.js` has its own copy of the optional-transaction dance now that `utils/transaction.js` exists. Two copies of the same fallback logic is how one of them drifts, exactly like the `escapeRegex` row above. | Rishi, 2026-08-29 | OPEN. Left alone deliberately because M2 was not allowed to edit M0 code. Worth switching over in the next M0 touch. |
 | The kitchen display polls every ten seconds, so two people at the pass can briefly disagree about whether a dish is ready, and a ticket can sit on screen for up to ten seconds after it is complete. | Rishi, 2026-08-29 | OPEN by design for v1, same shape as the availability board row above. Revisit only if a pilot kitchen finds ten seconds too slow. |

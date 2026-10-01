@@ -19,7 +19,7 @@ Section 15 lists every open item in one place.
 | Tagline | "Be Caffeinated". `TO CONFIRM` whether it goes on the bill. | `settings.receipt.headerLine2` |
 | City | Gandhinagar, Gujarat | `restaurants.address.city`, `state` |
 | GSTIN | `24AARFT4546K1ZM` | `restaurants.gstin` |
-| Legal name | `TO CONFIRM` | `settings.receipt.headerLine1`, until a legal name field exists |
+| Legal name | `TO CONFIRM` | `restaurants.legalName`, set through `PATCH /restaurant` |
 | FSSAI licence number | `TO CONFIRM`. It must print on every bill. | `restaurants.fssaiLicenseNumber` |
 | Address and phone | `TO CONFIRM` | `restaurants.address` |
 
