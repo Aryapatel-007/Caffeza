@@ -186,7 +186,10 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <form onSubmit={submit} className="mx-auto grid max-w-2xl gap-6 px-4 py-6 pb-32">
+      {/* Bottom padding clears the fixed save bar, which grows by the invoice
+          warning when the series is being changed, so the last section's
+          preview line is never hidden under it. */}
+      <form onSubmit={submit} className="mx-auto grid max-w-2xl gap-6 px-4 py-6 pb-64">
         <Section
           title="Business day"
           description="When one day's takings stop and the next day's start. A restaurant that serves past midnight counts those sales under the day service began."
