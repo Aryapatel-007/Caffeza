@@ -424,7 +424,9 @@ describe('GET /auth/me', () => {
     const { status, body } = await request('GET', '/api/v1/auth/me', { token: session.accessToken });
 
     assert.equal(status, 200);
-    assert.deepEqual(Object.keys(body.data).sort(), ['branch', 'restaurant', 'user']);
+    // `features` added by P02, so every role knows which modules are switched off.
+    assert.deepEqual(Object.keys(body.data).sort(), ['branch', 'features', 'restaurant', 'user']);
+    assert.deepEqual(body.data.features, { inventory: true, attendance: true });
     assert.deepEqual(Object.keys(body.data.user).sort(), [
       'branchId', 'email', 'id', 'lastLoginAt', 'name', 'phone', 'restaurantId', 'role',
     ]);

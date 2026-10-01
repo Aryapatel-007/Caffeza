@@ -76,7 +76,8 @@ describe('inventory switched off', () => {
     assert.equal((await switchFeature(tokens.OWNER, 'inventory', false)).status, 200);
 
     for (const [method, path] of INVENTORY_ROUTES) {
-      const response = await request(method, path, { token: tokens.OWNER, body: {} });
+      const body = method === 'GET' ? undefined : {};
+      const response = await request(method, path, { token: tokens.OWNER, body });
       assert.equal(response.status, 403, `${method} ${path}`);
       assert.equal(response.body.error.code, 'FEATURE_DISABLED', `${method} ${path}`);
       assert.equal(
@@ -121,7 +122,8 @@ describe('attendance switched off', () => {
     assert.equal((await switchFeature(tokens.OWNER, 'attendance', false)).status, 200);
 
     for (const [method, path] of ATTENDANCE_ROUTES) {
-      const response = await request(method, path, { token: tokens.OWNER, body: {} });
+      const body = method === 'GET' ? undefined : {};
+      const response = await request(method, path, { token: tokens.OWNER, body });
       assert.equal(response.status, 403, `${method} ${path}`);
       assert.equal(response.body.error.code, 'FEATURE_DISABLED', `${method} ${path}`);
       assert.match(response.body.error.message, /^Attendance is switched off/);
@@ -153,7 +155,7 @@ describe('stock movements follow the inventory switch', () => {
       token: tokens.OWNER,
       body: { menuItemId: item.id, items: [{ ingredientId: paneer.id, qtyInBase: 150 }] },
     });
-    assert.equal(recipe.status, 200, JSON.stringify(recipe.body));
+    assert.equal(recipe.status, 201, JSON.stringify(recipe.body));
     return { ...floor, paneer };
   }
 
