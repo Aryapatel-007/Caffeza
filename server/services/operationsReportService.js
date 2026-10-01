@@ -15,7 +15,7 @@ import { Restaurant } from '../models/Restaurant.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { businessDateRangeToUtc, DEFAULT_BUSINESS_DAY_START_MINUTES } from '../utils/time.js';
 import { liveInRange, tenantMatch } from './reportRangeService.js';
-import { getSetting } from './settingsService.js';
+import { getSetting, isFeatureOn } from './settingsService.js';
 
 /** The restaurant's own business-day boundary. Looked up by _id from a verified token. */
 async function businessDayStartFor(restaurantId) {
@@ -208,6 +208,9 @@ export async function lowStock(req, { limit = 10 } = {}) {
    */
   if (!(await getSetting(req.restaurantId, 'inventory.lowStockAlertsEnabled', { req }))) return [];
 
+  // P02. Inventory switched off: the same empty list, the same shape.
+  if (!(await isFeatureOn(req, 'inventory'))) return [];
+
   const rows = await Ingredient.find({ ...scoped(req), isActive: true })
     .select('name currentQtyInBase baseUnit lowStockThresholdInBase')
     .lean();
@@ -225,8 +228,14 @@ export async function lowStock(req, { limit = 10 } = {}) {
     }));
 }
 
-/** How many people are clocked in right now. Not scoped to a date: "right now" has none. */
-export function staffOnShift(req) {
+/**
+ * How many people are clocked in right now. Not scoped to a date: "right now" has none.
+ *
+ * Null when attendance is switched off (P02). Not zero: zero says nobody is on
+ * shift, and with attendance off nobody knows.
+ */
+export async function staffOnShift(req) {
+  if (!(await isFeatureOn(req, 'attendance'))) return null;
   return AttendanceEntry.countDocuments({ ...scoped(req), clockOutAt: null, isVoided: false });
 }
 

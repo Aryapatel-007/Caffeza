@@ -24,6 +24,7 @@ import {
   revokeOne,
   rotateRefreshToken,
 } from '../services/tokenService.js';
+import { getSettings } from '../services/settingsService.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from '../utils/authCookie.js';
 import {
   BusinessRuleError,
@@ -204,10 +205,15 @@ export async function me(req, res) {
     restaurantId: req.restaurantId,
   });
 
+  // P02. Every role gets the feature switches, because every screen needs to
+  // know what to hide and GET /settings is owner and manager only.
+  const { features } = await getSettings(req.restaurantId, { req });
+
   return sendSuccess(res, {
     user: presentUser(req.currentUser, { includeLastLoginAt: true }),
     restaurant: presentRestaurant(req.currentRestaurant, { includeGstin: true }),
     branch: branch ? presentBranch(branch) : null,
+    features,
   });
 }
 

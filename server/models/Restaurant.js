@@ -134,6 +134,74 @@ const inventorySettingsSchema = new mongoose.Schema(
 );
 
 /**
+ * Which optional modules this restaurant uses. Added by P02.
+ *
+ * Both default to true so nothing changes for an existing restaurant. Switching
+ * one off is enforced on the server by middleware/requireFeature.js, and
+ * switching inventory off also stops firing and cancelling from writing stock
+ * movements. It never deletes data that already exists.
+ */
+const featureSettingsSchema = new mongoose.Schema(
+  {
+    inventory: { type: Boolean, required: true, default: true },
+    attendance: { type: Boolean, required: true, default: true },
+  },
+  { _id: false },
+);
+
+/** How bill numbers are formed. Added by P02. */
+export const INVOICE_MODES = Object.freeze({
+  FINANCIAL_YEAR: 'FINANCIAL_YEAR',
+  PREFIX: 'PREFIX',
+});
+export const INVOICE_MODE_VALUES = Object.freeze(Object.values(INVOICE_MODES));
+
+/**
+ * GST allows an invoice number of at most 16 characters, using only letters,
+ * digits, `-` and `/`. A 7-character prefix plus a 9-digit number is 16, so no
+ * number a prefix series issues can break that rule.
+ */
+export const INVOICE_PREFIX_MAX_LENGTH = 7;
+export const INVOICE_PREFIX_PATTERN = /^[A-Za-z0-9/-]{1,7}$/;
+export const INVOICE_MAX_STARTING_NUMBER = 999_999_999;
+
+/**
+ * The invoice series. `FINANCIAL_YEAR` is M3's original "2026-27/000148".
+ * `PREFIX` is a prefix plus a running number that never resets, "CFA/C/22442",
+ * so Caffeza can continue the series their old system was issuing.
+ *
+ * The rules that stop a change here from breaking the unique indexes on
+ * `bills` live in settingsService, because they read the database.
+ */
+const invoiceSettingsSchema = new mongoose.Schema(
+  {
+    mode: {
+      type: String,
+      required: true,
+      enum: INVOICE_MODE_VALUES,
+      default: INVOICE_MODES.FINANCIAL_YEAR,
+    },
+    prefix: {
+      type: String,
+      trim: true,
+      maxlength: INVOICE_PREFIX_MAX_LENGTH,
+      default: null,
+    },
+    startingNumber: {
+      type: Number,
+      min: 1,
+      max: INVOICE_MAX_STARTING_NUMBER,
+      default: null,
+      validate: {
+        validator: (value) => value === null || value === undefined || Number.isInteger(value),
+        message: 'Must be a whole number.',
+      },
+    },
+  },
+  { _id: false },
+);
+
+/**
  * Restaurant-level settings. Every field has a default, which is what makes M7
  * a no-migration change: a document written before M7 reads back a complete
  * settings object because Mongoose fills missing paths on read.
@@ -174,6 +242,8 @@ const settingsSchema = new mongoose.Schema(
     tax: { type: taxSettingsSchema, default: () => ({}) },
     receipt: { type: receiptSettingsSchema, default: () => ({}) },
     inventory: { type: inventorySettingsSchema, default: () => ({}) },
+    features: { type: featureSettingsSchema, default: () => ({}) },
+    invoice: { type: invoiceSettingsSchema, default: () => ({}) },
   },
   { _id: false },
 );

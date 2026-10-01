@@ -27,6 +27,7 @@ import {
 // one, because a KOT that exists with no matching deduction (or the reverse)
 // is exactly the kind of drift a transaction exists to prevent.
 import { deductForFiredLines } from './stockMovementService.js';
+import { isFeatureOn } from './settingsService.js';
 
 export const KOT_STATUSES = Object.freeze({
   PENDING: 'PENDING',
@@ -99,6 +100,10 @@ export async function fireOrder(req, { orderId, version }) {
   const kotId = new mongoose.Types.ObjectId();
   const firedAt = new Date();
 
+  // P02. Read once, before the transaction. A restaurant with inventory
+  // switched off fires exactly as before and writes no stock movement.
+  const inventoryOn = await isFeatureOn(req, 'inventory');
+
   const result = await withOptionalTransaction(
     async (session) => {
       const options = session ? { session } : {};
@@ -159,7 +164,9 @@ export async function fireOrder(req, { orderId, version }) {
        * `menuItemId`, `variantId` and `quantity` -- everything the recipe
        * lookup needs -- so there is no second read of the order here.
        */
-      await deductForFiredLines(req, { lines: pending, orderId: order._id, at: firedAt }, session);
+      if (inventoryOn) {
+        await deductForFiredLines(req, { lines: pending, orderId: order._id, at: firedAt }, session);
+      }
 
       return { kot, order: updatedOrder };
     },

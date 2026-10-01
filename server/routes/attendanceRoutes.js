@@ -30,6 +30,7 @@ import {
 } from '../controllers/attendanceController.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/permission.js';
+import { requireFeature } from '../middleware/requireFeature.js';
 import { tenant } from '../middleware/tenant.js';
 import { validate } from '../middleware/validate.js';
 import {
@@ -44,10 +45,19 @@ import {
 
 const router = Router();
 
+/**
+ * Every route here, the station clock included, is refused with 403
+ * FEATURE_DISABLED when the restaurant has switched attendance off (P02). The
+ * station clock authenticates with the tablet's ordinary session, so its tenant
+ * is known after `tenant` like every other route here.
+ */
+const attendanceOn = requireFeature('attendance');
+
 /** Every staff member. Clocking your own shift and reading your own hours. */
 const anySignedIn = [
   authenticate,
   tenant,
+  attendanceOn,
   requireRole(
     ROLES.OWNER,
     ROLES.MANAGER,
@@ -59,7 +69,12 @@ const anySignedIn = [
 ];
 
 /** The register, corrections and the summary. */
-const attendanceAdmin = [authenticate, tenant, requireRole(ROLES.OWNER, ROLES.MANAGER)];
+const attendanceAdmin = [
+  authenticate,
+  tenant,
+  attendanceOn,
+  requireRole(ROLES.OWNER, ROLES.MANAGER),
+];
 
 // Self-service. No params, query or body, so no validate().
 router.post('/attendance/clock-in', ...anySignedIn, clockInSelf);

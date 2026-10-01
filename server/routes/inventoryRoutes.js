@@ -12,7 +12,7 @@
  * modules close together.
  *
  * Middleware order is docs/CONVENTIONS.md section 8:
- * authenticate, tenant, permission, validate, controller.
+ * authenticate, tenant, feature switch, permission, validate, controller.
  */
 import { Router } from 'express';
 
@@ -34,6 +34,7 @@ import {
 } from '../controllers/recipeController.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/permission.js';
+import { requireFeature } from '../middleware/requireFeature.js';
 import { tenant } from '../middleware/tenant.js';
 import { validate } from '../middleware/validate.js';
 import {
@@ -52,7 +53,12 @@ import {
 
 const router = Router();
 
-const base = [authenticate, tenant];
+/**
+ * Every route here is refused with 403 FEATURE_DISABLED when the restaurant has
+ * switched inventory off (P02). Before the role check, so a cook is told the
+ * feature is off rather than that their role is not allowed.
+ */
+const base = [authenticate, tenant, requireFeature('inventory')];
 
 /** OWNER, MANAGER, STOREKEEPER: the people who touch physical stock. */
 const stockKeepers = [...base, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.STOREKEEPER)];

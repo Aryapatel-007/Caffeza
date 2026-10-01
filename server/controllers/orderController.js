@@ -27,6 +27,7 @@ import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/
 // and it was never actually made, so the ingredients go back. Keyed on the
 // ledger, not on the flag alone -- see stockMovementService.js.
 import { returnStockForCancelledLine } from '../services/stockMovementService.js';
+import { isFeatureOn } from '../services/settingsService.js';
 import {
   applyVersionedUpdate,
   assertOrderIsOpen,
@@ -290,6 +291,8 @@ export async function cancelOrderLine(req, res) {
   // answered. See the note on this function.
   assertWasPreparedRule(line.status, wasPrepared);
 
+  const inventoryOn = await isFeatureOn(req, 'inventory');
+
   const updated = await withOptionalTransaction(async (session) => {
     const order2 = await applyVersionedUpdate(req, {
       orderId,
@@ -314,7 +317,8 @@ export async function cancelOrderLine(req, res) {
     // M4: it never got made, so whatever was deducted for it comes back.
     // A safe no-op if the line was still PENDING and nothing was ever
     // deducted for it in the first place.
-    if (wasPrepared === false) {
+    // P02: with inventory switched off nothing was deducted, so nothing returns.
+    if (wasPrepared === false && inventoryOn) {
       await returnStockForCancelledLine(req, { orderLineId: line._id, orderId }, session);
     }
 
@@ -494,6 +498,8 @@ export async function cancelOrder(req, res) {
     .filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED)
     .map((line) => line._id);
 
+  const inventoryOn = await isFeatureOn(req, 'inventory');
+
   const updated = await withOptionalTransaction(async (session) => {
     const cancelled = await applyVersionedUpdate(req, {
       orderId,
@@ -545,7 +551,7 @@ export async function cancelOrder(req, res) {
      * PENDING and never fired -- returnStockForCancelledLine reads the ledger
      * for each and is a safe no-op wherever there is nothing to return.
      */
-    if (wasPrepared === false) {
+    if (wasPrepared === false && inventoryOn) {
       for (const orderLineId of stillLive) {
         await returnStockForCancelledLine(req, { orderLineId, orderId }, session);
       }

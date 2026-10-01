@@ -16,6 +16,10 @@
 import { z } from 'zod';
 
 import {
+  INVOICE_MAX_STARTING_NUMBER,
+  INVOICE_MODE_VALUES,
+  INVOICE_MODES,
+  INVOICE_PREFIX_PATTERN,
   RECEIPT_FOOTER_MAX_LENGTH,
   RECEIPT_HEADER_MAX_LENGTH,
   TAX_PRICING_MODE_VALUES,
@@ -95,8 +99,107 @@ const inventory = z
   })
   .strict();
 
+/** Which optional modules are in use. P02. Booleans and nothing else. */
+const features = z
+  .object({
+    inventory: z.boolean({ error: 'Must be true or false.' }).optional(),
+    attendance: z.boolean({ error: 'Must be true or false.' }).optional(),
+  })
+  .strict();
+
+export const INVOICE_PREFIX_MESSAGE =
+  'An invoice prefix can use letters, numbers, / and -, up to 7 characters.';
+
+/**
+ * The invoice series. P02.
+ *
+ * Validated as a whole group: if any of its three fields is sent, all three
+ * must be, so the stored group is never half-changed. A prefix with the old
+ * starting number, or a starting number for a prefix nobody sent, is how a
+ * legal number series quietly ends up somewhere nobody chose.
+ *
+ * The rules that need the database (a series already started, a start below a
+ * number already used this year) are in settingsService, not here.
+ */
+const invoice = z
+  .object({
+    mode: z.enum(INVOICE_MODE_VALUES, { error: 'Must be FINANCIAL_YEAR or PREFIX.' }).optional(),
+    prefix: z
+      .union([z.string().trim().regex(INVOICE_PREFIX_PATTERN, INVOICE_PREFIX_MESSAGE), z.null()], {
+        error: INVOICE_PREFIX_MESSAGE,
+      })
+      .optional(),
+    startingNumber: z
+      .union(
+        [
+          z
+            .number({ error: 'Must be a whole number.' })
+            .int('Must be a whole number.')
+            .min(1, 'Must be 1 or more.')
+            .max(INVOICE_MAX_STARTING_NUMBER, 'Cannot be more than 999,999,999.'),
+          z.null(),
+        ],
+        { error: 'Must be a whole number from 1 to 999,999,999, or null.' },
+      )
+      .optional(),
+  })
+  .strict()
+  .superRefine((group, context) => {
+    const sent = ['mode', 'prefix', 'startingNumber'].filter((key) => group[key] !== undefined);
+    if (sent.length === 0) return;
+
+    if (sent.length < 3) {
+      for (const key of ['mode', 'prefix', 'startingNumber']) {
+        if (group[key] === undefined) {
+          context.addIssue({
+            code: 'custom',
+            path: [key],
+            message: 'Send mode, prefix and startingNumber together.',
+          });
+        }
+      }
+      return;
+    }
+
+    if (group.mode === INVOICE_MODES.FINANCIAL_YEAR) {
+      if (group.prefix !== null) {
+        context.addIssue({
+          code: 'custom',
+          path: ['prefix'],
+          message: 'Must be null when numbering by financial year.',
+        });
+      }
+      if (group.startingNumber !== null) {
+        context.addIssue({
+          code: 'custom',
+          path: ['startingNumber'],
+          message: 'Must be null when numbering by financial year.',
+        });
+      }
+      return;
+    }
+
+    if (group.prefix === null) {
+      context.addIssue({ code: 'custom', path: ['prefix'], message: 'A prefix is required.' });
+    }
+    if (group.startingNumber === null) {
+      context.addIssue({
+        code: 'custom',
+        path: ['startingNumber'],
+        message: 'A starting number is required.',
+      });
+    }
+  });
+
 /** Everything except `reason`. Used to tell "a group was sent" from "only a reason was sent". */
-export const SETTINGS_GROUPS = Object.freeze(['business', 'tax', 'receipt', 'inventory']);
+export const SETTINGS_GROUPS = Object.freeze([
+  'business',
+  'tax',
+  'receipt',
+  'inventory',
+  'features',
+  'invoice',
+]);
 
 /**
  * GET /settings takes no parameters.
@@ -133,6 +236,8 @@ export const updateSettingsSchema = z.object({
       tax: tax.optional(),
       receipt: receipt.optional(),
       inventory: inventory.optional(),
+      features: features.optional(),
+      invoice: invoice.optional(),
     })
     .strict()
     .refine(

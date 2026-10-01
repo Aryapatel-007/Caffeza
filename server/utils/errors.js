@@ -87,6 +87,17 @@ export const ERROR_CODES = Object.freeze({
    * serve in one request.
    */
   RANGE_TOO_LARGE: 'RANGE_TOO_LARGE',
+
+  /**
+   * Added by P02. FEATURE_DISABLED is 403: the request is fine and the caller
+   * may be an owner, but this restaurant has switched the module off. The three
+   * invoice codes are 422 business rules that protect the unique indexes on
+   * `bills`, so a settings change cannot make bill creation fail at the till.
+   */
+  FEATURE_DISABLED: 'FEATURE_DISABLED',
+  INVOICE_START_TOO_LOW: 'INVOICE_START_TOO_LOW',
+  INVOICE_SERIES_STARTED: 'INVOICE_SERIES_STARTED',
+  INVOICE_SERIES_LOCKED: 'INVOICE_SERIES_LOCKED',
 });
 
 /**
@@ -480,5 +491,18 @@ export class RangeTooLargeError extends AppError {
 export class DuplicateRecipeIngredientError extends AppError {
   constructor(message = 'The same ingredient cannot appear twice in one recipe.') {
     super(message, { statusCode: 422, code: ERROR_CODES.DUPLICATE_RECIPE_INGREDIENT });
+  }
+}
+
+/**
+ * P02. The route belongs to a module this restaurant has switched off in
+ * `settings.features`. Raised by middleware/requireFeature.js.
+ */
+export class FeatureDisabledError extends AppError {
+  constructor(featureLabel) {
+    super(
+      `${featureLabel} is switched off for this restaurant. An owner can switch it on in Settings.`,
+      { statusCode: 403, code: ERROR_CODES.FEATURE_DISABLED },
+    );
   }
 }

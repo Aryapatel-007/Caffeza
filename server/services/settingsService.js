@@ -14,8 +14,12 @@
  * of that hatch is unchanged by M7, and there is a tripwire asserting it.
  */
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
-import { Restaurant } from '../models/Restaurant.js';
+import { Bill } from '../models/Bill.js';
+import { Counter, COUNTER_NAMES } from '../models/Counter.js';
+import { INVOICE_MODES, Restaurant } from '../models/Restaurant.js';
 import { recordAudit } from './auditService.js';
+import { BusinessRuleError, ERROR_CODES } from '../utils/errors.js';
+import { financialYearFor, nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 
 /**
@@ -46,7 +50,17 @@ const SETTING_PATHS = Object.freeze({
   'receipt.showServerName': 'settings.receipt.showServerName',
 
   'inventory.lowStockAlertsEnabled': 'settings.inventory.lowStockAlertsEnabled',
+
+  'features.inventory': 'settings.features.inventory',
+  'features.attendance': 'settings.features.attendance',
+
+  'invoice.mode': 'settings.invoice.mode',
+  'invoice.prefix': 'settings.invoice.prefix',
+  'invoice.startingNumber': 'settings.invoice.startingNumber',
 });
+
+/** The modules a restaurant can switch off. P02. */
+export const FEATURE_NAMES = Object.freeze(['inventory', 'attendance']);
 
 export const SETTING_API_PATHS = Object.freeze(Object.keys(SETTING_PATHS));
 
@@ -136,7 +150,18 @@ function forget(req, restaurantId) {
  * the common case: this service is usually reading a document the request has
  * in hand, and re-fetching it would be a query per setting read.
  */
-export async function getSettings(restaurantId, { req = null } = {}) {
+export async function getSettings(restaurantId, { req = null, session = null } = {}) {
+  /**
+   * With a session the read is fresh and inside the caller's transaction, so a
+   * bill is numbered from the settings as they are at that moment rather than
+   * as they were when the request was authenticated. Never memoised.
+   */
+  if (session) {
+    // Legitimate unguarded query pattern 1: by _id from a verified token.
+    const restaurant = await Restaurant.findById(restaurantId).select('settings').session(session);
+    return presentSettings(restaurant);
+  }
+
   const memo = cached(req, restaurantId);
   if (memo) return memo;
 
@@ -165,6 +190,101 @@ export async function getSetting(restaurantId, path, { req = null } = {}) {
 }
 
 /**
+ * True when one of the switchable modules is on for the request's restaurant.
+ * Shares the per-request memo, so the route check and a service check in the
+ * same request read the document once. P02.
+ */
+export async function isFeatureOn(req, name) {
+  if (!FEATURE_NAMES.includes(name)) {
+    throw new Error(`"${name}" is not a feature switch. See FEATURE_NAMES in settingsService.js.`);
+  }
+  return Boolean(await getSetting(req.restaurantId, `features.${name}`, { req }));
+}
+
+/** The counter scope a prefix series is numbered under. Also used by billNumberService. */
+export function prefixCounterScope(prefix) {
+  return `PREFIX:${prefix}`;
+}
+
+/** The highest value any branch's counter for this prefix has reached, or 0. */
+async function lastIssuedUnderPrefix(restaurantId, prefix) {
+  const counters = await Counter.find({
+    restaurantId,
+    name: COUNTER_NAMES.BILL,
+    scope: prefixCounterScope(prefix),
+  })
+    .select('value')
+    .lean();
+  return counters.reduce((highest, counter) => Math.max(highest, counter.value), 0);
+}
+
+/**
+ * The three invoice series rules, from API-CONTRACT.md section M7 3. P02.
+ *
+ * They protect the two unique indexes on `bills`: { restaurantId, billNumber }
+ * and { restaurantId, branchId, financialYear, billSequence }. A settings
+ * change that broke either would not fail here, it would fail at the till, in
+ * the middle of service, on every bill. So the change is refused now instead.
+ *
+ * `next` is the full invoice group the request sends; the validator has already
+ * made sure all three fields are present and consistent with the mode.
+ */
+async function assertInvoiceChangeAllowed(restaurantId, current, next) {
+  const unchanged =
+    current.mode === next.mode &&
+    current.prefix === next.prefix &&
+    current.startingNumber === next.startingNumber;
+  if (unchanged) return;
+
+  const financialYear = financialYearFor(nowUtc());
+
+  if (next.mode === INVOICE_MODES.FINANCIAL_YEAR) {
+    // Rule 3. A prefix bill this year already holds a sequence number the
+    // financial-year counter would later hand out again.
+    const prefixBill = await Bill.findOne({
+      restaurantId,
+      financialYear,
+      invoiceSeries: { $nin: [null, financialYear] },
+    })
+      .select('invoiceSeries')
+      .lean();
+
+    if (prefixBill) {
+      throw new BusinessRuleError(
+        `Bills have already been issued under ${prefixBill.invoiceSeries} this financial year. You can switch back on or after 1 April.`,
+        ERROR_CODES.INVOICE_SERIES_LOCKED,
+      );
+    }
+    return;
+  }
+
+  const last = await lastIssuedUnderPrefix(restaurantId, next.prefix);
+
+  if (last > 0) {
+    // Rule 2. The series exists. The only acceptable request is the stored
+    // one, sent back unchanged, which returned above.
+    throw new BusinessRuleError(
+      `${next.prefix} has already issued bills up to ${next.prefix}${last}. Its starting number cannot change, and it cannot be started again.`,
+      ERROR_CODES.INVOICE_SERIES_STARTED,
+    );
+  }
+
+  // Rule 1. A brand-new series must start clear of every sequence number
+  // already used this financial year, in any series, voided bills included.
+  const highest = await Bill.findOne({ restaurantId, financialYear })
+    .sort({ billSequence: -1 })
+    .select('billSequence')
+    .lean();
+
+  if (highest && next.startingNumber <= highest.billSequence) {
+    throw new BusinessRuleError(
+      `The starting number must be above ${highest.billSequence}, the highest bill number already used this financial year.`,
+      ERROR_CODES.INVOICE_START_TOO_LOW,
+    );
+  }
+}
+
+/**
  * Applies a patch, writes one audit line per field that actually changed, and
  * returns the full updated object.
  *
@@ -182,6 +302,10 @@ export async function updateSettings(
   { actorId, actorRole, branchId, reason, req = null } = {},
 ) {
   const before = await getSettings(restaurantId, { req: null });
+
+  if (patch.invoice !== undefined) {
+    await assertInvoiceChangeAllowed(restaurantId, before.invoice, patch.invoice);
+  }
 
   const changes = [];
   for (const apiPath of SETTING_API_PATHS) {
@@ -251,4 +375,4 @@ export async function updateSettings(
   return presentSettings(updated);
 }
 
-export default { getSettings, getSetting, updateSettings };
+export default { getSettings, getSetting, isFeatureOn, prefixCounterScope, updateSettings };
