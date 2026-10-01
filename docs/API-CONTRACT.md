@@ -4324,11 +4324,14 @@ Closing:
 
 1. The date is today's business date or earlier, and not already `CLOSED`: 422
    otherwise.
-2. Blockers, reported together in one 422 `DAY_NOT_READY` with `details.blockers`,
-   each `{ kind, message, ref }`: an order opened on that business date still
+2. Blockers, reported together in one 422 `DAY_NOT_READY` with `blockers` beside
+   the message in `error` (the same place `TABLE_OCCUPIED` puts `existingOrderId`),
+   each `{ kind, message, ref }`, `kind` one of `OPEN_ORDER`, `UNPAID_BILL`,
+   `CHECK`: an order opened on that business date still
    `OPEN` or `READY_TO_BILL`; a bill of that date still `UNPAID`; any failed
    ERROR check from section 5.
-3. A cash difference other than zero needs a `note`: 422 otherwise.
+3. A cash difference other than zero needs a `note`: 422 otherwise, with
+   `noteRequired: true` in `error` and a message that does not say by how much.
 4. Effect, in one transaction: compute the figures, store the snapshot and
    checks, set `CLOSED`, add to `history`, and write `DAY_CLOSED`, entity `DAY`,
    with the day's bill total.
@@ -4341,6 +4344,40 @@ is true. OWNER always sees both.
 
 Reopening needs the date to be `CLOSED`, sets `REOPENED`, and adds to `history`.
 A `REOPENED` date is open, and can be closed again.
+
+### 6.1 Settled while building P10
+
+`GET /day-close/:businessDate` and `POST /day-close` answer one shape:
+
+```json
+{
+  "businessDate": "2026-09-26", "status": "CLOSED", "isClosed": true,
+  "countedCashInPaise": 340000, "expectedCashInPaise": 340400, "differenceInPaise": -400,
+  "note": "Four rupees short, coins",
+  "figures": { "...": "computeDayFigures, section 4" },
+  "checks": [ { "id": "C1", "severity": "ERROR", "passed": true, "message": "..." } ],
+  "blockers": [],
+  "closedBy": "652c...", "closedAt": "...",
+  "history": [ { "action": "CLOSED", "by": "...", "at": "...", "note": "...", "countedCashInPaise": 340000 } ]
+}
+```
+
+For an open or reopened date, `status` is `OPEN` or `REOPENED`, `figures` and
+`checks` are live, `blockers` lists what stops the close, and the counted and
+difference fields are null.
+
+For a blind manager the server leaves out `expectedCashInPaise`,
+`differenceInPaise`, `figures.cash.expectedCashInPaise`, the same two fields on
+every `history` entry, and the numbers of the C9 check, whose message becomes
+"C9 Cash: the count is recorded." The print follows the same rule.
+
+An order waiting on an unpaid bill is reported once, as the bill. Opening
+orders are those opened inside the business date's hours.
+
+The lock answers before any rule about the bill itself, so a write on a closed
+day's bill is always 409 `DAY_CLOSED`. Charging to an account also checks
+today's date, because the CHARGE entry is written today; correcting a payment
+also checks the payment's own business date.
 
 ## 7. The lock
 

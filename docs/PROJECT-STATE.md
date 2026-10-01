@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P10, cash drawer and Day Close.
+Next: P11, Caffeza setup and menu import.
 
 ---
 
@@ -43,7 +43,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M7 | Restaurant Settings | Rishi | DONE | Phase 1B's first module. Two endpoints, no new collection: `restaurants.settings` gains `tax`, `receipt` and `inventory`, every field with a schema default so there is no migration. `settingsService` is now the only way any module reads configuration. 27 new tests. Verified live against the Atlas cluster, including a genuine pre-M7 document reading back complete. Not done under BUILD-PLAN section 13: Arya has not read it. P02 added `settings.features` (inventory and attendance switches, enforced by `requireFeature`) and `settings.invoice` (financial-year or prefix numbering). |
 | M8 | Audit Trail | Rishi | NOT STARTED | Specified in API-CONTRACT.md. Pulled forward for Caffeza. Built in P17 part A. |
 | M10 | Payments | Rishi | IN PROGRESS | Specified in P07. Built in P08: configurable payment methods, frozen payment details, method corrections, discount reasons and funding. Arya's read outstanding. |
-| M16 | Settlement and Day Close | Rishi | IN PROGRESS | Specified in P07. No Charge built in P08, On Hold accounts in P09. Cash drawer and Day Close (P10) to come. |
+| M16 | Settlement and Day Close | Rishi | DONE | Day Close proven against the golden day in `tests/goldenDay.test.js`. No Charge (P08), On Hold accounts (P09), cash drawer, day figures, checks C1 C3 C4 C6 C8 C9, Day Close with the blind count, and the day lock (P10). Built by Rishi. Arya's read outstanding. |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | NOT STARTED | Every report in REPORT-SPEC.md. P13 to P18, proven by P21. |
@@ -315,6 +315,15 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | Payout expected amounts are computed on read, never stored, from each covered payment's frozen commission. A payment from before P08 with no payment business date reads as its bill's. | A commission changed later must not move an existing payout, and a stored figure could go stale. |
 | 2026-10-01 | The old M6 payments report now lists any method code used beyond Cash, UPI, Card and Other, after those four. | Found in P09: after P08 a platform payment was silently missing from that report's total. |
 | 2026-10-01 | `tests/tables.test.js` now waits for the counter index with `Counter.init()` before its concurrency test. | It failed two runs in three once P09 added three models whose indexes build at startup. The same fix `billNumber.test.js` already uses. |
+| 2026-10-01 | `computeDayFigures` reads the day's records once into memory and adds them up in plain code with `sumPaise`, rather than in aggregation pipelines. | A day is a few hundred bills. One readable function is easier to check against TEST-DATA than a dozen pipelines, and it is the only place day figures are made. |
+| 2026-10-01 | `averagePaise` was added to `server/utils/money.js`: a total divided by a count, rounded half away from zero. | CLAUDE.md keeps money arithmetic in `money.js`, and averages were the one division the day figures needed. |
+| 2026-10-01 | C3 counts `chargedToAccountInPaise` on any bill that carries it, and unpaid only on UNPAID bills. C4 also covers ON_ACCOUNT bills. RECONCILIATION-RULES updated. | TEST-DATA section 6 says marking B09 PAID must fail C4 alone. Counting the charge only on ON_ACCOUNT bills would have failed C3 too. |
+| 2026-10-01 | C6 and C8 look at every bill stored on the day or issued during its hours. | Storing B14 on 27 September must fail C8 alone, per TEST-DATA section 6; counted only by stored date, it would also open a gap in C6. |
+| 2026-10-01 | The blind count also hides the C9 numbers and message, and the expected cash and difference on every history entry, not only the three fields the spec named. | C9's message reads "counted X, expected Y", which would have told a blind manager the answer. |
+| 2026-10-01 | Day Close blockers and `noteRequired` arrive beside the message in `error`, not under `details`. The contract is updated. | That is where the error handler already puts extra fields, as `TABLE_OCCUPIED` does with `existingOrderId`. The note message never says by how much the count differs. |
+| 2026-10-01 | The day lock is checked before any rule about the bill. Charging to an account also checks today; correcting a payment also checks the payment's own business date. | On a closed day the answer must always be 409 DAY_CLOSED, not a 422 about a paid bill. The charge entry is written today, and a correction changes the day its money arrived. |
+| 2026-10-01 | An order waiting on an unpaid bill is reported once at Day Close, as the bill. | Listing it twice made one problem look like two. |
+| 2026-10-01 | Voiding a cash entry or a payout asks for its reason inline (`features/settlement/InlineVoid.jsx`), not in a browser dialog. | A tablet at the till handles an inline field better than a modal prompt. |
 
 ---
 
@@ -337,6 +346,67 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P10 cash drawer and Day Close
+
+What was built or decided:
+The cash drawer: `cashmovements` (opening float, paid in, paid out), one live
+float per business date by a partial unique index, paid out for managers with
+`CASH_PAID_OUT`, voids with a reason. Every entry is dated today by the server.
+
+`computeDayFigures` in `services/dayFiguresService.js` returns R2 sections A to
+H from frozen fields only. `reconciliationService.js` has C1, C3, C4, C6, C8 and
+C9 for one business date, each returning the shared result shape with the
+exact wording from RECONCILIATION-RULES.
+
+Day Close: `dayclosures`, five endpoints, blockers reported together in one
+422 `DAY_NOT_READY`, a note required for a cash difference, the snapshot and
+checks stored at close, the history, `DAY_CLOSED` and `DAY_REOPENED`, the
+`dayClose.showCashDifferenceToManager` setting, the blind count enforced on the
+server, and a server-laid-out print at 32 or 48 columns.
+
+The lock: `assertDayOpen` in `services/dayLockService.js`, wired into bill
+creation, discount, void, payment, payment correction, charge to account,
+No Charge, cash movements and their voids, collections, adjustments, and
+payouts and their voids.
+
+The golden day: `tests/helpers/goldenDay.js` builds all of 26 September through
+the API at the real times, and `tests/goldenDay.test.js` closes it. The stored
+snapshot matches every number in TEST-DATA section 4 to the paisa, first time:
+15 bills, 27 covers, item total 931022, discount 42390, net sales 888632, CGST
+19131, SGST 19126, GST 38257, round-off 11, bill total 926900, average bill
+59242, average per cover 26709, expected cash 340400, difference -400. Each of
+C1, C3, C4, C6 and C8 fails exactly as TEST-DATA section 6 says when its one
+thing is broken, and C9 raises the -400 warning.
+
+Client: a Cash drawer screen (`/cash`), a Day Close screen (`/day-close`) with
+blockers linked to their order or bill, the count, a note that turns required,
+figures, checks, print and the owner's reopen, a dashboard warning when
+yesterday traded and was not closed, and the blind-count switch in Settings.
+
+Tests: 749 before, 774 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: CashMovement and DayClosure models, `cashService`, `dayFiguresService`,
+`reconciliationService`, `dayCloseService`, `dayLockService`, the day close
+controller, routes and validators, tests `goldenDay.test.js`,
+`dayClose.test.js` and `helpers/goldenDay.js`, client `api/dayClose.js`,
+`CashDrawerPage.jsx`, `DayClosePage.jsx`, `UnclosedDayWarning.jsx`,
+`InlineVoid.jsx`. Changed: `billService`, `accountService`, `payoutService`,
+`noChargeService` (the lock), `money.js` (`averagePaise`), `receiptService`
+(exports `row`), the Restaurant model, settings validators and service,
+AuditLog, `errors.js`, and on the client the dashboard, settings, `App.jsx`,
+`formatDate.js` and the payouts page.
+
+Anything the other developer needs to know:
+Every new write that changes a business date's figures must call
+`assertDayOpen`. R2 in P15 returns `computeDayFigures`, or the stored snapshot
+for a closed day; the golden day fixture and `GOLDEN_EXPECTED` are there to
+reuse. Not done by hand in a browser yet: a float, a cash bill, a paid out, a
+blind close as manager, the owner's view, and the printed close.
+
+Anything now blocked or unblocked:
+P11 and P13 can start.
 
 ### 2026-10-01 Rishi, P09 On Hold accounts and platform payouts
 
@@ -807,124 +877,6 @@ CLAUDE.md now loads only the short docs; the long specs are read on demand.
 
 Anything now blocked or unblocked:
 P01 production safety can start.
-
-### 2026-08-31 Rishi, M7 Restaurant Settings
-
-**What was built:** M7, server and screen, on `feat/m7/restaurant-settings`.
-Two endpoints, no new collection, 27 new tests. The first Phase 1B module, and
-the one BUILD-PLAN says to build early because settings get more expensive to
-retrofit with every module stacked on top.
-
-**Spec first, then code.** `docs/API-CONTRACT.md` section M7 and
-`docs/DB-SCHEMA.md` sections 17 and 18 were written and committed before any
-M7 code existed, which is BUILD-PLAN section 13's first condition of done. The
-same order M1, M5, M3, M4 and M6 used and the one M2 broke.
-
-**Endpoints, two, both under `/api/v1`**
-
-`GET /settings`, OWNER and MANAGER. `PATCH /settings`, OWNER only. The write is
-narrower than the read on purpose: this object holds the GST pricing mode,
-which is legally significant, and the business day boundary, which silently
-moves which day every future sale lands on.
-
-**No migration, and that was verified rather than assumed**
-
-`restaurants.settings` gained `tax`, `receipt` and `inventory`. Every field has
-a schema default, so a document written before M7 reads back a complete
-settings object because Mongoose fills missing paths on hydration. That was
-checked against a raw pre-M7 document before anything was built on top of it,
-and again live: the demo restaurant on Atlas genuinely predates M7 and answered
-`GET /settings` in full, with its stored `businessDayStartsAtMinutes` intact and
-every new group defaulted. There is a test that strips a document back to one
-key and asserts the same thing.
-
-**`settingsService` is now the only way any module reads configuration**
-
-Three controllers were reading `restaurant.settings.businessDayStartsAtMinutes`
-directly, each with its own query and its own fallback. All three now go through
-`settingsService`, so a setting that moves moves in one file.
-
-Two services, `billService.js` and `operationsReportService.js`, still read it
-directly. That was left deliberately: they are M3 and M6 code, the reads are
-correct, and this module had no mandate to touch M3's file. It is in the known
-problems table so the next person finds it rather than discovering it.
-
-The cache is per-request and attached to the request, never process-level with a
-time to live. BUILD-PLAN section 12 names the stale-settings cache as its own
-problem: an owner changes the business day, sees nothing happen, changes it
-again, and two servers now disagree about which day a sale belongs to.
-
-**Wired now, two things, both one-line reads**
-
-`tax.defaultTaxRateBps` fills in `taxRateBps` when `POST /menu-items` omits it.
-Only the API's default moved: the field stays required in the schema and on
-every stored document, an explicit rate always wins including an explicit zero,
-and changing the setting tomorrow moves nothing that already exists.
-
-`inventory.lowStockAlertsEnabled`, when false, empties the low-stock read and
-the dashboard's `lowStock` array. The quantities are untouched and the plain
-stock list still shows them; only the surfacing is switched off.
-
-**Stored and deliberately not wired**
-
-`tax.pricingMode` and `tax.roundOffEnabled`, both in the decision log above.
-`settings.receipt.*` likewise, until Phase 2 printing exists. The receipt header
-cap of 40 characters is enforced now, at data entry, because an 80mm roll fits
-about 42 and BUILD-PLAN calls the printer problem out by name.
-
-**A data-loss path M7 would otherwise have created**
-
-`PATCH /restaurant` accepts `settings` and wrote it with a whole-object `$set`.
-Harmless with one key, and the schema's own comment said as much. With four
-groups on it, an owner moving their business day through that endpoint would
-have silently reset their tax rate and wiped their receipt text. Reproduced
-against a real document, then fixed by writing dotted paths, with a test. This
-is a change to M0 code beyond what the M7 brief listed as allowed, and it is
-called out here rather than buried because of that.
-
-**Files created**
-
-Server: `services/settingsService.js`, `controllers/settingsController.js`,
-`routes/settingsRoutes.js`, `validators/settingsValidators.js`,
-`tests/settings.test.js`.
-
-Client: `api/settings.js`, `features/settings/` with `SettingsPage`,
-`errorCopy.js` and `timeOfDay.js`.
-
-**Changed elsewhere**
-
-`models/Restaurant.js` (three nested settings objects, and the comment saying
-why `businessDayStartsAtMinutes` never moves), `models/AuditLog.js` (two
-appended enum values), `controllers/attendanceController.js`,
-`controllers/billController.js`, `controllers/reportController.js` (all three
-now read through `settingsService`), `controllers/menuItemController.js` and
-`validators/menuValidators.js` (the default tax rate),
-`services/ingredientService.js` and `services/operationsReportService.js` (the
-low-stock toggle), `controllers/restaurantController.js` (the dotted-path fix),
-`routes/index.js`, `App.jsx`, `DashboardPage.jsx`.
-
-**What the other developer needs to know**
-
-Read a setting through `settingsService`, never off `restaurant.settings`. There
-is a finish check on it: `grep -rn "settings\." server/controllers/` returns
-nothing that reaches into the object.
-
-`businessDayStartsAtMinutes` is stored at the top level of `settings` and
-presented under `business`. That mapping is in `settingsService` and nowhere
-else. Do not tidy it.
-
-Adding a setting is three edits: one line in `SETTING_PATHS`, one field on the
-model with a default, one field in the validator. Nothing else needs to know.
-
-`pricingMode` and `roundOffEnabled` are stored and read by nothing. Wiring them
-is its own task and it needs the CA first.
-
-**Unblocked:** M8 Audit Trail, which depends on M3 and M7 and which BUILD-PLAN
-says must not run in parallel with M7 because both append to the same two
-`auditlogs` enums. M7's appends are on `main` now, so M8 can start.
-
-**Still open:** Arya has not read M7. The two services still reading settings
-directly are in the known problems table.
 
 ---
 

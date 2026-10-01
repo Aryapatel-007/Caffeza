@@ -1,5 +1,123 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-08-31 Rishi, M7 Restaurant Settings
+
+**What was built:** M7, server and screen, on `feat/m7/restaurant-settings`.
+Two endpoints, no new collection, 27 new tests. The first Phase 1B module, and
+the one BUILD-PLAN says to build early because settings get more expensive to
+retrofit with every module stacked on top.
+
+**Spec first, then code.** `docs/API-CONTRACT.md` section M7 and
+`docs/DB-SCHEMA.md` sections 17 and 18 were written and committed before any
+M7 code existed, which is BUILD-PLAN section 13's first condition of done. The
+same order M1, M5, M3, M4 and M6 used and the one M2 broke.
+
+**Endpoints, two, both under `/api/v1`**
+
+`GET /settings`, OWNER and MANAGER. `PATCH /settings`, OWNER only. The write is
+narrower than the read on purpose: this object holds the GST pricing mode,
+which is legally significant, and the business day boundary, which silently
+moves which day every future sale lands on.
+
+**No migration, and that was verified rather than assumed**
+
+`restaurants.settings` gained `tax`, `receipt` and `inventory`. Every field has
+a schema default, so a document written before M7 reads back a complete
+settings object because Mongoose fills missing paths on hydration. That was
+checked against a raw pre-M7 document before anything was built on top of it,
+and again live: the demo restaurant on Atlas genuinely predates M7 and answered
+`GET /settings` in full, with its stored `businessDayStartsAtMinutes` intact and
+every new group defaulted. There is a test that strips a document back to one
+key and asserts the same thing.
+
+**`settingsService` is now the only way any module reads configuration**
+
+Three controllers were reading `restaurant.settings.businessDayStartsAtMinutes`
+directly, each with its own query and its own fallback. All three now go through
+`settingsService`, so a setting that moves moves in one file.
+
+Two services, `billService.js` and `operationsReportService.js`, still read it
+directly. That was left deliberately: they are M3 and M6 code, the reads are
+correct, and this module had no mandate to touch M3's file. It is in the known
+problems table so the next person finds it rather than discovering it.
+
+The cache is per-request and attached to the request, never process-level with a
+time to live. BUILD-PLAN section 12 names the stale-settings cache as its own
+problem: an owner changes the business day, sees nothing happen, changes it
+again, and two servers now disagree about which day a sale belongs to.
+
+**Wired now, two things, both one-line reads**
+
+`tax.defaultTaxRateBps` fills in `taxRateBps` when `POST /menu-items` omits it.
+Only the API's default moved: the field stays required in the schema and on
+every stored document, an explicit rate always wins including an explicit zero,
+and changing the setting tomorrow moves nothing that already exists.
+
+`inventory.lowStockAlertsEnabled`, when false, empties the low-stock read and
+the dashboard's `lowStock` array. The quantities are untouched and the plain
+stock list still shows them; only the surfacing is switched off.
+
+**Stored and deliberately not wired**
+
+`tax.pricingMode` and `tax.roundOffEnabled`, both in the decision log above.
+`settings.receipt.*` likewise, until Phase 2 printing exists. The receipt header
+cap of 40 characters is enforced now, at data entry, because an 80mm roll fits
+about 42 and BUILD-PLAN calls the printer problem out by name.
+
+**A data-loss path M7 would otherwise have created**
+
+`PATCH /restaurant` accepts `settings` and wrote it with a whole-object `$set`.
+Harmless with one key, and the schema's own comment said as much. With four
+groups on it, an owner moving their business day through that endpoint would
+have silently reset their tax rate and wiped their receipt text. Reproduced
+against a real document, then fixed by writing dotted paths, with a test. This
+is a change to M0 code beyond what the M7 brief listed as allowed, and it is
+called out here rather than buried because of that.
+
+**Files created**
+
+Server: `services/settingsService.js`, `controllers/settingsController.js`,
+`routes/settingsRoutes.js`, `validators/settingsValidators.js`,
+`tests/settings.test.js`.
+
+Client: `api/settings.js`, `features/settings/` with `SettingsPage`,
+`errorCopy.js` and `timeOfDay.js`.
+
+**Changed elsewhere**
+
+`models/Restaurant.js` (three nested settings objects, and the comment saying
+why `businessDayStartsAtMinutes` never moves), `models/AuditLog.js` (two
+appended enum values), `controllers/attendanceController.js`,
+`controllers/billController.js`, `controllers/reportController.js` (all three
+now read through `settingsService`), `controllers/menuItemController.js` and
+`validators/menuValidators.js` (the default tax rate),
+`services/ingredientService.js` and `services/operationsReportService.js` (the
+low-stock toggle), `controllers/restaurantController.js` (the dotted-path fix),
+`routes/index.js`, `App.jsx`, `DashboardPage.jsx`.
+
+**What the other developer needs to know**
+
+Read a setting through `settingsService`, never off `restaurant.settings`. There
+is a finish check on it: `grep -rn "settings\." server/controllers/` returns
+nothing that reaches into the object.
+
+`businessDayStartsAtMinutes` is stored at the top level of `settings` and
+presented under `business`. That mapping is in `settingsService` and nowhere
+else. Do not tidy it.
+
+Adding a setting is three edits: one line in `SETTING_PATHS`, one field on the
+model with a default, one field in the validator. Nothing else needs to know.
+
+`pricingMode` and `roundOffEnabled` are stored and read by nothing. Wiring them
+is its own task and it needs the CA first.
+
+**Unblocked:** M8 Audit Trail, which depends on M3 and M7 and which BUILD-PLAN
+says must not run in parallel with M7 because both append to the same two
+`auditlogs` enums. M7's appends are on `main` now, so M8 can start.
+
+**Still open:** Arya has not read M7. The two services still reading settings
+directly are in the known problems table.
+
 ### 2026-08-31 Rishi, M6 Reports and Dashboard
 
 **What was built:** M6, server and screens, on `feat/m6/reports`, against the

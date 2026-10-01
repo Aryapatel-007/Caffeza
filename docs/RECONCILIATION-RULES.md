@@ -35,6 +35,7 @@ A link to the bills or records that caused it.
 A check never changes data. It only reads.
 A check never rounds before comparing. It compares whole paise.
 Checks live in one server file, `server/services/reconciliationService.js`, started in P10 with the one-day checks Day Close needs, and completed in P14.
+Built in P10 for one business date: C1, C3, C4, C6, C8 and C9. For C6 and C8 the day's bills include any bill whose `billedAt` falls in the day's hours, so a bill stored on the wrong date fails C8 alone instead of also opening a gap in C6.
 
 ---
 
@@ -75,9 +76,12 @@ Scope: each business date in the range.
 Severity: ERROR.
 
 Payments received on the day's bills
-plus `chargedToAccountInPaise` of the day's `ON_ACCOUNT` bills
-plus the unpaid remainder of the day's other bills
+plus `chargedToAccountInPaise` of the day's bills charged to an account
+plus the unpaid remainder of the day's `UNPAID` bills
 equals the day's bill total.
+
+A charge counts wherever it is recorded, so a bill wrongly marked `PAID` fails C4
+and not C3.
 
 On 26 September at Caffeza: ₹2,06,628 + ₹551 + ₹0 = ₹2,07,179.
 
@@ -90,6 +94,7 @@ Severity: ERROR.
 
 Sum of the bill's payments equals its bill total.
 A bill with status UNPAID has payments below its bill total.
+A bill with status ON_ACCOUNT has payments plus `chargedToAccountInPaise` equal to its bill total (P09).
 
 Message: "C4 Payment: bill {billNumber} is marked {status} but its payments total {paid} against a bill total of {billTotal}."
 
