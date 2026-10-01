@@ -230,3 +230,53 @@ On 26 September theirs was ₹417.33.
 
 Caffeza's old category report shows a "%" column where the top category is always 100% and the rest are measured against it.
 Ours is a true share, and the column is labelled "Share of net sales".
+
+---
+
+## 13. Column labels
+
+Added by P13 for the M19 report columns, so every label on a report comes from this file.
+The labels already defined above keep their meaning.
+
+| Term | Meaning |
+|---|---|
+| **Bills** | A count of bills, voided bills left out |
+| **Order type** | Dine-in, Takeaway or Delivery, frozen on the bill |
+| **Table** | The table name frozen on the bill |
+| **Category** | The category name frozen on the bill line when the item was ordered |
+| **Item** | The item name frozen on the bill line |
+| **Quantity sold** | Sum of line quantities on live bills |
+| **Cancelled quantity** | Sum of quantities on cancelled order lines of that item |
+| **Items cancelled** | Count and line total of cancelled order lines |
+| **Quantity** | The quantity on one line |
+| **Invoice number** | The bill number, like `CFA/C/22442` |
+| **Status** | Paid, On Hold, Unpaid, Voided, or "Missing number" in the invoice register |
+| **Void reason** | The fixed void reason's label, and its note |
+| **Cancel reason** | The fixed cancel reason's label, and its note |
+| **Stage** | Cancelled before preparation, or Cancelled after preparation |
+| **Time issued** | When the bill was issued, `billedAt`, in India time |
+| **Time paid** | When the bill was fully paid, `paidAt`, in India time |
+| **Time** | When the event on that row happened, in India time |
+| **Paid with** | The payment methods of a bill, by their frozen names |
+| **Tax rate** | A GST rate, like 5% |
+| **Tally code** | The payment method's Tally ledger code, frozen on the payment |
+| **Hour** | An hour of the day in India time, from when bills were issued |
+| **Weekday** | Monday to Sunday, from the business date |
+| **Period** | The business dates a payout covers |
+| **Open tables** | Tables with an order that is open or waiting for the cashier |
+| **Same weekday last week** | The bill total one week earlier, up to the same time of day |
+| **Turns per day** | Bills on a table ÷ business dates in the range |
+| **Percent off** | Discount ÷ item total, on one bill or a group of bills |
+| **Applied by** | The person who applied a discount |
+| **Cancelled by** | The person who cancelled a line or an order |
+| **Voided by** | The person who voided a bill |
+| **Requested by** | The captain who opened a No Charge order |
+| **Closed by** | The person who closed a business day |
+| **Account** | An On Hold account, like "W-330 Office" |
+| **Opening balance** | What an account owed when it was set up in this system |
+| **Charged** | Bill totals put on an account |
+| **Collected** | Collections received against an account |
+| **Outstanding** | Opening balance + charged − collected, ± adjustments |
+| **Oldest unpaid bill** | The business date of the oldest charge not yet covered by collections, and its age in days |
+| **Line total** | Defined in section 2; on a cancelled line it is the value at menu price, before GST |
+

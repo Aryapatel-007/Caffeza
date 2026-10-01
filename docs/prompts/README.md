@@ -19,7 +19,7 @@ The full table, with dependencies and owners, is in
 | P10 | Cash drawer and Day Close | Done |
 | P11 | Caffeza setup and menu import | Done |
 | P12 | Cloud deployment | Done |
-| P13 | Reports spec | Not run |
+| P13 | Reports spec | Done |
 | P14 | Report engine | Not run |
 | P15 | Daily, money and GST reports | Not run |
 | P16 | Menu, captain and table reports | Not run |

@@ -245,7 +245,7 @@ A range of business dates. One row per date.
 A date with no bills still gets a row, filled with zeros.
 A toggle compares with the previous range of the same length.
 A line chart shows net sales per day.
-The existing `GET /reports/sales-by-day` is extended rather than replaced.
+Served at `GET /reports/v2/sales-by-day`. The M6 endpoint stays until P18 replaces its screen.
 
 ---
 
@@ -253,11 +253,11 @@ The existing `GET /reports/sales-by-day` is extended rather than replaced.
 
 Two views of the same range.
 
-**By hour:** net sales and bills in each hour of the day, by the hour of `billedAt` in India time.
+**By hour:** net sales and bills in each hour of the day, by the hour of `bills.billedAt` in India time.
 **Weekday by hour:** a grid of weekday against hour, each cell showing net sales. Busy cells are darker.
 
 Uses `DISPLAY_TIMEZONE`, never a hardcoded zone.
-The existing `GET /reports/hourly` is extended.
+Served at `GET /reports/v2/hours`. The M6 endpoint stays until P18 replaces its screen.
 
 ---
 
@@ -381,7 +381,7 @@ A range. Opens at category level. Clicking a category shows its items.
 
 | Column | Calculation |
 |---|---|
-| Category, or item | Frozen name from the bill line |
+| Category, or item | Frozen name from the bill line, `bills.lines[].categoryName` or `itemName` |
 | Quantity sold | Sum of line quantities |
 | Item total | Sum of line totals |
 | Discount | Sum of line discount shares |
@@ -403,7 +403,7 @@ A range. One row per captain.
 
 | Column | Calculation |
 |---|---|
-| Captain | Frozen name on the bill |
+| Captain | Frozen name on the bill, `bills.captainName`, grouped by `captainId` |
 | Bills | Count |
 | Covers | Dine-in covers |
 | Net sales | |
@@ -456,7 +456,7 @@ A range.
 | Applied by | |
 
 Clicking a bill shows how the discount was shared across its lines.
-The existing `GET /reports/discounts` is extended.
+Served at `GET /reports/v2/discounts`. The M6 endpoint stays until P18 replaces its screen.
 
 ---
 
@@ -550,11 +550,11 @@ The page every drill down opens.
 |---|---|
 | `GET /reports/dashboard` | Replaced by R1 |
 | `GET /reports/sales-summary` | Kept. Its figures feed R2 Section A. |
-| `GET /reports/sales-by-day` | Extended into R3 |
-| `GET /reports/hourly` | Extended into R4 |
+| `GET /reports/sales-by-day` | Replaced by R3, `GET /reports/v2/sales-by-day` |
+| `GET /reports/hourly` | Replaced by R4, `GET /reports/v2/hours` |
 | `GET /reports/top-items` | Kept for R1. R11 replaces it on report screens. |
 | `GET /reports/tax-summary` | Replaced by R8 |
-| `GET /reports/discounts` | Extended into R14 |
+| `GET /reports/discounts` | Replaced by R14, `GET /reports/v2/discounts` |
 | `GET /reports/payment-methods` | Replaced by R5 |
 | `GET /reports/labour-hours` | Kept, hidden while attendance is switched off |
 | `GET /reports/stock-consumption` | Kept, hidden while inventory is switched off |
@@ -587,23 +587,8 @@ Nothing is removed until the new screen that replaces it is live.
 
 ## 6. Fields the reports depend on
 
-Several of these do not exist yet.
-The prompt that adds each one is listed.
-A report prompt must not start until the fields it needs exist.
-
-| Field | Added by |
-|---|---|
-| `bills.lines[].categoryId`, `categoryName` | P03 |
-| `bills.lines[].discountShareInPaise`, `taxableInPaise`, `taxInPaise` | P03 |
-| `bills.captainId`, `captainName`, `guestCount`, `orderOpenedAt` | P03 |
-| Invoice prefix and starting number | P02, used by P03 |
-| Cancel reason from a fixed list | P04 |
-| `stationId` on categories, KOTs per station | P05 |
-| `DELIVERY` order type, platform fields, tax treatment | P06 |
-| `paymentmethods`, and on each payment `method`, `methodName`, `methodKind`, `tallyLedgerCode`, `commissionBps` | P08 |
-| `bills.payments[].businessDate`, `bills.payments[].corrections[]` | P08 |
-| `bills.discount.reasonCode`, `bills.discount.fundedBy` | P08 |
-| `orders.status: NO_CHARGE`, `orders.noCharge` (`reasonCode`, `note`, `approvedBy`, `at`, `valueInPaise`, `businessDate`) | P08 |
-| `bills.status: ON_ACCOUNT`, `bills.account`, `bills.chargedToAccountInPaise`, `accounts`, `accountentries` | P09 |
-| `platformpayouts` | P09 |
-| `cashmovements` (`OPENING_FLOAT`, `PAID_IN`, `PAID_OUT`), `dayclosures` (`snapshot`, `countedCashInPaise`, `checks`) | P10 |
+Every field the reports read now exists. The exact stored field behind every
+column, each report's endpoint, filters, totals, checks and drill downs are in
+`docs/API-CONTRACT.md`, section "M19 Reports v2", written by P13.
+Fields that are still not stored, and what that means for a label, are listed
+in its section 11.

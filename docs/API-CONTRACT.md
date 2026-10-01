@@ -4424,3 +4424,695 @@ once per write:
 | `PAYOUT_PERIOD_OVERLAP` | 409 | Two live payouts for one method would cover the same business date |
 | `DAY_NOT_READY` | 422 | Day Close blocked; `details.blockers` lists every reason |
 | `DAY_CLOSED` | 409 | A write would change a closed business date |
+
+---
+
+# M19 Reports v2
+
+Owner: Arya. Specified in P13. P14 builds the engine, R19 and the export; P15
+to P17 add the reports; P18 builds the screens and R1. Every report in
+`docs/REPORT-SPEC.md`, with the words of `docs/GLOSSARY.md` and the checks of
+`docs/RECONCILIATION-RULES.md`.
+
+M19 owns no collection and writes nothing, like M6. Every endpoint is a `GET`.
+
+## 1. Principles
+
+**Carried over from M6, unchanged** (see "Rules every M6 endpoint obeys"):
+voided bills are out of every sales and money figure; ranges are business
+dates, never calendar dates; `from` and `to` are both required and inclusive;
+the range is at most `MAX_RANGE_DAYS`, 366, or 422 `RANGE_TOO_LARGE`; every
+pipeline opens with the tenant `$match` through `scopedForAggregate`; money out
+is whole paise; `skipTenantGuard` is never used.
+
+**Added by M19.** Each is a rule the code follows:
+
+1. **One source.** A figure is a sum of values frozen on a record when the event
+   happened: `bills` for sales, `bills.payments` and `accountentries` and
+   `cashmovements` for money, `orders` for cancellations and No Charge,
+   `platformpayouts` for payouts, `dayclosures` for closed days, `auditlogs`
+   for activity. A report never recomputes tax, never reads `menuitems`,
+   `categories`, `users` or `paymentmethods` to produce a figure, and never
+   groups on a live name.
+2. **One engine.** Every report runs through `runReport` in
+   `server/services/reports/engine.js`. The engine validates the request, checks
+   the range, builds the tenant, branch, date and not-voided match, runs the
+   report's own query, works out `openDays`, runs the checks, writes the filter
+   sentence, attaches columns and drill downs, and returns the envelope. A
+   report definition only groups and sorts.
+3. **The filter sentence.** Every response carries one, built by the engine, and
+   every screen, print and export shows it first.
+4. **Open days.** Every response lists the business dates in its range that are
+   not closed. Screens show "26 Sep is still open. These numbers will change
+   until Day Close."
+5. **Totals and averages.** A totals row is the exact sum of its rows, in paise.
+   An average is a total divided by a total, worked out after totalling with
+   `averagePaise`, and its label says "Average".
+6. **Drill down.** Every count and money cell carries a drill to R19 that
+   returns exactly the bills behind it. A number that cannot be drilled is not
+   on a report. Exceptions are named per report: cash drawer entries, payouts,
+   account entries and cancelled lines drill to their own list instead.
+7. **Checks.** Every report runs its checks from section 4 before it answers. A
+   failed check never hides the report.
+8. **Export.** `format=xlsx` returns the same envelope as a workbook, built from
+   the same data, never queried twice (section 5).
+9. **Format.** The API sends paise, basis points, `"YYYY-MM-DD"` dates and UTC
+   instants. Screens and exports show ₹ with Indian grouping and two decimals,
+   12-hour India time, and dates as 26 Sep 2026. Negative money shows a minus
+   sign and the `mirch` colour.
+
+## 2. The shared request
+
+```
+GET /api/v1/reports/v2/{name}?from=2026-09-26&to=2026-09-26&orderType=DINE_IN&format=json
+```
+
+| Parameter | Meaning |
+|---|---|
+| `from`, `to` | Business dates, `YYYY-MM-DD`, inclusive. R2 takes one `date` instead. R1 takes none: it is today. |
+| Filters | Only those listed for that report in section 3 |
+| `page`, `limit` | Only on R10, R15, R16 and R19, the reports that list records. The CONVENTIONS paging: default 50, maximum 200, clamped. |
+| `format` | `json`, the default, or `xlsx` for the Excel file |
+
+An unknown parameter is a 400, the same as every validator in this repo. A
+filter value that is not a valid code or id is a 400. A filter that matches
+nothing is an empty report, not an error.
+
+The shared filter values:
+
+| Filter | Values | Matches |
+|---|---|---|
+| `orderType` | `DINE_IN`, `TAKEAWAY`, `DELIVERY` | `bills.orderType` |
+| `platform` | A platform code, `ZOMATO`, `SWIGGY` | `bills.platform.code` |
+| `captainId` | A user id | `bills.captainId` |
+| `table` | A table name | `bills.tableName` |
+| `method` | A payment method code | any `bills.payments[].method` |
+| `status` | `UNPAID`, `PAID`, `ON_ACCOUNT`, `VOIDED` | `bills.status`, or `isVoided: true` for `VOIDED` |
+| `categoryName` | A category name | any `bills.lines[].categoryName` |
+| `itemName` | An item name | any `bills.lines[].itemName` |
+| `taxRateBps` | An integer | any `bills.taxBreakdown[].taxRateBps` |
+| `discountReason` | A discount reason code | `bills.discount.reasonCode` |
+| `accountId` | An account id | `bills.account.accountId` |
+| `hour` | 0 to 23 | the India-time hour of `bills.billedAt` |
+| `weekday` | 1 to 7, Monday first | the India-time weekday of `bills.businessDate` |
+| `hasDiscount`, `hasCancellations` | `true` or `false` | a discount above zero; an order with a cancelled line |
+| `billNumber` | An invoice number | `bills.billNumber` |
+| `stationId` | A station id | R13's kitchen panel only: `kots.stationId` |
+
+Only R19 accepts every filter. Each other report accepts the ones listed for it.
+
+## 3. The shared response
+
+Every report returns one envelope. R3 for the golden day, shortened:
+
+```json
+{
+  "success": true,
+  "data": {
+    "report": "R3",
+    "title": "Sales by Day",
+    "filter": { "from": "2026-09-26", "to": "2026-09-26" },
+    "filterSentence": "26 Sep 2026. Business day starts 5:00 AM. All order types. Voided bills left out.",
+    "openDays": [],
+    "columns": [
+      { "key": "businessDate", "label": "Business date", "type": "date" },
+      { "key": "billCount", "label": "Bills", "type": "count" },
+      { "key": "covers", "label": "Covers", "type": "count" },
+      { "key": "itemTotalInPaise", "label": "Item total", "type": "money" },
+      { "key": "discountInPaise", "label": "Discount", "type": "money" },
+      { "key": "netSalesInPaise", "label": "Net sales", "type": "money" },
+      { "key": "gstInPaise", "label": "GST", "type": "money" },
+      { "key": "roundOffInPaise", "label": "Round-off", "type": "money" },
+      { "key": "billTotalInPaise", "label": "Bill total", "type": "money" },
+      { "key": "averageBillInPaise", "label": "Average bill", "type": "money" },
+      { "key": "averagePerCoverInPaise", "label": "Average per cover", "type": "money" }
+    ],
+    "rows": [
+      {
+        "businessDate": "2026-09-26", "billCount": 15, "covers": 27,
+        "itemTotalInPaise": 931022, "discountInPaise": 42390, "netSalesInPaise": 888632,
+        "gstInPaise": 38257, "roundOffInPaise": 11, "billTotalInPaise": 926900,
+        "averageBillInPaise": 59242, "averagePerCoverInPaise": 26709,
+        "drill": {
+          "billCount": { "report": "R19", "query": { "from": "2026-09-26", "to": "2026-09-26" } },
+          "billTotalInPaise": { "report": "R19", "query": { "from": "2026-09-26", "to": "2026-09-26" } }
+        }
+      }
+    ],
+    "totals": {
+      "billCount": 15, "covers": 27, "itemTotalInPaise": 931022, "discountInPaise": 42390,
+      "netSalesInPaise": 888632, "gstInPaise": 38257, "roundOffInPaise": 11, "billTotalInPaise": 926900,
+      "averageBillInPaise": 59242, "averagePerCoverInPaise": 26709,
+      "drill": { "billCount": { "report": "R19", "query": { "from": "2026-09-26", "to": "2026-09-26" } } }
+    },
+    "checks": [
+      { "id": "C5.6", "severity": "ERROR", "passed": true, "message": "C5 Groups: the days add up to the range.", "expected": 926900, "actual": 926900, "difference": 0, "refs": [] }
+    ],
+    "generatedAt": "2026-09-27T04:00:00.000Z"
+  }
+}
+```
+
+**Column types.** Every cell is one of:
+
+| `type` | Sent as | Shown as |
+|---|---|---|
+| `money` | Integer paise | ₹2,07,179.00 |
+| `count` | Integer | 1,642 |
+| `percent` | Integer basis points | 20.26% |
+| `text` | String | As sent |
+| `date` | `"YYYY-MM-DD"` business date | 26 Sep 2026, with the weekday where the report says so |
+| `time` | UTC instant | 9:05 PM India time |
+| `minutes` | Integer minutes | 52 min |
+| `decimal2` | Integer hundredths | 2.50 |
+
+**People's names.** A report groups people by their stored user id: `captainId`,
+`discount.appliedBy`, `lines[].cancelledBy`, `voidedBy`, `noCharge.approvedBy`.
+A captain's name is the `captainName` frozen on the bill. For the others no
+name is frozen, so the definition returns the ids and the engine attaches each
+person's current name in one step, `personNames(req, ids)`, as a label only:
+never a grouping, never part of a figure. A definition never reads `users`
+itself. See section 11.
+
+**Labels.** Every `label` is a term from `docs/GLOSSARY.md`, held as a constant
+in `server/services/reports/labels.js` and mirrored on the client. No definition
+types a label by hand.
+
+**Drill downs.** A row and the totals may carry `drill`, an object keyed by
+column key: `{ report: "R19", query: { ...R19 filters } }`. The client opens
+that report with exactly that query. Where a cell drills to something other
+than R19, `report` names it, for example `"R17"`.
+
+**Sections.** A report with more than one table, such as R2, R8 or R15, sends
+`sections: [{ key, title, columns, rows, totals }]` instead of top-level
+`columns`, `rows` and `totals`. A report with one table never sends `sections`.
+
+**Paging.** A listing report adds `meta: { page, limit, total }` beside `data`,
+as every list in this repo does. Its `totals` always cover every matching
+record, never only the page.
+
+**Open days.** `openDays` is every business date from `from` to `to` that has no
+`dayclosures` record with `status: "CLOSED"`, in date order. A `REOPENED` date
+is open.
+
+**Checks.** Each check result has the shape `reconciliationService.js` already
+returns: `{ id, severity, passed, message, expected, actual, difference, refs }`.
+`id` names the check and, for C5, the grouping: `C5.1` categories to `C5.7` tax
+rates. The client shows "All 6 checks passed" when every one passed, and every
+failed message otherwise.
+
+**The filter sentence.** Built in this order, each part ending in a full stop:
+
+1. The range: "26 Sep 2026." for one date, "26 Sep 2026 to 27 Sep 2026." for more.
+2. "Business day starts 5:00 AM.", from the setting.
+3. One part per filter the report accepts, in the order of its filter list:
+   the filter's plain name and value, "Order type: Dine-in.", "Captain: Khuman
+   Singh.", or, when not given, its "all" form, "All order types.", "All
+   captains.". A report states the "all" form only for the filters it lists as
+   dimensions in section 6; R3's only dimension is order type.
+4. "Voided bills left out.", except on R10, which lists them: "Voided bills
+   included."
+
+A name in the sentence, such as a captain's, is read from the most recent bill
+that carries it, never from `users`.
+
+## 4. The checks each report runs
+
+| Report | Checks |
+|---|---|
+| R1 Today | C1, C3, C4 for today |
+| R2 Day Close | C1, C3, C4, C6, C8, C9 for the date, and C12 when it is closed. P14 adds C2, C5.4, C5.7, C7, C10 and C11 to the day's set. |
+| R3 Sales by Day | C1, C5.6, C8 |
+| R4 Hours and Weekdays | C5.5 |
+| R5 Payments | C3, C4 |
+| R6 Platform Money | C11 |
+| R7 Cash Till | C9 for each date |
+| R8 GST | C1, C5.7, C6 |
+| R9 Tally Export | C1, C5.7. The file refuses to build if any ERROR check fails. |
+| R10 Invoice Register | C6 |
+| R11 Menu Performance | C2, C5.1, C5.2, C7 |
+| R12 Captains | C5.3 |
+| R13 Tables and Table Time | C5.4 |
+| R14 Discounts | C1, C2 |
+| R15 Cancellations and Voids | C6, C7 |
+| R16 No Charge | C7 |
+| R17 On Hold Accounts | C10 |
+| R18 Activity Log | None. It is M8's read, unchanged. |
+| R19 Bill List | C1, C2, C4 for each bill shown |
+
+Over a range, C1, C3, C4, C6 and C8 run for every day in it and return one
+result each, listing every failing day or bill in `refs` (P14).
+
+## 5. Export
+
+`format=xlsx`:
+
+1. Built on the server, by `server/services/reports/exportXlsx.js`, from the
+   envelope the engine already built. Never queried a second time.
+2. Four sheets: **Report**, the rows and totals, one sheet section per report
+   section; **Filter**, the filter sentence and the open days; **Definitions**,
+   each column used with its glossary meaning; **Checks**, every result.
+3. Money as numbers in rupees with two decimals and the Indian number format
+   `[>=10000000]##\,##\,##\,##0.00;[>=100000]##\,##\,##0.00;##,##0.00`, so the
+   file adds up in Excel. Percent as a number with two decimals. Dates as Excel
+   dates. Times as India time text.
+4. File name `{restaurant}-{report}-{from}-{to}.xlsx`, every space and `/`
+   replaced by `-`, for example `Cafezza-R3-2026-09-26-2026-09-26.xlsx`.
+5. Content type
+   `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, with a
+   `Content-Disposition: attachment` naming the file.
+6. A failed ERROR check still downloads, and the Report sheet's first line
+   names the failed check. R9 is the one exception: it refuses with 422
+   `CHECK_FAILED`, naming each failed check.
+7. The library is `exceljs`, added in P14.
+
+PDF and print come from the browser's print function with an A4 stylesheet,
+built in P18. No PDF library on the server.
+
+## 6. The reports
+
+Every path is `GET /api/v1/reports/v2/{name}`. Roles are OWNER and MANAGER
+unless a report says otherwise; no other role sees a report. In the tables,
+"Reads" is the stored field each column adds up.
+
+### R1 Today, `today`
+
+No parameters: today's business date. Live, for the dashboard; P18 builds it.
+
+| Key | Label | Type | Reads |
+|---|---|---|---|
+| `billTotalInPaise` | Bill total | money | `bills.grandTotalInPaise` |
+| `netSalesInPaise` | Net sales | money | `bills.taxBreakdown[].taxableInPaise` |
+| `billCount` | Bills | count | `bills` |
+| `covers` | Covers | count | `bills.guestCount`, dine-in |
+| `averagePerCoverInPaise` | Average per cover | money | dine-in net sales ÷ dine-in covers |
+| `openTables` | Open tables | count | `orders` with status `OPEN` or `READY_TO_BILL` and a `tableId` |
+| `openItemTotalInPaise` | Item total | money | those orders' live line totals |
+| `unpaidCount`, `unpaidInPaise` | Unpaid | count, money | `bills` with status `UNPAID` |
+| `lastWeekBillTotalInPaise` | Same weekday last week | money | the same weekday last week, bills with `billedAt` up to the same time of day |
+
+Sections `money` (R2 section B so far), `topItems` (five by
+`bills.lines[].quantity`), `alerts` (voids, No Charge, discounts over 2000 basis
+points of item total, items cancelled after preparation, each with its record
+id). Drill: tiles to R19 with `from` and `to` set to today.
+
+### R2 Day Close, `day-close`
+
+`?date=YYYY-MM-DD`. Returns `computeDayFigures` (M16 section 4) for an open day,
+or the stored `dayclosures.snapshot` for a closed one, as sections:
+
+| Section | Rows | Reads |
+|---|---|---|
+| `sales` (A) | One row per line: Bills, Covers, Item total, Discount, Net sales, CGST, SGST, GST, Round-off, Bill total, Average bill, Average per cover | `snapshot.sales` |
+| `money` (B) | One row per method, then Money in hand, Platform money, one row per On Hold account, Unpaid, Total | `snapshot.money` |
+| `collections` (C) | One row per collection: account, method, amount | `snapshot.collections` |
+| `cash` (D) | Opening float, Cash from bills, Cash collections, Paid in, Paid out, Expected cash, Counted cash, Cash difference | `snapshot.cash`, `dayclosures.countedCashInPaise` |
+| `orderTypes` (E) | One row per order type, delivery by platform | `snapshot.orderTypes` |
+| `gst` (F) | One row per rate; the platform row is labelled "GST paid by platform, section 9(5)" | `snapshot.gst` |
+| `controls` (G) | Discounts, No Charge, Items cancelled, Wasted value, Orders cancelled, Voided bills | `snapshot.controls` |
+| `invoices` (H) | One row per invoice series | `snapshot.invoices` |
+
+Each section has columns `line` (text) and `amountInPaise` (money) or `count`.
+The blind count of M16 applies: a manager does not get Expected cash or Cash
+difference unless `dayClose.showCashDifferenceToManager` is on. Drill: sales and
+money rows to R19 for the date, a method to `method`, an account to
+`accountId`; cash rows to the cash drawer for the date; controls to R14, R15 and
+R16.
+
+Example, the golden day after close, as the owner, sections A, B and D shortened:
+
+```json
+{
+  "report": "R2", "title": "Day Close",
+  "filter": { "date": "2026-09-26" },
+  "filterSentence": "26 Sep 2026. Business day starts 5:00 AM. Voided bills left out.",
+  "openDays": [],
+  "sections": [
+    { "key": "sales", "title": "Sales", "rows": [
+      { "line": "Bills", "count": 15 }, { "line": "Covers", "count": 27 },
+      { "line": "Item total", "amountInPaise": 931022 }, { "line": "Discount", "amountInPaise": 42390 },
+      { "line": "Net sales", "amountInPaise": 888632 }, { "line": "CGST", "amountInPaise": 19131 },
+      { "line": "SGST", "amountInPaise": 19126 }, { "line": "GST", "amountInPaise": 38257 },
+      { "line": "Round-off", "amountInPaise": 11 }, { "line": "Bill total", "amountInPaise": 926900 },
+      { "line": "Average bill", "amountInPaise": 59242 }, { "line": "Average per cover", "amountInPaise": 26709 } ] },
+    { "key": "money", "title": "Where the bill total went", "rows": [
+      { "line": "Cash", "amountInPaise": 175400 }, { "line": "Card", "amountInPaise": 148100 },
+      { "line": "UPI", "amountInPaise": 147200 }, { "line": "Money in hand", "amountInPaise": 470700 },
+      { "line": "Zomato Gold", "amountInPaise": 199800 }, { "line": "Dineout", "amountInPaise": 77800 },
+      { "line": "EazyDiner", "amountInPaise": 0 }, { "line": "Zomato", "amountInPaise": 30500 },
+      { "line": "Swiggy", "amountInPaise": 93000 }, { "line": "Platform money", "amountInPaise": 401100 },
+      { "line": "On Hold: E-210 Office", "amountInPaise": 4700 }, { "line": "On Hold: W-330 Office", "amountInPaise": 50400 },
+      { "line": "Unpaid", "amountInPaise": 0 }, { "line": "Total", "amountInPaise": 926900 } ] },
+    { "key": "cash", "title": "Cash drawer", "rows": [
+      { "line": "Opening float", "amountInPaise": 200000 }, { "line": "Cash from bills", "amountInPaise": 175400 },
+      { "line": "Cash collections", "amountInPaise": 0 }, { "line": "Paid in", "amountInPaise": 0 },
+      { "line": "Paid out", "amountInPaise": 35000 }, { "line": "Expected cash", "amountInPaise": 340400 },
+      { "line": "Counted cash", "amountInPaise": 340000 }, { "line": "Cash difference", "amountInPaise": -400 } ] }
+  ],
+  "checks": [ { "id": "C9", "severity": "WARNING", "passed": false, "message": "C9 Cash: counted ₹3,400.00, expected ₹3,404.00. ₹4.00 short.", "expected": 340400, "actual": 340000, "difference": -400, "refs": [] } ]
+}
+```
+
+### R3 Sales by Day, `sales-by-day`
+
+`from`, `to`, `orderType`. One row per business date, every date present,
+zeros where there were no bills. Dimension: order type.
+
+| Key | Label | Type | Reads |
+|---|---|---|---|
+| `businessDate` | Business date | date | `bills.businessDate`, shown with the weekday |
+| `billCount` | Bills | count | live bills |
+| `covers` | Covers | count | `bills.guestCount`, dine-in |
+| `itemTotalInPaise` | Item total | money | `bills.subtotalInPaise` |
+| `discountInPaise` | Discount | money | `bills.discount.amountInPaise` |
+| `netSalesInPaise` | Net sales | money | `bills.taxBreakdown[].taxableInPaise` |
+| `gstInPaise` | GST | money | `bills.totalTaxInPaise` |
+| `roundOffInPaise` | Round-off | money | `bills.roundOffInPaise` |
+| `billTotalInPaise` | Bill total | money | `bills.grandTotalInPaise` |
+| `averageBillInPaise` | Average bill | money | net sales ÷ bills |
+| `averagePerCoverInPaise` | Average per cover | money | dine-in net sales ÷ dine-in covers |
+
+Totals: sums, and the two averages from the totals. `compare=previous` adds
+`previous`, the same envelope for the range of the same length ending the day
+before `from`. Drill: every count and money cell to R19 for that date.
+
+### R4 Hours and Weekdays, `hours`
+
+`from`, `to`, `orderType`. Sections `byHour`, 24 rows, hour 0 to 23 by the
+India-time hour of `bills.billedAt` through `DISPLAY_TIMEZONE`, with
+`billCount` (Bills) and `netSalesInPaise` (Net sales); and `weekdayByHour`, 7
+rows Monday first, each with `weekday` and 24 cells `h0InPaise` to `h23InPaise`
+(Net sales). Every hour and weekday is present. Totals are sums. Drill: a cell
+to R19 with `hour` and `weekday`.
+
+### R5 Payments, `payments`
+
+`from`, `to`. **OWNER only.** Sections `days` and `collections`. `days`: one
+row per business date, by each payment's own `bills.payments[].businessDate` (a
+null reads as the bill's). Columns: Business date; one money column per method, keyed by code, labelled with the frozen
+`methodName`, for every active method and every method used in the range even if
+now inactive, zeros where unused; Money in hand; Platform money; On Hold
+(`bills.chargedToAccountInPaise` by `bills.businessDate`); Unpaid (bills with
+status `UNPAID`, only on open days); Bill total. `collections`: one row per
+`accountentries` entry of type `COLLECTION` in the range: Business date,
+Account, Payment method, Collection. Totals are sums. Drill: a method cell to R19 with that date and
+`method`; On Hold to R19 with `status=ON_ACCOUNT`.
+
+Example, the golden day, one row:
+
+```json
+{
+  "report": "R5", "title": "Payments",
+  "filterSentence": "26 Sep 2026. Business day starts 5:00 AM. Voided bills left out.",
+  "sections": [
+    { "key": "days", "title": "Payments", "rows": [ {
+      "businessDate": "2026-09-26",
+      "CASH": 175400, "CARD": 148100, "UPI": 147200, "inHandInPaise": 470700,
+      "ZOMATO_GOLD": 199800, "DINEOUT": 77800, "EAZYDINER": 0, "ZOMATO": 30500, "SWIGGY": 93000,
+      "platformInPaise": 401100, "onHoldInPaise": 55100, "unpaidInPaise": 0, "billTotalInPaise": 926900 } ] },
+    { "key": "collections", "title": "Collections", "rows": [], "totals": { "amountInPaise": 0 } }
+  ]
+}
+```
+
+B14's payment at 12:02 AM on 27 September counts on 26 September, by its own
+business date.
+
+### R6 Platform Money, `platform-money`
+
+`from`, `to`, `method`. Section `payouts`: one row per live payout whose period
+overlaps the range: Platform (`platformpayouts.methodName`), Period, Received
+payout (`amountReceivedInPaise`), Expected payout and Payout difference (M17
+section 6.4, from each covered payment's frozen `commissionBps`), Bills
+(covered payments), and `rateNotSetCount`. Section `uncovered`: platform
+payments in the range no live payout covers: bill number, date, platform order
+ID, amount, commission or "rate not set". Rate-not-set payments are listed,
+never estimated. Drill: a payout to R19 with `method` and its period.
+
+### R7 Cash Till, `cash-till`
+
+`from`, `to`. **OWNER only.** One row per business date: R2 section D's lines,
+plus Closed by and Closed at. A closed date reads the stored close; an open date
+shows expected cash so far and no count. Drill: a date to R2.
+
+### R8 GST, `gst`
+
+`from`, `to`. Sections: `byRate` (A), one row per rate from
+`bills.taxBreakdown` of `NORMAL` bills: Net sales, CGST, SGST, GST; `platform`
+(B), net sales of `PLATFORM_COLLECTS` bills by frozen `bills.platform.code`;
+`notSales` (C), No Charge value (`orders.noCharge.valueInPaise`) and the
+voided bill total, never added to A; `documents` (D), per invoice series: first,
+last, issued, voided; `roundOff` (E), the total. Drill: a rate to R19 with
+`taxRateBps`; a platform to R19 with `platform`; voided to R19 with
+`status=VOIDED`.
+
+### R9 Tally Export, `tally-export`
+
+`from`, `to`. A file only: `format=xlsx` is the only format, and `json` is a 400.
+Refuses with 422 `CHECK_FAILED` when an ERROR check fails, naming each. Two sheets
+besides the four standard ones' Filter, Definitions and Checks:
+
+**Sales by rate**: columns Tax rate, Net sales, CGST, SGST, Bill total; one row
+per rate from `bills.taxBreakdown`, the 0% platform row labelled "Sales 0%";
+then a Round-off row; then Total.
+
+**Sales by payment method**: columns Tally code
+(`bills.payments[].tallyLedgerCode`), Payment method (`methodName`), Net sales,
+CGST, SGST, Bill total; one row per method code, plus an On Hold row with the
+Tally code `P03`, plus Unpaid when any; then Total. Each bill's net sales, CGST
+and SGST are divided across its payments, its account charge and any unpaid
+part with `splitBillAcrossPayments` in `server/utils/tax.js`, by the largest
+remainder method weighted by amount. Round-off stays on its own row. The two
+sheets always show the same total net sales, CGST and SGST.
+
+### R10 Invoice Register, `invoice-register`
+
+`from`, `to`, `page`, `limit`. Every bill, voided included, ordered by series
+then `billSequence`. A null `invoiceSeries` belongs to its `financialYear`
+series. Columns: Invoice number (`billNumber`), Business date, Time issued
+(`billedAt`), Order type, Table (`tableName`), Bill total, Status (Paid, On Hold,
+Unpaid or Voided), Void reason (the reason's label and note). A missing number
+between the first and last of a series is its own row, Status "Missing number".
+Drill: a number to R19 with `billNumber`.
+
+### R11 Menu Performance, `menu`
+
+`from`, `to`, `orderType`, `categoryName`. Rows by `bills.lines[].categoryName`,
+or by item within a category when `categoryName` is given. Dimension: order
+type.
+
+| Key | Label | Type | Reads |
+|---|---|---|---|
+| `name` | Category, or Item | text | `bills.lines[].categoryName` or `itemName`, frozen |
+| `quantity` | Quantity sold | count | `bills.lines[].quantity` |
+| `itemTotalInPaise` | Item total | money | `bills.lines[].lineTotalInPaise` |
+| `discountInPaise` | Line discount share | money | `bills.lines[].discountShareInPaise` |
+| `netSalesInPaise` | Line net sales | money | `bills.lines[].taxableInPaise` |
+| `gstInPaise` | Line GST share | money | `bills.lines[].taxInPaise` |
+| `shareBps` | Share of net sales | percent | row net sales ÷ total net sales |
+| `rank` | Rank | count | by net sales |
+| `cancelledQuantity` | Cancelled quantity | count | `orders.lines[]` with status `CANCELLED` and this frozen name |
+| `wastedValueInPaise` | Wasted value | money | those with `wasPrepared: true`, at line total |
+
+Lines on bills from before P03 have null shares and a null category. They are
+counted in their own row, "Not recorded", with their quantity and item total
+and null shares, never silently left out and never estimated. Shares add to
+10000 basis points by the largest remainder method. Totals: sums; item total,
+discount and net sales equal R3 for the same range. Drill: a row to R19 with
+`categoryName` or `itemName`.
+
+Example, the golden day by category, two rows and the totals:
+
+```json
+{
+  "report": "R11", "title": "Menu Performance",
+  "filterSentence": "26 Sep 2026. Business day starts 5:00 AM. All order types. Voided bills left out.",
+  "rows": [
+    { "name": "Pizza", "quantity": 5, "itemTotalInPaise": 181000, "discountInPaise": 922, "netSalesInPaise": 180078, "gstInPaise": 7104, "shareBps": 2026, "rank": 1 },
+    { "name": "Cafezza Mains", "quantity": 4, "itemTotalInPaise": 170000, "discountInPaise": 4518, "netSalesInPaise": 165482, "gstInPaise": 8275, "shareBps": 1862, "rank": 2 }
+  ],
+  "totals": { "quantity": 36, "itemTotalInPaise": 931022, "discountInPaise": 42390, "netSalesInPaise": 888632, "gstInPaise": 38257, "shareBps": 10000 }
+}
+```
+
+### R12 Captains, `captains`
+
+`from`, `to`, `orderType`. One row per `bills.captainId`, named with the
+`captainName` of the most recent bill in the range. Columns: Captain, Bills,
+Covers, Net sales, Bill total, Average per cover, Average table time (minutes
+from `orderOpenedAt` to `paidAt` on dine-in paid bills, a total divided by a
+count), Discounts (count and total), Items cancelled (count and value, by
+`orders.lines[].cancelledBy`). Totals equal R3. Drill: a row to R19 with
+`captainId`.
+
+### R13 Tables and Table Time, `tables`
+
+`from`, `to`, `stationId`. Section `tables`: one row per `bills.tableName` on
+dine-in bills: Table, Bills, Covers, Net sales, Turns per day (bills ÷ business
+dates in the range, type `decimal2`), Average table time. Section
+`kitchen`: per `kots.stationName`, Kitchen time (average minutes from
+`kots.createdAt` to its lines' `readyAt`) and the five slowest items. Drill: a
+table to R19 with `table`.
+
+### R14 Discounts, `discounts`
+
+`from`, `to`, `discountReason`, `page`, `limit`. Sections: `byReason`
+(`bills.discount.reasonCode`, with the label; count, Discount, average percent
+off as total discount ÷ total item total); `byPerson`
+(`bills.discount.appliedBy`, named through `personNames`; count, Discount,
+highest first); `bills`:
+Invoice number, Time issued, Table, Captain, Item total, Discount, Percent off,
+Bill total, Discount reason and note, Discount funded by. Drill: a bill to R19
+with `billNumber`, which shows its line shares.
+
+### R15 Cancellations and Voids, `cancellations`
+
+`from`, `to`, `page`, `limit`. From `orders` by the business date of the cancel
+time, and `bills` by `businessDate`. Sections: `items`, each cancelled line not
+part of a whole-order cancel: Time (`lines[].cancelledAt`), Table, Captain
+(the order's `openedBy`, named from the order's bill when billed), Item,
+Quantity, Line total, Stage ("Cancelled before preparation" or "Cancelled after
+preparation", from `wasPrepared`), Cancel reason (`lines[].cancelReasonCode`
+label and note), Cancelled by; `orders`, each whole-order cancel: Time, Table,
+Line total of its live lines, Cancel reason (`orders.cancelReasonCode`; a line
+cancelled with its order takes the order's code), Cancelled by; `voids`: Invoice
+number, Bill total, Void reason, Voided by, Time; `summary`: by reason, by
+person, by item; and the headline Wasted value. Drill: a void to R19 with
+`billNumber`; an item to the order.
+
+Example, the golden day:
+
+```json
+{
+  "report": "R15", "title": "Cancellations and Voids",
+  "filterSentence": "26 Sep 2026. Business day starts 5:00 AM. Voided bills left out.",
+  "headline": { "wastedValueInPaise": 39000 },
+  "sections": [
+    { "key": "items", "rows": [
+      { "itemName": "Thecha Paneer Chilli", "quantity": 1, "lineTotalInPaise": 39000, "stage": "AFTER_PREPARATION", "reason": "Guest changed the order", "tableName": "Table 11", "cancelledByName": "Khuman Singh" },
+      { "itemName": "Cheesy Tornado", "quantity": 1, "lineTotalInPaise": 36000, "stage": "BEFORE_PREPARATION", "reason": "Wrong item entered", "tableName": "Table 11", "cancelledByName": "Khuman Singh" } ],
+      "totals": { "quantity": 2, "lineTotalInPaise": 75000 } },
+    { "key": "orders", "rows": [], "totals": { "count": 0, "lineTotalInPaise": 0 } },
+    { "key": "voids", "rows": [
+      { "billNumber": "CFA/C/22452", "billTotalInPaise": 34700, "reason": "Billed to the wrong table", "voidedByName": "Manager" } ],
+      "totals": { "count": 1, "billTotalInPaise": 34700 } }
+  ],
+  "checks": [ { "id": "C6", "passed": true }, { "id": "C7", "passed": true } ]
+}
+```
+
+`cancelledByName` and `voidedByName` come from `personNames`, from the stored
+`lines[].cancelledBy`, `cancelledBy` and `voidedBy` ids.
+
+### R16 No Charge, `no-charge`
+
+`from`, `to`, `page`, `limit`. `orders` with status `NO_CHARGE`, by
+`noCharge.businessDate`: Time (`noCharge.at`), Table, Items, No Charge value
+(`noCharge.valueInPaise`, labelled "No Charge value, before GST"), Reason and
+note, Requested by (`openedBy`), Approved by (`noCharge.approvedBy`). Totals:
+count and value. Drill: a row to the order.
+
+### R17 On Hold Accounts, `accounts`
+
+`asOf` (a business date, default today), `accountId`, `from`, `to`. Section
+`accounts`, every account as of `asOf`: Account, Opening balance, Charged,
+Collected, Outstanding, Oldest unpaid bill (date and age in days), from
+`accounts` and `accountentries`. Section `statement` when `accountId` is given:
+the M16 statement. Drill: Charged to R19 with `accountId`.
+
+### R18 Activity Log
+
+M8 Audit Trail, as written: `GET /api/v1/audit` and `GET /api/v1/audit/summary`,
+unchanged, with M8's own roles. Not under `/reports/v2`, and not through the
+engine. P17 part A builds it.
+
+### R19 Bill List, `bills`
+
+Every filter in section 2, `page`, `limit`. The page every drill down opens.
+Columns: Invoice number, Business date, Time issued (`billedAt`), Time paid
+(`paidAt`), Table or order type, Captain, Covers, Item total, Discount, Net
+sales, GST, Round-off, Bill total, Paid with (each payment's `methodName`), and
+Status. Totals cover every matching bill, across pages. `status=VOIDED` lists
+voided bills; otherwise voided bills are left out.
+
+`GET /api/v1/reports/v2/bills/:billId` returns one bill in full: lines with
+shares, payments with corrections, the discount with who applied it, the account
+charge, void details, and a timeline from the order and the bill: opened, each
+line added, each KOT fired, each line ready, served or cancelled, billed,
+discounted, each payment, charged, voided, each with its time.
+
+**Every drill down R19 must express**, checked report by report: a date or
+range (`from`, `to`) for R2 to R5, R7, R8 and R10; `method` for R2 B, R5 and R6;
+`status=ON_ACCOUNT`, `status=UNPAID`, `status=VOIDED` and `accountId` for R2,
+R5, R8 and R17; `orderType` and `platform` for R2 E, R3 and R8 B; `taxRateBps`
+for R2 F and R8 A; `hour` and `weekday` for R4; `categoryName` and `itemName`
+for R11; `captainId` for R12; `table` for R13; `discountReason` and `billNumber`
+for R14; `billNumber` for R10, R15 and R19 itself; `hasDiscount` and
+`hasCancellations` for R2 G. Cash drawer lines, payouts, cancelled lines and No
+Charge orders are not bills and open their own records instead.
+
+## 7. Indexes
+
+| Report | Main read | Index |
+|---|---|---|
+| R1 to R4, R8, R11, R12, R14, R19 | `bills` by date | `{ restaurantId, branchId, businessDate, isVoided }`, exists |
+| R5, R6 | payments by their own business date | **new** `{ restaurantId, branchId, "payments.businessDate" }` on `bills` |
+| R6 | payouts by method and period | `{ restaurantId, method, periodFrom, periodTo }`, exists |
+| R10, C6 | a series in sequence order | **new** `{ restaurantId, branchId, invoiceSeries, billSequence }` on `bills` |
+| R15, R2 G | lines by cancel time | **new** `{ restaurantId, branchId, "lines.cancelledAt" }` on `orders` |
+| R15 | whole orders by cancel time | **new** `{ restaurantId, branchId, cancelledAt }` on `orders`, partial on `isCancelled: true` |
+| R16 | No Charge orders by date | **new** `{ restaurantId, branchId, status, "noCharge.businessDate" }` on `orders` |
+| R17 | entries by account and time | `{ restaurantId, accountId, at }`, exists |
+| R2 C | collections by date | `{ restaurantId, branchId, businessDate, type }` on `accountentries`, exists |
+| R7, open days | closes by date | `{ restaurantId, branchId, businessDate }` on `dayclosures`, exists |
+| R13 kitchen | KOTs by station and time | `{ restaurantId, branchId, stationId, createdAt }`, exists |
+
+P14 adds the five new ones. Each starts with `restaurantId`.
+
+## 8. Permissions
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| R1 `today` | yes | yes | no | no | no | no |
+| R2 `day-close` | yes | yes, blind count | no | no | no | no |
+| R3 `sales-by-day` | yes | yes | no | no | no | no |
+| R4 `hours` | yes | yes | no | no | no | no |
+| R5 `payments` | yes | no | no | no | no | no |
+| R6 `platform-money` | yes | yes | no | no | no | no |
+| R7 `cash-till` | yes | no | no | no | no | no |
+| R8 `gst` | yes | yes | no | no | no | no |
+| R9 `tally-export` | yes | yes | no | no | no | no |
+| R10 `invoice-register` | yes | yes | no | no | no | no |
+| R11 `menu` | yes | yes | no | no | no | no |
+| R12 `captains` | yes | yes | no | no | no | no |
+| R13 `tables` | yes | yes | no | no | no | no |
+| R14 `discounts` | yes | yes | no | no | no | no |
+| R15 `cancellations` | yes | yes | no | no | no | no |
+| R16 `no-charge` | yes | yes | no | no | no | no |
+| R17 `accounts` | yes | yes | no | no | no | no |
+| R18 M8 `audit` | as M8 | as M8 | no | no | no | no |
+| R19 `bills`, `bills/:billId` | yes | yes | no | no | no | no |
+
+## 9. Error codes added by M19
+
+| Code | Status | When |
+|---|---|---|
+| `CHECK_FAILED` | 422 | The Tally export would be built while an ERROR check fails; `checks` lists each |
+
+## 10. Decisions
+
+**Every M19 report has its own path under `/reports/v2/`**, including R3, R4 and
+R14, which REPORT-SPEC section 4 said would extend M6's paths. M6's
+`sales-by-day`, `hourly` and `discounts` return a different shape that M6's
+screens read, and those screens stay live until P18 replaces them. Extending in
+place would have broken them; a second path leaves both working, and P18
+retires the M6 endpoints together with the screens that use them.
+
+## 11. Fields a report needs that are not stored
+
+Listed rather than invented. None blocks a figure; each affects only a label.
+
+| Need | Today | Effect |
+|---|---|---|
+| The name of whoever applied a discount, cancelled a line or an order, voided a bill, or approved a No Charge, as it was at the time | Only the user id is stored | Reports show the person's current name, through `personNames`. Renaming a user renames them on old reports. Freezing names would need new fields on `bills` and `orders`, a schema change to decide in its own prompt. |
+| The captain of an order that was never billed (a cancelled order, a No Charge) | `orders.openedBy`, an id | Shown through `personNames` like the above |

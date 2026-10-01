@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P13, the reports spec. Staging is brought up by hand from the P12 checklist.
+Next: P14, the report engine.
 
 ---
 
@@ -46,7 +46,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M16 | Settlement and Day Close | Rishi | DONE | Day Close proven against the golden day in `tests/goldenDay.test.js`. No Charge (P08), On Hold accounts (P09), cash drawer, day figures, checks C1 C3 C4 C6 C8 C9, Day Close with the blind count, and the day lock (P10). Built by Rishi. Arya's read outstanding. |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M19 | Reports v2 | Arya | NOT STARTED | Every report in REPORT-SPEC.md. P13 to P18, proven by P21. |
+| M19 | Reports v2 | Arya | IN PROGRESS | Specified in P13: `docs/API-CONTRACT.md` section "M19 Reports v2". Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M20 | Floor Plan and Look | Arya | NOT STARTED | P19, P20. |
 
 ---
@@ -335,6 +335,12 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | A host-neutral `Dockerfile` is the deploy unit. Index building is a release step, run before traffic moves. | Any host that runs containers works, and indexes are never built under live traffic. |
 | 2026-10-01 | The helmet content security policy is unchanged. | Checked in a browser against the production build: no blocked script, style, font or image, the print iframe's inline styles apply, and the page makes no request to another site. |
 | 2026-10-01 | `createApp` takes `{ serveClient, clientDist }` options; by default the client is served only in production. | So a test can serve a temporary folder without a real build, while development keeps Vite on its own port. |
+| 2026-10-01 | Every M19 report returns one envelope: filter, filter sentence, open days, columns with glossary labels, rows, totals, checks and drill downs. Excel export is built on the server from the same data. | One shape for five build sessions, and the export can never disagree with the screen. |
+| 2026-10-01 | R11 reports lines without stored shares as their own 'not recorded' row. | Old bills from before P03 must be visible, never silently dropped or estimated. |
+| 2026-10-01 | Every M19 report has its own path under `GET /api/v1/reports/v2/`, including R3, R4 and R14, which REPORT-SPEC said would extend M6's paths. REPORT-SPEC section 4 is updated to match. | M6's endpoints return a different shape that M6's screens read until P18 replaces them. A second path keeps both working; P18 retires the M6 endpoints with their screens. |
+| 2026-10-01 | Reports group people by stored user id. A captain's name is frozen on the bill; for the person who discounted, cancelled, voided or approved, the engine attaches the current name in one step, `personNames`, as a label only. Listed in the contract's section 11 as a field not stored. | No name is frozen for those people, and P13 forbids inventing fields. Names never affect a figure or a grouping. |
+| 2026-10-01 | A new column type, `decimal2`, integer hundredths, for Turns per day. | The six types P13 suggested have no place for a ratio like 2.50 turns. |
+| 2026-10-01 | GLOSSARY gained section 13, the column labels every M19 report uses that it did not yet define. | Every label on a report comes from the glossary, and 37 were missing. |
 
 ---
 
@@ -357,6 +363,45 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P13 reports spec
+
+What was built or decided:
+The M19 contract, docs only: `docs/API-CONTRACT.md` section "M19 Reports v2".
+Principles (M6's carried over by reference, plus nine M19 rules), the shared
+request and its filters, the shared envelope shown filled in for R3 on the
+golden day, column types, drill downs, sections, open days, the filter
+sentence's exact construction, the checks per report, the Excel export, every
+report R1 to R19 with its endpoint, roles, filters, columns and the stored field
+each reads, examples for R2, R5, R11 and R15 from the golden day, the indexes
+P14 adds, the permissions table, a new `CHECK_FAILED` code, and the fields still
+not stored.
+
+REPORT-SPEC section 6 now points at the contract, and R3, R4 and R14 name their
+new paths. RECONCILIATION-RULES section 3 matches the contract. GLOSSARY gained
+section 13, the column labels. CONVENTIONS gained `CHECK_FAILED`.
+
+The four self-checks:
+1. Every number in TEST-DATA section 4 has a home: R2's sections A to H carry
+   all of A, B, D, E, F, G and H (`sales.*`, `money.*`, `cash.*`, `orderTypes`,
+   `gst`, `controls.*`, `invoices`); the category table is R11's rows; the
+   captain table is R12's rows.
+2. Every column names a stored field that DB-SCHEMA has, except the names of
+   people other than the captain, listed in the contract's section 11.
+3. R19's filters express every drill down from every other report; cash
+   lines, payouts, cancelled lines and No Charge open their own records.
+4. Not stored: the name, at the time, of whoever discounted, cancelled, voided
+   or approved. Not invented; shown as the current name.
+
+Files or endpoints touched:
+Docs only. No code.
+
+Anything the other developer needs to know:
+M19 paths are `/api/v1/reports/v2/{name}`. A definition never reads `users`,
+`menuitems`, `categories` or `paymentmethods`; names come through the engine.
+
+Anything now blocked or unblocked:
+P14 can start.
 
 ### 2026-10-01 Rishi, P12 cloud deployment
 
@@ -846,66 +891,6 @@ apply.
 
 Anything now blocked or unblocked:
 The M19 reports have frozen values to add up.
-
-### 2026-10-01 Rishi, P02 feature switches and invoice series
-
-What was built or decided:
-Deleted `docs/archive/PROJECT-PLAN_1.md` and `docs/PROJECT-INSTRUCTIONS.md`.
-
-`settings.features` (`inventory`, `attendance`, both default true) and
-`settings.invoice` (`mode`, `prefix`, `startingNumber`) on M7. Every inventory
-route, every attendance route including the station clock, and the two matching
-reports run `requireFeature` after `tenant` and before `requireRole`, and refuse
-with 403 `FEATURE_DISABLED`. With inventory off, firing and cancelling skip the
-two stock-movement calls; nothing else about them changes. The dashboard keeps
-its shape: `lowStock` is `[]` and `staffOnShift` is `null`. `GET /auth/me` gains
-`features` for every role.
-
-`PREFIX` mode numbers bills `CFA/C/22442` onwards, never resetting, through a
-`PREFIX:<prefix>` counter created at `startingNumber - 1` inside the bill
-transaction. Every bill now has `invoiceSeries`. The three rules
-(`INVOICE_START_TOO_LOW`, `INVOICE_SERIES_STARTED`, `INVOICE_SERIES_LOCKED`) run
-in `settingsService` before the write.
-
-On screen: links, tiles and report tabs for a switched-off module are hidden; a
-switched-off screen opened by its address says so, with a link back. The
-settings page gained Features and Invoice numbers sections, a preview line and
-the accountant warning.
-
-Files or endpoints touched:
-New: `middleware/requireFeature.js`, `components/RequireFeature.jsx`, tests
-`featureSwitches.test.js` and `invoiceSeries.test.js`.
-Changed: `models/Restaurant.js`, `models/Bill.js`, `services/settingsService.js`,
-`services/billNumberService.js`, `services/billService.js`,
-`services/kitchenService.js`, `services/operationsReportService.js`,
-`controllers/orderController.js`, `controllers/authController.js`,
-`validators/settingsValidators.js`, `utils/errors.js`, the inventory, attendance
-and report routes; on the client `AuthContext.jsx`, `App.jsx`, `DashboardPage.jsx`,
-`ReportShell.jsx`, `TodayPage.jsx`, `SettingsPage.jsx`, `api/settings.js`.
-Docs: API-CONTRACT M7 and 14, DB-SCHEMA 11, 12 and 17, CONVENTIONS 3,
-CAFFEZA-PROFILE section 1 now points the legal name at `restaurants.legalName`.
-
-Anything the other developer needs to know:
-`settingsService.getSettings(id, { session })` reads fresh inside a transaction;
-`isFeatureOn(req, name)` is the one way to ask about a switch. The settings
-screen preview is exact only for a new prefix series; for a running series it
-describes the format, because the next number needs a counter read and there is
-no endpoint for it.
-
-Anything now blocked or unblocked:
-P03 can start. P11 switches both features off and sets `CFA/C/` for Caffeza.
-
-Run together for all three prompts, at the user's request, with one test run
-at the end rather than one per prompt:
-Tests: 578 passing before (P01's recorded count, not re-run first), 660 after,
-0 failing. `npm run lint` and `npm run build` pass. This machine had no
-`node_modules`, no root `.env` and no `server/.env.test`, so the suite ran after
-`npm ci` with a throwaway env file outside the repo. No env file was added to the
-repo.
-Not done: the local manual checks in each prompt's "Done when" (a prefix bill
-on screen and on the receipt, the switched-off screens in a browser,
-`npm run seed:demo` and a discounted bill, the phone-sized cancel and void
-flows). They need a running dev server and database.
 
 ---
 

@@ -216,6 +216,12 @@ DAY_NOT_READY               422  Day Close is blocked; details.blockers lists ev
 DAY_CLOSED                  409  a write would change a closed business date
 ```
 
+Added by P13, built in P15:
+
+```
+CHECK_FAILED                422  the Tally export would be built while an ERROR check fails
+```
+
 ### Paging
 
 Every list endpoint takes `?page=1&limit=50`.

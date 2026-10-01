@@ -198,12 +198,12 @@ Message: "C12 Closed day: {date} was closed at {closedAt} with bill total {store
 | Report | Checks |
 |---|---|
 | R1 Today | C1, C3, C4 for today |
-| R2 Day Close | C1 to C9, C12 |
+| R2 Day Close | C1, C3, C4, C6, C8, C9, and C12 when closed. P14 adds C2, C5.4, C5.7, C7, C10 and C11 for the day. |
 | R3 Sales by Day | C1, C5.6, C8 |
 | R4 Hours and Weekdays | C5.5 |
 | R5 Payments | C3, C4 |
 | R6 Platform Money | C11 |
-| R7 Cash Till | C9 |
+| R7 Cash Till | C9 for each date |
 | R8 GST | C1, C5.7, C6 |
 | R9 Tally Export | C1, C5.7, and the export refuses to build if any ERROR check fails |
 | R10 Invoice Register | C6 |
@@ -214,6 +214,7 @@ Message: "C12 Closed day: {date} was closed at {closedAt} with bill total {store
 | R15 Cancellations and Voids | C6, C7 |
 | R16 No Charge | C7 |
 | R17 On Hold Accounts | C10 |
+| R18 Activity Log | None. It is M8's read. |
 | R19 Bill List | C1, C2, C4 for each bill shown |
 
 ---

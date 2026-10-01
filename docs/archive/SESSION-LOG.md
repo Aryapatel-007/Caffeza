@@ -1,5 +1,65 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, P02 feature switches and invoice series
+
+What was built or decided:
+Deleted `docs/archive/PROJECT-PLAN_1.md` and `docs/PROJECT-INSTRUCTIONS.md`.
+
+`settings.features` (`inventory`, `attendance`, both default true) and
+`settings.invoice` (`mode`, `prefix`, `startingNumber`) on M7. Every inventory
+route, every attendance route including the station clock, and the two matching
+reports run `requireFeature` after `tenant` and before `requireRole`, and refuse
+with 403 `FEATURE_DISABLED`. With inventory off, firing and cancelling skip the
+two stock-movement calls; nothing else about them changes. The dashboard keeps
+its shape: `lowStock` is `[]` and `staffOnShift` is `null`. `GET /auth/me` gains
+`features` for every role.
+
+`PREFIX` mode numbers bills `CFA/C/22442` onwards, never resetting, through a
+`PREFIX:<prefix>` counter created at `startingNumber - 1` inside the bill
+transaction. Every bill now has `invoiceSeries`. The three rules
+(`INVOICE_START_TOO_LOW`, `INVOICE_SERIES_STARTED`, `INVOICE_SERIES_LOCKED`) run
+in `settingsService` before the write.
+
+On screen: links, tiles and report tabs for a switched-off module are hidden; a
+switched-off screen opened by its address says so, with a link back. The
+settings page gained Features and Invoice numbers sections, a preview line and
+the accountant warning.
+
+Files or endpoints touched:
+New: `middleware/requireFeature.js`, `components/RequireFeature.jsx`, tests
+`featureSwitches.test.js` and `invoiceSeries.test.js`.
+Changed: `models/Restaurant.js`, `models/Bill.js`, `services/settingsService.js`,
+`services/billNumberService.js`, `services/billService.js`,
+`services/kitchenService.js`, `services/operationsReportService.js`,
+`controllers/orderController.js`, `controllers/authController.js`,
+`validators/settingsValidators.js`, `utils/errors.js`, the inventory, attendance
+and report routes; on the client `AuthContext.jsx`, `App.jsx`, `DashboardPage.jsx`,
+`ReportShell.jsx`, `TodayPage.jsx`, `SettingsPage.jsx`, `api/settings.js`.
+Docs: API-CONTRACT M7 and 14, DB-SCHEMA 11, 12 and 17, CONVENTIONS 3,
+CAFFEZA-PROFILE section 1 now points the legal name at `restaurants.legalName`.
+
+Anything the other developer needs to know:
+`settingsService.getSettings(id, { session })` reads fresh inside a transaction;
+`isFeatureOn(req, name)` is the one way to ask about a switch. The settings
+screen preview is exact only for a new prefix series; for a running series it
+describes the format, because the next number needs a counter read and there is
+no endpoint for it.
+
+Anything now blocked or unblocked:
+P03 can start. P11 switches both features off and sets `CFA/C/` for Caffeza.
+
+Run together for all three prompts, at the user's request, with one test run
+at the end rather than one per prompt:
+Tests: 578 passing before (P01's recorded count, not re-run first), 660 after,
+0 failing. `npm run lint` and `npm run build` pass. This machine had no
+`node_modules`, no root `.env` and no `server/.env.test`, so the suite ran after
+`npm ci` with a throwaway env file outside the repo. No env file was added to the
+repo.
+Not done: the local manual checks in each prompt's "Done when" (a prefix bill
+on screen and on the receipt, the switched-off screens in a browser,
+`npm run seed:demo` and a discounted bill, the phone-sized cancel and void
+flows). They need a running dev server and database.
+
 ### 2026-10-01 Arya, P01 production safety
 
 What was built or decided:
