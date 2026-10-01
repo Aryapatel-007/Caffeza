@@ -12,6 +12,7 @@
  */
 import { z } from 'zod';
 
+import { LINE_CANCEL_REASON_CODES, ORDER_CANCEL_REASON_CODES } from '../config/cancelReasons.js';
 import {
   MAX_GUEST_COUNT,
   MAX_LINE_QUANTITY,
@@ -24,7 +25,14 @@ import {
   ORDER_TYPES,
 } from '../models/Order.js';
 import { MAX_SEATS, MIN_SEATS, TABLE_NAME_MAX_LENGTH, TABLE_SECTION_MAX_LENGTH } from '../models/Table.js';
-import { nonEmptyString, objectId, paginationQuery, phoneIndia } from './common.js';
+import {
+  nonEmptyString,
+  objectId,
+  paginationQuery,
+  phoneIndia,
+  reasonFields,
+  requireNoteForOther,
+} from './common.js';
 
 /**
  * A boolean that arrived in a query string, matched literally.
@@ -289,10 +297,7 @@ export const editOrderLineSchema = z.object({
     ),
 });
 
-const cancelReason = nonEmptyString.max(
-  CANCEL_REASON_MAX_LENGTH,
-  `Cannot be longer than ${CANCEL_REASON_MAX_LENGTH} characters.`,
-);
+
 
 /**
  * `wasPrepared` is optional here and conditionally required in the controller.
@@ -306,10 +311,11 @@ export const cancelOrderLineSchema = z.object({
   body: z
     .object({
       version,
-      reason: cancelReason,
+      ...reasonFields(LINE_CANCEL_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
       wasPrepared: z.boolean({ error: 'Must be true or false.' }).optional(),
     })
-    .strict('Is not a field you can set here.'),
+    .strict('Is not a field you can set here.')
+    .superRefine(requireNoteForOther),
 });
 
 export const fireOrderSchema = z.object({
@@ -332,10 +338,11 @@ export const cancelOrderSchema = z.object({
   body: z
     .object({
       version,
-      reason: cancelReason,
+      ...reasonFields(ORDER_CANCEL_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
       wasPrepared: z.boolean({ error: 'Must be true or false.' }).optional(),
     })
-    .strict('Is not a field you can set here.'),
+    .strict('Is not a field you can set here.')
+    .superRefine(requireNoteForOther),
 });
 
 // ---------------------------------------------------------------------------

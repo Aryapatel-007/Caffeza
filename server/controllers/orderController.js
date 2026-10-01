@@ -11,6 +11,12 @@
  * version into the update filter. There is no read-modify-save anywhere in
  * here, on purpose. See the note at the bottom of models/Order.js.
  */
+import {
+  LINE_CANCEL_REASONS,
+  ORDER_CANCEL_REASONS,
+  reasonText,
+} from '../config/cancelReasons.js';
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { COUNTER_NAMES } from '../models/Counter.js';
 import {
   OCCUPYING_ORDER_STATUSES,
@@ -21,6 +27,7 @@ import {
   ORDER_TYPES,
 } from '../models/Order.js';
 import { Table } from '../models/Table.js';
+import { recordAudit } from '../services/auditService.js';
 import { nextNumber } from '../services/counterService.js';
 import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/kitchenService.js';
 // M4. wasPrepared: false means the kitchen had already deducted for this line
@@ -34,12 +41,14 @@ import {
   assertOrderWasPreparedRule,
   assertWasPreparedRule,
   buildLineSnapshots,
+  computeLineTotalInPaise,
   findLine,
   isReadyToBill,
   loadOrderInTenant,
   serialiseOrder,
 } from '../services/orderService.js';
 import { BusinessRuleError, NotFoundError, TableOccupiedError } from '../utils/errors.js';
+import { sumPaise } from '../utils/money.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
@@ -277,7 +286,7 @@ export async function editOrderLine(req, res) {
  */
 export async function cancelOrderLine(req, res) {
   const { orderId, lineId } = req.params;
-  const { version, reason, wasPrepared } = req.body;
+  const { version, reasonCode, note, wasPrepared } = req.body;
 
   const order = await loadOrderInTenant(req, orderId);
   assertOrderIsOpen(order);
@@ -302,13 +311,45 @@ export async function cancelOrderLine(req, res) {
           'lines.$[line].status': ORDER_LINE_STATUSES.CANCELLED,
           'lines.$[line].cancelledAt': new Date(),
           'lines.$[line].cancelledBy': req.user.id,
-          'lines.$[line].cancelReason': reason,
+          'lines.$[line].cancelReasonCode': reasonCode,
+          // P04: the free-text field now holds the optional note.
+          'lines.$[line].cancelReason': note ?? null,
           'lines.$[line].wasPrepared': wasPrepared ?? null,
         },
       },
       arrayFilters: [{ 'line._id': lineId }],
       session,
     });
+
+    /**
+     * P04. Food the kitchen made and that nobody will pay for is an exception
+     * an owner needs to see. Written inside the same transaction, so a cancel
+     * that rolls back (a version conflict, say) leaves no audit line behind.
+     * A line cancelled before preparation writes nothing: that is normal
+     * operation, and normal operation is not audited.
+     */
+    if (wasPrepared === true) {
+      await recordAudit(
+        req,
+        {
+          action: AUDIT_ACTIONS.LINE_CANCELLED_AFTER_PREP,
+          entityType: AUDIT_ENTITY_TYPES.ORDER,
+          entityId: order._id,
+          entityLabel: `Order ${order.orderNumber}`,
+          reason: reasonText(LINE_CANCEL_REASONS, reasonCode, note),
+          amountInPaise: computeLineTotalInPaise(line),
+          details: {
+            lineId: String(line._id),
+            itemName: line.itemName,
+            variantName: line.variantName ?? null,
+            quantity: line.quantity,
+            reasonCode,
+            tableName: order.tableName ?? null,
+          },
+        },
+        session,
+      );
+    }
 
     // If it reached the kitchen, take it off the ticket too, or the pass keeps
     // cooking a dish the floor has already voided.
@@ -477,7 +518,7 @@ export async function moveOrderToTable(req, res) {
  */
 export async function cancelOrder(req, res) {
   const { orderId } = req.params;
-  const { version, reason, wasPrepared } = req.body;
+  const { version, reasonCode, note, wasPrepared } = req.body;
 
   const order = await loadOrderInTenant(req, orderId);
 
@@ -494,9 +535,9 @@ export async function cancelOrder(req, res) {
 
   const now = new Date();
 
-  const stillLive = order.lines
-    .filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED)
-    .map((line) => line._id);
+  const liveLines = order.lines.filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED);
+  const stillLive = liveLines.map((line) => line._id);
+  const liveValueInPaise = sumPaise(...liveLines.map(computeLineTotalInPaise));
 
   const inventoryOn = await isFeatureOn(req, 'inventory');
 
@@ -510,14 +551,19 @@ export async function cancelOrder(req, res) {
           isCancelled: true,
           cancelledAt: now,
           cancelledBy: req.user.id,
-          cancelReason: reason,
+          cancelReasonCode: reasonCode,
+          // P04: the free-text field now holds the optional note.
+          cancelReason: note ?? null,
           // Every line that is not already cancelled goes with it, keeping its
           // own snapshot. The positional filter leaves already-cancelled lines
           // alone so their original reason and wasPrepared survive.
           'lines.$[live].status': ORDER_LINE_STATUSES.CANCELLED,
           'lines.$[live].cancelledAt': now,
           'lines.$[live].cancelledBy': req.user.id,
-          'lines.$[live].cancelReason': reason,
+          'lines.$[live].cancelReason': note ?? null,
+          // The order's reasons are a different list from a line's. The line
+          // keeps the note; its code stays null rather than borrowing an order
+          // code the line enum does not contain.
           /**
            * The one answer only lands on lines that actually reached the
            * kitchen. A line still PENDING was never fired, so no stock was
@@ -544,6 +590,32 @@ export async function cancelOrder(req, res) {
     });
 
     await cancelKotLinesFor(req, { orderId, orderLineIds: stillLive }, session);
+
+    /**
+     * P04. ORDER_CANCELLED was in the audit list from M3 and nothing wrote it,
+     * so a table could disappear without a trace. Every whole-order cancel
+     * writes one line now, inside the transaction, carrying the value of every
+     * line that was still live.
+     */
+    await recordAudit(
+      req,
+      {
+        action: AUDIT_ACTIONS.ORDER_CANCELLED,
+        entityType: AUDIT_ENTITY_TYPES.ORDER,
+        entityId: order._id,
+        entityLabel: `Order ${order.orderNumber}`,
+        reason: reasonText(ORDER_CANCEL_REASONS, reasonCode, note),
+        amountInPaise: liveValueInPaise,
+        details: {
+          orderNumber: order.orderNumber,
+          tableName: order.tableName ?? null,
+          lineCount: stillLive.length,
+          reasonCode,
+          wasPrepared: wasPrepared ?? null,
+        },
+      },
+      session,
+    );
 
     /**
      * M4: the same one-answer-covers-the-whole-order rule as wasPrepared

@@ -176,6 +176,12 @@ export async function buildLineSnapshots(req, lineRequests) {
       if (!variant) {
         throw new BusinessRuleError(`That size of "${item.name}" is not on the menu any more.`);
       }
+      // P04. The kitchen switched this size off for a reason.
+      if (variant.isAvailable === false) {
+        throw new BusinessRuleError(
+          `The ${variant.name} size of "${item.name}" is out of stock right now.`,
+        );
+      }
       variantId = variant._id;
       variantName = variant.name;
       // Absolute, not a delta from the base price. A "Half" at 14000 costs 140
@@ -187,6 +193,10 @@ export async function buildLineSnapshots(req, lineRequests) {
       const addOn = item.addOns.id(addOnId);
       if (!addOn) {
         throw new BusinessRuleError(`One of the extras on "${item.name}" is not on the menu any more.`);
+      }
+      // P04. Same as a size: switched off means not orderable.
+      if (addOn.isAvailable === false) {
+        throw new BusinessRuleError(`"${addOn.name}" is out of stock right now.`);
       }
       return { addOnId: addOn._id, name: addOn.name, priceInPaise: addOn.priceInPaise };
     });

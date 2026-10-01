@@ -22,6 +22,7 @@
  */
 import mongoose from 'mongoose';
 
+import { BILL_VOID_REASONS, reasonText } from '../config/cancelReasons.js';
 import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
@@ -348,7 +349,7 @@ export async function recordPayment(req, billId, { method, amountInPaise, refere
  * restock on void turns a dishonest void into free inventory. If it genuinely
  * was not consumed, a storekeeper writes a visible manual adjustment.
  */
-export async function voidBill(req, billId, { reason }) {
+export async function voidBill(req, billId, { reasonCode, note = null }) {
   const bill = await readBill(req, billId);
   assertNotVoided(bill);
 
@@ -356,7 +357,9 @@ export async function voidBill(req, billId, { reason }) {
   bill.isVoided = true;
   bill.voidedAt = at;
   bill.voidedBy = req.user.id;
-  bill.voidReason = reason;
+  // P04: a fixed code, and the free-text field now holds the optional note.
+  bill.voidReasonCode = reasonCode;
+  bill.voidReason = note ?? null;
   await bill.save();
 
   await Order.updateOne(
@@ -369,9 +372,9 @@ export async function voidBill(req, billId, { reason }) {
     entityType: AUDIT_ENTITY_TYPES.BILL,
     entityId: bill._id,
     entityLabel: bill.billNumber,
-    reason,
+    reason: reasonText(BILL_VOID_REASONS, reasonCode, note),
     amountInPaise: bill.grandTotalInPaise,
-    details: { wasPaid: bill.amountPaidInPaise > 0 },
+    details: { wasPaid: bill.amountPaidInPaise > 0, reasonCode },
   });
 
   return bill;

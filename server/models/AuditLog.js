@@ -22,7 +22,8 @@ import { tenantGuardPlugin } from './plugins/tenantGuard.js';
  * Closed, like the role list. A new action is a deliberate addition.
  *
  * Append only, the same discipline `utils/errors.js` follows. `SETTINGS_CHANGED`
- * was appended by M7; nothing above it was touched.
+ * was appended by M7 and `LINE_CANCELLED_AFTER_PREP` by P04; nothing above
+ * either was touched.
  */
 export const AUDIT_ACTIONS = Object.freeze({
   BILL_VOIDED: 'BILL_VOIDED',
@@ -30,6 +31,8 @@ export const AUDIT_ACTIONS = Object.freeze({
   STOCK_ADJUSTED: 'STOCK_ADJUSTED',
   ORDER_CANCELLED: 'ORDER_CANCELLED',
   SETTINGS_CHANGED: 'SETTINGS_CHANGED',
+  // P04. A line cancelled after the kitchen made it: food made and thrown away.
+  LINE_CANCELLED_AFTER_PREP: 'LINE_CANCELLED_AFTER_PREP',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 

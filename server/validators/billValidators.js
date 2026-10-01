@@ -11,6 +11,7 @@
  */
 import { z } from 'zod';
 
+import { BILL_VOID_REASON_CODES } from '../config/cancelReasons.js';
 import { BILL_STATUS_VALUES, DISCOUNT_KINDS, PAYMENT_METHOD_VALUES } from '../models/Bill.js';
 import {
   MAX_BASIS_POINTS,
@@ -20,6 +21,8 @@ import {
   paginationQuery,
   paise,
   queryBoolean,
+  reasonFields,
+  requireNoteForOther,
 } from './common.js';
 
 const billIdParam = z.object({ billId: objectId });
@@ -31,7 +34,8 @@ const version = z
   .min(1, 'Must be 1 or more.');
 
 const reason = nonEmptyString.max(200, 'Cannot be longer than 200 characters.');
-const voidReason = nonEmptyString.max(500, 'Cannot be longer than 500 characters.');
+/** P04. The void note's ceiling, the same as the free-text reason it replaces. */
+const VOID_NOTE_MAX_LENGTH = 500;
 
 /**
  * POST /bills
@@ -120,7 +124,10 @@ export const recordPaymentSchema = z.object({
 /** POST /bills/:billId/void */
 export const voidBillSchema = z.object({
   params: billIdParam,
-  body: z.object({ reason: voidReason }).strict('Is not a field you can set here.'),
+  body: z
+    .object(reasonFields(BILL_VOID_REASON_CODES, VOID_NOTE_MAX_LENGTH))
+    .strict('Is not a field you can set here.')
+    .superRefine(requireNoteForOther),
 });
 
 /**

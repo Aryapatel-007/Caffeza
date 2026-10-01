@@ -12,6 +12,7 @@
  */
 import mongoose from 'mongoose';
 
+import { LINE_CANCEL_REASON_CODES, ORDER_CANCEL_REASON_CODES } from '../config/cancelReasons.js';
 import { MAX_PAISE } from '../utils/money.js';
 import { MAX_BASIS_POINTS } from '../validators/common.js';
 import { applyJsonTransform } from './plugins/jsonTransform.js';
@@ -187,7 +188,10 @@ const orderLineSchema = new mongoose.Schema(
 
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    /** From P04 the optional note. Older lines keep their free-text reason here. */
     cancelReason: { type: String, trim: true, maxlength: CANCEL_REASON_MAX_LENGTH, default: null },
+    /** P04. The fixed reason, from LINE_CANCEL_REASONS. Null before P04. */
+    cancelReasonCode: { type: String, enum: [...LINE_CANCEL_REASON_CODES, null], default: null },
 
     /**
      * Was the kitchen already cooking this when it was cancelled?
@@ -261,7 +265,10 @@ const orderSchema = new mongoose.Schema({
   isCancelled: { type: Boolean, required: true, default: false },
   cancelledAt: { type: Date, default: null },
   cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  /** From P04 the optional note. Older orders keep their free-text reason here. */
   cancelReason: { type: String, trim: true, maxlength: CANCEL_REASON_MAX_LENGTH, default: null },
+  /** P04. The fixed reason, from ORDER_CANCEL_REASONS. Null before P04. */
+  cancelReasonCode: { type: String, enum: [...ORDER_CANCEL_REASON_CODES, null], default: null },
 
   /**
    * Mirrors `status`: true for OPEN and READY_TO_BILL, false for BILLED and

@@ -12,6 +12,8 @@
 import mongoose from 'mongoose';
 import { z } from 'zod';
 
+import { OTHER_REASON_CODE } from '../config/cancelReasons.js';
+
 import { MAX_PAISE } from '../utils/money.js';
 
 export const MAX_BASIS_POINTS = 10_000;
@@ -185,3 +187,39 @@ export const phoneIndia = z.preprocess(
   normalisePhoneIndia,
   z.string({ error: 'Is required.' }).regex(/^[6-9]\d{9}$/, 'Must be a 10 digit Indian mobile number.'),
 );
+
+/**
+ * A fixed reason code plus an optional note. P04.
+ *
+ * Free text cannot be grouped: "wrong item", "Wrong Item" and "wrng itm" are
+ * three rows in a cancellations report for one reason. The note is still there
+ * for the detail, and is required when the code is OTHER, because "Other" on
+ * its own explains nothing.
+ *
+ * The old `reason` field is not accepted. `.strict()` on the body refuses it.
+ */
+export function reasonFields(codes, noteMaxLength) {
+  return {
+    reasonCode: z.enum(codes, {
+      error: `Must be one of: ${codes.join(', ')}.`,
+    }),
+    note: z
+      .string({ error: 'Must be text.' })
+      .trim()
+      .max(noteMaxLength, `Cannot be longer than ${noteMaxLength} characters.`)
+      .nullable()
+      .optional()
+      .transform((value) => (value === '' || value === undefined ? null : value)),
+  };
+}
+
+/** A note is required with OTHER. Added to a body schema with .superRefine. */
+export function requireNoteForOther(body, context) {
+  if (body.reasonCode === OTHER_REASON_CODE && !body.note) {
+    context.addIssue({
+      code: 'custom',
+      path: ['note'],
+      message: 'Say what happened. A note is required when the reason is Other.',
+    });
+  }
+}
