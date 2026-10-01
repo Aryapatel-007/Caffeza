@@ -232,11 +232,13 @@ async function readyAndServe(token, orderId, kots) {
 }
 
 /**
- * Builds the whole golden day. Returns the tokens by role and by captain name,
+ * Builds the whole golden day. `commissions` sets a platform method's rate
+ * before any payment, for example `{ SWIGGY: 2000 }`.
+ * Returns the tokens by role and by captain name,
  * the restaurant, and the ids of everything created, keyed by TEST-DATA's
  * names (B01 to B16, N01, the accounts, the tables).
  */
-export async function buildGoldenDay({ name = 'Caffeza' } = {}) {
+export async function buildGoldenDay({ name = 'Caffeza', commissions = {} } = {}) {
   setClockForTests(ist('09:00'));
   try {
     const base = await seedFullRestaurant({ name, ownerName: 'Owner' });
@@ -317,7 +319,13 @@ export async function buildGoldenDay({ name = 'Caffeza' } = {}) {
       ok(
         await request('POST', '/api/v1/payment-methods', {
           token: owner,
-          body: { ...method, kind: 'PLATFORM', displayOrder: 3 + index },
+          body: {
+            ...method,
+            kind: 'PLATFORM',
+            displayOrder: 3 + index,
+            // A commission is frozen onto each payment, so it is set before the day starts.
+            ...(commissions[method.code] !== undefined ? { commissionBps: commissions[method.code] } : {}),
+          },
         }),
         'payment method',
       );
