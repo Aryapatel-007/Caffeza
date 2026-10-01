@@ -279,4 +279,6 @@ The labels already defined above keep their meaning.
 | **Outstanding** | Opening balance + charged − collected, ± adjustments |
 | **Oldest unpaid bill** | The business date of the oldest charge not yet covered by collections, and its age in days |
 | **Line total** | Defined in section 2; on a cancelled line it is the value at menu price, before GST |
-
+| **Figure** | One named number on a day's report, like Net sales or Paid out. The first column of R2's sections. |
+| **Count** | How many, on a line of R2: bills, covers, cancelled items |
+| **Value** | A figure's money, on a line of R2, in rupees |

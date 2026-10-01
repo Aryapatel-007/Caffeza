@@ -109,6 +109,9 @@ export const ERROR_CODES = Object.freeze({
   /** Added by P10. Day Close blocked, and a write into a closed day. */
   DAY_NOT_READY: 'DAY_NOT_READY',
   DAY_CLOSED: 'DAY_CLOSED',
+
+  /** Added by P13, built in P15. The Tally export refuses while an ERROR check fails. */
+  CHECK_FAILED: 'CHECK_FAILED',
 });
 
 /**
@@ -568,3 +571,14 @@ export class DayClosedError extends AppError {
     });
   }
 }
+
+/** P15. A report that must not be built while an ERROR check fails, such as R9. */
+export class CheckFailedError extends AppError {
+  constructor(failed) {
+    super(
+      `This file is not built while a check fails: ${failed.map((check) => check.message).join(' ')}`,
+      { statusCode: 422, code: ERROR_CODES.CHECK_FAILED, details: { checks: failed } },
+    );
+  }
+}
+

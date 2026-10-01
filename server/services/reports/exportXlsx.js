@@ -68,17 +68,32 @@ export async function buildWorkbook(envelope) {
   workbook.creator = 'Restaurant ERP';
   workbook.created = new Date(envelope.generatedAt);
 
-  const report = workbook.addWorksheet('Report');
   const failed = envelope.checks.filter((check) => !check.passed && check.severity === 'ERROR');
-  report.addRow([envelope.title]).font = { bold: true, size: 14 };
-  report.addRow([envelope.filterSentence]);
-  if (failed.length > 0) {
-    report.addRow([`Check failed: ${failed.map((check) => check.message).join(' ')}`]).font = { bold: true, color: { argb: 'FFC0392B' } };
-  }
-  report.addRow([]);
+  const heading = (sheet, title) => {
+    sheet.addRow([title]).font = { bold: true, size: 14 };
+    sheet.addRow([envelope.filterSentence]);
+    if (failed.length > 0) {
+      sheet.addRow([`Check failed: ${failed.map((check) => check.message).join(' ')}`]).font = { bold: true, color: { argb: 'FFC0392B' } };
+    }
+    sheet.addRow([]);
+  };
 
   const allColumns = [];
-  if (envelope.sections) {
+  // R9: each section is its own sheet, named by its title, as the accountant's import expects.
+  if (envelope.sheetPerSection) {
+    for (const section of envelope.sections) {
+      const sheet = workbook.addWorksheet(section.title);
+      heading(sheet, section.title);
+      writeTable(sheet, section.columns ?? [], section.rows ?? [], section.totals);
+      allColumns.push(...(section.columns ?? []));
+    }
+  }
+  const report = envelope.sheetPerSection ? null : workbook.addWorksheet('Report');
+  if (report) heading(report, envelope.title);
+
+  if (envelope.sheetPerSection) {
+    // Written above.
+  } else if (envelope.sections) {
     for (const section of envelope.sections) {
       report.addRow([section.title ?? section.key]).font = { bold: true };
       writeTable(report, section.columns ?? [], section.rows ?? [], section.totals);

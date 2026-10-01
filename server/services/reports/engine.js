@@ -26,10 +26,11 @@
  */
 import { DAY_STATUSES, DayClosure } from '../../models/DayClosure.js';
 import { Bill } from '../../models/Bill.js';
+import { PaymentMethod } from '../../models/PaymentMethod.js';
 import { User } from '../../models/User.js';
 import { platformByCode } from '../../config/platforms.js';
 import { DISCOUNT_REASONS } from '../../config/discountReasons.js';
-import { ValidationError } from '../../utils/errors.js';
+import { CheckFailedError, ValidationError } from '../../utils/errors.js';
 import { scoped } from '../../utils/scopedQuery.js';
 import { nowUtc } from '../../utils/time.js';
 import { assertRange, liveInRange } from '../reportRangeService.js';
@@ -146,6 +147,15 @@ export async function personNames(req, ids) {
   return new Map(users.map((user) => [String(user._id), user.name]));
 }
 
+/**
+ * The restaurant's payment methods, for a report that draws one column per
+ * method (R5). Names and order only: a figure always comes from the frozen
+ * fields on the payment, never from here.
+ */
+export function paymentMethodList(req) {
+  return PaymentMethod.find({ ...scoped(req) }).sort({ displayOrder: 1, createdAt: 1 }).select('code name kind isActive tallyLedgerCode').lean();
+}
+
 /** Runs one report. Returns the envelope, and `meta` for a paged report. */
 export async function runReport(req, definition, query) {
   // 1. Validate.
@@ -168,12 +178,24 @@ export async function runReport(req, definition, query) {
   if (definition.includesVoided?.(params)) delete baseMatch.isVoided;
 
   // 4. The definition's own query.
-  const ctx = { personNames: (ids) => personNames(req, ids), from, to };
+  const ctx = {
+    personNames: (ids) => personNames(req, ids),
+    paymentMethods: () => paymentMethodList(req),
+    openDays: () => openDaysIn(req, from, to),
+    from,
+    to,
+  };
   const result = await definition.query(req, baseMatch, params, ctx);
 
   // 5 and 6. Open days, and the checks.
   const openDays = await openDaysIn(req, from, to);
   const checks = definition.checks ? await definition.checks(req, params, result, ctx) : [];
+
+  // R9 refuses to build while any ERROR check fails, and says which.
+  if (definition.requiresPassingChecks) {
+    const failed = checks.filter((check) => check.severity === 'ERROR' && !check.passed);
+    if (failed.length > 0) throw new CheckFailedError(failed);
+  }
 
   // 7. The filter sentence.
   const sentence = await filterSentence(req, definition, params);
@@ -192,6 +214,7 @@ export async function runReport(req, definition, query) {
       ? { sections: result.sections }
       : { columns: definition.columns, rows: result.rows, totals: result.totals }),
     ...(result.extra ?? {}),
+    ...(definition.sheetPerSection ? { sheetPerSection: true } : {}),
     checks,
     generatedAt: nowUtc().toISOString(),
   };

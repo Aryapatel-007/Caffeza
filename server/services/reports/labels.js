@@ -95,6 +95,9 @@ export const LABELS = Object.freeze({
   COLLECTED: 'Collected',
   OUTSTANDING: 'Outstanding',
   OLDEST_UNPAID_BILL: 'Oldest unpaid bill',
+  FIGURE: 'Figure',
+  COUNT: 'Count',
+  VALUE: 'Value',
 });
 
 export const LABEL_VALUES = Object.freeze(Object.values(LABELS));
