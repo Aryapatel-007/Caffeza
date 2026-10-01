@@ -1,5 +1,67 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-08-30 Rishi, M3 screens
+
+**What was built:** the three M3 screens, on `feat/m3/billing`, on top of the
+server from the previous session entry. `/bills/:billId`, `/bills`, and the
+"Bill this order" action added to the M2 order screen. No server code changed.
+
+**Screens**
+
+The bill screen: lines, subtotal, discount and tax breakdown, the grand total
+as the largest thing on the page, a payment panel, a discount panel
+(OWNER/MANAGER), a void panel (OWNER/MANAGER), and a print action that opens
+the server-rendered receipt text in a new window and calls the browser's print
+dialog. Which action reads as the primary `chana` button changes with the
+bill's own state: collecting payment while anything is outstanding, printing
+once it is settled.
+
+The bills list: the day's bills with the server's whole-range running total in
+`meta.totals`, not a client-side sum of one page. Date range, status and
+include-voided filters.
+
+**New shared pieces**
+
+`components/ui/NumericKeypad.jsx`: one generic on-screen digit grid for every
+money and quantity entry in the product. It does no unit conversion of its
+own; a caller reads the typed string back and converts it, which is what lets
+M3 use it for rupees and a percentage and lets M4 reuse it unchanged for a
+stock quantity. Documented in `docs/DESIGN-SYSTEM.md` section 10.1.
+
+`BillStatusBadge.jsx`: a dedicated three-state badge for UNPAID/PAID/VOIDED,
+not a third kind bolted onto `AvailabilityStamp`, which DESIGN-SYSTEM section 5
+reserves as a two-state, rotated, signature element.
+
+`features/billing/labels.js` and `Bilingual.jsx`: Gujarati-secondary labels on
+the billing screen's fixed action words, the same shape as M5's Hindi-on-the-
+clock-screen decision but a separate file and a separate language, considered
+and logged in the decision log.
+
+**DESIGN-SYSTEM.md gained sections 10 and 10.1 and 10.2**, appended rather than
+inserted, because earlier sections are already referenced by number from code
+comments across M1, M2 and M5. Covers the operator-screen redundancy rules
+(icon + colour + word, a primary action that can move with the screen's state,
+confirmations that state the consequence) and the keypad, so M4's screens
+inherit both instead of re-deriving them.
+
+**What the other developer needs to know**
+
+`BillOrderButton.jsx` lives in `features/billing/`, not on
+`OrderScreenPage.jsx` itself, which CONVENTIONS section 10 already flags as
+near the file-length limit. It is the one place M2's order screen reaches into
+M3.
+
+Lint is clean and the client builds. No automated test covers these screens;
+M3's automated coverage is the 75 server tests from the previous entry. Manual
+verification against the real screens is part of Section 11's end-to-end pass,
+not done yet.
+
+**Unblocked:** M4 screens can reuse `NumericKeypad` for a stock quantity and
+follow the same DESIGN-SYSTEM section 10 rules without re-deriving them.
+
+**Still open:** M3's two pilot gates (CA review, real printer) are unchanged.
+M4 backend and screens, and the seed data / end-to-end Atlas pass, are next.
+
 ### 2026-08-30 Rishi, M3 backend and the pre-flight fixes
 
 **What was built:** the M3 Billing server, on `feat/m3/billing`, against the

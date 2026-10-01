@@ -11,7 +11,7 @@ The full table, with dependencies and owners, is in
 | P02 | Settings: feature switches and invoice series | Done |
 | P03 | Bill snapshots and line shares | Done |
 | P04 | Cancel reasons and variant check | Done |
-| P05 | Kitchen stations | Not run |
+| P05 | Kitchen stations and printing | Done |
 | P06 | Delivery and platform orders | Not run |
 | P07 | Settlement spec | Not run |
 | P08 | Payment methods and No Charge | Not run |

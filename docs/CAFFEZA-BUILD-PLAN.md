@@ -70,7 +70,7 @@ Each prompt names its model at the top.
 | P02 | Settings: feature switches and invoice series | M7 | P01 | Rishi | Sonnet, medium |
 | P03 | Bill snapshots and line shares | M3 | P02 | Rishi | Opus, high |
 | P04 | Cancel reasons and variant check | M2 | P01 | Rishi | Sonnet, medium |
-| P05 | Kitchen stations | M18, Phase 2 printing | P01 | Arya | Opus, high |
+| P05 | Kitchen stations and printing | M18, Phase 2 printing | P01 | Arya | Opus, high |
 | P06 | Delivery and platform orders | M17 | P03 | Arya | Opus, high |
 | P07 | Settlement spec | M10, M16 | P03, P06 | Rishi | Opus, high |
 | P08 | Payment methods and No Charge | M10, M16 | P07 | Rishi | Opus, high |

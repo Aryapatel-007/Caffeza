@@ -1868,6 +1868,9 @@ branch cannot share a name, compared case-insensitively.
 `{ restaurantId: 1, branchId: 1, isActive: 1, displayOrder: 1 }` for the
 routing read at fire time: the active stations, in order.
 
+P05 also adds one index to `kots`: `{ restaurantId: 1, branchId: 1, stationId: 1,
+createdAt: 1 }`, for the kitchen screen's station filter, oldest first.
+
 ### Routing, and why it is decided at fire time
 
 When an order fires, each pending line is routed through its frozen

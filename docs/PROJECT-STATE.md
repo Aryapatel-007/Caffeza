@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P05, kitchen stations.
+Next: P06, delivery and platform orders.
 
 ---
 
@@ -45,7 +45,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M10 | Payments | Rishi | NOT STARTED | Pulled forward for Caffeza with an adjusted scope: configurable payment methods including platforms. No UPI QR for go-live. P07, P08. |
 | M16 | Settlement and Day Close | Rishi | NOT STARTED | No Charge, On Hold accounts, cash drawer, Day Close. P07 to P10. |
 | M17 | Delivery and Platform Orders | Arya | NOT STARTED | Entered by hand. 0% tax on platform orders. P06. |
-| M18 | Kitchen Stations | Arya | NOT STARTED | Stations, category routing, one KOT per station. P05. |
+| M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | NOT STARTED | Every report in REPORT-SPEC.md. P13 to P18, proven by P21. |
 | M20 | Floor Plan and Look | Arya | NOT STARTED | P19, P20. |
 
@@ -285,6 +285,12 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | An item cancelled after preparation writes `LINE_CANCELLED_AFTER_PREP`, and a whole-order cancel now writes `ORDER_CANCELLED`, which was listed but never written. | Thrown-away food and disappearing orders are the exceptions an owner needs to see. |
 | 2026-10-01 | Ordering an unavailable variant or add-on is refused. | The kitchen switched it off for a reason. |
 | 2026-10-01 | A whole-order cancel stores its code on the order only. The lines it cancels get the note and a null `cancelReasonCode`. | The order and line lists are different, and `WRONG_TABLE` is not a line reason. R15 reads the order's code for these lines. |
+| 2026-10-01 | Lines are routed to stations through their category's current station when the order fires, one KOT per station. Unrouted lines go to the first active station. With no stations, firing works exactly as before. | Routing is about who cooks it today, not history. The KOT freezes the station it went to. |
+| 2026-10-01 | KOT tickets are laid out as text on the server, like receipts, and printed from the browser through a hidden iframe. Paper width and auto-print are stored per device. | One layout to test. The printer belongs to the device, not to whoever signs in. |
+| 2026-10-01 | `POST /orders/:id/fire` returns `kots`, every ticket created, and keeps `kot` as the first of them. | One fire can now make several tickets, and a client written before P05 still reads `data.kot`. |
+| 2026-10-01 | Stations are managed on their own page, `/stations`, for OWNER and MANAGER, linked from Settings and the dashboard, rather than as a section inside the Settings page. | The P05 prompt asked for a Stations section on the settings page for OWNER and MANAGER, but that page is OWNER only. A manager runs the kitchen. |
+| 2026-10-01 | The KOT ticket reads the guest count, customer name and the name of whoever fired it from the order and the user at print time, rather than adding fields to `kots`. | The spec froze only `stationId` and `stationName` on the KOT. These are printed, never added up. |
+| 2026-10-01 | P05 was built by Rishi although Arya is its suggested owner, together with P06 to P15, at the user's request in one session. | Recorded so the crossing is not discovered in the git log. Arya's read of M17, M18 and M19 is owed before the next milestone. |
 
 ---
 
@@ -305,6 +311,53 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-01 Rishi, P05 kitchen stations and printing
+
+What was built or decided:
+M18 Kitchen Stations. A `stations` collection, `stationId` on categories, KOTs
+(with `stationName`) and KITCHEN users. Firing routes each pending line through
+its frozen `categoryId` to that category's current station, makes one KOT per
+station in station order, and points each order line at the KOT it went on.
+Unroutable lines go to the first active station. With no stations, one KOT with
+no station, exactly as before. Stock is still deducted once per line.
+
+`GET /kots?stationId=` (or `none`), and `GET /kots/:id/ticket?width=&reprint=`,
+laid out in `services/kotTicketService.js`, a sibling of the receipt sharing its
+wrapping. No prices on a ticket.
+
+Client: `features/printing/` prints any server text through a hidden iframe at
+58 or 80 mm. A "This device" page (`/device`) holds paper width and KOT
+auto-print in localStorage. The bill screen's print button uses it. The kitchen
+screen has a station picker (opens on the user's station, remembered on the
+device), shows the station on each ticket, has Reprint, and auto-prints new
+tickets once, remembering the last 500 printed ids and marking what is already on
+screen as printed when auto-print is switched on. A failed print shows "Not
+printed". Stations page at `/stations`; station pickers on the category rail and
+the staff form for KITCHEN users.
+
+Tests: 660 before, 679 after, 0 failing. Ticket snapshots at 32 and 48 in
+`tests/stations.test.js`.
+
+Files or endpoints touched:
+New: `models/Station.js`, `services/stationService.js`,
+`services/kotTicketService.js`, `controllers/stationController.js`,
+`routes/stationRoutes.js`, `validators/stationValidators.js`,
+`tests/stations.test.js`, client `features/printing/*`, `features/stations/*`,
+`api/stations.js`. Changed: Category, Kot, User models, `kitchenService.fireOrder`,
+`kotController`, category and user controllers and validators, `authController`
+(`user.stationId` on `/auth/me`), `receiptService` (exports its wrapping),
+`utils/time.js` (`formatTimeIst12`), and on the client the kitchen screen, bill
+screen, menu builder, staff form, dashboard, settings and `App.jsx`.
+`features/billing/printReceipt.js` is replaced by `features/printing/printText.js`.
+
+Anything the other developer needs to know:
+Not checked by hand in a browser with a real printer yet: the two-station
+fire, the print preview width, and auto-print after a refresh. A 48-wide ticket
+as the API returns it is in the P05 summary of this session.
+
+Anything now blocked or unblocked:
+P06 can start.
 
 ### 2026-10-01 Rishi, P04 cancel reasons and the variant check
 
@@ -983,68 +1036,6 @@ summary has with M6's sales report.
 
 **Still open:** M4 has no React screens yet, and Arya's read is now owed on
 three modules, not two.
-
-### 2026-08-30 Rishi, M3 screens
-
-**What was built:** the three M3 screens, on `feat/m3/billing`, on top of the
-server from the previous session entry. `/bills/:billId`, `/bills`, and the
-"Bill this order" action added to the M2 order screen. No server code changed.
-
-**Screens**
-
-The bill screen: lines, subtotal, discount and tax breakdown, the grand total
-as the largest thing on the page, a payment panel, a discount panel
-(OWNER/MANAGER), a void panel (OWNER/MANAGER), and a print action that opens
-the server-rendered receipt text in a new window and calls the browser's print
-dialog. Which action reads as the primary `chana` button changes with the
-bill's own state: collecting payment while anything is outstanding, printing
-once it is settled.
-
-The bills list: the day's bills with the server's whole-range running total in
-`meta.totals`, not a client-side sum of one page. Date range, status and
-include-voided filters.
-
-**New shared pieces**
-
-`components/ui/NumericKeypad.jsx`: one generic on-screen digit grid for every
-money and quantity entry in the product. It does no unit conversion of its
-own; a caller reads the typed string back and converts it, which is what lets
-M3 use it for rupees and a percentage and lets M4 reuse it unchanged for a
-stock quantity. Documented in `docs/DESIGN-SYSTEM.md` section 10.1.
-
-`BillStatusBadge.jsx`: a dedicated three-state badge for UNPAID/PAID/VOIDED,
-not a third kind bolted onto `AvailabilityStamp`, which DESIGN-SYSTEM section 5
-reserves as a two-state, rotated, signature element.
-
-`features/billing/labels.js` and `Bilingual.jsx`: Gujarati-secondary labels on
-the billing screen's fixed action words, the same shape as M5's Hindi-on-the-
-clock-screen decision but a separate file and a separate language, considered
-and logged in the decision log.
-
-**DESIGN-SYSTEM.md gained sections 10 and 10.1 and 10.2**, appended rather than
-inserted, because earlier sections are already referenced by number from code
-comments across M1, M2 and M5. Covers the operator-screen redundancy rules
-(icon + colour + word, a primary action that can move with the screen's state,
-confirmations that state the consequence) and the keypad, so M4's screens
-inherit both instead of re-deriving them.
-
-**What the other developer needs to know**
-
-`BillOrderButton.jsx` lives in `features/billing/`, not on
-`OrderScreenPage.jsx` itself, which CONVENTIONS section 10 already flags as
-near the file-length limit. It is the one place M2's order screen reaches into
-M3.
-
-Lint is clean and the client builds. No automated test covers these screens;
-M3's automated coverage is the 75 server tests from the previous entry. Manual
-verification against the real screens is part of Section 11's end-to-end pass,
-not done yet.
-
-**Unblocked:** M4 screens can reuse `NumericKeypad` for a stock quantity and
-follow the same DESIGN-SYSTEM section 10 rules without re-deriving them.
-
-**Still open:** M3's two pilot gates (CA review, real printer) are unchanged.
-M4 backend and screens, and the seed data / end-to-end Atlas pass, are next.
 
 ---
 
