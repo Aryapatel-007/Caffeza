@@ -20,6 +20,7 @@ import helmet from 'helmet';
 import { connectDatabase, installShutdownHandlers } from './config/database.js';
 import { config } from './config/env.js';
 import { httpLogger, logger } from './config/logger.js';
+import { describeTrustProxy } from './config/trustProxy.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFound } from './middleware/notFound.js';
 import { generalLimiter } from './middleware/rateLimit.js';
@@ -46,11 +47,12 @@ export function createApp() {
   // Do not advertise what we are running.
   app.disable('x-powered-by');
 
-  // TODO(deploy): behind a reverse proxy or a load balancer, set
-  // app.set("trust proxy", 1) or every client shares one IP and the rate
-  // limiter becomes useless. Left off until we know the hosting shape, because
-  // trusting a forwarded header that nobody is setting is worse than not
-  // trusting it. Hosting is an open question in docs/PROJECT-STATE.md.
+  // Explicit, from TRUST_PROXY, never guessed. Behind a host's proxy with this
+  // off, every device shares the proxy's address and one mistyped password
+  // rate-limits the whole cafe. `true` is refused in config/trustProxy.js,
+  // because it believes a forwarded address from anyone and lets any client
+  // skip the login limit. Production must set it; see config/env.js.
+  app.set('trust proxy', config.TRUST_PROXY);
 
   app.use(helmet());
 
@@ -136,6 +138,8 @@ async function assertIndexesPresent() {
 
 export async function startServer() {
   installCrashHandlers();
+
+  logger.info(describeTrustProxy(config.TRUST_PROXY));
 
   await connectDatabase();
   await assertIndexesPresent();

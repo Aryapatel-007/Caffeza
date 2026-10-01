@@ -8,6 +8,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
+import { config } from '../config/env.js';
 import { createApp } from '../server.js';
 
 let server;
@@ -55,6 +56,13 @@ describe('GET /api/v1/health', () => {
     const response = await fetch(`${baseUrl}/api/v1/health`);
     assert.equal(response.headers.get('x-powered-by'), null);
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  });
+});
+
+describe('trust proxy', () => {
+  it('is set from TRUST_PROXY, which is false under the test environment', () => {
+    assert.equal(createApp().get('trust proxy'), config.TRUST_PROXY);
+    assert.equal(config.TRUST_PROXY, false);
   });
 });
 

@@ -17,6 +17,8 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
+import { parseTrustProxy } from './trustProxy.js';
+
 const CONFIG_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CONFIG_DIR, '..', '..');
 const ENV_FILE = path.join(REPO_ROOT, '.env');
@@ -116,6 +118,25 @@ function isHttpOrigin(value) {
   }
 }
 
+/**
+ * TRUST_PROXY, parsed by config/trustProxy.js.
+ *
+ * Not `optionalVar`: that replaces an absent value with its fallback, and
+ * production has to tell "absent" apart from "set to false" (see the refine on
+ * the schema below). So the raw text travels alongside the parsed value until
+ * that check has run, and only the parsed value reaches `config`.
+ */
+const trustProxyVar = z
+  .preprocess((value) => (value === undefined || value === null ? '' : String(value).trim()), z.string())
+  .transform((raw, ctx) => {
+    try {
+      return { raw, value: parseTrustProxy(raw) };
+    } catch (error) {
+      ctx.addIssue({ code: 'custom', message: error.message });
+      return z.NEVER;
+    }
+  });
+
 function isValidTimeZone(value) {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: value });
@@ -161,10 +182,20 @@ const envSchema = z
       whenPresent(isValidTimeZone),
       'DISPLAY_TIMEZONE must be an IANA time zone name, for example Asia/Kolkata.',
     ),
+
+    TRUST_PROXY: trustProxyVar,
   })
   .refine((values) => values.JWT_ACCESS_SECRET !== values.JWT_REFRESH_SECRET, {
     error: 'JWT_REFRESH_SECRET must be a different value from JWT_ACCESS_SECRET.',
     path: ['JWT_REFRESH_SECRET'],
+  })
+  // In development and test an absent TRUST_PROXY means false. In production
+  // someone has to have decided, even if the decision is false.
+  .refine((values) => values.NODE_ENV !== 'production' || values.TRUST_PROXY?.raw !== '', {
+    error:
+      'TRUST_PROXY must be set in production. Use 1 when the host puts one proxy in front of the ' +
+      'server, or false when nothing sits in front of it.',
+    path: ['TRUST_PROXY'],
   });
 
 function reportAndExit(error) {
@@ -194,6 +225,8 @@ if (!parsed.success) reportAndExit(parsed.error);
 
 export const config = Object.freeze({
   ...parsed.data,
+  // false, a number of proxies, or an array of trusted addresses.
+  TRUST_PROXY: parsed.data.TRUST_PROXY.value,
   isDevelopment: parsed.data.NODE_ENV === 'development',
   isTest: parsed.data.NODE_ENV === 'test',
   isProduction: parsed.data.NODE_ENV === 'production',
