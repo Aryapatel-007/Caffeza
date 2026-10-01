@@ -216,6 +216,18 @@ const deliverySettingsSchema = new mongoose.Schema(
 );
 
 /**
+ * Discounts. P08. When true, a CASHIER may apply a discount with a platform
+ * reason (Zomato Gold, Dineout, EazyDiner) and no other. TO CONFIRM with
+ * Caffeza.
+ */
+const discountSettingsSchema = new mongoose.Schema(
+  {
+    cashierMayApplyPlatformDiscounts: { type: Boolean, required: true, default: false },
+  },
+  { _id: false },
+);
+
+/**
  * Restaurant-level settings. Every field has a default, which is what makes M7
  * a no-migration change: a document written before M7 reads back a complete
  * settings object because Mongoose fills missing paths on read.
@@ -259,6 +271,7 @@ const settingsSchema = new mongoose.Schema(
     features: { type: featureSettingsSchema, default: () => ({}) },
     invoice: { type: invoiceSettingsSchema, default: () => ({}) },
     delivery: { type: deliverySettingsSchema, default: () => ({}) },
+    discounts: { type: discountSettingsSchema, default: () => ({}) },
   },
   { _id: false },
 );

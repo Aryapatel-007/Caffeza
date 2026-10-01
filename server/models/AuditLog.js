@@ -33,6 +33,9 @@ export const AUDIT_ACTIONS = Object.freeze({
   SETTINGS_CHANGED: 'SETTINGS_CHANGED',
   // P04. A line cancelled after the kitchen made it: food made and thrown away.
   LINE_CANCELLED_AFTER_PREP: 'LINE_CANCELLED_AFTER_PREP',
+  // P08. A payment's method changed after the fact, and food given away free.
+  PAYMENT_METHOD_CORRECTED: 'PAYMENT_METHOD_CORRECTED',
+  NO_CHARGE_GIVEN: 'NO_CHARGE_GIVEN',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 

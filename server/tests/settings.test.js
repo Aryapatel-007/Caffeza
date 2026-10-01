@@ -55,6 +55,7 @@ const DEFAULTS = {
   invoice: { mode: 'FINANCIAL_YEAR', prefix: null, startingNumber: null },
   // P06.
   delivery: { platformCollectsGst: true },
+  discounts: { cashierMayApplyPlatformDiscounts: false },
 };
 
 // ---------------------------------------------------------------------------

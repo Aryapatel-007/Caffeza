@@ -23,6 +23,7 @@ import { Ingredient } from './Ingredient.js';
 import { Kot } from './Kot.js';
 import { MenuItem } from './MenuItem.js';
 import { Order } from './Order.js';
+import { PaymentMethod } from './PaymentMethod.js';
 import { Recipe } from './Recipe.js';
 import { RefreshToken } from './RefreshToken.js';
 import { Restaurant } from './Restaurant.js';
@@ -42,6 +43,7 @@ export const ALL_MODELS = Object.freeze([
   Kot,
   MenuItem,
   Order,
+  PaymentMethod,
   Recipe,
   RefreshToken,
   Restaurant,

@@ -12,7 +12,14 @@
 import { z } from 'zod';
 
 import { BILL_VOID_REASON_CODES } from '../config/cancelReasons.js';
-import { BILL_STATUS_VALUES, DISCOUNT_KINDS, PAYMENT_METHOD_VALUES } from '../models/Bill.js';
+import {
+  DISCOUNT_FUNDERS,
+  DISCOUNT_FUNDER_VALUES,
+  DISCOUNT_REASON_CODES,
+  isPlatformDiscountReason,
+} from '../config/discountReasons.js';
+import { BILL_STATUS_VALUES, DISCOUNT_KINDS } from '../models/Bill.js';
+import { PAYMENT_METHOD_CODE_PATTERN } from '../models/PaymentMethod.js';
 import {
   MAX_BASIS_POINTS,
   businessDate,
@@ -34,6 +41,36 @@ const version = z
   .min(1, 'Must be 1 or more.');
 
 const reason = nonEmptyString.max(200, 'Cannot be longer than 200 characters.');
+/** P08. The discount note's ceiling, the same as the free-text reason it replaces. */
+const DISCOUNT_NOTE_MAX_LENGTH = 200;
+
+/** P08. A payment method code. Whether this bill may use it is the service's question. */
+const methodCode = z
+  .string({ error: 'Is required.' })
+  .trim()
+  .regex(PAYMENT_METHOD_CODE_PATTERN, 'Is not a payment method code.');
+
+/**
+ * P08. The reason fields every discount carries, from P04's reasonFields, plus
+ * who paid for it. A platform can only fund a platform's own discount.
+ */
+const discountReason = {
+  ...reasonFields(DISCOUNT_REASON_CODES, DISCOUNT_NOTE_MAX_LENGTH),
+  fundedBy: z
+    .enum(DISCOUNT_FUNDER_VALUES, { error: 'Must be RESTAURANT or PLATFORM.' })
+    .default(DISCOUNT_FUNDERS.RESTAURANT),
+};
+
+function refineDiscountReason(body, context) {
+  requireNoteForOther(body, context);
+  if (body.fundedBy === DISCOUNT_FUNDERS.PLATFORM && !isPlatformDiscountReason(body.reasonCode)) {
+    context.addIssue({
+      code: 'custom',
+      path: ['fundedBy'],
+      message: 'Only a platform discount, like Zomato Gold, can be paid for by the platform.',
+    });
+  }
+}
 /** P04. The void note's ceiling, the same as the free-text reason it replaces. */
 const VOID_NOTE_MAX_LENGTH = 500;
 
@@ -83,9 +120,10 @@ export const applyDiscountSchema = z.object({
         kind: z.literal(DISCOUNT_KINDS.FLAT),
         valueInPaise: paise.refine((value) => value > 0, 'Must be more than zero.'),
         rateBps: z.never({ error: 'A flat discount is an amount, not a rate.' }).optional(),
-        reason,
+        ...discountReason,
       })
-      .strict('Is not a field you can set here.'),
+      .strict('Is not a field you can set here.')
+      .superRefine(refineDiscountReason),
     z
       .object({
         kind: z.literal(DISCOUNT_KINDS.PERCENT),
@@ -97,9 +135,10 @@ export const applyDiscountSchema = z.object({
         valueInPaise: z
           .never({ error: 'A percentage discount is a rate, not an amount.' })
           .optional(),
-        reason,
+        ...discountReason,
       })
-      .strict('Is not a field you can set here.'),
+      .strict('Is not a field you can set here.')
+      .superRefine(refineDiscountReason),
   ]),
 });
 
@@ -108,7 +147,7 @@ export const recordPaymentSchema = z.object({
   params: billIdParam,
   body: z
     .object({
-      method: z.enum(PAYMENT_METHOD_VALUES, { error: 'Is not a payment method.' }),
+      method: methodCode,
       amountInPaise: paise.refine((value) => value > 0, 'Must be more than zero.'),
       /**
        * A UPI reference or the last four of a card. Never a full card number,
@@ -119,6 +158,14 @@ export const recordPaymentSchema = z.object({
         .optional(),
     })
     .strict('Is not a field you can set here.'),
+});
+
+/** POST /bills/:billId/payments/:paymentId/correct. P08. Only the method changes. */
+export const correctPaymentSchema = z.object({
+  params: z.object({ billId: objectId, paymentId: objectId }),
+  body: z
+    .object({ method: methodCode, reason })
+    .strict('Is not a field you can set here. Only the method of a payment can change.'),
 });
 
 /** POST /bills/:billId/void */

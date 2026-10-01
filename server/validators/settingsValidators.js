@@ -198,6 +198,13 @@ const delivery = z
   })
   .strict();
 
+/** Discounts. P08. */
+const discounts = z
+  .object({
+    cashierMayApplyPlatformDiscounts: z.boolean({ error: 'Must be true or false.' }).optional(),
+  })
+  .strict();
+
 /** Everything except `reason`. Used to tell "a group was sent" from "only a reason was sent". */
 export const SETTINGS_GROUPS = Object.freeze([
   'business',
@@ -207,6 +214,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'features',
   'invoice',
   'delivery',
+  'discounts',
 ]);
 
 /**
@@ -247,6 +255,7 @@ export const updateSettingsSchema = z.object({
       features: features.optional(),
       invoice: invoice.optional(),
       delivery: delivery.optional(),
+      discounts: discounts.optional(),
     })
     .strict()
     .refine(

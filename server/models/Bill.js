@@ -20,6 +20,7 @@
 import mongoose from 'mongoose';
 
 import { BILL_VOID_REASON_CODES } from '../config/cancelReasons.js';
+import { DISCOUNT_FUNDERS, DISCOUNT_FUNDER_VALUES, DISCOUNT_REASON_CODES } from '../config/discountReasons.js';
 import { MAX_PAISE } from '../utils/money.js';
 import { MAX_BASIS_POINTS } from '../validators/common.js';
 import { applyJsonTransform } from './plugins/jsonTransform.js';
@@ -43,7 +44,13 @@ export const DISCOUNT_KINDS = Object.freeze({
 });
 export const DISCOUNT_KIND_VALUES = Object.freeze(Object.values(DISCOUNT_KINDS));
 
-/** We record which method was used. We never move money. BUILD-PLAN section 4. */
+/**
+ * We record which method was used. We never move money. BUILD-PLAN section 4.
+ *
+ * From P08 a payment's `method` is a `paymentmethods.code` of the restaurant,
+ * checked in services/paymentMethodService.js, not an enum here. These four are
+ * the built-in codes, kept because every payment from before P08 uses one.
+ */
 export const PAYMENT_METHODS = Object.freeze({
   CASH: 'CASH',
   UPI: 'UPI',
@@ -158,12 +165,22 @@ const discountSchema = new mongoose.Schema(
       validate: wholeNumber,
     },
 
+    /** From P08 the optional note. Before P08 the required free-text reason. */
     reason: {
       type: String,
-      required: true,
       trim: true,
-      minlength: 1,
       maxlength: DISCOUNT_REASON_MAX_LENGTH,
+      default: null,
+    },
+
+    /** P08. From server/config/discountReasons.js. Null on discounts from before P08. */
+    reasonCode: { type: String, enum: [...DISCOUNT_REASON_CODES, null], default: null },
+
+    /** P08. Who paid for it. PLATFORM only with a platform reason. */
+    fundedBy: {
+      type: String,
+      enum: DISCOUNT_FUNDER_VALUES,
+      default: DISCOUNT_FUNDERS.RESTAURANT,
     },
 
     appliedBy: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
@@ -197,9 +214,35 @@ const taxSlabSchema = new mongoose.Schema(
   { _id: false },
 );
 
+/** P08. One per method correction. The amount never changes. */
+const paymentCorrectionSchema = new mongoose.Schema(
+  {
+    fromMethod: { type: String, required: true },
+    toMethod: { type: String, required: true },
+    by: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
+    at: { type: Date, required: true },
+    reason: { type: String, required: true, trim: true, minlength: 1, maxlength: 200 },
+  },
+  { _id: false },
+);
+
 const paymentSchema = new mongoose.Schema(
   {
-    method: { type: String, required: true, enum: PAYMENT_METHOD_VALUES },
+    /** A paymentmethods.code of this restaurant. Checked in the service, P08. */
+    method: { type: String, required: true, trim: true },
+
+    /**
+     * Frozen from the method when the payment is taken, P08, so renaming a
+     * method or changing its commission never rewrites money already taken.
+     * Null on payments from before P08: a null kind reads as IN_HAND and a
+     * null businessDate as the bill's.
+     */
+    methodName: { type: String, trim: true, default: null },
+    methodKind: { type: String, enum: ['IN_HAND', 'PLATFORM', null], default: null },
+    tallyLedgerCode: { type: String, trim: true, default: null },
+    commissionBps: { type: Number, min: 0, max: MAX_BASIS_POINTS, default: null, validate: wholeNumberOrEmpty },
+    businessDate: { type: String, default: null },
+    corrections: { type: [paymentCorrectionSchema], default: [] },
 
     amountInPaise: {
       type: Number,

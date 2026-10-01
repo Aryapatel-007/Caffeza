@@ -28,6 +28,7 @@ import { Restaurant } from '../models/Restaurant.js';
 import { User } from '../models/User.js';
 import { isEmailRegistered, isPhoneRegistered } from '../services/authService.js';
 import { hash } from '../services/passwordService.js';
+import { ensureDefaultPaymentMethods } from '../services/paymentMethodService.js';
 import { MIN_PASSWORD_LENGTH } from '../validators/authValidators.js';
 import { normalisePhoneIndia } from '../validators/common.js';
 
@@ -131,6 +132,9 @@ export async function createRecords(input, { session = null, password, created =
     options,
   );
   created.userId = String(owner._id);
+
+  // P08. Cash, Card, UPI and the inactive Other, inside the same transaction.
+  await ensureDefaultPaymentMethods(restaurant._id, { branchId: branch._id, session });
 
   return {
     restaurantId: String(restaurant._id),

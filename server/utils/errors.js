@@ -98,6 +98,9 @@ export const ERROR_CODES = Object.freeze({
   INVOICE_START_TOO_LOW: 'INVOICE_START_TOO_LOW',
   INVOICE_SERIES_STARTED: 'INVOICE_SERIES_STARTED',
   INVOICE_SERIES_LOCKED: 'INVOICE_SERIES_LOCKED',
+
+  /** Added by P08. The method is inactive, wrong for the order type, or the wrong platform. */
+  PAYMENT_METHOD_NOT_ALLOWED: 'PAYMENT_METHOD_NOT_ALLOWED',
 });
 
 /**
@@ -508,5 +511,15 @@ export class FeatureDisabledError extends AppError {
       `${featureLabel} is switched off for this restaurant. An owner can switch it on in Settings.`,
       { statusCode: 403, code: ERROR_CODES.FEATURE_DISABLED },
     );
+  }
+}
+
+/**
+ * P08. A payment method this bill may not use: inactive, not allowed for the
+ * order type, or another platform's. The message names which.
+ */
+export class PaymentMethodNotAllowedError extends AppError {
+  constructor(message) {
+    super(message, { statusCode: 422, code: ERROR_CODES.PAYMENT_METHOD_NOT_ALLOWED });
   }
 }
