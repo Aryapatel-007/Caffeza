@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P21, the golden day end to end.
+Build complete. Next: the gates in `docs/GO-LIVE.md`, tracked in `docs/GO-LIVE-READINESS.md`.
 
 ---
 
@@ -390,6 +390,9 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | The Appearance page is its own screen, `/settings/appearance`, opened from Settings. | Its live preview needs width the settings form does not have. It saves through the same `PATCH /settings`, with a reason. |
 | 2026-10-02 | `client/src/utils/colour.js` is the one file allowed raw hex colours. | It mirrors the server's accent rules and has to name the colours it measures against. It styles nothing. |
 | 2026-10-02 | The station target time is edited on the Stations screen. | P20A added `targetMinutes` on the server but left it with no screen. |
+| 2026-10-02 | The golden day is played through the real screens with Playwright, each role on its own device size, with the server and browser clocks moved together. A control listener inside the e2e script moves the clock, and the app has no test routes. | Staff use screens, not the API, and nothing that sets a clock may ever reach production. |
+| 2026-10-02 | TEST-DATA's invoice numbers for B13 to B16 now follow the order bills are created (B16 `CFA/C/22454`, B15 `22455`, B13 `22456`, B14 `22457`), and section 2b, the timeline P10 asked for, is in place. The API golden day plays that timeline in order. | The old numbers contradicted the bill times, and the screens can only issue numbers in time order. Agreed with the user in this session. Every total, payment and line share is unchanged; five tests that named B13 to B16 by number, and R1's alert tests (N01 is now at 5:55 PM), were updated to match. |
+| 2026-10-02 | The golden restaurant carries Caffeza's GSTIN. | A printed golden bill must read as a tax invoice, and P21 checks for it. |
 
 ---
 
@@ -412,6 +415,26 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-02 Rishi, P21 the golden day end to end
+
+What was built or decided:
+TEST-DATA first (`fix golden day invoice order and add timeline`, agreed with the user): P10's section 2b timeline, never applied, is now in, and B13 to B16's invoice numbers follow the order bills are created. `tests/helpers/goldenDay.js` is split into `setupGoldenRestaurant()` (staff, settings, stations, menu, methods, accounts, tables, Caffeza's GSTIN; `invoiceSeries: false` leaves the series to the screen) and `playGoldenDay()`, which plays 2b in time order; `buildGoldenDay()` is both. Only literal bill numbers and the No Charge time moved in five tests; no total changed.
+`server/scripts/e2eServer.js`: refuses unless `NODE_ENV=test`, makes its own secrets, runs an in-memory replica set, serves the built client with `createApp` on 127.0.0.1:5055, and a separate control listener on 5056 (`POST /clock`, `POST /reset`, `GET /ready`) that is not part of the app. `tests/e2eServer.test.js` (3) proves the app has no clock or reset route, no route file can set the clock, and the script refuses outside test.
+Playwright at the root (`npm run e2e`, not part of `npm test`): `e2e/playwright.config.js`, `e2e/helpers/clock.js` (`at()` moves the server and every page together), `helpers/people.js` (each person in their own context on their device, prints recorded through `window.__E2E_PRINT__`, which only a test sets; the client's `printText` checks for it), page helpers in `e2e/pages/`, and `e2e/goldenDay.spec.js`, one serial test with a step per timeline row and every check P21 lists. Screenshots to `e2e/screenshots/`.
+`docs/GO-LIVE-READINESS.md` written.
+
+Tests: 927 before, 930 after, 0 failing, 6 minutes 45 seconds. `PERF=1`: 931, R19 over 66,430 bills in 404 ms. `npm run e2e`: passing in 1.0 minute, 1 minute 10 seconds with the build. Lint and build pass.
+Screenshots opened: the floor at 7:45 PM, the kitchen at 8:35 PM, Table 4's bill, Day Close, R2 and R11 the next morning, and the floor and R2 in Day and Night. Nothing broken against DESIGN-SYSTEM section 14. One thing worth a decision: the No Charge order's ticket stays on Live Kitchen, late, because nobody marks it ready (readiness report item 15).
+
+Files or endpoints touched:
+New: `server/scripts/e2eServer.js`, `server/tests/e2eServer.test.js`, `e2e/` (config, helpers, pages, spec), `docs/GO-LIVE-READINESS.md`. Changed: `tests/helpers/goldenDay.js`, five report tests, `client/src/features/printing/printText.js`, root `package.json` (`@playwright/test`, `exceljs`, the `e2e` script), `.gitignore`, `docs/TEST-DATA.md`, `docs/GO-LIVE.md`, `docs/CAFFEZA-BUILD-PLAN.md`.
+
+Anything the other developer needs to know:
+`npm run e2e` reuses a server already on 5055 and 5056 outside CI; stop any old one first after changing server code. The station tablets in the test sign in as the manager, because the golden restaurant has no KITCHEN login.
+
+Anything now blocked or unblocked:
+The build plan is complete. What remains is people: `docs/GO-LIVE-READINESS.md` section 5.
 
 ### 2026-10-02 Rishi, P20B new look, back office and customisation
 
@@ -567,18 +590,6 @@ Left out: the manager PIN on discounts (the server already limits discounts by r
 
 Checked in headless Chromium on the local demo data: a takeaway billed, 10% Regular guest applied (₹209.00 item total, ₹20.90 off, bill ₹205.00 from the server), the receipt at 48 characters, and the ledger with that bill selected. No page errors. Lint and build pass.
 
-### 2026-10-01 Rishi, takeaway, delivery, kitchen and bill screens restyled (ahead of P18 to P20)
-
-What was built or decided:
-From the user's pasted designs, client only, same endpoints and fields.
-Takeaway and Delivery start pages are cards. On a wide screen a takeaway or delivery order shows the menu with a "Current order" ledger beside it, instead of the bottom bar; on a phone the bar stays.
-Kitchen board: a dark-on-linen header with station tabs, an open count, a late count and the time; ticket cards with a coloured top bar (under 10 minutes green, 10 to 15 gold, over 15 red, display constants only), the order type, big lines, a tick per line and "All ready · complete".
-Bill screen: the bill as a receipt card on the left, and payment on the right, beside it. `InlinePayment.jsx` replaces the payment slide-over: method tiles with the first allowed one selected, a reference field, and the keypad starting at what is still owed. Discount, charge to account, print and void are buttons in the header; their panels are unchanged.
-
-Left out, with no data or rule behind them: the designs' rider details, Own Delivery, "Aggregator Bridge", Scan QR, dish photos and codes, customer attach, GSTIN, WhatsApp e-bill, split by seat, a UPI QR and Quick UPI buttons (no UPI QR for go-live), captain and average ticket time on the kitchen board (KOTs do not carry the captain), and "Inclusive of all taxes" (prices are before GST).
-
-Checked by hand in headless Chromium against the local demo data: a delivery order and a takeaway order sent to the kitchen, both tickets shown, a takeaway billed and paid in cash. Lint and build pass. No server change, so the tests were not rerun. `PaymentPanel.jsx` is no longer used by the bill screen.
-
 ### 2026-10-01 Rishi, floor and order screen restyle (ahead of P19 and P20)
 
 What was built or decided:
@@ -628,7 +639,7 @@ Things that are broken or half done, so nobody rediscovers them.
 | A chartered accountant has not reviewed the GST output on a real printed bill. Specifically: the D1 tax-exclusive assumption, the D2 per-slab rounding, and the D3 CGST/SGST split with CGST taking the odd paisa. | Rishi, 2026-08-30 | OPEN, and it cannot be closed by code. BUILD-PLAN sections 3 and 10 both require it before a pilot. To close: print a real bill covering all three GST slabs, including one line whose slab tax is an odd number of paise, and have a CA confirm the arithmetic and the invoice format. A code review is not a substitute. Verified 2026-08-30 that the arithmetic is internally consistent (every bill reconciles, CGST+SGST always re-adds, the odd paisa always goes to CGST) against seed data covering all three slabs -- that is what code CAN confirm, and it is not what this row is waiting on. |
 | The bill has never printed on a real thermal printer. The receipt is generated server-side at a fixed column width and snapshot tested with a 60-character dish name, but a snapshot test is not paper. | Rishi, 2026-08-30 | OPEN, and it cannot be closed by code. BUILD-PLAN section 10 requires it. To close: print on the pilot restaurant's actual printer model at both 32 and 48 columns and check that a long dish name wraps rather than pushing the amount column out of alignment. Verified 2026-08-30 over HTTP against a real 66-character seeded dish name at both widths: every line fits, the wrap indents under itself, and the amount column stays aligned -- confirms the layout logic is correct, which is not the same thing as confirming what a specific printer model does with it. |
 | M4 is Arya's module on paper and was built by Rishi: the third module built off-owner, after M1 and M5, and CONVENTIONS section 9 says one module, one owner. | Rishi, 2026-08-30 | OPEN. Logged plainly rather than left to surface in the git log. Arya has now reviewed the M2 spec backfill and caught a real error in it, so the review habit exists; the debt is that M1, M5 and now M4 all still need their owner's read. |
-| The M0 screens (login, dashboard, staff) still use the `slate-*` palette and the `brand-*` alias rather than the design system tokens. They work and look coherent because `brand-*` now points at `chana`, but they are not on the real palette. | Rishi, 2026-08-29 | OPEN. Not in M1's scope to restyle. Worth doing in the next M0 touch. |
+| The M0 screens (login, dashboard, staff) still use the `slate-*` palette and the `brand-*` alias rather than the design system tokens. They work and look coherent because `brand-*` now points at `chana`, but they are not on the real palette. | Rishi, 2026-08-29 | FIXED in P20B. Every screen is on version 2, and a guard test refuses version 1 tokens anywhere in the client. |
 | Ordering an out-of-stock **variant** of an available item is not blocked. `buildLineSnapshots` checks that the menu item is active and available, exactly as section 9.3 of the M2 brief lists, and that list does not mention `variants[].isAvailable`. So "Paneer Tikka available, Half plate marked out of stock" still lets a Half plate onto an order. | Rishi, 2026-08-29 | FIXED in P04. Add-ons are checked too. |
 | `services/billService.js` and `services/operationsReportService.js` still read `restaurant.settings.businessDayStartsAtMinutes` directly, each with its own query and its own default, rather than going through `settingsService`. The three controllers that did the same were migrated by M7; these two were not. | Rishi, 2026-08-31 | HALF FIXED in P02: `billService.js` now reads through `settingsService`. `operationsReportService.js` still reads directly. OPEN and harmless today: both reads are correct and return the same number. Left alone deliberately because they are M3 and M6 files and M7 had no mandate to touch M3's. The point of `settingsService` is that there is one place, so this should be finished on the next M3 or M6 touch. Two lines. |
 | M2 has a second error copy map, `client/src/features/orders/errorCopy.js`, alongside M1's `features/menu/errorCopy.js`. DESIGN-SYSTEM.md section 8 asks for one. They cannot merge as they stand: M1's hard-codes menu wording for codes both modules use. | Rishi, 2026-08-29 | OPEN. The end state is one shared base map with per-module overrides, which means rewriting M1's. M2 was not scoped to change M1 code. |

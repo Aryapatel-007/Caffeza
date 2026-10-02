@@ -28,6 +28,6 @@ The full table, with dependencies and owners, is in
 | P19 | Floor plan | Done |
 | P20A | New look, part 1: foundation and service screens | Done |
 | P20B | New look, part 2: back office and customisation | Done |
-| P21 | Golden day, end to end | Not run |
+| P21 | Golden day, end to end | Done |
 
 Prompt files that do not exist yet are added as they are written.

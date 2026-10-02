@@ -53,6 +53,7 @@ On one or two weekday afternoons, a developer takes about 30 real bills from the
 Compare each bill total.
 Final totals must match.
 Tax may differ by one paisa on a discounted bill, depending on the CA's answer about rounding.
+Run `npm run e2e` on the release candidate before each pilot day.
 
 **Stage 2. Pilot days.**
 Pick a slow weekday, like a Tuesday.

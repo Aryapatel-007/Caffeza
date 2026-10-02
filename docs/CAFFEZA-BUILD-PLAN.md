@@ -103,7 +103,7 @@ The owners follow the rule "one module, one owner". Change any of them, and reco
 | C. Live on staging | P11, P12 | Their real menu and tables on a real web address |
 | D. The reports | P13 to P18 | Every report, balancing, drillable and exportable |
 | E. The look | P19, P20A, P20B | Their floor plan and the new design |
-| F. Proof | P21 | The golden day replays end to end with every check green |
+| F. Proof | P21 | The golden day replays end to end with every check green. Done 2026-10-02: `npm run e2e`, and `docs/GO-LIVE-READINESS.md`. |
 
 After milestone F, follow `docs/GO-LIVE.md`.
 
