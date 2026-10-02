@@ -19,7 +19,7 @@
  *
  * Runs with NODE_ENV=test, because only then may a script set the clock.
  * Refuses any database that is not localhost or named in
- * SEED_DEMO_ALLOWED_HOSTS. Everyone's password is the test password.
+ * SEED_DEMO_ALLOWED_HOSTS. Everyone's password is `demo1234`.
  */
 import mongoose from 'mongoose';
 import { pathToFileURL } from 'node:url';
@@ -28,13 +28,14 @@ import { config } from '../config/env.js';
 import { connectDatabase, disconnectDatabase } from '../config/database.js';
 import { ALL_MODELS } from '../models/index.js';
 import { ist, setupGoldenRestaurant } from '../tests/helpers/goldenDay.js';
-import { DEFAULT_PASSWORD } from '../tests/helpers/seed.js';
 import { request, startTestServer, stopTestServer } from '../tests/helpers/testServer.js';
 import { businessDateFor, resetClockForTests, setClockForTests } from '../utils/time.js';
 import { assertSafeToSeed, databaseHost, wipeRestaurantNamed } from './lib/localSeed.js';
 
 export const MOCK_RESTAURANT = 'Cafezza Demo (mock)';
 const PHONE_BASE = '970000000';
+/** Everyone's sign-in password at the mock restaurant. The sign-in rule needs at least 8 characters. */
+export const MOCK_PASSWORD = 'demo1234';
 const DAY_MS = 86_400_000;
 
 /** A small seeded random source, so the same days come out every run. */
@@ -289,7 +290,7 @@ async function main() {
     for (const model of ALL_MODELS) await model.init();
     if (await wipeRestaurantNamed(MOCK_RESTAURANT)) console.log(`  Wiped the previous "${MOCK_RESTAURANT}".`);
 
-    const golden = await setupGoldenRestaurant({ name: MOCK_RESTAURANT, invoiceSeries: false, phoneBase: PHONE_BASE });
+    const golden = await setupGoldenRestaurant({ name: MOCK_RESTAURANT, invoiceSeries: false, phoneBase: PHONE_BASE, password: MOCK_PASSWORD });
     setClockForTests(ist('09:00', dates[0]));
     ok(
       await request('PATCH', '/api/v1/settings', {
@@ -309,7 +310,7 @@ async function main() {
     }
 
     console.log('');
-    console.log(`Done. "${MOCK_RESTAURANT}", invoice series MOCK/. Every login's password: ${DEFAULT_PASSWORD}`);
+    console.log(`Done. "${MOCK_RESTAURANT}", invoice series MOCK/. Every login's password: ${MOCK_PASSWORD}`);
     for (const [name, phone] of Object.entries(golden.phones)) console.log(`  ${name.padEnd(16)} ${phone}`);
   } finally {
     resetClockForTests();
