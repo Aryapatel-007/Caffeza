@@ -6,6 +6,7 @@ import { listTables } from '../../api/orders.js';
 import { getDashboard } from '../../api/reports.js';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useTheme } from '../../context/ThemeProvider.jsx';
 import { formatDateIst, formatTimeIst } from '../../utils/formatDate.js';
 
 import UnclosedDayWarning from '../settlement/UnclosedDayWarning.jsx';
@@ -44,6 +45,8 @@ function Stat({ label, value, hint }) {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  // P22. The restaurant's wordmark, or the product's name; never a client's name written in.
+  const { name: brandName } = useTheme();
   const role = user?.role;
   const isManager = role === 'OWNER' || role === 'MANAGER';
   const canTakeOrders = ['OWNER', 'MANAGER', 'CASHIER', 'WAITER'].includes(role);
@@ -88,7 +91,7 @@ export default function DashboardPage() {
         <Card className="p-6 lg:p-8">
           <span className="inline-flex items-center gap-2 rounded-lg bg-sunken px-3 py-1 type-caption text-muted">
             <span className="size-1.5 rounded-full bg-ok" aria-hidden="true" />
-            {profile.data?.restaurant?.name ?? 'Caffeza'}
+            {profile.data?.restaurant?.name ?? brandName}
             {profile.data?.branch ? ` · ${profile.data.branch.name}` : ''}
           </span>
           <h1 className="mt-3 type-title ">

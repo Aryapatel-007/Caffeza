@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTheme } from '../context/ThemeProvider.jsx';
+import BrandLogo from './ui/BrandLogo.jsx';
 import {
   BagIcon,
   CashIcon,
@@ -32,6 +34,10 @@ import Sheet from './ui/Sheet.jsx';
  * hidden here the same way.
  */
 const FULL_SCREEN_PATHS = ['/attendance'];
+
+/** The service screens of DESIGN-SYSTEM section 8a. Everything else is back office. */
+const SERVICE_PATHS = ['/floor', '/orders', '/bills', '/kitchen'];
+const isServicePath = (pathname) => SERVICE_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
 const PLACES = {
   home: { to: '/dashboard', label: 'Home', Icon: HomeIcon },
@@ -193,10 +199,36 @@ function MoreSheet({ onClose }) {
   );
 }
 
-function Wordmark() {
-  const { features } = useAuth();
-  const name = features.appearance?.wordmark || features.restaurantName || 'Caffeza';
-  return <span className="type-heading truncate">{name}</span>;
+/**
+ * The restaurant's mark in the top bar. P22, DESIGN-SYSTEM section 15.
+ *
+ * On a phone the logo at 32px. From 600px, on a back-office screen, the logo at
+ * 40px; on a service screen the rail carries the square mark instead, so a
+ * screen shows the brand once. With no logo, the wordmark as text everywhere,
+ * exactly as before: the restaurant's wordmark, then its name, then the
+ * product's. A client's name is never written into the product.
+ */
+function TopBarMark({ isService }) {
+  const { brand } = useTheme();
+  const hasLogo = Boolean(brand.logos?.LIGHT_GROUND?.dataUrl || brand.logos?.DARK_GROUND?.dataUrl);
+  return (
+    <>
+      <BrandLogo height={32} className="min-[600px]:hidden" />
+      {!(isService && hasLogo) && <BrandLogo height={40} className="hidden min-[600px]:flex" />}
+    </>
+  );
+}
+
+/** The square mark at the top of the rail, on a service screen with a logo. */
+function RailMark({ isService }) {
+  const { brand } = useTheme();
+  const hasLogo = Boolean(brand.logos?.LIGHT_GROUND?.dataUrl || brand.logos?.DARK_GROUND?.dataUrl);
+  if (!hasLogo || !isService) return null;
+  return (
+    <NavLink to="/dashboard" className="mb-2 flex min-h-12 items-center justify-center rounded-[10px]">
+      <BrandLogo shape="mark" height={44} />
+    </NavLink>
+  );
 }
 
 export default function AppShell({ children }) {
@@ -212,6 +244,7 @@ export default function AppShell({ children }) {
   return (
     <div className="v2 flex h-full bg-ground text-ink">
       <nav aria-label="Main" className="hidden w-[76px] flex-none flex-col items-center gap-1 overflow-y-auto border-r border-line bg-surface py-3 min-[600px]:flex print:!hidden">
+        <RailMark isService={isServicePath(pathname)} />
         {places.map((place) => (
           <PlaceLink key={place.to} place={place} layout="rail" />
         ))}
@@ -223,7 +256,7 @@ export default function AppShell({ children }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-12 flex-none items-center justify-between gap-3 border-b border-line bg-surface px-4 print:hidden">
-          <Wordmark />
+          <TopBarMark isService={isServicePath(pathname)} />
           <span className="type-caption truncate text-muted">{user?.name}</span>
         </header>
 

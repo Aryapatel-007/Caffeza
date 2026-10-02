@@ -1,12 +1,32 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
+import BrandLogo from '../../components/ui/BrandLogo.jsx';
 import Button from '../../components/ui/Button.jsx';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import Input from '../../components/ui/Input.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useTheme } from '../../context/ThemeProvider.jsx';
 
+/**
+ * Sign in. P22, DESIGN-SYSTEM sections 4d and 11b.
+ *
+ * The one screen where the brand gets a large surface. It is drawn in the look
+ * of the last restaurant signed in on this device, kept with the device's
+ * settings, because nobody has signed in yet to ask the server.
+ *
+ * With a brand colour: from 900px a full-height `brand` panel on the left,
+ * about 40% of the width, with the logo centred, and the form on `ground` to
+ * its right; below 900px a 180px `brand` band across the top. The logo is on
+ * its own background colour, so it blends into the panel with no edge. No
+ * tagline is added: the logo already carries one.
+ *
+ * Without one, the screen is as it was before P22, with the restaurant's name,
+ * or the product's, in place of a hardcoded client's.
+ */
 export default function LoginPage() {
+  const { brand, name } = useTheme();
+  const isBranded = Boolean(brand.brandHex && brand.onBrandHex);
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -51,61 +71,81 @@ export default function LoginPage() {
     }
   }
 
+  const form = (
+    <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+      <Input
+        label="Phone or email"
+        name="identifier"
+        type="text"
+        autoComplete="username"
+        required
+        value={identifier}
+        onChange={(event) => setIdentifier(event.target.value)}
+        hint="10-digit mobile number, or the email on your account"
+        disabled={isSubmitting}
+      />
+
+      <Input
+        label="Password"
+        name="password"
+        type="password"
+        autoComplete="current-password"
+        required
+        value={password}
+        onChange={(event) => setPassword(event.target.value)}
+        disabled={isSubmitting}
+      />
+
+      {error && <ErrorMessage error={error} />}
+
+      <Button type="submit" size="lg" fullWidth isLoading={isSubmitting}>
+        Sign in
+      </Button>
+    </form>
+  );
+
+  const greeting = (
+    <>
+      <h2 className="type-title text-ink">Welcome back</h2>
+      <p className="type-body mt-1 text-muted">Sign in to start your shift.</p>
+    </>
+  );
+
+  const footnote = <p className="type-caption mt-6 text-muted">Accounts are created by your administrator. There is no self signup.</p>;
+
+  if (isBranded) {
+    return (
+      <main className="flex min-h-full flex-col bg-ground min-[900px]:flex-row">
+        <section
+          aria-label={name}
+          className="flex h-[180px] flex-none items-center justify-center bg-brand px-6 min-[900px]:h-auto min-[900px]:min-h-full min-[900px]:w-2/5"
+        >
+          <BrandLogo ground="dark" height={120} maxWidth={240} textClassName="type-title text-on-brand" className="min-[900px]:hidden" />
+          <BrandLogo ground="dark" height={148} maxWidth={240} textClassName="type-title text-on-brand" className="hidden min-[900px]:flex" />
+        </section>
+
+        <section className="flex flex-1 items-start bg-ground px-4 py-8 min-[900px]:items-center min-[900px]:px-12">
+          <div className="w-full max-w-[400px]">
+            {greeting}
+            {form}
+            {footnote}
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="flex min-h-full flex-col bg-surface lg:flex-row">
-      <section className="flex min-h-[260px] flex-col justify-between bg-ink p-8 text-surface lg:min-h-full lg:w-[55%] lg:p-14">
-        <span className="type-caption inline-flex w-fit items-center gap-2 rounded-full border border-surface/40 px-3 py-1">
-          Gandhinagar
-        </span>
-        <div>
-          <h1 className="type-title">Caffeza</h1>
-          <p className="mt-2 max-w-md text-base leading-6 text-on-accent/75">
-            Good coffee, smooth service.
-          </p>
-        </div>
+      <section className="flex min-h-[260px] flex-col justify-end bg-ink p-8 text-surface lg:min-h-full lg:w-[55%] lg:p-12">
+        <h1 className="type-title">{name}</h1>
       </section>
 
-      <section className="flex flex-1 items-center justify-center bg-surface p-6 lg:p-14">
-        <div className="w-full max-w-md">
-          <h2 className="type-title text-ink">
-            Welcome back
-          </h2>
-          <p className="mt-1 text-sm text-muted">Sign in to start your shift.</p>
-
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            <Input
-              label="Phone or email"
-              name="identifier"
-              type="text"
-              autoComplete="username"
-              required
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value)}
-              hint="10-digit mobile number, or the email on your account"
-              disabled={isSubmitting}
-            />
-
-            <Input
-              label="Password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              disabled={isSubmitting}
-            />
-
-            {error && <ErrorMessage error={error} />}
-
-            <Button type="submit" size="lg" fullWidth isLoading={isSubmitting}>
-              Sign in
-            </Button>
-          </form>
-
-          <p className="mt-6 text-center text-xs text-muted">
-            Accounts are created by your administrator. There is no self signup.
-          </p>
+      <section className="flex flex-1 items-center bg-surface px-4 py-8 lg:p-12">
+        <div className="w-full max-w-[400px]">
+          {greeting}
+          {form}
+          {footnote}
         </div>
       </section>
     </main>

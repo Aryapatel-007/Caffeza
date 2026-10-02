@@ -31,6 +31,10 @@ const DEFAULTS = Object.freeze({
   textSize: 100,
   // null follows the restaurant's `settings.appearance.secondLanguage`.
   secondLanguage: null,
+  // P22. The last restaurant signed in here: wordmark, accent pair, tone, brand
+  // pair and logos as small data URLs with their hashes. The sign-in screen
+  // uses it before anyone signs in, and signing out keeps it. Not secret.
+  brand: null,
 });
 
 /** Same-tab listeners. The `storage` event only reaches other tabs. */

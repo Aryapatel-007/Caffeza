@@ -56,6 +56,8 @@
    */
   --brand: #1b2623;
   --on-brand: #ffffff;
+  /* The plate behind a logo for light grounds, when it is shown on a dark one. */
+  --plate-light: #ffffff;
 
   --float-shadow: 0 12px 32px rgb(27 38 35 / 0.18);
   --scrim: rgb(27 38 35 / 0.45);
@@ -165,6 +167,7 @@
   --color-scrim: var(--scrim);
   --color-brand: var(--brand);
   --color-on-brand: var(--on-brand);
+  --color-plate-light: var(--plate-light);
 
   --shadow-float: var(--float-shadow);
 
