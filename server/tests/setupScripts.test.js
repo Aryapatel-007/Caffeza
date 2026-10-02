@@ -262,3 +262,54 @@ describe('Caffeza\'s own files', () => {
     assert.equal(await User.countDocuments({ restaurantId: restaurant._id, name: 'Counter' }), 0);
   });
 });
+
+describe('the setup file: logos and the brand, P22', () => {
+  const withLogos = (logos) => ({ ...caffezaConfig(), logos });
+
+  it("checks Cafezza's logo in the dry run, uploads it through the endpoint, and leaves it alone on a second run", async () => {
+    const { client, tokens } = await ownerClient();
+    const { config, toConfirm } = validateSetupConfig(caffezaConfig());
+    assert.equal(config.logos.DARK_GROUND.width, 391);
+    assert.equal(config.logos.DARK_GROUND.height, 241);
+
+    const first = await planSetup(client, config, { toConfirm });
+    const logoStep = first.find((step) => step.section === 'Logos');
+    assert.equal(logoStep.action, 'create');
+    await applySetup(first);
+
+    const me = (await request('GET', '/api/v1/auth/me', { token: tokens.WAITER })).body.data;
+    assert.equal(me.appearance.logos.DARK_GROUND.hash, config.logos.DARK_GROUND.sha256);
+    assert.equal(me.appearance.accent, '#49302D');
+    assert.equal(me.appearance.neutralTone, 'WARM');
+    assert.equal(me.appearance.brandHex, '#4A2E2A');
+    assert.equal(me.appearance.onBrandHex, '#F2D7BC');
+    assert.equal(me.appearance.wordmark, 'Cafezza');
+
+    const second = await planSetup(client, config, { toConfirm });
+    assert.equal(second.find((step) => step.section === 'Logos').action, 'unchanged');
+  });
+
+  it('refuses a bad logo file with the same words as the endpoint, before anything changes', () => {
+    assert.throws(
+      () => validateSetupConfig(withLogos({ DARK_GROUND: 'docs/brand/cafezza-menu-reference.png', LIGHT_GROUND: 'setup/README.md' })),
+      (error) => {
+        assert.ok(error instanceof SetupConfigError);
+        const byPath = Object.fromEntries(error.issues.map((issue) => [issue.path, issue.message]));
+        assert.match(byPath['logos.DARK_GROUND'], /The largest allowed is 200 KB/);
+        assert.match(byPath['logos.LIGHT_GROUND'], /not a PNG, WebP or JPEG image/);
+        return true;
+      },
+    );
+    assert.throws(() => validateSetupConfig(withLogos({ DARK_GROUND: 'docs/brand/missing.png' })), /cannot be read/);
+    assert.throws(() => validateSetupConfig(withLogos({ MIDDLE_GROUND: 'docs/brand/cafezza-lockup-dark.png' })), SetupConfigError);
+  });
+
+  it('refuses a brand pair that does not read', () => {
+    const config = caffezaConfig();
+    config.settings.appearance.onBrandHex = '#5A3E3A';
+    assert.throws(() => validateSetupConfig(config), (error) => {
+      assert.ok(error.issues.some((issue) => issue.path === 'settings.appearance.onBrandHex'));
+      return true;
+    });
+  });
+});

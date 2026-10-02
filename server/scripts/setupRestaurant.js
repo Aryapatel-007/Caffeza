@@ -19,14 +19,22 @@
  * 5. The invoice series is never set here. It is set by hand on cutover day.
  * 6. A new staff login gets a generated password, printed once at the end. An
  *    existing user's password is never touched. The owner's is typed hidden.
+ * 7. P22. `logos` names an image file per slot, relative to the repository
+ *    root. Each is checked in the dry run by the same `checkLogoFile` the
+ *    upload endpoint uses, and uploaded through that endpoint, so every check
+ *    runs. A logo already there with the same hash is left alone; a logo is
+ *    never removed by this script.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { z } from 'zod';
 
 import { ROLES } from '../config/roles.js';
+import { LOGO_SLOT_NAMES } from '../models/Restaurant.js';
+import { checkLogoFile } from '../services/brandLogoService.js';
+import { checkBrandPair } from '../utils/colour.js';
 import { createAccountSchema } from '../validators/accountValidators.js';
 import { createPaymentMethodSchema } from '../validators/paymentMethodValidators.js';
 import { createTableSchema } from '../validators/orderValidators.js';
@@ -45,6 +53,9 @@ import {
 } from './lib/scriptApi.js';
 
 const SETTINGS_REASON = 'Restaurant setup file';
+
+/** Logo files in a setup file are named relative to the repository root, like `docs/brand/...`. */
+export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 /* ------------------------------------------------------------------------ *
  * Reading the file
@@ -102,6 +113,8 @@ const configShape = z
     paymentMethods: z.array(looseObject).optional(),
     accounts: z.array(looseObject).optional(),
     staff: z.array(looseObject).optional(),
+    // P22. One image file per logo slot.
+    logos: z.partialRecord(z.enum(LOGO_SLOT_NAMES, { error: `A logo slot is one of ${LOGO_SLOT_NAMES.join(', ')}.` }), z.string()).optional(),
   })
   .strict();
 
@@ -152,6 +165,33 @@ export function validateSetupConfig(raw) {
       const result = updateSettingsSchema.safeParse({ body: { reason: SETTINGS_REASON, ...body } });
       if (!result.success) issues.push(...issuesFrom('settings', result.error));
     }
+
+    // P22. The brand pair must read, as the settings service will insist.
+    const appearance = config.settings?.appearance ?? {};
+    if (appearance.brandHex && appearance.onBrandHex) {
+      const verdict = checkBrandPair(appearance.brandHex, appearance.onBrandHex);
+      if (!verdict.ok) issues.push({ path: 'settings.appearance.onBrandHex', message: verdict.message });
+    }
+
+    // P22. Every logo file, read and checked now, so a bad one never reaches --apply.
+    const logos = {};
+    for (const [slot, file] of Object.entries(config.logos ?? {})) {
+      const at = `logos.${slot}`;
+      let buffer;
+      try {
+        buffer = readFileSync(path.resolve(REPO_ROOT, file));
+      } catch {
+        issues.push({ path: at, message: `"${file}" cannot be read. Name it from the repository root.` });
+        continue;
+      }
+      try {
+        const checked = checkLogoFile(buffer);
+        logos[slot] = { file, image: buffer.toString('base64'), sha256: checked.sha256, width: checked.width, height: checked.height };
+      } catch (error) {
+        issues.push({ path: at, message: error.fields?.image ?? error.message });
+      }
+    }
+    if (config.logos) config.logos = logos;
 
     (config.stations ?? []).forEach((station, index) => {
       const result = createStationSchema.safeParse({ body: station });
@@ -427,6 +467,25 @@ export async function planSetup(client, config, { toConfirm = [] } = {}) {
           ...(stationWanted ? { stationId: stationId(stationWanted) } : {}),
         }),
     });
+  }
+
+  // P22. Logos, through the same endpoint and checks as the Appearance page.
+  if (config.logos && Object.keys(config.logos).length > 0) {
+    const me = await client.get('/auth/me');
+    for (const [slot, logo] of Object.entries(config.logos)) {
+      const current = me.appearance?.logos?.[slot]?.hash ?? null;
+      const name = `${slot} ${logo.file} (${logo.width} x ${logo.height})`;
+      steps.push(
+        current === logo.sha256
+          ? { section: 'Logos', name, action: 'unchanged' }
+          : {
+              section: 'Logos',
+              name,
+              action: current ? 'update' : 'create',
+              run: () => client.put(`/settings/appearance/logo/${slot}`, { reason: SETTINGS_REASON, image: logo.image }),
+            },
+      );
+    }
   }
 
   for (const at of toConfirm) {

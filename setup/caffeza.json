@@ -34,8 +34,17 @@
       "requireGuestCount": true,
       "longOpenMinutes": 90
     },
-    "appearance": { "accentPreset": "TO CONFIRM", "secondLanguage": "GUJARATI" }
+    "appearance": {
+      "accentPreset": "CUSTOM",
+      "accentHex": "#49302D",
+      "neutralTone": "WARM",
+      "brandHex": "#4A2E2A",
+      "onBrandHex": "#F2D7BC",
+      "wordmark": "Cafezza",
+      "secondLanguage": "GUJARATI"
+    }
   },
+  "logos": { "DARK_GROUND": "docs/brand/cafezza-lockup-dark.png" },
   "stations": [
     {
       "name": "Live Kitchen",

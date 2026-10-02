@@ -17,6 +17,9 @@ Section 15 lists every open item in one place.
 |---|---|---|
 | Trade name | "Cafezza", as their current POS prints it. We also write it "Caffeza". `TO CONFIRM` the exact spelling for the bill. | `restaurants.name` |
 | Tagline | "Be Caffeinated". `TO CONFIRM` whether it goes on the bill. | `settings.receipt.headerLine2` |
+| Registered trademark | "CAFEZZA BE CAFFEINATED", a device mark: the logo itself is the brand. Everything staff or guests see says "Cafezza", as the trademark, the menu and the listings do. The spelling on the GST bill stays `TO CONFIRM` with the owner. Added by P22. | The logo, `restaurants.brandLogos`; the wordmark, `settings.appearance.wordmark` |
+| Logo | The square logo, cream artwork on espresso brown, `docs/brand/cafezza-logo-square.png`, and the trimmed lockup made from it, `docs/brand/cafezza-lockup-dark.png`. No vector and no version for light grounds yet. `TO CONFIRM`. | `restaurants.brandLogos.darkGround` |
+| Look | Logo brown `#4A2E2A`, logo cream `#F2D7BC`, accent `#49302D`, warm neutrals. Measured in P22, `docs/DESIGN-SYSTEM.md` section 15. | `settings.appearance` |
 | City | Gandhinagar, Gujarat | `restaurants.address.city`, `state` |
 | GSTIN | `24AARFT4546K1ZM` | `restaurants.gstin` |
 | Legal name | `TO CONFIRM` | `restaurants.legalName`, set through `PATCH /restaurant` |
@@ -338,6 +341,8 @@ Their own figures, for comparing against ours during the parallel run.
 9. Outstanding balance of every On Hold account on cutover day.
 10. The physical table layout.
 11. Whether they want inventory or attendance at launch. Both are built, and both are switched off by default.
+12. The logo as a vector file, and a transparent version with brown artwork for light grounds. Until then, day screens show the cream logo on a brown plate. A vector is converted to PNG before upload; SVG is refused.
+13. The spelling of the trade name on the GST bill: "Cafezza", as the trademark, or as their current POS prints it.
 
 **From their CA**
 

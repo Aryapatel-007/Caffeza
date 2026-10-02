@@ -46,6 +46,7 @@ export function apiClient(send, token) {
     get: (path) => call('GET', path),
     post: (path, body) => call('POST', path, body),
     patch: (path, body) => call('PATCH', path, body),
+    put: (path, body) => call('PUT', path, body),
     /** Every page of a paged list. */
     async getAll(path) {
       const rows = [];
