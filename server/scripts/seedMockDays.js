@@ -1,8 +1,12 @@
 /**
  * Ten days of mock trading, for a shared development or demo database.
  *
- *   npm run seed:mock               the last 10 business days before today
- *   npm run seed:mock -- --days 14  any number of days, up to 31
+ *   npm run seed:mock:golden               the last 10 business days before today
+ *   npm run seed:mock:golden -- --days 14  any number of days, up to 31
+ *
+ * Renamed from seed:mock on 2 October 2026 when it met Arya's loader of the
+ * same name (scripts/loadMockDays.js, which builds "Cafezza Demo" from
+ * setup/caffeza.json and the Zomato menu, and filled the cloud database).
  *
  * One separate restaurant, "Cafezza Demo (mock)", with the golden day's staff,
  * menu, stations, payment methods, accounts and tables, and its own invoice

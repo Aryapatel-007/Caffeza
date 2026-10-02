@@ -17,7 +17,7 @@
     "setup:restaurant": "node scripts/setupRestaurant.js",
     "import:menu": "node scripts/importMenu.js",
     "smoke": "node scripts/smokeCheck.js",
-    "seed:mock": "NODE_ENV=test node scripts/seedMockDays.js"
+    "seed:mock:golden": "node --import ./scripts/lib/asTest.js scripts/seedMockDays.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

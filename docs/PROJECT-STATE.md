@@ -411,6 +411,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | The client sends one refresh at a time; every caller shares the one in flight. | StrictMode runs the session restore twice in development, and parallel requests can meet an expired token at once. Two refreshes with one cookie is the theft case above. |
 | 2026-10-02 | `GET /kots?status=` puts "still to cook" into the query: open means a line is still PENDING. | It filtered after reading the oldest page, so once a kitchen had a page of finished tickets the board showed nothing and new tickets never appeared. With ten days of data it happened at once; at Caffeza it would have happened in the first week. Closes the known problem row. |
 | 2026-10-02 | A floor tile's spoken name does not repeat "Table": "Table 5", not "Table Table 5". | Cafezza's tables are named "Table 1" to "Table 35". |
+| 2026-10-02 | Two mock seeders, both kept: `npm run seed:mock` (Arya's `scripts/loadMockDays.js`, "Cafezza Demo" from `setup/caffeza.json` and the Zomato menu, 22 September to 1 October, the one loaded into the cloud) and `npm run seed:mock:golden` (Rishi's `scripts/seedMockDays.js`, "Cafezza Demo (mock)" from the golden day's menu, the last N days, phones from 970000000, password demo1234). Rishi's was renamed from seed:mock and given the Windows-safe preload. | Both were written the same afternoon under one name and met at merge. They build different restaurants and do not touch each other. Only "Cafezza Demo" is in the cloud. |
 
 ---
 
