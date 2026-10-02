@@ -394,6 +394,8 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | TEST-DATA's invoice numbers for B13 to B16 now follow the order bills are created (B16 `CFA/C/22454`, B15 `22455`, B13 `22456`, B14 `22457`), and section 2b, the timeline P10 asked for, is in place. The API golden day plays that timeline in order. | The old numbers contradicted the bill times, and the screens can only issue numbers in time order. Agreed with the user in this session. Every total, payment and line share is unchanged; five tests that named B13 to B16 by number, and R1's alert tests (N01 is now at 5:55 PM), were updated to match. |
 | 2026-10-02 | The golden restaurant carries Caffeza's GSTIN. | A printed golden bill must read as a tax invoice, and P21 checks for it. |
 | 2026-10-02 | The kitchen screen opens in Day, like every other screen. Automatic now means Day everywhere; a station tablet can still choose Night on This device. | The owner asked for the kitchen page in the light theme. This reverses DESIGN-SYSTEM sections 8b and 11b's Night default, which are updated. |
+| 2026-10-02 | The look follows Cafezza's logo: beige neutrals by day, dark coffee brown by night, and a new accent preset, Coffee (`#4A2F2A`), which is the default. The logo is on the sign-in screen, the rail and the phone's top bar, and above the text on every printed bill and the receipt preview. | The owner asked for the logo on the bill and the POS, and the theme in beige and #4A2F2A. Coffee shares a hue with Open and Late, so it is the one preset excused from the hue rule (DESIGN-SYSTEM section 4c says why); an owner's own colour still faces it, and Coffee is never offered as the nearest preset. |
+| 2026-10-02 | Every restaurant shows Cafezza's logo until a logo can be uploaded per restaurant. | Cafezza is the only restaurant today. Logo upload was out of scope in P20B and still has no prompt. |
 
 ---
 
@@ -416,6 +418,18 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-02 Rishi, Cafezza's logo and the beige and brown theme
+
+What was built or decided:
+At the owner's request, outside the prompt plan. Spec first (`add the coffee accent preset to the spec`): `COFFEE` joins the accent presets and becomes the default, additively.
+Theme: day neutrals beige (`ground` `#F5ECDF`, `surface` `#FFFBF5`, `sunken` `#EFE3D2`, `ink` `#2A1C19`, `muted` `#6B5750`, `line` `#DDCCB8`), night neutrals coffee brown (`#1C1412`, `#271D1A`, `#150F0D`, `#F5E9DA`, `#BBA493`, `#3D2F2A`), every text pair at 4.5 to 1 or more and every state edge at 6.5 or more. `brand` and `brand-ink`, the logo's own colours, for the sign-in panel. The colour rules' day and night grounds follow, in both `utils/colour.js` mirrors; no existing preset's night value moved. Coffee's night value is `#AA7369`.
+Logo: `client/src/assets/brand/` holds the original, a wide crop for the phone's top bar, and a black-on-transparent version for thermal paper, all served from our own build. `features/brand/logo.js` is the one place they are imported. `printText` takes `{ logo }` and waits for it to load; the bill screen and receipt preview pass it, kitchen tickets and Day Close do not. `setup/caffeza.json` now sets `accentPreset: COFFEE`.
+
+Checked: `npm run e2e` passes and now also checks that the bill prints with its logo and that the receipt preview shows it; screenshots of sign in, floor, kitchen, bill, receipt preview, Day Close and R2 by day and night looked at. Tests: 930 before, 930 after, three changed on purpose for the new default (the appearance defaults, the settings defaults, the /auth/me appearance).
+
+Anything the other developer needs to know:
+A restaurant that saved a preset keeps it; the local demo restaurants stored `OCEAN` and will stay blue until switched on the Appearance page.
 
 ### 2026-10-02 Rishi, P21 the golden day end to end
 
@@ -590,28 +604,6 @@ Receipt preview: a new screen at `/bills/:billId/receipt` showing the server's r
 Left out: the manager PIN on discounts (the server already limits discounts by role, and there is no PIN check for it), WhatsApp e-bill, PDF, kick drawer, printer status and roll level, copies, IRN, UPI and loyalty QR codes, Wi-Fi line, "Print estimate", export and percent-change figures.
 
 Checked in headless Chromium on the local demo data: a takeaway billed, 10% Regular guest applied (₹209.00 item total, ₹20.90 off, bill ₹205.00 from the server), the receipt at 48 characters, and the ledger with that bill selected. No page errors. Lint and build pass.
-
-### 2026-10-01 Rishi, floor and order screen restyle (ahead of P19 and P20)
-
-What was built or decided:
-The floor (`/floor`) and the order screen were rebuilt from the user's pasted designs.
-Floor: Free and Seated counts, section filter pills, table cards (seated cards have a chana edge, minutes since the order opened, the order number and the item total), and a footer with tables seated and the open tables' item total.
-Tapping a free table opens `SeatTablePanel`: 1 to 7, or 8+ with a stepper up to 100. "Start order" creates the order with `guestCount`.
-Order screen: a header card with back, place, guests, order number and opened time, the menu search, and Switch table (`MoveTablePanel`). Category pills with counts and dish cards; a stepper on a dish's unsent line.
-A dark order bar at the bottom shows items, the item total before GST, Review order and Send to kitchen. Review order is a slide-over with the lines, No Charge and cancel order.
-Once an order is waiting for the cashier or closed, the lines are the page, with the bill button. `LineOptionsPanel` has size cards, extras rows, a note, and the quantity and "Add to order" with the line total in the footer.
-
-Checked by hand in headless Chromium against the local database, after `npm run seed:demo` rebuilt the demo restaurants there. Steps: seated a table with 2 guests, added dishes, raised a quantity, opened sizes and Review order. Checked at 1440 and 390 wide, with no page errors and no sideways scroll on a phone. Lint and build pass. No server change, so the tests were not rerun.
-
-Files or endpoints touched:
-Client only. New: `features/orders/SeatTablePanel.jsx`, `MoveTablePanel.jsx`. Changed: `FloorViewPage.jsx`, `OrderScreenPage.jsx`, `MenuPicker.jsx`, `LineOptionsPanel.jsx`, `OrderLineList.jsx`.
-
-Anything the other developer needs to know:
-Showing Ready to bill, guests or the captain on a floor card needs the `GET /tables` occupancy block to carry them. That is a contract change, for P19.
-Switch table and the guest count were not tried on a real tablet.
-
-Anything now blocked or unblocked:
-Nothing.
 
 ---
 

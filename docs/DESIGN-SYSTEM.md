@@ -71,18 +71,19 @@ These rules carry over unchanged, and still apply:
 
 | Token | Day | Night | Used for |
 |---|---|---|---|
-| `ground` | `#F2F4F3` | `#0F1715` | The page behind everything |
-| `surface` | `#FFFFFF` | `#17211E` | Tiles, tickets, sheets, table rows, inputs |
-| `sunken` | `#E7ECEA` | `#0B1210` | Table headers, input wells, the keypad display |
-| `ink` | `#1B2623` | `#E4ECE8` | Primary text and icons |
-| `muted` | `#53615C` | `#98A9A2` | Secondary text, input borders, disabled text |
-| `line` | `#C9D2CE` | `#2B3733` | Dividers only. Never text, never an input border. |
+| `ground` | `#F5ECDF` | `#1C1412` | The page behind everything |
+| `surface` | `#FFFBF5` | `#271D1A` | Tiles, tickets, sheets, table rows, inputs |
+| `sunken` | `#EFE3D2` | `#150F0D` | Table headers, input wells, the keypad display |
+| `ink` | `#2A1C19` | `#F5E9DA` | Primary text and icons |
+| `muted` | `#6B5750` | `#BBA493` | Secondary text, input borders, disabled text |
+| `line` | `#DDCCB8` | `#3D2F2A` | Dividers only. Never text, never an input border. |
 
-The neutrals lean faintly green-grey. Not cream, not pure grey.
-It is a working surface, like a steel counter under cool light.
+The neutrals are beige by day and dark coffee brown by night, taken from Cafezza's logo: beige lettering, `#F8DDBF`, on brown, `#4A2F2A`. (Changed 2 October 2026 at the owner's request; the first draft leaned green-grey.)
+Two more fixed tokens, `brand` `#4A2F2A` and `brand-ink` `#F8DDBF`, are the logo's own colours, for the surfaces the logo sits on, such as the sign-in panel. They are not the accent and carry no meaning.
 
-Measured contrast, day: `ink` on `surface` 15.6, `muted` on `surface` 6.5, `muted` on `sunken` 5.4.
-Night: `ink` on `surface` 13.7, `muted` on `surface` 6.7.
+Measured contrast, day: `ink` on `surface` 15.9, `muted` on `surface` 6.6, `muted` on `sunken` 5.3, `muted` on `ground` 5.8.
+Night: `ink` on `surface` 13.7, `muted` on `surface` 6.9.
+Every state's edge stays at 6.5 to 1 or more on day `surface`, and 7.2 or more on night `surface`.
 Every text pair passes WCAG AA at 4.5 or more.
 
 ### 4b. State colours
@@ -119,11 +120,12 @@ and links.
 
 Nothing else. Not headers, not backgrounds, not chart marks.
 
-Six presets. Every one passes the same rules an owner's own colour must pass, below: white text on the accent at 6.7 to 11.4, and the accent on day `ground` at 6.0 to 10.3.
+Seven presets. Every one but Coffee passes the same rules an owner's own colour must pass, below: white text on the accent at 6.7 to 12.1, and the accent on day `ground` at 5.7 to 10.4.
 
 | Preset | Day | Night, for text, focus and button fill | Hue |
 |---|---|---|---|
-| Ocean, the default | `#1C5C86` | `#2985C2` | 204 degrees |
+| Coffee, the default | `#4A2F2A` | `#AA7369` | 9 degrees, at 28% saturation and 23% lightness |
+| Ocean | `#1C5C86` | `#2985C2` | 204 degrees |
 | Indigo | `#3446A8` | `#6B7BD1` | 231 degrees |
 | Plum | `#6A3878` | `#A666B8` | 287 degrees |
 | Olive | `#4F6328` | `#6E8A38` | 80 degrees |
@@ -133,6 +135,8 @@ Six presets. Every one passes the same rules an owner's own colour must pass, be
 On a night button, the text is night `ground`, at 4.5 to 1 or more on every night value above.
 Each night value is what `nightVariant` in section 13 produces, so presets and custom colours follow one rule.
 P20A replaced the first draft's night values with the code's: five moved by one in a channel, Plum's green by two and Graphite's channels by up to three. `nightVariant` steps HSL lightness up by 0.01 from the colour's own and rounds each channel to a whole number, and the draft had rounded differently.
+
+Coffee is the brown of Cafezza's logo, chosen by the owner. It is the one preset that fails the hue rule by measure: its hue is the hue of `open` and `alert`, and its saturation is just over 25%. It is allowed because, at 23% lightness, it reads as near-black brown beside those mid-tone, saturated colours, and a preset is a fixed, reviewed choice. An owner's own colour still faces every rule below.
 
 Espresso is the coffee-house brown. It is kept under 25% saturation, so it can never be read as the amber of an open table.
 An earlier draft used a pine green and a roast brown. Both failed the rule below: pine sat within 2 degrees of the `served` teal, and roast between `alert` and `open`. A primary button must never look like a state.
@@ -401,7 +405,7 @@ New settings group `settings.appearance`, audited like every setting:
 
 | Field | Default | Meaning |
 |---|---|---|
-| `accentPreset` | `OCEAN` | One of the six presets, or `CUSTOM` |
+| `accentPreset` | `COFFEE` | One of the seven presets, or `CUSTOM` |
 | `accentHex` | null | Used when the preset is `CUSTOM`, validated as in 4c |
 | `wordmark` | null | The name in the top bar. Null means the restaurant's name. |
 | `secondLanguage` | `NONE` | `NONE`, `GUJARATI` or `HINDI`. The restaurant's default. |
@@ -461,6 +465,10 @@ A test fails the build if any component contains a raw hex colour, or any versio
 7. **State words for things that are not tables.** A bill: Unpaid is `bill`, Paid is `ok`, On Hold is `open`, Voided is `alert`. An order line: Not sent has no colour, With the kitchen is `open`, Ready is `ok`, Served is `served`, Cancelled is `alert`. Stock: In stock `ok`, Low `open`, Out `alert`. The clock: In `ok`, Out no colour.
 8. **Selected, not primary.** A chosen option in a group (a payment method, a guest count, a reason) is a 2px `ink` border on `sunken`, never the accent, so the accent stays the one primary action.
 9. **Where things moved.** `PanelShell` became `Sheet` (with `SheetActions` for the common footer); `ReasonPicker` moved to `components/ui/`; the two `Bilingual` copies and their label files became `features/i18n/`. `StatusBadge` and `AvailabilityStamp` were thin wrappers over `StateChip` until P20B removed them.
+
+### 13a2. The logo
+
+Cafezza's logo is in `client/src/assets/brand/` and imported only through `features/brand/logo.js`: the square original on the rail and the sign-in screen, a wide crop in the phone's top bar, and a black-on-transparent version above the text on printed bills and the receipt preview. From 600px the top bar shows the wordmark in text, because the rail already carries the logo. Kitchen tickets print without it.
 
 ### 13b. Settled while building P20B
 
