@@ -248,20 +248,24 @@ const STAFF = [
  *
  * `invoiceSeries: false` leaves the invoice series at its default, for the
  * browser test, where the owner sets it on the Invoice numbers screen.
+ * `phoneBase`, nine digits, fixes everyone's phone at that base plus 1 to 7.
  *
  * Returns the tokens by role and by person, every person's phone and the one
  * password they share, and the ids of everything created.
  */
-export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}, invoiceSeries = true } = {}) {
+export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}, invoiceSeries = true, phoneBase = null } = {}) {
   setClockForTests(ist('09:00'));
   try {
-    const base = await seedFullRestaurant({ name, ownerName: 'Owner' });
+    // `phoneBase` gives every person a fixed phone (base, then 1 to 7), for a shared database where
+    // the test counter's numbers could already belong to someone. Phones are unique platform-wide.
+    const phoneFor = (index) => (phoneBase ? `${phoneBase}${index}` : undefined);
+    const base = await seedFullRestaurant({ name, ownerName: 'Owner', ownerPhone: phoneFor(1) });
     const { restaurant, branch } = base;
     const tokens = { OWNER: await login(base.phone) };
     const people = { Owner: tokens.OWNER };
     const phones = { Owner: base.phone };
-    for (const [personName, role] of STAFF) {
-      const seeded = await seedUser({ restaurant, branch, name: personName, role });
+    for (const [index, [personName, role]] of STAFF.entries()) {
+      const seeded = await seedUser({ restaurant, branch, name: personName, role, phone: phoneFor(index + 2) });
       people[personName] = await login(seeded.phone);
       phones[personName] = seeded.phone;
     }
