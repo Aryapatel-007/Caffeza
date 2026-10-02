@@ -6,7 +6,8 @@
  * wrapping, padding or column arithmetic of its own.
  *
  * It writes the text into a hidden iframe as a <pre>, sized for 58mm or 80mm
- * paper, and calls print() on that iframe only, never on the whole page. With
+ * paper, with the restaurant's logo above it when `logo` is given (bills, not
+ * kitchen tickets), and calls print() on that iframe only, never on the whole page. With
  * Chrome started with --kiosk-printing (docs/DEPLOYMENT.md section 10) the
  * print goes straight to the default printer with no dialog. Without the flag,
  * the normal print dialog opens.
@@ -28,11 +29,11 @@ function escapeHtml(text) {
  * Resolves when the print call has been made. Rejects if the browser refused,
  * so a caller can show "Not printed" rather than believing it worked.
  */
-export function printText(text, paperMm = 80) {
+export function printText(text, paperMm = 80, { logo = null } = {}) {
   // P21. The browser tests record what would print instead of printing. Only a
   // test's init script ever sets this; nothing in the app does.
   if (typeof window.__E2E_PRINT__ === 'function') {
-    window.__E2E_PRINT__(text, paperMm);
+    window.__E2E_PRINT__(text, paperMm, { logo: Boolean(logo) });
     return Promise.resolve();
   }
 
@@ -70,11 +71,21 @@ export function printText(text, paperMm = 80) {
     white-space: pre;
     color: black;
   }
-</style></head><body><pre>${escapeHtml(text)}</pre></body></html>`);
+  img { display: block; width: 60%; margin: 2mm auto 0; }
+</style></head><body>${logo ? `<img src="${logo}" alt="" />` : ''}<pre>${escapeHtml(text)}</pre></body></html>`);
       doc.close();
 
+      // The logo has to be in before the page prints, or paper gets a blank space.
+      const image = doc.querySelector('img');
+      const ready = new Promise((done) => {
+        if (!image || image.complete) return done();
+        image.addEventListener('load', done, { once: true });
+        // A logo that will not load must never stop the bill from printing.
+        image.addEventListener('error', done, { once: true });
+      });
+
       // Let the content paint before printing, or some browsers print a blank page.
-      setTimeout(() => {
+      ready.then(() => setTimeout(() => {
         try {
           frame.contentWindow.focus();
           frame.contentWindow.print();
@@ -84,7 +95,7 @@ export function printText(text, paperMm = 80) {
         } finally {
           cleanUp();
         }
-      }, 50);
+      }, 50));
     } catch (error) {
       cleanUp();
       reject(error);

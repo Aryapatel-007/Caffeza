@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
+import { LOGO } from '../brand/logo.js';
 import Button from '../../components/ui/Button.jsx';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import Input from '../../components/ui/Input.jsx';
@@ -53,16 +54,11 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-full flex-col bg-surface lg:flex-row">
-      <section className="flex min-h-[260px] flex-col justify-between bg-ink p-8 text-surface lg:min-h-full lg:w-[55%] lg:p-14">
-        <span className="type-caption inline-flex w-fit items-center gap-2 rounded-full border border-surface/40 px-3 py-1">
-          Gandhinagar
-        </span>
-        <div>
-          <h1 className="type-title">Caffeza</h1>
-          <p className="mt-2 max-w-md text-base leading-6 text-on-accent/75">
-            Good coffee, smooth service.
-          </p>
-        </div>
+      <section className="flex min-h-[260px] flex-col items-center justify-center gap-4 bg-brand p-8 text-brand-ink lg:min-h-full lg:w-[55%] lg:p-14">
+        <h1>
+          <img src={LOGO} alt="Cafezza, be caffeinated" className="w-56 lg:w-96" />
+        </h1>
+        <span className="type-caption rounded-full border border-brand-ink/40 px-3 py-1">Gandhinagar</span>
       </section>
 
       <section className="flex flex-1 items-center justify-center bg-surface p-6 lg:p-14">

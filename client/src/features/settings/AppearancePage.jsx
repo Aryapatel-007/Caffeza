@@ -20,7 +20,7 @@ import { LABELS as WORDS } from '../i18n/labels.js';
 import { LABELS } from '../reports/labels.js';
 import { errorMessage } from './errorCopy.js';
 
-const PRESET_NAMES = { OCEAN: 'Ocean', INDIGO: 'Indigo', PLUM: 'Plum', OLIVE: 'Olive', ESPRESSO: 'Espresso', GRAPHITE: 'Graphite' };
+const PRESET_NAMES = { COFFEE: 'Coffee', OCEAN: 'Ocean', INDIGO: 'Indigo', PLUM: 'Plum', OLIVE: 'Olive', ESPRESSO: 'Espresso', GRAPHITE: 'Graphite' };
 
 /** The wordmark field. The design asks for a short name that fits a phone's top bar. */
 const WORDMARK_LENGTH = 24;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext.jsx';
+import { LOGO, LOGO_WIDE } from '../features/brand/logo.js';
 import {
   BagIcon,
   CashIcon,
@@ -193,10 +194,17 @@ function MoreSheet({ onClose }) {
   );
 }
 
+/** The restaurant's name in the top bar: the logo on a phone, the wordmark on a wider screen beside the rail's logo. */
 function Wordmark() {
   const { features } = useAuth();
-  const name = features.appearance?.wordmark || features.restaurantName || 'Caffeza';
-  return <span className="type-heading truncate">{name}</span>;
+  const name = features.appearance?.wordmark || features.restaurantName || 'Cafezza';
+  return (
+    <span className="flex min-w-0 items-center gap-3">
+      {/* On a phone the top bar carries the logo; from 600px the rail does, and the top bar says the name. */}
+      <img src={LOGO_WIDE} alt={name} className="h-9 w-auto flex-none rounded-md min-[600px]:hidden" />
+      <span className="type-heading hidden truncate min-[600px]:inline">{name}</span>
+    </span>
+  );
 }
 
 export default function AppShell({ children }) {
@@ -212,6 +220,7 @@ export default function AppShell({ children }) {
   return (
     <div className="v2 flex h-full bg-ground text-ink">
       <nav aria-label="Main" className="hidden w-[76px] flex-none flex-col items-center gap-1 overflow-y-auto border-r border-line bg-surface py-3 min-[600px]:flex print:!hidden">
+        <img src={LOGO} alt="Cafezza" className="mb-2 size-14 rounded-lg" />
         {places.map((place) => (
           <PlaceLink key={place.to} place={place} layout="rail" />
         ))}

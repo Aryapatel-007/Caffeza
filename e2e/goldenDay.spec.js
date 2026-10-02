@@ -46,6 +46,13 @@ test('the golden day, through the screens', async ({ browser }) => {
   const person = (name, device) => signIn(browser, { name, phone: golden.phones[name], password: golden.password, device });
 
   await at('10:00');
+  // The sign-in screen, with the logo, before anyone signs in.
+  const door = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  await door.goto('/login');
+  await expect(door.getByRole('img', { name: /Cafezza/ })).toBeVisible();
+  await door.screenshot({ path: path.join(SCREENSHOTS, 'sign-in-computer.png') });
+  await door.close();
+
   const owner = await person('Owner', 'phone');
   const manager = await person('Manager', 'computer');
   const counter = await person('Counter', 'computer');
@@ -125,10 +132,15 @@ test('the golden day, through the screens', async ({ browser }) => {
     await gotoBill(counter.page, bills.B01);
     await printBill(counter.page);
     await expect.poll(() => counter.prints.length).toBe(1);
-    const { text } = counter.prints[0];
+    const { text, logo } = counter.prints[0];
+    expect(logo, 'the bill prints with the logo above it').toBe(true);
     expect(text).toContain('CFA/C/22442');
     expect(text).toContain('GSTIN');
     expect(text).toContain('501.00');
+    await counter.page.goto(`${bills.B01}/receipt`);
+    await expect(counter.page.getByLabel('Receipt text').locator('xpath=preceding-sibling::img')).toBeVisible();
+    await expect(counter.page.getByLabel('Receipt text')).toContainText('CFA/C/22442');
+    await shot(counter, 'receipt-b01');
   });
 
   await test.step('12:36 PM cash ₹501.00', async () => {
