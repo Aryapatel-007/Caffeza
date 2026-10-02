@@ -310,3 +310,46 @@ describe('deactivating a table', () => {
     assert.equal(on.body.data.isActive, true);
   });
 });
+
+describe('editing and deleting a table (2 October 2026)', () => {
+  it('edits name, section and seats together, and clears seats with null', async () => {
+    const { tokens } = await seedTeam();
+    const table = (await createTable(tokens.OWNER, { name: 'T9', section: 'Cafe', seats: 4 })).body.data;
+    const edited = await request('PATCH', `/api/v1/tables/${table.id}`, {
+      token: tokens.MANAGER,
+      body: { name: 'T10', section: 'Terrace', seats: null },
+    });
+    assert.equal(edited.status, 200);
+    assert.equal(edited.body.data.name, 'T10');
+    assert.equal(edited.body.data.section, 'Terrace');
+    assert.equal(edited.body.data.seats, null);
+  });
+
+  it('deletes a table no order was ever on, refuses a used one, and refuses a waiter', async () => {
+    const { tokens } = await seedTeam();
+    const unused = (await createTable(tokens.OWNER, { name: 'Mistake' })).body.data;
+    assert.equal((await request('DELETE', `/api/v1/tables/${unused.id}`, { token: tokens.WAITER })).status, 403);
+    const deleted = await request('DELETE', `/api/v1/tables/${unused.id}`, { token: tokens.MANAGER });
+    assert.equal(deleted.status, 200);
+    assert.deepEqual(deleted.body.data, { id: unused.id, deleted: true });
+    assert.equal((await request('DELETE', `/api/v1/tables/${unused.id}`, { token: tokens.OWNER })).status, 404);
+
+    const used = (await createTable(tokens.OWNER, { name: 'T1' })).body.data;
+    const menu = await request('POST', '/api/v1/categories', { token: tokens.OWNER, body: { name: 'Coffee' } });
+    const item = await request('POST', '/api/v1/menu-items', {
+      token: tokens.OWNER,
+      body: { categoryId: menu.body.data.id, name: 'Latte', priceInPaise: 22000, taxRateBps: 500 },
+    });
+    const order = await request('POST', '/api/v1/orders', {
+      token: tokens.WAITER,
+      body: { orderType: 'DINE_IN', tableId: used.id, lines: [{ menuItemId: item.body.data.id, quantity: 1 }] },
+    });
+    assert.equal(order.status, 201, JSON.stringify(order.body));
+    const refused = await request('DELETE', `/api/v1/tables/${used.id}`, { token: tokens.OWNER });
+    assert.equal(refused.status, 422);
+    assert.match(refused.body.error.message, /orders in its history, so it cannot be deleted\. Turn it off instead/);
+
+    const other = await seedTeam();
+    assert.equal((await request('DELETE', `/api/v1/tables/${used.id}`, { token: other.tokens.OWNER })).status, 404);
+  });
+});

@@ -1598,6 +1598,9 @@ Roles: `OWNER`, `MANAGER`. Updatable: `name`, `section`, `seats`, `displayOrder`
 
 `isActive` is refused here with 400. It has its own endpoint.
 
+The table setup screen edits name, section and seats together through this
+endpoint (2 October 2026).
+
 ### 11.4 Activate or deactivate table
 
 ```
@@ -1613,6 +1616,24 @@ Roles: `OWNER`, `MANAGER`.
 **This is the delete.** 422 `BUSINESS_RULE_VIOLATED` if an order currently
 occupies the table. Deactivating a table out from under a seated party is how a
 bill goes missing.
+
+### 11.6 Delete a table that was never used (added 2 October 2026)
+
+```
+DELETE /api/v1/tables/:tableId
+```
+
+Roles: `OWNER`, `MANAGER`. No body.
+
+For a table added by mistake. Allowed only when no order, in any status, has
+ever been on the table; the table document is then removed, with its place on
+the floor plan. A table with any order history is refused with 422
+`BUSINESS_RULE_VIOLATED`: "Table 5 has orders in its history, so it cannot be
+deleted. Turn it off instead: it leaves the floor and every old bill keeps its
+table." Old orders and bills point at a table by id, so a used table is only
+ever switched off (11.4).
+
+200 with `{ "id": "...", "deleted": true }`. 404 for another restaurant's table.
 
 ---
 

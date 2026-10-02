@@ -184,7 +184,8 @@ export const updateTableSchema = z.object({
     .object({
       name: tableName.optional(),
       section,
-      seats: seats.optional(),
+      // null clears the seat count from the table setup's edit sheet.
+      seats: z.union([seats, z.null()]).optional(),
       displayOrder: displayOrder.optional(),
       isActive: z.never({ error: 'Has its own endpoint: PATCH /tables/:tableId/status' }).optional(),
     })
@@ -196,6 +197,9 @@ export const setTableStatusSchema = z.object({
   params: tableIdParam,
   body: isActiveBody,
 });
+
+/** API-CONTRACT 11.6. No body. */
+export const deleteTableSchema = z.object({ params: tableIdParam });
 
 // ---------------------------------------------------------------------------
 // Orders

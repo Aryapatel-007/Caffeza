@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
+import Button from '../../components/ui/Button.jsx';
+import Input from '../../components/ui/Input.jsx';
+import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
 import Toast from '../../components/ui/Toast.jsx';
-import { createTable, listTables, setTableActive, updateTable } from '../../api/orders.js';
+import { createTable, deleteTable, listTables, setTableActive, updateTable } from '../../api/orders.js';
 import { errorMessage } from './errorCopy.js';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
@@ -19,11 +22,18 @@ import Spinner from '../../components/ui/Spinner.jsx';
  *
  * `includeInactive` is on here and off on the floor view. Without it a switched
  * off table would be invisible and could never be switched back on.
+ *
+ * Each row can be edited (name, section and seats, in a sheet), turned off or
+ * on, and deleted. Delete removes only a table no order has ever been on; the
+ * server refuses a used one and says to turn it off instead, so old bills keep
+ * their table (API-CONTRACT 11.6).
  */
 export default function TableManagementPage() {
   const queryClient = useQueryClient();
   const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState({ name: '', section: '', seats: '' });
+  const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   const tables = useQuery({
     queryKey: ['tables', { includeInactive: true }],
@@ -47,13 +57,28 @@ export default function TableManagementPage() {
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
   });
 
-  const rename = useMutation({
-    mutationFn: ({ table, name }) => updateTable(table.id, { name }),
+  const save = useMutation({
+    mutationFn: ({ table, body }) => updateTable(table.id, body),
     onSuccess: () => {
-      setToast({ tone: 'success', message: 'Table renamed.' });
+      setEditing(null);
+      setToast({ tone: 'success', message: 'Table saved.' });
       refresh();
     },
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
+  });
+
+  const remove = useMutation({
+    mutationFn: ({ table }) => deleteTable(table.id),
+    onSuccess: () => {
+      setDeleting(null);
+      setToast({ tone: 'success', message: 'Table deleted.' });
+      refresh();
+    },
+    // A used table is refused, with the server's sentence saying to turn it off.
+    onError: (error) => {
+      setDeleting(null);
+      setToast({ tone: 'error', message: errorMessage(error) });
+    },
   });
 
   const toggle = useMutation({
@@ -70,7 +95,7 @@ export default function TableManagementPage() {
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
   });
 
-  const isBusy = add.isPending || rename.isPending || toggle.isPending;
+  const isBusy = add.isPending || save.isPending || remove.isPending || toggle.isPending;
 
   return (
     <main className="v2 text-ink min-h-full bg-ground">
@@ -163,66 +188,125 @@ export default function TableManagementPage() {
               key={table.id}
               table={table}
               isBusy={isBusy}
-              onRename={(name) => rename.mutate({ table, name })}
+              onEdit={() => setEditing(table)}
+              onDelete={() => setDeleting(table)}
               onToggle={() => toggle.mutate({ table })}
             />
           ))}
         </ul>
       </div>
 
+      {editing && (
+        <EditTableSheet
+          table={editing}
+          isBusy={save.isPending}
+          onCancel={() => setEditing(null)}
+          onSave={(body) => save.mutate({ table: editing, body })}
+        />
+      )}
+
+      {deleting && (
+        <Sheet
+          title={`Delete ${deleting.name}?`}
+          onClose={() => setDeleting(null)}
+          footer={
+            <SheetActions
+              onCancel={() => setDeleting(null)}
+              confirmLabel="Delete table"
+              danger
+              disabled={remove.isPending}
+              onConfirm={() => remove.mutate({ table: deleting })}
+            />
+          }
+        >
+          <p className="type-body">
+            {deleting.name} is removed from the floor and from this list, with its place on the floor plan.
+          </p>
+          <p className="type-body mt-3 text-muted">
+            Only a table that has never had an order can be deleted. If {deleting.name} has, it is kept and you will be
+            asked to turn it off instead, so its old bills keep their table.
+          </p>
+        </Sheet>
+      )}
+
       <Toast tone={toast?.tone} message={toast?.message} onDismiss={() => setToast(null)} />
     </main>
   );
 }
 
-function TableRow({ table, isBusy, onRename, onToggle }) {
+/** Name, section and seats together, through PATCH /tables/:tableId. */
+function EditTableSheet({ table, isBusy, onCancel, onSave }) {
   const [name, setName] = useState(table.name);
-  const isDirty = name.trim() !== table.name && name.trim().length > 0;
+  const [section, setSection] = useState(table.section ?? '');
+  const [seats, setSeats] = useState(table.seats == null ? '' : String(table.seats));
+
+  const seatsValue = seats.trim() === '' ? null : Number(seats);
+  const seatsOk = seatsValue === null || (Number.isInteger(seatsValue) && seatsValue > 0);
+
+  const body = {};
+  if (name.trim() !== table.name) body.name = name.trim();
+  if ((section.trim() || null) !== (table.section ?? null)) body.section = section.trim() || null;
+  if (seatsValue !== (table.seats ?? null)) body.seats = seatsValue;
+  const canSave = name.trim().length > 0 && seatsOk && Object.keys(body).length > 0 && !isBusy;
 
   return (
+    <Sheet
+      title={`Edit ${table.name}`}
+      onClose={onCancel}
+      footer={<SheetActions onCancel={onCancel} confirmLabel="Save table" disabled={!canSave} onConfirm={() => onSave(body)} />}
+    >
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (canSave) onSave(body);
+        }}
+      >
+        <Input label="Name" value={name} maxLength={20} onChange={(event) => setName(event.target.value)} />
+        <Input
+          label="Section"
+          value={section}
+          maxLength={40}
+          hint="Leave empty for no section."
+          onChange={(event) => setSection(event.target.value)}
+        />
+        <Input
+          label="Seats"
+          value={seats}
+          inputMode="numeric"
+          error={seatsOk ? undefined : 'Seats must be a whole number above zero.'}
+          onChange={(event) => setSeats(event.target.value)}
+        />
+      </form>
+    </Sheet>
+  );
+}
+
+function TableRow({ table, isBusy, onEdit, onDelete, onToggle }) {
+  return (
     <li className={['flex flex-wrap items-center gap-3 py-3', table.isActive ? '' : 'opacity-60'].join(' ')}>
-      <input
-        value={name}
-        maxLength={20}
-        onChange={(event) => setName(event.target.value)}
-        aria-label={`Name of table ${table.name}`}
-        className="min-h-12 w-24 rounded-lg border-2 border-transparent bg-transparent px-2 type-body hover:border-muted"
-      />
+      <span className="type-body w-24 font-semibold">{table.name}</span>
 
       <span className="flex-1 type-caption text-muted">
         {table.section ?? 'No section'}
         {table.seats != null && <span className="font-mono"> · {table.seats} seats</span>}
+        {!table.isActive && <span> · Turned off</span>}
         {table.occupancy.isOccupied && (
           <span className="font-mono"> · order #{table.occupancy.orderNumber} open</span>
         )}
       </span>
 
-      {isDirty && (
-        <button
-          type="button"
-          disabled={isBusy}
-          onClick={() => onRename(name.trim())}
-          className="type-label min-h-12 rounded-lg border border-ink bg-surface text-ink hover:bg-sunken px-4 disabled:opacity-50"
-        >
-          Save name
-        </button>
-      )}
+      <Button variant="secondary" size="sm" disabled={isBusy} onClick={onEdit}>
+        Edit
+      </Button>
 
-      <button
-        type="button"
-        disabled={isBusy}
-        onClick={onToggle}
-        className={[
-          'min-h-12 rounded-lg border-2 px-4 type-caption',
-          'focus-visible:outline-2 focus-visible:outline-offset-2',
-          'disabled:opacity-50',
-          table.isActive
-            ? 'border-muted text-muted focus-visible:outline-accent'
-            : 'border-ink text-ink focus-visible:outline-accent',
-        ].join(' ')}
-      >
+      <Button variant="secondary" size="sm" disabled={isBusy} onClick={onToggle}>
         {table.isActive ? 'Turn off' : 'Turn on'}
-      </button>
+      </Button>
+
+      <Button variant="quiet" size="sm" disabled={isBusy || table.occupancy.isOccupied} onClick={onDelete} className="text-alert">
+        Delete
+      </Button>
     </li>
   );
 }

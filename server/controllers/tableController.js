@@ -221,8 +221,9 @@ export async function updateTable(req, res) {
 /**
  * PATCH /tables/:tableId/status
  *
- * This is the delete. There is no DELETE route: an order from last week points
- * at this table by id and a bill from M3 will too.
+ * This is the delete for a table that has been used: an order from last week
+ * points at this table by id, and so does its bill. DELETE below removes only
+ * a table no order has ever been on.
  */
 export async function setTableStatus(req, res) {
   const table = await loadTableInTenant(req, req.params.tableId);
@@ -258,6 +259,29 @@ export async function setTableStatus(req, res) {
   );
 
   return sendSuccess(res, table.toJSON());
+}
+
+/**
+ * DELETE /tables/:tableId. API-CONTRACT 11.6, added 2 October 2026.
+ *
+ * For a table added by mistake. Any order on it, in any status, cancelled ones
+ * included, means its id is in the history and it is only ever turned off.
+ */
+export async function deleteTable(req, res) {
+  const table = await loadTableInTenant(req, req.params.tableId);
+
+  const used = await Order.exists({ ...scoped(req), tableId: table._id });
+  if (used) {
+    throw new BusinessRuleError(
+      `${table.name} has orders in its history, so it cannot be deleted. Turn it off instead: it leaves the floor and every old bill keeps its table.`,
+    );
+  }
+
+  await Table.deleteOne({ ...scoped(req), _id: table._id });
+
+  req.log?.info({ actorId: req.user.id, tableId: String(table._id) }, 'Unused table deleted.');
+
+  return sendSuccess(res, { id: String(table._id), deleted: true });
 }
 
 /** Do two placed tables share any grid cell? */

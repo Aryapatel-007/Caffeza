@@ -32,6 +32,7 @@ import {
 } from '../controllers/kotController.js';
 import {
   createTable,
+  deleteTable,
   listTables,
   setTableStatus,
   saveLayout,
@@ -61,6 +62,7 @@ import {
   readKotSchema,
   readOrderSchema,
   setTableStatusSchema,
+  deleteTableSchema,
   saveLayoutSchema,
   updateTableSchema,
 } from '../validators/orderValidators.js';
@@ -106,6 +108,8 @@ router.get('/tables', ...anySignedIn, validate(listTablesSchema), listTables);
 router.patch('/tables/layout', ...managers, validate(saveLayoutSchema), saveLayout);
 router.patch('/tables/:tableId', ...managers, validate(updateTableSchema), updateTable);
 router.patch('/tables/:tableId/status', ...managers, validate(setTableStatusSchema), setTableStatus);
+// 11.6. Only a table no order has ever been on; a used table is turned off instead.
+router.delete('/tables/:tableId', ...managers, validate(deleteTableSchema), deleteTable);
 
 // ---------------------------------------------------------------------------
 // Orders

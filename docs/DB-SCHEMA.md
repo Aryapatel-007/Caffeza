@@ -662,7 +662,7 @@ optional place on its section's floor plan.
 | `section` | String | no | Trimmed, max 40 characters. "Garden", "AC Hall". Null when unset. |
 | `seats` | Number | no | Integer 1 to 50. Null when unset. |
 | `displayOrder` | Number | yes | Integer, minimum 0, default 0 |
-| `isActive` | Boolean | yes | Default true. This is the delete. |
+| `isActive` | Boolean | yes | Default true. This is the delete for a table that has been used. A table no order has ever been on can be removed outright (API-CONTRACT 11.6, added 2 October 2026). |
 | `layout` | Object | no | P19. Default null: no place on a floor plan yet. `{ x, y, w, h, shape }` on the section's 24 by 16 grid: `x` 0 to 23, `y` 0 to 15, `w` and `h` 1 to 4, `x + w` at most 24, `y + h` at most 16, `shape` `SQUARE`, `ROUND` or `LONG` (a `LONG` table has `w` and `h` different). Overlaps are refused by `PATCH /tables/layout`. |
 | `createdAt` | Date | auto | UTC |
 | `updatedAt` | Date | auto | UTC |

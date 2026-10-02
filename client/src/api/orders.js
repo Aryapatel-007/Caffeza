@@ -49,7 +49,11 @@ export function updateTable(tableId, body) {
   return api.patch(`/tables/${tableId}`, body);
 }
 
-/** This is the delete. There is no DELETE verb anywhere in M2. */
+/** API-CONTRACT 11.6: removes a table no order has ever been on. A used table is turned off instead. */
+export function deleteTable(tableId) {
+  return api.delete(`/tables/${tableId}`);
+}
+
 /**
  * P19. One section's floor plan, saved together. Each entry is a table's place
  * `{ tableId, x, y, w, h, shape }`, or `{ tableId, layout: null }` to take it off.
