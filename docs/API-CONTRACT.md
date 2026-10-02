@@ -3426,6 +3426,8 @@ M8 also uses `businessDateRangeToUtc` from `server/utils/time.js`, which M6 intr
 
 `entityType` gains `ACCOUNT`, `CASH`, `DAY` and `PAYOUT` (P07).
 
+Checked against the code in P17: these fourteen actions are every action written today, and each is written only by the module named.
+
 ## 2. What M8 adds
 
 Each of these is an action an owner would want to see and which today leaves nothing behind.
@@ -3504,9 +3506,17 @@ If the actor's user record has since been deactivated, `actorName` still resolve
 
 ### The manager restriction
 
-A `MANAGER` sees only entries whose action is `ORDER_CANCELLED` or `STOCK_ADJUSTED`. Everything else returns nothing for them.
+A `MANAGER` sees only entries whose action is `ORDER_CANCELLED`, `STOCK_ADJUSTED` or `LINE_CANCELLED_AFTER_PREP`. Everything else returns nothing for them.
 
-The reason is plain: this collection exists to catch an insider, and a manager is an insider. A manager who can read the log knows exactly which of their actions were recorded. But a manager investigating a stock discrepancy or a run of cancelled orders is doing their job, so those two stay open.
+The reason is plain: this collection exists to catch an insider, and a manager is an insider. A manager who can read the log knows exactly which of their actions were recorded. But a manager investigating a stock discrepancy or a run of cancelled orders is doing their job, so those stay open.
+
+P17 applied the same rule to every action added since the rule was written. An owner watches what managers approve, so a manager does not read the trail of discounts, voids, No Charge, payment corrections, account charges and adjustments, payouts, cash paid out, Day Close and reopening, settings, or staff and menu changes. Food made and thrown away is the kitchen's and the captains' waste, which a manager runs, so `LINE_CANCELLED_AFTER_PREP` is open to them:
+
+| Action | MANAGER may see it |
+|---|---|
+| `ORDER_CANCELLED`, `STOCK_ADJUSTED` | Yes, as first specified |
+| `LINE_CANCELLED_AFTER_PREP` | Yes, from P17 |
+| Every other action, and `ATTENDANCE_CORRECTED` | No. OWNER only. |
 
 The filter is applied server-side by injecting it into the query, not by post-filtering the results. A post-filter leaks the true `total` in the pagination block.
 
@@ -3581,6 +3591,10 @@ This is the report that sells the product.
 }
 ```
 
+P17 adds three figures to each `byActor` entry, in the same style: `noChargeCount` and `noChargeAmountInPaise`, the No Charge orders the person approved and their value before GST; and `paymentCorrectionCount`, the payment methods they changed after the fact. `discountCount` and `discountAmountInPaise` are the discounts they applied. Each comes from the `amountInPaise` the audit line froze. OWNER only, as the summary already is.
+
+`byAction` and `totalEventCount` include merged attendance corrections when the attendance feature is on; `byActor` never does.
+
 `byActor` is sorted by `voidAmountInPaise` descending. The person voiding the most money appears first, which is the whole point.
 
 An owner looking at this sees one cashier who voided twenty-eight bills when everyone else voided two. That is a conversation they cannot currently have, and it is the single most concrete thing in the sales pitch.
@@ -3607,7 +3621,7 @@ There is no escape hatch. `tenantGuard` needed one because three legitimate look
 
 | Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
 |---|---|---|---|---|---|---|
-| GET /audit | yes, all | yes, ORDER_CANCELLED and STOCK_ADJUSTED only | no | no | no | no |
+| GET /audit | yes, all | yes, ORDER_CANCELLED, STOCK_ADJUSTED and LINE_CANCELLED_AFTER_PREP only | no | no | no | no |
 | GET /audit/entity/:type/:id | yes, all | same restriction | no | no | no | no |
 | GET /audit/summary | yes | no | no | no | no | no |
 
@@ -3615,7 +3629,7 @@ There is no escape hatch. `tenantGuard` needed one because three legitimate look
 
 ## Decisions made for M8
 
-**Manager access is restricted to two actions.** The collection exists to catch insiders and a manager is one. Operational investigation stays open; trust and money do not.
+**Manager access is restricted to three actions** (two until P17). The collection exists to catch insiders and a manager is one. Operational investigation stays open; trust and money do not.
 
 **Attendance corrections are merged at read time, never copied.** Two shapes, one feed, no data rewritten. Third module to reach this conclusion; it is settled.
 
