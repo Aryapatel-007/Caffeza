@@ -260,7 +260,7 @@ const floorSettingsSchema = new mongoose.Schema(
 );
 
 /**
- * The look. P20A, docs/DESIGN-SYSTEM-V2.md section 11a. Which accent, the name
+ * The look. P20A, docs/DESIGN-SYSTEM.md section 11a. Which accent, the name
  * in the top bar, the second language for fixed action words, and which Today
  * tiles show. A custom accent is checked by `utils/colour.js` in the validator;
  * the model only holds the shape.

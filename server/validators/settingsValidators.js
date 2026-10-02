@@ -236,7 +236,7 @@ const floor = z
   .strict();
 
 /**
- * The look. P20A, DESIGN-SYSTEM-V2 sections 4c and 11a.
+ * The look. P20A, DESIGN-SYSTEM sections 4c and 11a.
  *
  * A custom accent is checked here by `utils/colour.js`, so a refused colour is
  * a 400 on `appearance.accentHex` naming the rule it broke and the nearest

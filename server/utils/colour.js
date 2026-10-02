@@ -1,6 +1,6 @@
 /**
  * Colour arithmetic for the restaurant's accent. P20A.
- * docs/DESIGN-SYSTEM-V2.md sections 4c and 13.
+ * docs/DESIGN-SYSTEM.md sections 4c and 13.
  *
  * The server validates an owner's accent and works out its night variant here,
  * and nowhere else. client/src/utils/colour.js is a line-for-line mirror, used
@@ -146,7 +146,7 @@ const PRESET_WORDS = { OCEAN: 'Ocean', INDIGO: 'Indigo', PLUM: 'Plum', OLIVE: 'O
 const STATE_WORDS = { open: 'Open', served: 'Served', bill: 'Bill printed', alert: 'Late', ok: 'Paid' };
 
 /**
- * Checks an owner's accent against the four rules in DESIGN-SYSTEM-V2 4c.
+ * Checks an owner's accent against the four rules in DESIGN-SYSTEM 4c.
  * Returns { ok: true } or { ok: false, rule, message, nearestPreset }.
  */
 export function checkAccent(hex) {
