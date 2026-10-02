@@ -1826,7 +1826,7 @@ setup in P11 switches both off.
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `accentPreset` | String | `OCEAN` | One of six presets, or `CUSTOM` |
+| `accentPreset` | String | `COFFEE` | One of seven presets, or `CUSTOM`. Additive: `COFFEE` joined the enum and became the default on 2 October 2026; stored values are untouched. |
 | `accentHex` | String | null | `#RRGGBB`, used with `CUSTOM`, validated by `utils/colour.js` |
 | `wordmark` | String | null | Max 30 characters. Null means the restaurant's name. |
 | `secondLanguage` | String | `NONE` | `NONE`, `GUJARATI`, `HINDI` |

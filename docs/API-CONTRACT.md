@@ -3266,7 +3266,7 @@ change, audited like every setting.
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `accentPreset` | String | `OCEAN` | `OCEAN`, `INDIGO`, `PLUM`, `OLIVE`, `ESPRESSO`, `GRAPHITE` or `CUSTOM` |
+| `accentPreset` | String | `COFFEE` | `COFFEE`, `OCEAN`, `INDIGO`, `PLUM`, `OLIVE`, `ESPRESSO`, `GRAPHITE` or `CUSTOM`. `COFFEE` (`#4A2F2A`, the brown of Cafezza's logo) is the default from 2 October 2026; a restaurant that already chose a preset keeps it. |
 | `accentHex` | String | null | `#RRGGBB`. Required with `CUSTOM`, ignored otherwise. Validated as below. |
 | `wordmark` | String | null | The name in the top bar, 1 to 30 characters. Null means the restaurant's name. |
 | `secondLanguage` | String | `NONE` | `NONE`, `GUJARATI` or `HINDI`. The restaurant's default; a device may override it. |
@@ -3275,7 +3275,7 @@ change, audited like every setting.
 A custom `accentHex` is accepted only when, by `server/utils/colour.js`:
 1. it is a six-digit hex colour;
 2. white text on it is at least 4.5 to 1;
-3. it is at least 3 to 1 against day `ground`, `#F2F4F3`;
+3. it is at least 3 to 1 against day `ground`, `#F5ECDF`;
 4. its hue is at least 30 degrees from the hue of each state colour, `#7A4F00`,
    `#16614F`, `#922457`, `#A8321C` and `#256640`, unless its saturation is under 25%.
 
