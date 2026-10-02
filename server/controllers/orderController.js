@@ -50,7 +50,7 @@ import {
   loadOrderInTenant,
   serialiseOrder,
 } from '../services/orderService.js';
-import { BusinessRuleError, DuplicateError, NotFoundError, TableOccupiedError } from '../utils/errors.js';
+import { BusinessRuleError, DuplicateError, NotFoundError, TableOccupiedError, ValidationError } from '../utils/errors.js';
 import { sumPaise } from '../utils/money.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
@@ -142,6 +142,14 @@ export async function createOrder(req, res) {
   const { orderType, tableId, guestCount, customerName, customerPhone, lines, platform } = req.body;
 
   const isDineIn = orderType === ORDER_TYPES.DINE_IN;
+
+  // P19. Covers feed average per cover, so a restaurant can require them.
+  if (isDineIn && guestCount === undefined && (await getSetting(req.restaurantId, 'floor.requireGuestCount', { req }))) {
+    throw new ValidationError('How many guests? Enter the number before opening the table.', {
+      guestCount: 'How many guests?',
+    });
+  }
+
   const table = isDineIn ? await assertTableUsable(req, tableId) : null;
 
   /**

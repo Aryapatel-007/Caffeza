@@ -239,6 +239,27 @@ const dayCloseSettingsSchema = new mongoose.Schema(
 );
 
 /**
+ * The floor. P19. The order sections appear in, when a table counts as running
+ * long, and whether a dine-in order must say how many guests sit at it.
+ */
+export const FLOOR_SECTION_ORDER_MAX = 40;
+const floorSettingsSchema = new mongoose.Schema(
+  {
+    sectionOrder: { type: [String], default: [] },
+    longOpenMinutes: {
+      type: Number,
+      required: true,
+      default: 90,
+      min: 15,
+      max: 600,
+      validate: { validator: Number.isInteger, message: 'Must be a whole number of minutes.' },
+    },
+    requireGuestCount: { type: Boolean, required: true, default: false },
+  },
+  { _id: false },
+);
+
+/**
  * Restaurant-level settings. Every field has a default, which is what makes M7
  * a no-migration change: a document written before M7 reads back a complete
  * settings object because Mongoose fills missing paths on read.
@@ -284,6 +305,7 @@ const settingsSchema = new mongoose.Schema(
     delivery: { type: deliverySettingsSchema, default: () => ({}) },
     discounts: { type: discountSettingsSchema, default: () => ({}) },
     dayClose: { type: dayCloseSettingsSchema, default: () => ({}) },
+    floor: { type: floorSettingsSchema, default: () => ({}) },
   },
   { _id: false },
 );

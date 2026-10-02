@@ -271,6 +271,8 @@ export async function buildGoldenDay({ name = 'Caffeza', commissions = {} } = {}
           business: { businessDayStartsAtMinutes: 300 },
           invoice: { mode: 'PREFIX', prefix: 'CFA/C/', startingNumber: 22442 },
           features: { inventory: false, attendance: false },
+          // P19: Caffeza records guests on every table; every golden dine-in order already does.
+          floor: { requireGuestCount: true, longOpenMinutes: 90 },
         },
       }),
       'settings',

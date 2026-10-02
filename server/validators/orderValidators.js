@@ -27,7 +27,16 @@ import {
   ORDER_TYPES,
   PLATFORM_ORDER_ID_PATTERN,
 } from '../models/Order.js';
-import { MAX_SEATS, MIN_SEATS, TABLE_NAME_MAX_LENGTH, TABLE_SECTION_MAX_LENGTH } from '../models/Table.js';
+import {
+  FLOOR_COLUMNS,
+  FLOOR_ROWS,
+  MAX_SEATS,
+  MAX_TABLE_SPAN,
+  MIN_SEATS,
+  TABLE_NAME_MAX_LENGTH,
+  TABLE_SECTION_MAX_LENGTH,
+  TABLE_SHAPES,
+} from '../models/Table.js';
 import {
   nonEmptyString,
   objectId,
@@ -121,6 +130,51 @@ export const listTablesSchema = z.object({
     isOccupied: optionalQueryBoolean,
     includeInactive: queryBoolean,
   }),
+});
+
+/**
+ * PATCH /tables/layout. P19. Each entry places a table on the section's 24 by
+ * 16 grid, or takes it off with `layout: null`. The bounds and the LONG rule are
+ * checked here, per entry; overlaps need the whole plan and are checked in the
+ * controller.
+ */
+const cell = (max) =>
+  z.number({ error: 'Must be a number.' }).int('Must be a whole number.').min(0, 'Cannot be below 0.').max(max, `Cannot be more than ${max}.`);
+const span = z
+  .number({ error: 'Must be a number.' })
+  .int('Must be a whole number.')
+  .min(1, 'Must be at least 1.')
+  .max(MAX_TABLE_SPAN, `Cannot be more than ${MAX_TABLE_SPAN}.`);
+
+const placedTable = z
+  .object({
+    tableId: objectId,
+    x: cell(FLOOR_COLUMNS - 1),
+    y: cell(FLOOR_ROWS - 1),
+    w: span,
+    h: span,
+    shape: z.enum(TABLE_SHAPES, { error: `Must be one of: ${TABLE_SHAPES.join(', ')}.` }),
+  })
+  .strict('Is not a field you can set here.')
+  .superRefine((entry, context) => {
+    if (entry.x + entry.w > FLOOR_COLUMNS) context.addIssue({ code: 'custom', path: ['w'], message: `Runs past the right edge of the ${FLOOR_COLUMNS}-column grid.` });
+    if (entry.y + entry.h > FLOOR_ROWS) context.addIssue({ code: 'custom', path: ['h'], message: `Runs past the bottom of the ${FLOOR_ROWS}-row grid.` });
+    if (entry.shape === 'LONG' && entry.w === entry.h) context.addIssue({ code: 'custom', path: ['shape'], message: 'A long table has a different width and height.' });
+  });
+
+const unplacedTable = z.object({ tableId: objectId, layout: z.null() }).strict('Is not a field you can set here.');
+
+export const saveLayoutSchema = z.object({
+  body: z
+    .object({
+      section: z.string({ error: 'Name the section.' }).trim().min(1, 'Name the section.').max(TABLE_SECTION_MAX_LENGTH),
+      tables: z
+        .array(z.union([unplacedTable, placedTable], { error: 'Each table needs a place on the grid, or layout: null.' }))
+        .min(1, 'Send at least one table.')
+        .max(200, 'At most 200 tables.')
+        .refine((entries) => new Set(entries.map((entry) => entry.tableId)).size === entries.length, 'Each table appears once.'),
+    })
+    .strict('Is not a field you can set here.'),
 });
 
 /** `isActive` is refused rather than ignored: it has its own endpoint. */

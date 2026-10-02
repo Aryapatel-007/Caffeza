@@ -87,6 +87,7 @@ const configShape = z
         delivery: looseObject.optional(),
         discounts: looseObject.optional(),
         dayClose: looseObject.optional(),
+        floor: looseObject.optional(),
       })
       .strict()
       .optional(),

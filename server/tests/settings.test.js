@@ -57,6 +57,8 @@ const DEFAULTS = {
   delivery: { platformCollectsGst: true },
   discounts: { cashierMayApplyPlatformDiscounts: false },
   dayClose: { showCashDifferenceToManager: false },
+  // P19.
+  floor: { sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false },
 };
 
 // ---------------------------------------------------------------------------

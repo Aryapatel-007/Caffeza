@@ -212,6 +212,24 @@ const dayClose = z
   })
   .strict();
 
+/** The floor. P19. */
+const floor = z
+  .object({
+    sectionOrder: z
+      .array(z.string().trim().min(1, 'A section name cannot be empty.').max(40, 'Cannot be longer than 40 characters.'), { error: 'Must be a list of section names.' })
+      .max(40, 'At most 40 sections.')
+      .refine((names) => new Set(names.map((name) => name.toLowerCase())).size === names.length, 'Each section appears once.')
+      .optional(),
+    longOpenMinutes: z
+      .number({ error: 'Must be a number.' })
+      .int('Must be a whole number of minutes.')
+      .min(15, 'Must be at least 15 minutes.')
+      .max(600, 'Cannot be more than 600 minutes.')
+      .optional(),
+    requireGuestCount: z.boolean({ error: 'Must be true or false.' }).optional(),
+  })
+  .strict();
+
 /** Everything except `reason`. Used to tell "a group was sent" from "only a reason was sent". */
 export const SETTINGS_GROUPS = Object.freeze([
   'business',
@@ -223,6 +241,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'delivery',
   'discounts',
   'dayClose',
+  'floor',
 ]);
 
 /**
@@ -265,6 +284,7 @@ export const updateSettingsSchema = z.object({
       delivery: delivery.optional(),
       discounts: discounts.optional(),
       dayClose: dayClose.optional(),
+      floor: floor.optional(),
     })
     .strict()
     .refine(

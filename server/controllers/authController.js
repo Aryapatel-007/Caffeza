@@ -211,7 +211,9 @@ export async function me(req, res) {
   // know what to hide and GET /settings is owner and manager only.
   // P08. The cashier platform-discount switch too, so the till knows whether
   // to show a cashier the discount panel. The server still decides.
-  const { features, discounts } = await getSettings(req.restaurantId, { req });
+  // P19. The floor settings too: the section order, when a table runs long, and
+  // whether the guest picker may offer "Skip". The server still decides.
+  const { features, discounts, floor } = await getSettings(req.restaurantId, { req });
 
   return sendSuccess(res, {
     user: presentUser(req.currentUser, { includeLastLoginAt: true, includeStation: true }),
@@ -221,6 +223,7 @@ export async function me(req, res) {
     discounts: {
       cashierMayApplyPlatformDiscounts: discounts.cashierMayApplyPlatformDiscounts,
     },
+    floor,
   });
 }
 

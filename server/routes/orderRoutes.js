@@ -34,6 +34,7 @@ import {
   createTable,
   listTables,
   setTableStatus,
+  saveLayout,
   updateTable,
 } from '../controllers/tableController.js';
 import { authenticate } from '../middleware/authenticate.js';
@@ -60,6 +61,7 @@ import {
   readKotSchema,
   readOrderSchema,
   setTableStatusSchema,
+  saveLayoutSchema,
   updateTableSchema,
 } from '../validators/orderValidators.js';
 
@@ -100,6 +102,8 @@ const anySignedIn = [
 
 router.post('/tables', ...managers, validate(createTableSchema), createTable);
 router.get('/tables', ...anySignedIn, validate(listTablesSchema), listTables);
+// Before /tables/:tableId, or "layout" is read as a table id.
+router.patch('/tables/layout', ...managers, validate(saveLayoutSchema), saveLayout);
 router.patch('/tables/:tableId', ...managers, validate(updateTableSchema), updateTable);
 router.patch('/tables/:tableId/status', ...managers, validate(setTableStatusSchema), setTableStatus);
 

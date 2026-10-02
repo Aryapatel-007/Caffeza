@@ -29,6 +29,10 @@
     },
     "dayClose": {
       "showCashDifferenceToManager": false
+    },
+    "floor": {
+      "requireGuestCount": true,
+      "longOpenMinutes": 90
     }
   },
   "stations": [

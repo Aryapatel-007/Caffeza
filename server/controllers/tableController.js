@@ -5,9 +5,14 @@
  * worked out from open orders on every read, in one query for the whole floor
  * rather than one per table.
  */
+import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { OCCUPYING_ORDER_STATUSES, Order } from '../models/Order.js';
+import { User } from '../models/User.js';
+import { getSetting } from '../services/settingsService.js';
+import { withOptionalTransaction } from '../utils/transaction.js';
+import { nowUtc } from '../utils/time.js';
 import { Table } from '../models/Table.js';
-import { BusinessRuleError, DuplicateError, NotFoundError } from '../utils/errors.js';
+import { BusinessRuleError, DuplicateError, NotFoundError, ValidationError } from '../utils/errors.js';
 import { computeLineTotalInPaise } from '../services/orderService.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 import { sendSuccess } from '../utils/response.js';
@@ -32,27 +37,78 @@ async function loadTableInTenant(req, tableId) {
 }
 
 /**
- * Every order still occupying a table, keyed by that table's id.
+ * Everything the floor shows for each occupied table, read in a FIXED number of
+ * queries whatever the size of the floor (P19):
+ *
+ *   1. the occupying orders (OPEN or READY_TO_BILL, on a table);
+ *   2. their live UNPAID bills, for "Bill printed";
+ *   3. the names of the people who opened them, for the captain;
+ *   4. the floor settings, for the long-running marker (memoised per request).
+ *
+ * Plus the tables themselves in listTables: five in all, never one per table.
+ * Looping the tables and asking about each would be a round trip per table on
+ * the screen a waiter looks at most.
  *
  * Occupying means OPEN or READY_TO_BILL, not just OPEN: a table whose food is
- * all served still has customers sitting at it, waiting on a bill, and does
- * not read as free until one exists.
- *
- * One query for the whole floor. Looping the tables and asking "is anything
- * open on this one" would be one round trip per table on the screen a waiter
- * looks at most, and a fifty table restaurant would feel it.
+ * all served still has customers sitting at it, waiting on a bill.
  */
-async function openOrdersByTableId(req) {
+async function floorByTableId(req) {
   const openOrders = await Order.find({
     ...scoped(req),
     status: { $in: OCCUPYING_ORDER_STATUSES },
     tableId: { $ne: null },
-  }).select('tableId orderNumber openedAt status lines');
+  })
+    .select('tableId orderNumber openedAt openedBy guestCount status lines')
+    .lean();
+
+  const orderIds = openOrders.map((order) => order._id);
+  const [bills, people, longOpenMinutes] = await Promise.all([
+    orderIds.length
+      ? Bill.find({ ...scoped(req), orderId: { $in: orderIds }, isVoided: false, status: BILL_STATUSES.UNPAID })
+          .select('orderId billNumber grandTotalInPaise')
+          .lean()
+      : [],
+    orderIds.length
+      ? User.find({ ...scoped(req), _id: { $in: [...new Set(openOrders.map((order) => String(order.openedBy)))] } })
+          .select('name')
+          .lean()
+      : [],
+    getSetting(req.restaurantId, 'floor.longOpenMinutes', { req }),
+  ]);
+
+  const billByOrder = new Map(bills.map((bill) => [String(bill.orderId), bill]));
+  const nameById = new Map(people.map((person) => [String(person._id), person.name]));
+  const now = nowUtc();
 
   const byTableId = new Map();
-  for (const order of openOrders) byTableId.set(String(order.tableId), order);
+  for (const order of openOrders) {
+    byTableId.set(
+      String(order.tableId),
+      occupancyFor(order, {
+        bill: billByOrder.get(String(order._id)) ?? null,
+        captainName: nameById.get(String(order.openedBy)) ?? null,
+        isLong: now.getTime() - new Date(order.openedAt).getTime() > longOpenMinutes * 60_000,
+      }),
+    );
+  }
   return byTableId;
 }
+
+const FREE = Object.freeze({
+  isOccupied: false,
+  orderId: null,
+  orderNumber: null,
+  openedAt: null,
+  runningTotalInPaise: null,
+  state: 'FREE',
+  guestCount: null,
+  isLong: false,
+  captainName: null,
+  itemTotalInPaise: null,
+  billId: null,
+  billNumber: null,
+  billTotalInPaise: null,
+});
 
 /**
  * The derived occupancy block.
@@ -60,29 +116,33 @@ async function openOrdersByTableId(req) {
  * Null in every field when nothing is open, rather than the block being absent,
  * so the floor view can read `occupancy.isOccupied` without checking whether
  * the object exists first.
+ *
+ * The item total is the same arithmetic as the order's own subtotal, from the
+ * line values frozen when each line was added, so the floor and the order
+ * screen cannot disagree and the menu is never read. Still not a bill: no tax,
+ * no discount. The bill total, when a bill is printed, is the bill's own.
  */
-function occupancyFor(order) {
-  if (!order) {
-    return {
-      isOccupied: false,
-      orderId: null,
-      orderNumber: null,
-      openedAt: null,
-      runningTotalInPaise: null,
-    };
-  }
+function occupancyFor(order, { bill = null, captainName = null, isLong = false } = {}) {
+  if (!order) return { ...FREE };
 
   const live = order.lines.filter((line) => line.status !== 'CANCELLED');
+  const itemTotalInPaise = sumPaise(0, ...live.map(computeLineTotalInPaise));
+  const state = bill ? 'BILL_PRINTED' : order.status === 'READY_TO_BILL' ? 'SERVED' : 'OPEN';
 
   return {
     isOccupied: true,
     orderId: String(order._id),
     orderNumber: order.orderNumber,
     openedAt: order.openedAt,
-    // The same arithmetic as the order's own subtotal, from the same helper, so
-    // the number on the floor view and the number on the order screen cannot
-    // disagree. Still not a bill: no tax, no discount. M3 owns those.
-    runningTotalInPaise: sumPaise(...live.map(computeLineTotalInPaise)),
+    runningTotalInPaise: itemTotalInPaise,
+    state,
+    guestCount: order.guestCount ?? null,
+    isLong,
+    captainName,
+    itemTotalInPaise,
+    billId: bill ? String(bill._id) : null,
+    billNumber: bill?.billNumber ?? null,
+    billTotalInPaise: bill?.grandTotalInPaise ?? null,
   };
 }
 
@@ -123,12 +183,12 @@ export async function listTables(req, res) {
 
   const [tables, ordersByTableId] = await Promise.all([
     Table.find(filter).sort({ displayOrder: 1, name: 1 }),
-    openOrdersByTableId(req),
+    floorByTableId(req),
   ]);
 
   const withOccupancy = tables.map((table) => ({
     ...table.toJSON(),
-    occupancy: occupancyFor(ordersByTableId.get(String(table._id))),
+    occupancy: ordersByTableId.get(String(table._id)) ?? { ...FREE },
   }));
 
   /**
@@ -198,4 +258,68 @@ export async function setTableStatus(req, res) {
   );
 
   return sendSuccess(res, table.toJSON());
+}
+
+/** Do two placed tables share any grid cell? */
+const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+const sameSection = (table, section) => (table.section ?? '').toLowerCase() === section.toLowerCase();
+
+/**
+ * PATCH /tables/layout. P19.
+ *
+ * One section's floor plan, saved together. Every table named must be this
+ * restaurant's and in the section (400 otherwise); bounds are the schema's
+ * (400). Overlaps are checked against the plan as it will be after the save,
+ * including tables of the section that keep their place, and refused with 422
+ * naming each pair. Every write happens inside one transaction, so a refused
+ * save changes nothing.
+ */
+export async function saveLayout(req, res) {
+  const { section, tables: entries } = req.body;
+  const ids = entries.map((entry) => entry.tableId);
+  const named = await Table.find({ ...scoped(req), _id: { $in: ids } });
+  const byId = new Map(named.map((table) => [String(table._id), table]));
+
+  const fields = {};
+  entries.forEach((entry, index) => {
+    const table = byId.get(String(entry.tableId));
+    if (!table) fields[`tables.${index}.tableId`] = 'No such table in this restaurant.';
+    else if (!sameSection(table, section)) fields[`tables.${index}.tableId`] = `${table.name} is not in ${section}.`;
+  });
+  if (Object.keys(fields).length > 0) throw new ValidationError('Every table must be in the section being arranged.', fields);
+
+  // The plan as it will be: requested places, and every other table of the section where it is.
+  const requested = new Map(entries.map((entry) => [String(entry.tableId), entry.layout === null ? null : entry]));
+  const sectionTables = (await Table.find({ ...scoped(req), isActive: true, layout: { $ne: null } })).filter((table) => sameSection(table, section));
+  const placed = [];
+  for (const table of sectionTables) {
+    if (!requested.has(String(table._id))) placed.push({ name: table.name, ...table.layout.toObject() });
+  }
+  for (const [id, layout] of requested) if (layout) placed.push({ name: byId.get(id).name, ...layout });
+
+  const clashes = [];
+  for (let i = 0; i < placed.length; i += 1) {
+    for (let j = i + 1; j < placed.length; j += 1) {
+      if (overlaps(placed[i], placed[j])) clashes.push(`${placed[i].name} and ${placed[j].name}`);
+    }
+  }
+  if (clashes.length > 0) {
+    throw new BusinessRuleError(`These tables would overlap: ${clashes.join('; ')}. Move one of each pair and save again.`);
+  }
+
+  await withOptionalTransaction(async (session) => {
+    for (const [id, layout] of requested) {
+      const table = byId.get(id);
+      table.layout = layout ? { x: layout.x, y: layout.y, w: layout.w, h: layout.h, shape: layout.shape } : null;
+      await table.save(session ? { session } : {});
+    }
+  });
+
+  const floor = await floorByTableId(req);
+  const all = await Table.find({ ...scoped(req), isActive: true }).sort({ displayOrder: 1, name: 1 });
+  return sendSuccess(
+    res,
+    all.filter((table) => sameSection(table, section)).map((table) => ({ ...table.toJSON(), occupancy: floor.get(String(table._id)) ?? { ...FREE } })),
+  );
 }

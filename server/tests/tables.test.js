@@ -188,12 +188,21 @@ describe('listing tables', () => {
     const response = await request('GET', '/api/v1/tables', { token: tokens.WAITER });
     const [table] = response.body.data;
 
+    // P19 widened the block, on purpose: the floor state and its figures, null when free.
     assert.deepEqual(table.occupancy, {
       isOccupied: false,
       orderId: null,
       orderNumber: null,
       openedAt: null,
       runningTotalInPaise: null,
+      state: 'FREE',
+      guestCount: null,
+      isLong: false,
+      captainName: null,
+      itemTotalInPaise: null,
+      billId: null,
+      billNumber: null,
+      billTotalInPaise: null,
     });
   });
 

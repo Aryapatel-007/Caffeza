@@ -18,6 +18,12 @@ export const TABLE_SECTION_MAX_LENGTH = 40;
 export const MIN_SEATS = 1;
 export const MAX_SEATS = 50;
 
+/** P19. Each section's floor plan is a grid of this many columns and rows. */
+export const FLOOR_COLUMNS = 24;
+export const FLOOR_ROWS = 16;
+export const MAX_TABLE_SPAN = 4;
+export const TABLE_SHAPES = Object.freeze(['SQUARE', 'ROUND', 'LONG']);
+
 const wholeNumber = {
   validator: Number.isInteger,
   message: 'Must be a whole number.',
@@ -85,6 +91,26 @@ const tableSchema = new mongoose.Schema({
 
   /** The delete. There is no DELETE route on this collection either. */
   isActive: { type: Boolean, required: true, default: true },
+
+  /**
+   * P19. Where the table sits on its section's floor plan, in whole grid cells,
+   * or null when it has no place yet. Bounds and overlaps are checked by
+   * PATCH /tables/layout, which saves a section at once; the schema holds the
+   * bounds again so no other path can store a table off the grid.
+   */
+  layout: {
+    type: new mongoose.Schema(
+      {
+        x: { type: Number, required: true, min: 0, max: FLOOR_COLUMNS - 1, validate: wholeNumber },
+        y: { type: Number, required: true, min: 0, max: FLOOR_ROWS - 1, validate: wholeNumber },
+        w: { type: Number, required: true, min: 1, max: MAX_TABLE_SPAN, validate: wholeNumber },
+        h: { type: Number, required: true, min: 1, max: MAX_TABLE_SPAN, validate: wholeNumber },
+        shape: { type: String, required: true, enum: TABLE_SHAPES },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
 });
 
 tableSchema.plugin(baseSchemaPlugin);
