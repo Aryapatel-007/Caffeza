@@ -4853,6 +4853,12 @@ Sections `money` (R2 section B so far), `topItems` (five by
 points of item total, items cancelled after preparation, each with its record
 id). Drill: tiles to R19 with `from` and `to` set to today.
 
+P20B: the `tiles` section follows `settings.appearance.todayTiles`. Its columns
+come in that order, and a tile not in the list is left out of the columns, the
+row and its drill. The figures of the tiles shown are unchanged. A key in the
+list is one of the ten above, each once; anything else is a 400 on
+`appearance.todayTiles` listing the allowed keys.
+
 ### R2 Day Close, `day-close`
 
 `?date=YYYY-MM-DD`. Returns `computeDayFigures` (M16 section 4) for an open day,
