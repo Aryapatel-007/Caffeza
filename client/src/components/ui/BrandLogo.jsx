@@ -1,5 +1,4 @@
 import { useTheme } from '../../context/ThemeProvider.jsx';
-import { printLogo } from '../../features/brand/brand.js';
 
 /**
  * The restaurant's logo. P22, DESIGN-SYSTEM sections 4d and 15.
@@ -22,9 +21,6 @@ import { printLogo } from '../../features/brand/brand.js';
  *   `mark`, a square tile `height` pixels on each side with a 10px radius,
  *     the logo contained in it on its plate, for the top of the rail.
  *
- *   `paper`, the logo that prints above a bill, shown whole above the receipt
- *     preview at the width the className gives it, or nothing with no logo.
- *
  * `ground` defaults to the theme: `light` by day, `dark` by night.
  *
  * `slot` shows exactly that slot's logo with no fallback and nothing at all
@@ -33,12 +29,6 @@ import { printLogo } from '../../features/brand/brand.js';
 export default function BrandLogo({ shape = 'lockup', height = 40, ground, slot, maxWidth, textClassName = 'type-heading', className = '' }) {
   const { theme, brand, name } = useTheme();
   const surface = ground ?? (theme === 'night' ? 'dark' : 'light');
-
-  if (shape === 'paper') {
-    const source = printLogo(brand);
-    if (!source) return null;
-    return <img src={source} alt={name} draggable={false} className={`block h-auto object-contain ${className}`} />;
-  }
 
   const forThis = surface === 'dark' ? brand.logos?.DARK_GROUND : brand.logos?.LIGHT_GROUND;
   const forOther = surface === 'dark' ? brand.logos?.LIGHT_GROUND : brand.logos?.DARK_GROUND;

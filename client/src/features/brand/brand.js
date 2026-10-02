@@ -50,18 +50,6 @@ export function resolveBrand({ appearance, restaurantName, saved }) {
   };
 }
 
-/**
- * The logo printed above a bill, and drawn above the receipt preview. The
- * owner asked for the logo on the bill (2 October 2026), so this overrides
- * P22's "not on printed bills". Paper is a light ground, so the logo made for
- * light grounds is used when there is one; otherwise the dark-ground logo,
- * whole, on its own background. Never a kitchen ticket, a Day Close or an
- * export. Null when the restaurant has no logo: the bill prints as text.
- */
-export function printLogo(brand) {
-  return brand?.logos?.LIGHT_GROUND?.dataUrl ?? brand?.logos?.DARK_GROUND?.dataUrl ?? null;
-}
-
 /** The name to show when there is no logo: the wordmark, then the restaurant, then the product. */
 export function brandName(brand, restaurantName) {
   return brand?.wordmark || restaurantName || PRODUCT_NAME;

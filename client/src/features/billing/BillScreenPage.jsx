@@ -29,8 +29,6 @@ import { discountReasonLabel } from './discountReasons.js';
 import { errorMessage } from './errorCopy.js';
 import InlinePayment from './InlinePayment.jsx';
 import { methodsForBill, paymentMethodName } from './paymentMethodsForBill.js';
-import { useTheme } from '../../context/ThemeProvider.jsx';
-import { printLogo } from '../brand/brand.js';
 import { charactersFor, printText } from '../printing/printText.js';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import VoidBillPanel from './VoidBillPanel.jsx';
@@ -53,7 +51,6 @@ export default function BillScreenPage() {
   const { billId } = useParams();
   const queryClient = useQueryClient();
   const { user, features } = useAuth();
-  const { brand } = useTheme();
 
   const [toast, setToast] = useState(null);
   const [panel, setPanel] = useState(null); // 'payment' | 'discount' | 'void' | 'correct' | null
@@ -157,7 +154,7 @@ export default function BillScreenPage() {
     setPrinting(true);
     try {
       const { text } = await getReceipt(billId, charactersFor(device.paperMm));
-      await printText(text, device.paperMm, { logo: printLogo(brand) });
+      await printText(text, device.paperMm);
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error) });
     } finally {

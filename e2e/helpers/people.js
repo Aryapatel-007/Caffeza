@@ -16,10 +16,10 @@ export const DEVICES = {
 export async function signIn(browser, { name, phone, password, device }) {
   const context = await browser.newContext(DEVICES[device]);
   const prints = [];
-  await context.exposeBinding('__recordPrint', (_source, text, paperMm, options) => prints.push({ text, paperMm, logo: Boolean(options?.logo) }));
+  await context.exposeBinding('__recordPrint', (_source, text, paperMm) => prints.push({ text, paperMm }));
   // The client's print code calls this when it is set. Only a test ever sets it.
   await context.addInitScript(() => {
-    window.__E2E_PRINT__ = (text, paperMm, options) => window.__recordPrint(text, paperMm, options);
+    window.__E2E_PRINT__ = (text, paperMm) => window.__recordPrint(text, paperMm);
   });
 
   const page = await context.newPage();

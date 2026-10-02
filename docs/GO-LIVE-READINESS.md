@@ -70,7 +70,8 @@ From `docs/CAFFEZA-PROFILE.md` section 15 and `setup/caffeza.json`, as one list.
 10. The outstanding balance of E-210 Office and W-330 Office on cutover day (`accounts[0]`, `accounts[1]`).
 11. The physical table layout, for Arrange tables.
 12. Whether they want inventory or attendance at launch. Both are built and switched off.
-13. The suggested discount reasons, and the open question beside them in the profile.
+13. The accent colour, chosen on the Appearance page during training (`settings.appearance.accentPreset`).
+14. The suggested discount reasons, and the open question beside them in the profile.
 
 **From their CA**
 1. CGST and SGST: one rounding per tax rate, as built, or each half rounded per item, as their current system does.

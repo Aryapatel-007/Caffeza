@@ -56,10 +56,6 @@ const { ALL_MODELS } = await import('../models/index.js');
 const { setClockForTests } = await import('../utils/time.js');
 const { startTestServer } = await import('../tests/helpers/testServer.js');
 const { setupGoldenRestaurant } = await import('../tests/helpers/goldenDay.js');
-const { request } = await import('../tests/helpers/testServer.js');
-const { readFileSync } = await import('node:fs');
-const { REPO_ROOT, validateSetupConfig } = await import('./setupRestaurant.js');
-const path = await import('node:path');
 
 await mongoose.connect(process.env.MONGO_URI);
 for (const model of ALL_MODELS) await model.init();
@@ -74,29 +70,7 @@ async function reset() {
   const { collections } = mongoose.connection;
   await Promise.all(Object.values(collections).map((collection) => collection.deleteMany({})));
   const golden = await setupGoldenRestaurant({ name: 'Cafezza', invoiceSeries: false });
-  await dressAsCafezza(golden.tokens.OWNER);
   return { phones: golden.phones, password: golden.password, ids: golden.ids };
-}
-
-/**
- * P22. Cafezza's look and logo, from `setup/caffeza.json`, through the same
- * endpoints the setup script uses: the accent, tone, brand pair and wordmark,
- * and the logo for dark grounds, which prints on the bill.
- */
-async function dressAsCafezza(ownerToken) {
-  const { config } = validateSetupConfig(JSON.parse(readFileSync(path.join(REPO_ROOT, 'setup', 'caffeza.json'), 'utf8')));
-  const look = await request('PATCH', '/api/v1/settings', {
-    token: ownerToken,
-    body: { reason: 'Cafezza look', appearance: config.settings.appearance },
-  });
-  if (look.status !== 200) throw new Error(`Setting the look failed: ${JSON.stringify(look.body)}`);
-  for (const [slot, logo] of Object.entries(config.logos ?? {})) {
-    const saved = await request('PUT', `/api/v1/settings/appearance/logo/${slot}`, {
-      token: ownerToken,
-      body: { reason: 'Cafezza logo', image: logo.image },
-    });
-    if (saved.status !== 200) throw new Error(`Uploading the ${slot} logo failed: ${JSON.stringify(saved.body)}`);
-  }
 }
 
 const send = (response, status, body) => {

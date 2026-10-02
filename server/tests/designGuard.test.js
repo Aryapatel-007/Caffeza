@@ -41,12 +41,6 @@ const MONEY_COMPONENT = 'components/ui/Money.jsx';
 /** P22. The one component that draws a logo, the one file that fetches it, and the two users of `brand`. */
 const BRAND_LOGO = 'components/ui/BrandLogo.jsx';
 const BRAND_API = 'api/brand.js';
-/**
- * The print path writes the bill's HTML into a hidden frame, logo first, as a
- * string. It draws nothing on screen and is handed only the logo `printLogo`
- * chose, so it is the one other file that may name an `<img>`.
- */
-const PRINT_TEXT = 'features/printing/printText.js';
 const BRAND_USERS = [BRAND_LOGO, 'features/auth/LoginPage.jsx'];
 const LOOPING = /(?<![\w-])(?:[a-z-]+:)*animate-(?:spin|pulse|ping|bounce)(?![\w-])/;
 const BRAND_CLASS = /(?<![\w-])(?:[a-z-]+:)*(?:bg|text|border|ring|outline|fill|stroke|from|to|via|divide|shadow)-(?:on-)?brand(?![\w-])|--color-(?:on-)?brand\b/;
@@ -141,7 +135,7 @@ describe('design guard: the whole client', () => {
     for (const { name, code } of files) {
       code.split('\n').forEach((line, index) => {
         const where = `${name}:${index + 1}  ${line.trim().slice(0, 100)}`;
-        if (/<img\b/.test(line) && name !== BRAND_LOGO && name !== PRINT_TEXT) found.push(where);
+        if (/<img\b/.test(line) && name !== BRAND_LOGO) found.push(where);
         // Only the brand API file asks the server for the logo's bytes.
         if (/\/restaurant\/logo/.test(line) && name !== BRAND_API) found.push(where);
       });
