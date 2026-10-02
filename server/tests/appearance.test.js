@@ -1,6 +1,6 @@
 /**
  * P20A: the restaurant's look, and station target times.
- * docs/DESIGN-SYSTEM-V2.md sections 4c and 11a, docs/API-CONTRACT.md M7 and M18.
+ * docs/DESIGN-SYSTEM.md sections 4c and 11a, docs/API-CONTRACT.md M7 and M18.
  */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
@@ -28,7 +28,7 @@ after(async () => {
 const patchAppearance = (token, appearance) =>
   request('PATCH', '/api/v1/settings', { token, body: { reason: 'New look', appearance } });
 
-/** The night column of DESIGN-SYSTEM-V2 section 4c, as nightVariant produces it. */
+/** The night column of DESIGN-SYSTEM section 4c, as nightVariant produces it. */
 const NIGHT = {
   OCEAN: '#2985C2',
   INDIGO: '#6B7BD1',
@@ -111,7 +111,11 @@ describe('the accent rules', () => {
 
   it('refuses a Today tile that does not exist, and one listed twice', async () => {
     const { tokens } = await seedTeam();
-    assert.equal((await patchAppearance(tokens.OWNER, { todayTiles: ['grossSales'] })).status, 400);
+    const unknown = await patchAppearance(tokens.OWNER, { todayTiles: ['grossSales'] });
+    assert.equal(unknown.status, 400);
+    // The refusal lists every allowed key, so the owner can see what to use.
+    const message = Object.values(unknown.body.error.fields ?? {}).join(' ');
+    for (const key of TODAY_TILE_KEYS) assert.match(message, new RegExp(key));
     assert.equal((await patchAppearance(tokens.OWNER, { todayTiles: ['covers', 'covers'] })).status, 400);
     const saved = await patchAppearance(tokens.OWNER, { todayTiles: ['covers', 'billTotalInPaise'] });
     assert.deepEqual(saved.body.data.appearance.todayTiles, ['covers', 'billTotalInPaise']);

@@ -147,6 +147,34 @@ describe('R1 Today at 6:00 PM on 26 September', () => {
     assert.deepEqual([tiles.billTotalInPaise, tiles.billCount, tiles.covers], [926900, 15, 27]);
   });
 
+  it("shows only the owner's Today tiles, in the owner's order, with the same figures", async () => {
+    setClockForTests(ist('18:00'));
+    const choose = (todayTiles) =>
+      request('PATCH', '/api/v1/settings', {
+        token: golden.tokens.OWNER,
+        body: { reason: 'Today tiles', appearance: { todayTiles } },
+      });
+    const full = section((await today()).body.data, 'tiles');
+
+    const chosen = await choose(['covers', 'billTotalInPaise', 'unpaidCount']);
+    assert.equal(chosen.status, 200, JSON.stringify(chosen.body));
+    try {
+      const tiles = section((await today()).body.data, 'tiles');
+      assert.deepEqual(
+        tiles.columns.map((column) => column.key),
+        ['covers', 'billTotalInPaise', 'unpaidCount'],
+      );
+      const [row] = tiles.rows;
+      assert.deepEqual(Object.keys(row).filter((key) => key !== 'drill').sort(), ['billTotalInPaise', 'covers', 'unpaidCount']);
+      assert.equal(row.covers, full.rows[0].covers);
+      assert.equal(row.billTotalInPaise, full.rows[0].billTotalInPaise);
+      assert.equal(row.unpaidCount, full.rows[0].unpaidCount);
+      assert.deepEqual(Object.keys(row.drill).sort(), ['billTotalInPaise', 'unpaidCount']);
+    } finally {
+      await choose(full.columns.map((column) => column.key));
+    }
+  });
+
   it('is refused to every role but OWNER and MANAGER', async () => {
     setClockForTests(ist('18:00'));
     assert.equal((await today(golden.tokens.MANAGER)).status, 200);

@@ -1,5 +1,5 @@
 /**
- * Design guard. P20A, DESIGN-SYSTEM-V2 section 13.
+ * Design guard. P20A, DESIGN-SYSTEM section 13.
  *
  * Reads client source from disk and fails the build when a shared component
  * or a service screen:
@@ -9,7 +9,9 @@
  *   3. formats money anywhere but `Money`: no `toLocaleString` on a number,
  *      no `/ 100` beside a `₹`, and no call to version 1's `formatPaise`.
  *
- * P20B widens all three from these folders to the whole client.
+ * P20A guarded the shared components and the service screens; P20B widened
+ * all three to the whole of `client/src/`, and added a fourth: nothing imports
+ * a component that version 1 had and version 2 deleted.
  */
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -20,16 +22,18 @@ import { describe, it } from 'node:test';
 const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLIENT_SRC = path.resolve(SERVER_DIR, '..', 'client', 'src');
 
-/** The shared components and the service screens P20A moved. */
-const GUARDED = [
-  'components',
-  'features/orders',
-  'features/kitchen',
-  'features/billing',
-  'features/settlement',
-  'features/printing',
-  'features/i18n',
-];
+/** The whole client. `index.css` is not JavaScript, so it is the one place colours are written. */
+const GUARDED = ['.'];
+
+/** Version 1 files deleted in P20A and P20B. An import of any of them is a bug. */
+const DELETED = ['StatusBadge', 'AvailabilityStamp', 'PanelShell', 'PaymentPanel', 'billing/Bilingual', 'attendance/Bilingual', 'billing/labels', 'attendance/labels'];
+
+/**
+ * The colour arithmetic that checks an owner's accent: the mirror of
+ * `server/utils/colour.js`, which has to name the state and preset colours to
+ * measure against them. It styles nothing.
+ */
+const COLOUR_ARITHMETIC = 'utils/colour.js';
 
 /** The one component allowed to format money. */
 const MONEY_COMPONENT = 'components/ui/Money.jsx';
@@ -69,13 +73,13 @@ function offenders(pattern) {
 const RAW_HEX = /#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?(?:[0-9a-fA-F]{2})?\b/;
 const V1_TOKEN = /(?<![\w-])(?:[a-z-]+:)*(?:bg|text|border|ring|outline|fill|stroke|from|to|via|decoration|divide|accent|shadow|placeholder)-(?:paper|steel|chana|mirch|patta)(?![\w])|--color-(?:paper|steel|chana|mirch|patta)/;
 
-describe('design guard: shared components and service screens', () => {
+describe('design guard: the whole client', () => {
   it('guards a real set of files', () => {
-    assert.ok(files.length > 40, `only ${files.length} files found under ${GUARDED.join(', ')}`);
+    assert.ok(files.length > 120, `only ${files.length} files found under ${GUARDED.join(', ')}`);
   });
 
   it('contain no raw hex colour', () => {
-    assert.deepEqual(offenders(RAW_HEX), []);
+    assert.deepEqual(offenders(RAW_HEX).filter((line) => !line.startsWith(`${COLOUR_ARITHMETIC}:`)), []);
   });
 
   it('use no version 1 token class', () => {
@@ -92,6 +96,16 @@ describe('design guard: shared components and service screens', () => {
         if (/\/\s*100\b/.test(line) && /₹/.test(line)) found.push(where);
         if (/\bformatPaise\b/.test(line)) found.push(where);
       });
+    }
+    assert.deepEqual(found, []);
+  });
+
+  it('import no deleted version 1 component', () => {
+    const found = [];
+    for (const { name, code } of files) {
+      for (const match of code.matchAll(/from\s+'([^']+)'/g)) {
+        if (DELETED.some((gone) => match[1].replace(/\.jsx?$/, '').endsWith(`/${gone}`))) found.push(`${name}  ${match[1]}`);
+      }
     }
     assert.deepEqual(found, []);
   });
