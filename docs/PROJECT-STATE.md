@@ -452,7 +452,7 @@ Files or endpoints touched:
 New: `e2e/cloudFlow.spec.js`, `e2e/cloud.config.js`. Changed: `middleware/rateLimit.js`, `routes/authRoutes.js`, `services/tokenService.js`, `controllers/kotController.js`, `scripts/loadMockDays.js`, `tests/auth.test.js`, `tests/kitchen.test.js`, client `api/authApi.js`, `api/kitchen.js`, `FloorViewPage.jsx`, `e2e/pages/floor.js`, `e2e/playwright.config.js`, root `package.json` (`e2e:cloud`).
 
 Anything the other developer needs to know:
-Do not use "Cafezza Demo" in the app while `npm run seed:mock` is running. Every "Cafezza Demo" login now has its own generated password (set 2 October, handed to Arya, kept out of git); `demopass123` no longer signs in, so `npm run e2e:cloud` and a resumed `seed:mock` need `DEMO_PASSWORD` set to a login's password, or `--fresh`, which recreates the logins with `DEMO_PASSWORD`. Reports open on today, which is empty: choose 22 September to 1 October to see the mock days.
+Do not use "Cafezza Demo" in the app while `npm run seed:mock` is running. Every "Cafezza Demo" login uses the password `demopass123` (Arya's call, 2 October, for now): owner 9000002000, manager 9000002001, cashier 9000002002, waiters 9000002003 to 9000002007, kitchen stations 9000002008 and 9000002009. Change them before real staff use the system. Reports open on today, which is empty: choose 22 September to 1 October to see the mock days.
 
 ### 2026-10-02 Arya, cloud database, mock days, table edit and delete, menu card taps
 
