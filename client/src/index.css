@@ -3,11 +3,237 @@
  * here in CSS rather than in a tailwind.config.js file, which v4 no longer
  * needs. If you go looking for tailwind.config.js, that is why there is not one.
  *
- * These tokens are the palette in docs/DESIGN-SYSTEM.md. Read that file before
- * building a screen. A raw hex in a component is a bug.
+ * VERSION 2 tokens, docs/DESIGN-SYSTEM-V2.md sections 4 to 6, come first: the
+ * neutrals and states are CSS variables on the root element, one set for
+ * `data-theme="day"` and one for `data-theme="night"`, and `@theme inline`
+ * exposes them to Tailwind by name (`bg-surface`, `text-muted`, `border-bill`,
+ * `bg-open-tint`, `bg-accent`). `inline` is Tailwind's documented way to point
+ * a theme token at another variable: the utility then reads the variable
+ * itself, so the class follows the theme at runtime instead of baking in the
+ * value the variable had at build time.
+ *
+ * The accent comes from the server, `settings.appearance` on /auth/me, and
+ * ThemeProvider sets `--accent` and `--accent-night` on the root element. A raw
+ * hex in a component is a bug, and a test fails the build on one.
  */
 @import 'tailwindcss';
 
+:root,
+:root[data-theme='day'] {
+  --ground: #f2f4f3;
+  --surface: #ffffff;
+  --sunken: #e7ecea;
+  --ink-v2: #1b2623;
+  --muted: #53615c;
+  --line: #c9d2ce;
+
+  --open-tint: #fbeac4;
+  --open: #7a4f00;
+  --served-tint: #d2ece5;
+  --served: #16614f;
+  --bill-tint: #f5d8e5;
+  --bill: #922457;
+  --alert-tint: #f8dcd5;
+  --alert: #a8321c;
+  --ok-tint: #d6eadc;
+  --ok: #256640;
+
+  /* Ocean until /auth/me says otherwise. */
+  --accent: #1c5c86;
+  --accent-night: #2985c2;
+  --accent-active: var(--accent);
+  --on-accent: #ffffff;
+
+  --float-shadow: 0 12px 32px rgb(27 38 35 / 0.18);
+  --scrim: rgb(27 38 35 / 0.45);
+
+  /* Density, section 11b. Compact tightens spacing one step, never text. */
+  --d-gap: 1rem;
+  --d-pad: 1rem;
+
+  color-scheme: light;
+}
+
+:root[data-theme='night'] {
+  --ground: #0f1715;
+  --surface: #17211e;
+  --sunken: #0b1210;
+  --ink-v2: #e4ece8;
+  --muted: #98a9a2;
+  --line: #2b3733;
+
+  --open-tint: #3a2b0c;
+  --open: #f2c25b;
+  --served-tint: #11322b;
+  --served: #6fd0bc;
+  --bill-tint: #3a1526;
+  --bill: #f28fbb;
+  --alert-tint: #3d1610;
+  --alert: #ff8b73;
+  --ok-tint: #112f1e;
+  --ok: #7bd69c;
+
+  --accent-active: var(--accent-night);
+  --on-accent: #0f1715;
+
+  --float-shadow: 0 12px 32px rgb(0 0 0 / 0.5);
+  --scrim: rgb(0 0 0 / 0.6);
+
+  color-scheme: dark;
+}
+
+:root[data-text-size='115'] {
+  font-size: 115%;
+}
+:root[data-text-size='130'] {
+  font-size: 130%;
+}
+
+:root[data-density='compact'] {
+  --d-gap: 0.75rem;
+  --d-pad: 0.75rem;
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink-v2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+
+  --color-open: var(--open);
+  --color-open-tint: var(--open-tint);
+  --color-served: var(--served);
+  --color-served-tint: var(--served-tint);
+  --color-bill: var(--bill);
+  --color-bill-tint: var(--bill-tint);
+  --color-alert: var(--alert);
+  --color-alert-tint: var(--alert-tint);
+  --color-ok: var(--ok);
+  --color-ok-tint: var(--ok-tint);
+
+  --color-accent: var(--accent-active);
+  --color-on-accent: var(--on-accent);
+  --color-scrim: var(--scrim);
+
+  --shadow-float: var(--float-shadow);
+
+  /*
+   * Anek for every word, Plex Mono for every number. DESIGN-SYSTEM-V2 5a.
+   * The Gujarati and Devanagari siblings follow the Latin one in the stack, so
+   * a second-language line falls through to them by script.
+   */
+  --font-anek: 'Anek Latin Variable', 'Anek Gujarati Variable', 'Anek Devanagari Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * The type scale, DESIGN-SYSTEM-V2 5b, in rem so the device's text size scales
+ * it. Width is `font-stretch`: Anek's width axis runs 75 to 125, so the design's
+ * 82, 92, 100 and 112 are used exactly as written.
+ */
+@utility type-title {
+  font-family: var(--font-anek);
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 640;
+  font-stretch: 100%;
+}
+@utility type-heading {
+  font-family: var(--font-anek);
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  font-stretch: 100%;
+}
+@utility type-body {
+  font-family: var(--font-anek);
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 440;
+  font-stretch: 100%;
+}
+@utility type-label {
+  font-family: var(--font-anek);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 540;
+  font-stretch: 100%;
+}
+@utility type-button {
+  font-family: var(--font-anek);
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  font-stretch: 100%;
+}
+@utility type-caption {
+  font-family: var(--font-anek);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-weight: 440;
+  font-stretch: 100%;
+}
+@utility type-tile-name {
+  font-family: var(--font-anek);
+  font-size: 1.375rem;
+  line-height: 1.625rem;
+  font-weight: 660;
+  font-stretch: 112%;
+}
+@utility type-ticket-item {
+  font-family: var(--font-anek);
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  font-weight: 560;
+  font-stretch: 92%;
+}
+@utility type-dense {
+  font-family: var(--font-anek);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 460;
+  font-stretch: 82%;
+}
+@utility type-num {
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+@utility type-num-tile {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+@utility type-num-hero {
+  font-family: var(--font-mono);
+  font-size: 2.75rem;
+  line-height: 3.25rem;
+  font-weight: 600;
+}
+@utility type-num-meta {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-weight: 450;
+}
+
+/* Density-aware spacing for tiles, tickets and lists. */
+@utility gap-d {
+  gap: var(--d-gap);
+}
+@utility p-d {
+  padding: var(--d-pad);
+}
+
+/*
+ * VERSION 1, REMOVED IN P20B. The back-office screens still read these until
+ * P20B moves them. No service screen and no shared component may use them; a
+ * test enforces that. `ink` is NOT here: version 2 owns that name, and it is
+ * the same job in both versions.
+ */
 @theme {
   /* The surface. The only background colour in the product. */
   --color-paper: #fdf8f5;
@@ -22,19 +248,12 @@
   --shadow-card: 0 2px 12px rgba(28, 27, 25, 0.06);
   --shadow-lift: 0 8px 30px rgba(28, 27, 25, 0.12);
 
-  /* Primary text and primary borders. The stamp's 3px edge. */
-  --color-ink: #1c1b19;
-
   /* Secondary text, dividers, disabled state. */
   --color-steel: #56606b;
 
   /*
-   * The three below are FUNCTIONAL colour, not brand colour.
-   *
    * chana means "this button commits the action". mirch means destructive or
-   * out of stock. patta means available or succeeded. Reaching for one of them
-   * to make something pop is decoration wearing a function's colour, and every
-   * time it happens the real signals get harder to read.
+   * out of stock. patta means available or succeeded.
    */
   --color-chana: #c99a2e;
   --color-mirch: #b23a2e;
@@ -43,20 +262,11 @@
   /* Derived: patta over paper, flattened opaque. The available stamp fill. */
   --color-patta-tint: #e3eee6;
 
-  /*
-   * Mono is for numbers: prices, tax rates, quantities, the stamp label.
-   * Sans is for everything else. The test is "is this a number?".
-   */
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
 }
 
-/*
- * M0 shipped with placeholder brand-* tokens and its screens still reference
- * them. Pointing them at chana means those buttons pick up the real primary
- * without touching M0 component code, which M1 is not scoped to restyle.
- * Remove these when the M0 screens are migrated to the token names.
- */
+/* VERSION 1, REMOVED IN P20B. M0's placeholder brand-* tokens, aliased to chana. */
 @theme {
   --color-brand-50: #f7f0dd;
   --color-brand-500: #c99a2e;
@@ -71,11 +281,51 @@ body,
 }
 
 body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
+  background-color: var(--ground);
+  color: var(--ink-v2);
 }
 
-/* The press-and-settle on the stamp. Instant for anyone who asked for that. */
+/* Version 2 screens set this on their outermost element. */
+.v2 {
+  font-family: var(--font-anek);
+}
+
+/*
+ * The keyboard focus ring, in the accent, on everything that can take focus.
+ * DESIGN-SYSTEM-V2 section 4c: the accent's second job. Components do not draw
+ * their own.
+ */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Motion, DESIGN-SYSTEM-V2 section 10. Only in answer to something a person did. */
+@keyframes sheet-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes sheet-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes ticket-in {
+  from {
+    transform: translateY(-12px);
+    opacity: 0;
+  }
+}
+@keyframes total-settle {
+  from {
+    transform: scale(1.04);
+  }
+}
+
+/* Every motion becomes an instant change for anyone who asked for that. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -101,7 +351,7 @@ body {
   body,
   #root {
     height: auto;
-    background: white;
+    background: var(--surface);
   }
 
   .report-table div {

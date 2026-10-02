@@ -36,12 +36,26 @@ const ALL_FEATURES_ON = Object.freeze({ inventory: true, attendance: true });
  */
 const DEFAULT_FLOOR = Object.freeze({ sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false });
 
+/** P20A. Ocean and no second language until /auth/me says otherwise. */
+const DEFAULT_APPEARANCE = Object.freeze({
+  accentPreset: 'OCEAN',
+  accent: null,
+  accentNight: null,
+  wordmark: null,
+  secondLanguage: 'NONE',
+  todayTiles: null,
+});
+
 const fromMe = (me) => ({
   ...ALL_FEATURES_ON,
   ...me.features,
   cashierMayApplyPlatformDiscounts: Boolean(me.discounts?.cashierMayApplyPlatformDiscounts),
   // P19. Section order, the long-open threshold and whether the guest picker may offer Skip.
   floor: { ...DEFAULT_FLOOR, ...(me.floor ?? {}) },
+  // P20A. The accent, both colours already worked out by the server.
+  appearance: { ...DEFAULT_APPEARANCE, ...(me.appearance ?? {}) },
+  // The top bar's wordmark falls back to the restaurant's name.
+  restaurantName: me.restaurant?.name ?? null,
 });
 
 export function AuthProvider({ children }) {

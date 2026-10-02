@@ -15,28 +15,47 @@ const STORAGE_KEY = 'caffeza.device';
 /** How many printed KOT ids to remember, so a refresh never prints twice. */
 export const PRINTED_KOT_MEMORY = 500;
 
+/** P20A, DESIGN-SYSTEM-V2 section 11b. */
+export const THEMES = Object.freeze(['AUTO', 'DAY', 'NIGHT']);
+export const DENSITIES = Object.freeze(['COMFORTABLE', 'COMPACT']);
+export const TEXT_SIZES = Object.freeze([100, 115, 130]);
+
 const DEFAULTS = Object.freeze({
   paperMm: 80,
   autoPrintKots: false,
   kitchenStationId: null,
   printedKotIds: [],
+  // P20A. Automatic is Night on the kitchen screen and Day everywhere else.
+  theme: 'AUTO',
+  density: 'COMFORTABLE',
+  textSize: 100,
+  // null follows the restaurant's `settings.appearance.secondLanguage`.
+  secondLanguage: null,
 });
+
+/** Same-tab listeners. The `storage` event only reaches other tabs. */
+const CHANGE_EVENT = 'caffeza-device-change';
+
+/** What this tab last wrote, for a browser that refuses storage. */
+let lastWritten = null;
 
 function read() {
   try {
-    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '{}');
-    return { ...DEFAULTS, ...stored };
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? 'null');
+    return { ...DEFAULTS, ...(stored ?? lastWritten ?? {}) };
   } catch {
-    return { ...DEFAULTS };
+    return { ...DEFAULTS, ...(lastWritten ?? {}) };
   }
 }
 
 function write(settings) {
+  lastWritten = settings;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch {
     // A private window can refuse storage. The settings just do not stick.
   }
+  window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
 /**
@@ -51,16 +70,22 @@ export function useDeviceSettings() {
     const onStorage = (event) => {
       if (event.key === STORAGE_KEY) setSettings(read());
     };
+    const onChange = () => setSettings(read());
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    window.addEventListener(CHANGE_EVENT, onChange);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(CHANGE_EVENT, onChange);
+    };
   }, []);
 
+  // Reads the stored settings rather than this hook's copy, so two screens
+  // using the hook never overwrite each other's change.
   const update = useCallback((change) => {
-    setSettings((current) => {
-      const next = { ...current, ...(typeof change === 'function' ? change(current) : change) };
-      write(next);
-      return next;
-    });
+    const current = read();
+    const next = { ...current, ...(typeof change === 'function' ? change(current) : change) };
+    setSettings(next);
+    write(next);
   }, []);
 
   return [settings, update];
