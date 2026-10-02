@@ -3851,7 +3851,7 @@ anything else is 400.
 ```
 
 `image` is the file as base64, with no `data:` prefix (one is stripped and
-ignored if sent). `reason` 1 to 500 characters, required.
+ignored if sent). `reason` 1 to 200 characters, required, the same limit as `PATCH /settings`.
 
 The JSON body limit on this route alone is 300 KB, enough for 200 KB as base64.
 Every other route keeps 100 KB.

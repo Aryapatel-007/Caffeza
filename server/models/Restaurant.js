@@ -355,6 +355,43 @@ const settingsSchema = new mongoose.Schema(
   { _id: false },
 );
 
+/**
+ * The restaurant's logo, one slot per kind of ground. P22, docs/DB-SCHEMA.md
+ * section 1, `brandLogos`.
+ *
+ * Outside `settings` on purpose: an image never travels with GET /settings and
+ * never lands in a SETTINGS_CHANGED audit line. `data` is `select: false`,
+ * because `authenticate` loads this document on every request and must not
+ * read up to two images to do it. Only services/brandLogoService.js asks for
+ * the bytes. A slot is empty when `sha256` is null; every field has a default,
+ * so a restaurant written before P22 reads back two empty slots.
+ */
+export const LOGO_SLOTS = Object.freeze({ LIGHT_GROUND: 'lightGround', DARK_GROUND: 'darkGround' });
+export const LOGO_SLOT_NAMES = Object.freeze(Object.keys(LOGO_SLOTS));
+export const LOGO_CONTENT_TYPES = Object.freeze(['image/png', 'image/webp', 'image/jpeg']);
+
+const logoSlotSchema = new mongoose.Schema(
+  {
+    contentType: { type: String, enum: [...LOGO_CONTENT_TYPES, null], default: null },
+    data: { type: Buffer, default: null, select: false },
+    sha256: { type: String, default: null, match: /^[0-9a-f]{64}$/ },
+    width: { type: Number, default: null },
+    height: { type: Number, default: null },
+    sizeBytes: { type: Number, default: null },
+    setAt: { type: Date, default: null },
+    setBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  },
+  { _id: false },
+);
+
+const brandLogosSchema = new mongoose.Schema(
+  {
+    lightGround: { type: logoSlotSchema, default: () => ({}) },
+    darkGround: { type: logoSlotSchema, default: () => ({}) },
+  },
+  { _id: false },
+);
+
 const restaurantSchema = new mongoose.Schema(
   {
     /** Trading name. Shown on screen. */
@@ -375,6 +412,9 @@ const restaurantSchema = new mongoose.Schema(
     contactEmail: { type: String, trim: true, lowercase: true },
 
     settings: { type: settingsSchema, default: () => ({}) },
+
+    /** P22. Never sent in a restaurant response; see the toJSON transform below. */
+    brandLogos: { type: brandLogosSchema, default: () => ({}) },
 
     /**
      * Platform-controlled, not customer-controlled. PATCH /restaurant rejects
@@ -397,6 +437,8 @@ const restaurantSchema = new mongoose.Schema(
         record.id = record._id?.toString();
         delete record._id;
         delete record.__v;
+        // P22. The logo has its own endpoint, and its bytes must never ride along.
+        delete record.brandLogos;
         return record;
       },
     },

@@ -32,6 +32,8 @@ const ACTION_WORDS = {
   USER_PIN_RESET: 'Attendance PIN set',
   MENU_PRICE_CHANGED: 'Price changed',
   RECIPE_CHANGED: 'Recipe changed',
+  BRAND_LOGO_SET: 'Logo set',
+  BRAND_LOGO_REMOVED: 'Logo removed',
   ATTENDANCE_CORRECTED: 'Attendance corrected',
 };
 

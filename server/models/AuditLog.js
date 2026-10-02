@@ -54,6 +54,9 @@ export const AUDIT_ACTIONS = Object.freeze({
   USER_PIN_RESET: 'USER_PIN_RESET',
   MENU_PRICE_CHANGED: 'MENU_PRICE_CHANGED',
   RECIPE_CHANGED: 'RECIPE_CHANGED',
+  // P22. The restaurant's logo set or removed. Details never carry the bytes.
+  BRAND_LOGO_SET: 'BRAND_LOGO_SET',
+  BRAND_LOGO_REMOVED: 'BRAND_LOGO_REMOVED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 

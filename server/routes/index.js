@@ -14,6 +14,7 @@ import attendanceRoutes from './attendanceRoutes.js';
 import auditRoutes from './auditRoutes.js';
 import authRoutes from './authRoutes.js';
 import billRoutes from './billRoutes.js';
+import brandRoutes from './brandRoutes.js';
 import branchRoutes from './branchRoutes.js';
 import healthRoutes from './healthRoutes.js';
 import inventoryRoutes from './inventoryRoutes.js';
@@ -49,5 +50,6 @@ router.use(accountRoutes);
 router.use(dayCloseRoutes);
 router.use(reportV2Routes);
 router.use(auditRoutes);
+router.use(brandRoutes);
 
 export default router;

@@ -26,6 +26,7 @@ import { describeTrustProxy } from './config/trustProxy.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFound } from './middleware/notFound.js';
 import { generalLimiter } from './middleware/rateLimit.js';
+import { LOGO_UPLOAD_PATH } from './routes/brandRoutes.js';
 import routes from './routes/index.js';
 import { describeKey, findMissingIndexes } from './services/indexService.js';
 
@@ -114,7 +115,10 @@ export function createApp({ serveClient: shouldServeClient = config.isProduction
   // credentials is on for the refresh token cookie that arrives in M0 part B.
   app.use(cors({ origin: config.CLIENT_ORIGIN, credentials: true }));
 
-  app.use(express.json({ limit: JSON_BODY_LIMIT }));
+  // P22. The logo upload and removal parse their own body with a larger limit,
+  // in routes/brandRoutes.js. Every other path keeps this one.
+  const jsonBody = express.json({ limit: JSON_BODY_LIMIT });
+  app.use((req, res, next) => (LOGO_UPLOAD_PATH.test(req.path) ? next() : jsonBody(req, res, next)));
   app.use(httpLogger);
   app.use(generalLimiter);
 
