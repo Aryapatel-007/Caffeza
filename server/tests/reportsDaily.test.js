@@ -454,6 +454,7 @@ describe('R10 Invoice Register', () => {
 
 describe('every report', () => {
   const QUERIES = {
+    today: '',
     'day-close': `date=${GOLDEN_DATE}`,
     'sales-by-day': day,
     hours: day,

@@ -21,9 +21,11 @@ import payments from './definitions/payments.js';
 import platformMoney from './definitions/platformMoney.js';
 import salesByDay from './definitions/salesByDay.js';
 import tables from './definitions/tables.js';
+import today from './definitions/today.js';
 import tallyExport from './definitions/tallyExport.js';
 
 export const REPORTS = Object.freeze([
+  today,
   dayClose,
   salesByDay,
   hours,

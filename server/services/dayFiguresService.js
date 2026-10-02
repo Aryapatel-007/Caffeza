@@ -300,15 +300,64 @@ function invoiceSection(allBills) {
 }
 
 /**
+ * The records as they stood at `upTo`, for R1 Today. P18.
+ *
+ * A bill not yet issued is left out; a payment not yet received, a charge to
+ * an account not yet made, and a void not yet done are taken off the bill, and
+ * its status worked out again from what was left. Drawer entries, collections,
+ * No Charge and cancellations after `upTo` are left out. With no `upTo` the
+ * records are returned untouched, which is what Day Close and R2 always use.
+ */
+function asAt(upTo, loaded) {
+  if (!upTo) return loaded;
+  const by = (instant) => instant && new Date(instant) <= upTo;
+  const asItWas = (bill) => {
+    const payments = bill.payments.filter((payment) => by(payment.receivedAt));
+    const charged = by(bill.chargedAt) ? bill.chargedToAccountInPaise : null;
+    const voided = bill.isVoided && by(bill.voidedAt);
+    const paid = sumPaise(0, ...payments.map((payment) => payment.amountInPaise));
+    const status = voided
+      ? bill.status
+      : charged
+        ? BILL_STATUSES.ON_ACCOUNT
+        : paid >= bill.grandTotalInPaise
+          ? BILL_STATUSES.PAID
+          : BILL_STATUSES.UNPAID;
+    return { ...bill, payments, chargedToAccountInPaise: charged, isVoided: voided, status };
+  };
+  return {
+    ...loaded,
+    dayBills: loaded.dayBills.filter((bill) => by(bill.billedAt)).map(asItWas),
+    billsWithDayPayments: loaded.billsWithDayPayments.map((bill) => ({
+      ...bill,
+      payments: bill.payments.filter((payment) => by(payment.receivedAt)),
+    })),
+    movements: loaded.movements.filter((movement) => by(movement.at)),
+    collections: loaded.collections.filter((entry) => by(entry.at)),
+    noChargeOrders: loaded.noChargeOrders.filter((order) => by(order.noCharge.at)),
+    cancelOrders: loaded.cancelOrders.map((order) => ({
+      ...order,
+      isCancelled: order.isCancelled && by(order.cancelledAt),
+      lines: order.lines.map((line) =>
+        line.status === ORDER_LINE_STATUSES.CANCELLED && !by(line.cancelledAt) ? { ...line, status: 'LIVE_AT_THE_TIME' } : line,
+      ),
+    })),
+  };
+}
+
+/**
  * The figures for `businessDate`, sections A to H, plus the collections in
  * section C. Plain data: stored as the Day Close snapshot and returned by R2.
+ *
+ * `upTo`, an instant, gives the day as it stood at that moment, for R1 Today
+ * (P18). Day Close and R2 never pass it.
  */
-export async function computeDayFigures(req, businessDate, { session = null } = {}) {
+export async function computeDayFigures(req, businessDate, { session = null, upTo = null } = {}) {
   const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', { req });
   const { start, end } = businessDateRangeToUtc(businessDate, businessDate, startMinutes);
   const tenant = scoped(req);
 
-  const [dayBills, billsWithDayPayments, movements, collections, noChargeOrders, cancelOrders, methods] =
+  const [loadedDayBills, loadedPaymentBills, loadedMovements, loadedCollections, loadedNoCharge, loadedCancelOrders, methods] =
     await Promise.all([
       Bill.find({ ...tenant, businessDate }).setOptions(opts(session)).lean(),
       // Cash counts on the payment's own business date, whichever day the bill was issued.
@@ -339,6 +388,15 @@ export async function computeDayFigures(req, businessDate, { session = null } = 
         .lean(),
       PaymentMethod.find({ ...tenant, isActive: true }).sort({ displayOrder: 1 }).setOptions(opts(session)).lean(),
     ]);
+
+  const { dayBills, billsWithDayPayments, movements, collections, noChargeOrders, cancelOrders } = asAt(upTo, {
+    dayBills: loadedDayBills,
+    billsWithDayPayments: loadedPaymentBills,
+    movements: loadedMovements,
+    collections: loadedCollections,
+    noChargeOrders: loadedNoCharge,
+    cancelOrders: loadedCancelOrders,
+  });
 
   const liveBills = dayBills.filter((bill) => !bill.isVoided);
   const voidedBills = dayBills.filter((bill) => bill.isVoided);
