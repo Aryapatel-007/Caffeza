@@ -36,7 +36,7 @@ export function changedSettings(original, current) {
   for (const group of Object.keys(current)) {
     const next = group === 'invoice' ? normaliseInvoice(current.invoice) : current[group];
     for (const [field, value] of Object.entries(next)) {
-      if (value === original?.[group]?.[field]) continue;
+      if (sameValue(value, original?.[group]?.[field])) continue;
       patch[group] ??= {};
       patch[group][field] = value;
     }
@@ -50,6 +50,12 @@ export function changedSettings(original, current) {
   if (patch.invoice) patch.invoice = normaliseInvoice(current.invoice);
 
   return patch;
+}
+
+/** Equal by value: a list (Today tiles, section order) is a new array after every clone. */
+function sameValue(a, b) {
+  if (Array.isArray(a) || Array.isArray(b)) return JSON.stringify(a) === JSON.stringify(b);
+  return a === b;
 }
 
 /**

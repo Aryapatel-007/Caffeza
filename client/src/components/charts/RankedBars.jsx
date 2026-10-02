@@ -40,7 +40,7 @@ export default function RankedBars({
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-lg border-2 border-dashed border-muted px-4 py-8 text-center text-[13px] text-muted">
+      <p className="rounded-lg border-2 border-dashed border-muted px-4 py-8 text-center type-caption text-muted">
         {emptyMessage}
       </p>
     );
@@ -58,7 +58,7 @@ export default function RankedBars({
             className="flex items-center gap-3 border-b border-line py-2 last:border-b-0"
             style={{ minHeight: ROW_HEIGHT }}
           >
-            <span className="w-28 shrink-0 truncate text-[13px] leading-[18px] sm:w-40" title={row[labelKey]}>
+            <span className="w-28 shrink-0 truncate type-caption sm:w-40" title={row[labelKey]}>
               {row[labelKey]}
             </span>
 
@@ -70,12 +70,12 @@ export default function RankedBars({
               />
             </span>
 
-            <span className="w-24 shrink-0 text-right font-mono text-[13px] tabular-nums leading-[18px] sm:w-28">
+            <span className="w-24 shrink-0 text-right type-num-meta tabular-nums sm:w-28">
               {formatValue(value)}
             </span>
 
             {secondaryKey && (
-              <span className="w-20 shrink-0 text-right font-mono text-[12px] tabular-nums leading-4 text-muted">
+              <span className="w-20 shrink-0 text-right type-num-meta tabular-nums text-muted">
                 {formatSecondary(row[secondaryKey] ?? 0)}
               </span>
             )}

@@ -2,7 +2,7 @@ import { OTHER_REASON_CODE } from '../../features/orders/cancelReasons.js';
 
 /**
  * One large button per reason, then an optional note. P04, restyled for
- * DESIGN-SYSTEM-V2 and moved into the shared components.
+ * DESIGN-SYSTEM and moved into the shared components.
  *
  * Shared by cancelling a line, cancelling an order, voiding a bill, a discount
  * and No Charge, so they look and behave the same. Two columns of 48px buttons

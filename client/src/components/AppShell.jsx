@@ -20,7 +20,7 @@ import {
 import Sheet from './ui/Sheet.jsx';
 
 /**
- * The frame around every signed-in screen. DESIGN-SYSTEM-V2 sections 8a and 9.
+ * The frame around every signed-in screen. DESIGN-SYSTEM sections 8a and 9.
  *
  * Under 600px: a top bar with the wordmark, and a bottom bar with the role's
  * main places and More. From 600px: a 76px rail on the left with the same
@@ -136,7 +136,7 @@ function PlaceLink({ place, layout }) {
       <span className={active ? 'text-accent' : ''}>
         <Icon size={22} />
       </span>
-      <span className="text-[11px] font-semibold leading-4">{place.label}</span>
+      <span className="type-caption">{place.label}</span>
     </NavLink>
   );
 }
@@ -152,7 +152,7 @@ function MoreButton({ onClick, layout }) {
       ].join(' ')}
     >
       <MoreIcon size={22} />
-      <span className="text-[11px] font-semibold leading-4">More</span>
+      <span className="type-caption">More</span>
     </button>
   );
 }

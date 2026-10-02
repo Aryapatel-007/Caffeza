@@ -19,7 +19,7 @@ export function useSecondLine(k, english = LABELS[k], { keep = false } = {}) {
 }
 
 /**
- * An English word with its second-language line under it. DESIGN-SYSTEM-V2 5d:
+ * An English word with its second-language line under it. DESIGN-SYSTEM 5d:
  * Anek Gujarati or Anek Devanagari, at `caption` size, in `muted`. With no
  * second language set, the English alone.
  *

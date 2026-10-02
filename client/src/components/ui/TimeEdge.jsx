@@ -4,7 +4,7 @@ import { STATES } from './StateChip.jsx';
 import { TriangleIcon } from './icons/index.jsx';
 
 /**
- * The time edge. DESIGN-SYSTEM-V2 section 7a, the signature of service screens.
+ * The time edge. DESIGN-SYSTEM section 7a, the signature of service screens.
  *
  * A 4px bar along the bottom of anything that is waiting, filling left to right
  * with the time elapsed against that thing's target. Until the target it is the

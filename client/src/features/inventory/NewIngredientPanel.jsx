@@ -109,7 +109,7 @@ export default function NewIngredientPanel({ onCancel, onCreated }) {
           onChange={(e) => setOpeningQty(e.target.value)}
         />
 
-        {fieldErrors._general && <p className="text-[13px] text-mirch">{fieldErrors._general}</p>}
+        {fieldErrors._general && <p className="type-caption text-alert">{fieldErrors._general}</p>}
 
         <div className="mt-2 flex gap-2">
           <Button type="button" variant="secondary" fullWidth onClick={onCancel}>

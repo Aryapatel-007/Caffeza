@@ -27,7 +27,7 @@ export default function RequireFeature({ feature, children }) {
   const label = FEATURE_LABELS[feature] ?? 'This feature';
 
   return (
-    <main className="flex min-h-full items-center justify-center bg-linen p-6">
+    <main className="flex min-h-full items-center justify-center bg-sunken p-6">
       <div className="w-full max-w-md">
         <EmptyState
           title={`${label} is switched off`}
@@ -35,7 +35,7 @@ export default function RequireFeature({ feature, children }) {
           action={
             <Link
               to="/dashboard"
-              className="text-sm font-medium text-brand-600 underline-offset-4 hover:underline"
+              className="text-sm font-medium text-accent underline-offset-4 hover:underline"
             >
               Back to the dashboard
             </Link>

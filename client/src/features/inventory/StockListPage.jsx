@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
-import StatusBadge from '../../components/ui/StatusBadge.jsx';
+import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { listIngredients } from '../../api/inventory.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -14,9 +14,9 @@ import NewIngredientPanel from './NewIngredientPanel.jsx';
 
 /** IN_STOCK/LOW/OUT, one shared badge component with M3's bill status. */
 const STOCK_FACES = {
-  IN_STOCK: { state: 'ok', label: 'In stock' },
-  LOW: { state: 'open', label: 'Low' },
-  OUT: { state: 'alert', label: 'Out' },
+  IN_STOCK: { state: 'ok', word: 'In stock' },
+  LOW: { state: 'open', word: 'Low' },
+  OUT: { state: 'alert', word: 'Out' },
 };
 
 const CAN_WRITE = [ROLES.OWNER, ROLES.MANAGER, ROLES.STOREKEEPER];
@@ -52,12 +52,12 @@ export default function StockListPage() {
   const ingredients = query.data?.data ?? [];
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3">
+    <main className="min-h-full bg-ground">
+      <header className="sticky top-0 z-10 border-b border-line bg-ground px-4 py-3">
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-semibold leading-7">Stock</h1>
-            <p className="text-[13px] leading-[18px] text-steel">
+            <h1 className="type-heading">Stock</h1>
+            <p className="type-caption text-muted">
               <span className="font-mono">{ingredients.length}</span> ingredient
               {ingredients.length === 1 ? '' : 's'}
             </p>
@@ -67,22 +67,16 @@ export default function StockListPage() {
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="flex h-11 items-center rounded-xl border border-black/5 shadow-card bg-chana px-4 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="flex min-h-12 items-center rounded-lg bg-accent px-4 type-label text-on-accent"
               >
                 + Ingredient
               </button>
             )}
             <Link
               to="/inventory/recipes"
-              className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+              className="flex min-h-12 items-center rounded-lg px-3 type-caption text-muted hover:bg-sunken "
             >
               Recipes
-            </Link>
-            <Link
-              to="/dashboard"
-              className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-            >
-              Dashboard
             </Link>
           </div>
         </div>
@@ -93,9 +87,9 @@ export default function StockListPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search ingredients"
-            className="h-11 flex-1 rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
+            className="min-h-12 flex-1 rounded-lg border border-muted bg-surface px-3 type-body placeholder:text-muted"
           />
-          <label className="flex h-11 items-center gap-2 whitespace-nowrap text-[13px]">
+          <label className="flex min-h-12 items-center gap-2 whitespace-nowrap type-caption">
             <input
               type="checkbox"
               checked={lowStockOnly}
@@ -108,38 +102,38 @@ export default function StockListPage() {
       </header>
 
       <div className="mx-auto max-w-2xl px-4 py-4">
-        {query.isPending && <p className="text-[15px] text-steel">Loading stock…</p>}
-        {query.isError && <p className="text-[15px] text-mirch">{errorMessage(query.error)}</p>}
+        {query.isPending && <p className="type-body text-muted">Loading stock…</p>}
+        {query.isError && <p className="type-body text-alert">{errorMessage(query.error)}</p>}
 
         {query.isSuccess && ingredients.length === 0 && (
-          <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[15px] text-steel">
+          <p className="rounded-lg border-2 border-dashed border-muted px-4 py-8 text-center type-body text-muted">
             {lowStockOnly ? 'Nothing is running low.' : 'No ingredients yet.'}
           </p>
         )}
 
-        <ul className="divide-y divide-steel/15 border-y border-black/10">
+        <ul className="divide-y divide-line border-y border-line">
           {ingredients.map((ingredient) => (
             <li key={ingredient.id}>
               <button
                 type="button"
                 onClick={() => canWrite && setAdjusting(ingredient)}
                 disabled={!canWrite}
-                className="flex min-h-[64px] w-full items-center justify-between gap-3 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-default"
+                className="flex min-h-[64px] w-full items-center justify-between gap-3 py-2.5 text-left disabled:cursor-default"
               >
                 <div>
-                  <p className="text-[15px] leading-[22px]">
+                  <p className="type-body">
                     {ingredient.name}
                     {ingredient.isActive === false && (
-                      <span className="ml-2 text-[12px] text-steel">(off)</span>
+                      <span className="ml-2 type-caption text-muted">(off)</span>
                     )}
                   </p>
-                  <p className="font-mono text-[12px] leading-4 text-steel">
+                  <p className="font-mono type-caption text-muted">
                     {ingredient.purchaseUnitName
                       ? `${baseToPurchaseDisplay(ingredient.currentQtyInBase, ingredient.unitsPerBase)} ${ingredient.purchaseUnitName}`
                       : `${ingredient.currentQtyInBase} ${BASE_UNIT_SHORT_LABELS[ingredient.baseUnit]}`}
                   </p>
                 </div>
-                <StatusBadge state={ingredient.stockState} faces={STOCK_FACES} />
+                <StateChip {...(STOCK_FACES[ingredient.stockState] ?? STOCK_FACES.IN_STOCK)} size="sm" />
               </button>
             </li>
           ))}

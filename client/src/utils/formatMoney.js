@@ -1,32 +1,11 @@
 /**
- * Money display, client side.
+ * Money input, client side: typed rupees to paise, and back into a keypad.
  *
- * The server sends paise. Every screen shows rupees. This is the one place
- * that converts, which is what docs/CONVENTIONS.md section 5 asks for.
- *
- * Nothing here goes back into arithmetic. The output is a label. A screen that
- * needs a total adds the paise and formats the result, never the reverse.
+ * Showing paise as rupees is `components/ui/Money.jsx`'s job, and only Money's
+ * (DESIGN-SYSTEM section 9). `formatPaise` lived here until P20B.
  */
 
 const PAISE_PER_RUPEE = 100;
-
-/**
- * Paise to a rupee string, with Indian grouping.
- *
- *   formatPaise(9999)     ->  Rs 99.99
- *   formatPaise(10000000) ->  Rs 1,00,000.00
- */
-export function formatPaise(paise, { symbol = true } = {}) {
-  if (!Number.isInteger(paise)) return '';
-
-  const formatted = new Intl.NumberFormat('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.abs(paise) / PAISE_PER_RUPEE);
-
-  const sign = paise < 0 ? '-' : '';
-  return symbol ? `${sign}₹${formatted}` : `${sign}${formatted}`;
-}
 
 /** Basis points as a percentage label. 1800 becomes 18% */
 export function formatBasisPoints(basisPoints) {
@@ -38,7 +17,7 @@ export function formatBasisPoints(basisPoints) {
 /**
  * Rupees typed into a form, to whole paise.
  *
- * The mirror of formatPaise, and the only place the client turns a typed
+ * The mirror of `moneyText` in Money.jsx, and the only place the client turns a typed
  * amount into the integer the API wants. Everything crossing the wire is paise.
  *
  * Rounds half away from zero on the decimal digits rather than by multiplying

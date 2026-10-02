@@ -3,15 +3,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import * as menuApi from '../../api/menu.js';
-import AvailabilityStamp from '../../components/ui/AvailabilityStamp.jsx';
+import StateChip, { availabilityChip } from '../../components/ui/StateChip.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import Input from '../../components/ui/Input.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { formatPaise } from '../../utils/formatMoney.js';
+
 import { errorMessage } from './errorCopy.js';
+import { moneyText } from '../../components/ui/Money.jsx';
 
 const MENU_KEY = ['menu', { includeUnavailable: true }];
 const STAFF_ADMIN = new Set(['OWNER', 'MANAGER']);
@@ -96,21 +97,21 @@ export default function AvailabilityBoardPage() {
 
   const totalShown = visible.reduce((sum, category) => sum + category.items.length, 0);
   const chipBase =
-    'min-h-[44px] rounded-full px-4 text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
-  const chipOn = 'border border-black/5 shadow-card bg-patta-tint text-ink';
-  const chipOff = 'border border-steel/50 text-steel';
+    'min-h-12 rounded-lg px-4 type-caption ';
+  const chipOn = 'border border-line bg-ok-tint text-ink';
+  const chipOff = 'border border-muted text-muted';
 
   return (
-    <main className="flex min-h-full flex-col bg-paper">
-      <header className="sticky top-0 z-10 flex flex-col gap-3 border-b border-black/5 bg-paper px-4 py-4 sm:px-5">
+    <main className="flex min-h-full flex-col bg-ground">
+      <header className="sticky top-0 z-10 flex flex-col gap-3 border-b border-line bg-ground px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-semibold text-ink">Availability</h1>
           <div className="flex items-center gap-3">
-            <span className="hidden text-[13px] text-steel sm:inline">Tap a tile to change it</span>
+            <span className="hidden type-caption text-muted sm:inline">Tap a tile to change it</span>
             {STAFF_ADMIN.has(user?.role) && (
               <Link
                 to="/menu"
-                className="inline-flex min-h-[44px] items-center rounded-lg border border-steel/50 px-4 text-[13px] font-medium text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="inline-flex min-h-12 items-center rounded-lg border border-muted px-4 type-caption text-ink "
               >
                 Edit menu
               </Link>
@@ -170,45 +171,44 @@ export default function AvailabilityBoardPage() {
 
         {visible.map((category) => (
           <section key={category.id} className="flex flex-col gap-3">
-            <h2 className="text-xs font-medium tracking-[0.06em] text-steel">
-              {category.name.toUpperCase()}
+            <h2 className="text-xs font-medium text-muted">
+              {category.name}
             </h2>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {category.items.map((item) => (
                 <article
                   key={item.id}
-                  className="flex flex-col gap-3 rounded-xl border border-black/5 shadow-card bg-white p-4"
+                  className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4"
                 >
-                  <h3 className="text-[15px] leading-[22px] text-ink">{item.name}</h3>
+                  <h3 className="type-body text-ink">{item.name}</h3>
 
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-mono text-lg font-semibold tabular-nums text-ink">
-                      {formatPaise(item.priceInPaise, { symbol: false })}
+                      {moneyText(item.priceInPaise, { symbol: false })}
                     </span>
-                    <AvailabilityStamp
-                      size="md"
-                      state={item.isAvailable ? 'available' : 'out_of_stock'}
-                      onToggle={() =>
+                    <StateChip
+                      {...availabilityChip(item.isAvailable)}
+                      size="lg"
+                      onClick={() =>
                         setAvailability.mutate({ item, variant: null, next: !item.isAvailable })
                       }
                     />
                   </div>
 
                   {item.variants?.length > 0 && (
-                    <div className="flex flex-col gap-2 border-t border-steel/25 pt-3">
+                    <div className="flex flex-col gap-2 border-t border-line pt-3">
                       {item.variants.map((variant) => (
                         <div key={variant.id} className="flex items-center justify-between gap-3">
                           <span className="text-sm text-ink">
                             {variant.name}
-                            <span className="ml-2 font-mono text-xs text-steel">
-                              {formatPaise(variant.priceInPaise, { symbol: false })}
+                            <span className="ml-2 font-mono text-xs text-muted">
+                              {moneyText(variant.priceInPaise, { symbol: false })}
                             </span>
                           </span>
-                          <AvailabilityStamp
-                            size="sm"
-                            state={variant.isAvailable ? 'available' : 'out_of_stock'}
-                            onToggle={() =>
+                          <StateChip
+                            {...availabilityChip(variant.isAvailable)}
+                            onClick={() =>
                               setAvailability.mutate({ item, variant, next: !variant.isAvailable })
                             }
                           />

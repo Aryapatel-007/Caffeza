@@ -2,7 +2,7 @@ import StateChip from '../../components/ui/StateChip.jsx';
 import { LABELS } from '../i18n/labels.js';
 
 /**
- * A bill's status through `StateChip`. DESIGN-SYSTEM-V2 section 4b.
+ * A bill's status through `StateChip`. DESIGN-SYSTEM section 4b.
  *
  * Unpaid is a printed bill waiting to be paid, so it wears `bill`. Paid is
  * `ok`. On Hold (P09) is money still to come, a caution, so `open`. Voided is

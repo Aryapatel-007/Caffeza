@@ -23,8 +23,8 @@ export default function MyAttendancePage() {
   const data = meQuery.data;
 
   return (
-    <main className="mx-auto flex min-h-full w-full max-w-2xl flex-col bg-paper">
-      <header className="border-b border-black/5 px-5 py-4">
+    <main className="mx-auto flex min-h-full w-full max-w-2xl flex-col bg-ground">
+      <header className="border-b border-line px-5 py-4">
         <h1 className="text-xl font-semibold text-ink">My hours</h1>
       </header>
 
@@ -40,9 +40,9 @@ export default function MyAttendancePage() {
 
         {data && (
           <>
-            <section className="flex items-end justify-between gap-4 rounded-xl border border-black/5 shadow-card p-4">
+            <section className="flex items-end justify-between gap-4 rounded-lg border border-line p-4">
               <div className="flex flex-col">
-                <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-steel">
+                <span className="type-label text-muted">
                   Last 7 days
                 </span>
                 <span className="font-mono text-4xl font-semibold tabular-nums text-ink">
@@ -50,27 +50,27 @@ export default function MyAttendancePage() {
                 </span>
               </div>
               {data.openShift ? (
-                <span className="font-mono text-sm text-patta">
+                <span className="font-mono text-sm text-ok">
                   On the clock since {formatTimeIst(data.openShift.clockInAt)}
                 </span>
               ) : (
-                <span className="font-mono text-sm text-steel">Clocked out</span>
+                <span className="font-mono text-sm text-muted">Clocked out</span>
               )}
             </section>
 
             {data.recent.length === 0 ? (
-              <p className="text-[15px] text-steel">No closed shifts in the last seven days.</p>
+              <p className="type-body text-muted">No closed shifts in the last seven days.</p>
             ) : (
-              <ul className="divide-y divide-steel/25">
+              <ul className="divide-y divide-line">
                 {data.recent.map((entry) => (
                   <li key={entry.id} className="flex items-center justify-between gap-4 py-3">
                     <div className="flex flex-col">
-                      <span className="text-[15px] text-ink">{formatDateIst(entry.clockInAt)}</span>
-                      <span className="font-mono text-[13px] text-steel">
+                      <span className="type-body text-ink">{formatDateIst(entry.clockInAt)}</span>
+                      <span className="type-num-meta text-muted">
                         {formatTimeIst(entry.clockInAt)} — {formatTimeIst(entry.clockOutAt)}
                       </span>
                     </div>
-                    <span className="font-mono text-[15px] font-medium tabular-nums text-ink">
+                    <span className="type-num tabular-nums text-ink">
                       {formatMinutes(entry.workedMinutes)}
                     </span>
                   </li>

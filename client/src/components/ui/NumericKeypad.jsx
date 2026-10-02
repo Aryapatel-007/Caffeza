@@ -4,7 +4,7 @@ import { BackIcon } from './icons/index.jsx';
 
 /**
  * A large on-screen numeric keypad, for every money and quantity entry on a
- * service screen. DESIGN-SYSTEM-V2 section 9: kept from version 1, restyled,
+ * service screen. DESIGN-SYSTEM section 9: kept from version 1, restyled,
  * with the display in `num-hero` on `sunken`.
  *
  * Not a text input with a system keyboard. The operator may be standing, in a

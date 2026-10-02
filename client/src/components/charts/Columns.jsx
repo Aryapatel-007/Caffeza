@@ -44,7 +44,7 @@ export default function Columns({
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-lg border-2 border-dashed border-muted px-4 py-8 text-center text-[13px] text-muted">
+      <p className="rounded-lg border-2 border-dashed border-muted px-4 py-8 text-center type-caption text-muted">
         {emptyMessage}
       </p>
     );
@@ -74,7 +74,7 @@ export default function Columns({
           {ticks.map((tick) => (
             <span
               key={tick}
-              className="font-mono text-[11px] tabular-nums leading-none text-muted"
+              className="type-num-meta tabular-nums text-muted"
               style={{ transform: 'translateY(50%)' }}
             >
               {formatTick(Math.round(tick))}
@@ -132,8 +132,8 @@ export default function Columns({
                 transform: 'translate(-50%, -8px)',
               }}
             >
-              <p className="text-[12px] leading-4 text-muted">{rows[hovered][labelKey]}</p>
-              <p className="font-mono text-[14px] font-semibold leading-5 text-ink">
+              <p className="type-caption text-muted">{rows[hovered][labelKey]}</p>
+              <p className="type-num text-ink">
                 {formatValue(rows[hovered][valueKey] ?? 0)}
               </p>
             </div>
@@ -147,7 +147,7 @@ export default function Columns({
         {rows.map((row, index) => (
           <span
             key={row[labelKey] ?? index}
-            className="flex min-w-0 flex-1 justify-center overflow-visible whitespace-nowrap font-mono text-[10px] leading-3 text-muted"
+            className="flex min-w-0 flex-1 justify-center overflow-visible whitespace-nowrap type-num-meta text-muted"
           >
             {index % labelEvery === 0 ? row[labelKey] : ''}
           </span>
@@ -155,7 +155,7 @@ export default function Columns({
       </div>
 
       {caption && (
-        <figcaption className="ml-16 mt-2 text-[12px] leading-4 text-muted">{caption}</figcaption>
+        <figcaption className="ml-16 mt-2 type-caption text-muted">{caption}</figcaption>
       )}
     </figure>
   );

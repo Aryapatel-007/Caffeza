@@ -3,9 +3,11 @@
  * here in CSS rather than in a tailwind.config.js file, which v4 no longer
  * needs. If you go looking for tailwind.config.js, that is why there is not one.
  *
- * VERSION 2 tokens, docs/DESIGN-SYSTEM-V2.md sections 4 to 6, come first: the
- * neutrals and states are CSS variables on the root element, one set for
- * `data-theme="day"` and one for `data-theme="night"`, and `@theme inline`
+ * The tokens, docs/DESIGN-SYSTEM.md sections 4 to 6: the neutrals and
+ * states are CSS variables, one set for `data-theme="day"` and one for
+ * `data-theme="night"`, on the root element and on any element that carries
+ * the attribute (the Appearance page's live preview draws a night tile inside
+ * a day page that way), and `@theme inline`
  * exposes them to Tailwind by name (`bg-surface`, `text-muted`, `border-bill`,
  * `bg-open-tint`, `bg-accent`). `inline` is Tailwind's documented way to point
  * a theme token at another variable: the utility then reads the variable
@@ -19,7 +21,7 @@
 @import 'tailwindcss';
 
 :root,
-:root[data-theme='day'] {
+[data-theme='day'] {
   --ground: #f2f4f3;
   --surface: #ffffff;
   --sunken: #e7ecea;
@@ -54,7 +56,7 @@
   color-scheme: light;
 }
 
-:root[data-theme='night'] {
+[data-theme='night'] {
   --ground: #0f1715;
   --surface: #17211e;
   --sunken: #0b1210;
@@ -120,7 +122,7 @@
   --shadow-float: var(--float-shadow);
 
   /*
-   * Anek for every word, Plex Mono for every number. DESIGN-SYSTEM-V2 5a.
+   * Anek for every word, Plex Mono for every number. DESIGN-SYSTEM 5a.
    * The Gujarati and Devanagari siblings follow the Latin one in the stack, so
    * a second-language line falls through to them by script.
    */
@@ -128,7 +130,7 @@
 }
 
 /*
- * The type scale, DESIGN-SYSTEM-V2 5b, in rem so the device's text size scales
+ * The type scale, DESIGN-SYSTEM 5b, in rem so the device's text size scales
  * it. Width is `font-stretch`: Anek's width axis runs 75 to 125, so the design's
  * 82, 92, 100 and 112 are used exactly as written.
  */
@@ -228,50 +230,10 @@
   padding: var(--d-pad);
 }
 
-/*
- * VERSION 1, REMOVED IN P20B. The back-office screens still read these until
- * P20B moves them. No service screen and no shared component may use them; a
- * test enforces that. `ink` is NOT here: version 2 owns that name, and it is
- * the same job in both versions.
- */
+/* Plex Mono for every number. Version 1's other tokens were removed in P20B. */
 @theme {
-  /* The surface. The only background colour in the product. */
-  --color-paper: #fdf8f5;
-
-  /* Tonal layers over paper (the warm look). Cards are white, wells are linen. */
-  --color-linen: #f7f3ef;
-  --color-linen-2: #f2ede9;
-  --color-linen-3: #ece7e4;
-  --color-chana-soft: #fbf1d6;
-  --color-mirch-soft: #f6e3e0;
-
-  --shadow-card: 0 2px 12px rgba(28, 27, 25, 0.06);
-  --shadow-lift: 0 8px 30px rgba(28, 27, 25, 0.12);
-
-  /* Secondary text, dividers, disabled state. */
-  --color-steel: #56606b;
-
-  /*
-   * chana means "this button commits the action". mirch means destructive or
-   * out of stock. patta means available or succeeded.
-   */
-  --color-chana: #c99a2e;
-  --color-mirch: #b23a2e;
-  --color-patta: #3f7d58;
-
-  /* Derived: patta over paper, flattened opaque. The available stamp fill. */
-  --color-patta-tint: #e3eee6;
-
-  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Anek Latin Variable', 'Anek Gujarati Variable', 'Anek Devanagari Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
-}
-
-/* VERSION 1, REMOVED IN P20B. M0's placeholder brand-* tokens, aliased to chana. */
-@theme {
-  --color-brand-50: #f7f0dd;
-  --color-brand-500: #c99a2e;
-  --color-brand-600: #c99a2e;
-  --color-brand-700: #a67f22;
 }
 
 html,
@@ -283,16 +245,17 @@ body,
 body {
   background-color: var(--ground);
   color: var(--ink-v2);
+  font-family: var(--font-anek);
 }
 
-/* Version 2 screens set this on their outermost element. */
+/* Kept from P20A, when only some screens were on version 2. Every screen is now. */
 .v2 {
   font-family: var(--font-anek);
 }
 
 /*
  * The keyboard focus ring, in the accent, on everything that can take focus.
- * DESIGN-SYSTEM-V2 section 4c: the accent's second job. Components do not draw
+ * DESIGN-SYSTEM section 4c: the accent's second job. Components do not draw
  * their own.
  */
 @layer base {
@@ -302,7 +265,7 @@ body {
   }
 }
 
-/* Motion, DESIGN-SYSTEM-V2 section 10. Only in answer to something a person did. */
+/* Motion, DESIGN-SYSTEM section 10. Only in answer to something a person did. */
 @keyframes sheet-in-right {
   from {
     transform: translateX(100%);
@@ -352,6 +315,29 @@ body {
   #root {
     height: auto;
     background: var(--surface);
+  }
+
+  /* Reports print in the day theme, whatever this device is set to. */
+  :root {
+    --ground: #f2f4f3;
+    --surface: #ffffff;
+    --sunken: #e7ecea;
+    --ink-v2: #1b2623;
+    --muted: #53615c;
+    --line: #c9d2ce;
+    --open-tint: #fbeac4;
+    --open: #7a4f00;
+    --served-tint: #d2ece5;
+    --served: #16614f;
+    --bill-tint: #f5d8e5;
+    --bill: #922457;
+    --alert-tint: #f8dcd5;
+    --alert: #a8321c;
+    --ok-tint: #d6eadc;
+    --ok: #256640;
+    --accent-active: var(--accent);
+    --on-accent: #ffffff;
+    color-scheme: light;
   }
 
   .report-table div {

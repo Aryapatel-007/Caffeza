@@ -37,11 +37,11 @@ export default function ResetPasswordDialog({ staff, onClose }) {
 
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/40 p-4">
-      <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-lg bg-white p-6 shadow-lg">
+      <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-lg bg-surface p-6 shadow-lg">
         {isDone ? (
           <>
             <h2 className="text-lg font-semibold text-ink">Password reset</h2>
-            <p className="mt-2 text-sm text-steel">
+            <p className="mt-2 text-sm text-muted">
               {staff.name} can sign in with the new password. They have been signed out everywhere
               and will need to use it next time.
             </p>
@@ -52,7 +52,7 @@ export default function ResetPasswordDialog({ staff, onClose }) {
         ) : (
           <form onSubmit={handleSubmit}>
             <h2 className="text-lg font-semibold text-ink">Reset password</h2>
-            <p className="mt-1 text-sm text-steel">
+            <p className="mt-1 text-sm text-muted">
               For {staff.name}. Tell them the new password yourself, it is not shown again.
             </p>
 

@@ -1,7 +1,7 @@
 import { useId } from 'react';
 
 /**
- * A labelled text input. DESIGN-SYSTEM-V2: `surface` fill, a `muted` border
+ * A labelled text input. DESIGN-SYSTEM: `surface` fill, a `muted` border
  * (never `line`, which is for dividers only), 8px corners.
  *
  * The label is required. An input with only a placeholder loses its label the

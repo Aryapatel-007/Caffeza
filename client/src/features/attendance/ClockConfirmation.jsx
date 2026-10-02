@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import AvailabilityStamp from '../../components/ui/AvailabilityStamp.jsx';
+import StateChip from '../../components/ui/StateChip.jsx';
 import { formatTimeIst } from '../../utils/formatDate.js';
 import { formatMinutes } from '../../utils/formatDuration.js';
 import Bilingual from '../i18n/Bilingual.jsx';
@@ -39,8 +39,8 @@ export default function ClockConfirmation({ result, onUndo, onDone, undoBusy = f
   }, [until, onDone]);
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col items-center justify-center gap-8 bg-paper px-6">
-      <AvailabilityStamp kind="clock" state={isIn ? 'available' : 'out_of_stock'} size="xl" />
+    <div className="fixed inset-0 z-30 flex flex-col items-center justify-center gap-8 bg-ground px-6">
+      <StateChip state={isIn ? 'ok' : 'free'} word={isIn ? LABELS.stateIn : LABELS.stateOut} size="lg" />
 
       <div className="flex flex-col items-center gap-2">
         <span className="text-2xl font-semibold text-ink">{result.userName}</span>
@@ -56,12 +56,12 @@ export default function ClockConfirmation({ result, onUndo, onDone, undoBusy = f
           {formatTimeIst(result.at)}
         </span>
         {clockedOut && typeof result.workedMinutes === 'number' && (
-          <span className="font-mono text-lg text-steel">
+          <span className="font-mono text-lg text-muted">
             {LABELS.clockWorked} {formatMinutes(result.workedMinutes)}
           </span>
         )}
         {clockedIn && (
-          <span className="text-[13px] text-steel">
+          <span className="type-caption text-muted">
             {LABELS.clockSince} {formatTimeIst(result.at)}
           </span>
         )}
@@ -71,11 +71,11 @@ export default function ClockConfirmation({ result, onUndo, onDone, undoBusy = f
         type="button"
         onClick={onUndo}
         disabled={undoBusy || secondsLeft <= 0}
-        className="flex min-h-[72px] min-w-[220px] items-center justify-center gap-2 rounded-full border-[3px] border-mirch bg-paper px-8 text-xl font-semibold text-mirch active:translate-y-0.5 transition-transform duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-40"
+        className="flex min-h-[72px] min-w-[220px] items-center justify-center gap-2 rounded-lg border-[3px] border-alert bg-ground px-8 text-xl font-semibold text-alert disabled:opacity-40"
       >
         <Bilingual k="clockUndo" size="lg" align="center" />
         {secondsLeft > 0 && (
-          <span className="font-mono text-base tabular-nums text-steel">{secondsLeft}</span>
+          <span className="font-mono text-base tabular-nums text-muted">{secondsLeft}</span>
         )}
       </button>
     </div>

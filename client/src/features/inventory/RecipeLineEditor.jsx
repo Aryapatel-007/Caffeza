@@ -75,21 +75,21 @@ export default function RecipeLineEditor({ menuItemId, variantId, ingredients, o
     (ingredient) => !rows.some((row) => row.ingredientId === ingredient.id),
   );
 
-  if (recipesQuery.isPending) return <p className="text-[13px] text-steel">Loading recipe…</p>;
+  if (recipesQuery.isPending) return <p className="type-caption text-muted">Loading recipe…</p>;
 
   return (
     <div>
       {rows.length === 0 && (
-        <p className="mb-4 text-[14px] text-steel">
+        <p className="mb-4 type-label text-muted">
           No recipe yet. Dishes selling with no recipe attached show on{' '}
           <span className="font-mono">GET /inventory/unmapped</span>, so this is worth setting up.
         </p>
       )}
 
-      <ul className="mb-4 divide-y divide-steel/15 border-y border-black/10">
+      <ul className="mb-4 divide-y divide-line border-y border-line">
         {rows.map((row) => (
           <li key={row.ingredientId} className="flex items-center justify-between gap-3 py-2">
-            <span className="text-[14px]">{nameFor(row.ingredientId)}</span>
+            <span className="type-label">{nameFor(row.ingredientId)}</span>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -102,16 +102,16 @@ export default function RecipeLineEditor({ menuItemId, variantId, ingredients, o
                     current.map((r) => (r.ingredientId === row.ingredientId ? { ...r, qtyInBase: value } : r)),
                   );
                 }}
-                className="h-9 w-24 rounded-lg border-2 border-steel/40 px-2 text-right font-mono text-[14px] focus:border-ink focus:outline-none"
+                className="h-9 w-24 rounded-lg border-2 border-muted px-2 text-right type-num"
               />
-              <span className="w-6 font-mono text-[12px] text-steel">{unitFor(row.ingredientId)}</span>
+              <span className="w-6 type-num-meta text-muted">{unitFor(row.ingredientId)}</span>
               <button
                 type="button"
                 onClick={() =>
                   setRows((current) => current.filter((r) => r.ingredientId !== row.ingredientId))
                 }
                 aria-label={`Remove ${nameFor(row.ingredientId)}`}
-                className="flex size-9 items-center justify-center rounded-lg text-mirch hover:bg-mirch/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
+                className="flex size-9 items-center justify-center rounded-lg text-alert hover:bg-alert "
               >
                 ✕
               </button>
@@ -124,7 +124,7 @@ export default function RecipeLineEditor({ menuItemId, variantId, ingredients, o
         <select
           value={addingIngredientId}
           onChange={(event) => setAddingIngredientId(event.target.value)}
-          className="h-10 flex-1 rounded-lg border-2 border-steel/40 bg-paper px-2 text-[14px] focus:border-ink focus:outline-none"
+          className="min-h-12 flex-1 rounded-lg border border-muted bg-surface px-2 type-label"
         >
           <option value="">Add an ingredient…</option>
           {availableToAdd.map((ingredient) => (
@@ -140,7 +140,7 @@ export default function RecipeLineEditor({ menuItemId, variantId, ingredients, o
           value={addingQty}
           onChange={(event) => setAddingQty(event.target.value)}
           placeholder="qty"
-          className="h-10 w-20 rounded-lg border-2 border-steel/40 px-2 text-right font-mono text-[14px] focus:border-ink focus:outline-none"
+          className="min-h-12 w-20 rounded-lg border-2 border-muted px-2 text-right type-num"
         />
         <Button
           type="button"

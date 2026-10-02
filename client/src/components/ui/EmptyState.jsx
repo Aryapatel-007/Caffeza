@@ -1,5 +1,5 @@
 /**
- * Nothing to show. DESIGN-SYSTEM-V2 section 9.
+ * Nothing to show. DESIGN-SYSTEM section 9.
  *
  * Distinct from loading and from failure. A new restaurant has an empty menu
  * and no orders, and each of those screens says what to do next rather than

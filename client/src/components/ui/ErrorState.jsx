@@ -2,7 +2,7 @@ import Button from './Button.jsx';
 import { TriangleIcon } from './icons/index.jsx';
 
 /**
- * A failure. DESIGN-SYSTEM-V2 section 9: says what happened and what to do
+ * A failure. DESIGN-SYSTEM section 9: says what happened and what to do
  * next, never apologises, never vague.
  *
  * Takes the ApiError from api/client.js, or a sentence. The server's message is

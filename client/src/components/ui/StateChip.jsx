@@ -1,7 +1,7 @@
 import { DotIcon, PlateIcon, ReceiptIcon, RingIcon, TickIcon, TriangleIcon } from './icons/index.jsx';
 
 /**
- * Any state, drawn one way. DESIGN-SYSTEM-V2 sections 4b and 9.
+ * Any state, drawn one way. DESIGN-SYSTEM sections 4b and 9.
  *
  * Tint, icon and word together, so colour is never the only signal. Replaces
  * version 1's `StatusBadge` and the rotated availability stamp.
@@ -64,4 +64,11 @@ export default function StateChip({ state = 'free', word, size = 'md', onClick, 
       {face}
     </button>
   );
+}
+
+/** Available or Out of stock, the two words the menu has always used. Spread onto a `StateChip`. */
+export function availabilityChip(isAvailable) {
+  return isAvailable
+    ? { state: 'ok', word: 'Available', ariaLabel: 'Available. Tap to change.' }
+    : { state: 'alert', word: 'Out of stock', ariaLabel: 'Out of stock. Tap to change.' };
 }

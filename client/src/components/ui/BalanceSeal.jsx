@@ -1,7 +1,7 @@
 import { DotIcon, TickIcon, TriangleIcon } from './icons/index.jsx';
 
 /**
- * The balance seal. DESIGN-SYSTEM-V2 section 7b, the signature of report screens.
+ * The balance seal. DESIGN-SYSTEM section 7b, the signature of report screens.
  *
  * The first thing on every report. Quiet when every check passes:
  *   ┃ ✓ Balanced
@@ -58,7 +58,7 @@ export default function BalanceSeal({ checks, scope = null, renderRefs, classNam
   );
 }
 
-/** The report's scope in words, under the seal. DESIGN-SYSTEM-V2 section 9. */
+/** The report's scope in words, under the seal. DESIGN-SYSTEM section 9. */
 export function FilterSentence({ children, className = '' }) {
   if (!children) return null;
   return <p className={`type-caption text-muted ${className}`}>{children}</p>;

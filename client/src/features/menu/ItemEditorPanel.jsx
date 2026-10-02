@@ -123,13 +123,13 @@ export default function ItemEditorPanel({
   }
 
   return (
-    <aside className="flex w-full flex-col gap-4 overflow-y-auto border-ink bg-paper p-6 shadow-[-10px_0_28px_rgba(28,27,25,0.10)] md:w-[26rem] md:border-l-2">
+    <aside className="flex w-full flex-col gap-4 overflow-y-auto border-ink bg-ground p-6 shadow-float md:w-[26rem] md:border-l-2">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-ink">{isEditing ? 'Edit item' : 'Add item'}</h2>
         <button
           type="button"
           onClick={onClose}
-          className="min-h-[44px] px-1 text-[13px] font-medium text-steel underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="min-h-12 px-1 type-caption text-muted underline-offset-4 hover:underline "
         >
           Close
         </button>
@@ -178,14 +178,14 @@ export default function ItemEditorPanel({
 
         <SubItemListEditor
           title="Variants"
-          addLabel="+  Add variant"
+          addLabel="+ Add variant"
           entries={form.variants}
           fieldErrors={fieldErrors}
           onChange={(variants) => setForm((f) => ({ ...f, variants }))}
         />
         <SubItemListEditor
           title="Add-ons"
-          addLabel="+  Add add-on"
+          addLabel="+ Add add-on"
           entries={form.addOns}
           fieldErrors={fieldErrors}
           onChange={(addOns) => setForm((f) => ({ ...f, addOns }))}
@@ -204,7 +204,7 @@ export default function ItemEditorPanel({
             <button
               type="button"
               onClick={() => onToggleActive(item)}
-              className="ml-auto min-h-[44px] text-[13px] font-medium text-mirch underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
+              className="ml-auto min-h-12 type-caption text-alert underline-offset-4 hover:underline "
             >
               {item.isActive ? 'Take off the menu' : 'Put back on the menu'}
             </button>

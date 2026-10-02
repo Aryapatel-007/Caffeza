@@ -39,16 +39,10 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
   );
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3 sm:px-6">
+    <main className="min-h-full bg-ground">
+      <header className="sticky top-0 z-10 border-b border-line bg-ground px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[20px] font-semibold leading-7">{title}</h1>
-          <Link
-            to="/dashboard"
-            className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-          >
-            Dashboard
-          </Link>
+          <h1 className="type-heading">{title}</h1>
         </div>
 
         <nav className="mx-auto mt-2 flex max-w-6xl flex-wrap gap-1">
@@ -60,9 +54,9 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
                 to={tab.to}
                 aria-current={active ? 'page' : undefined}
                 className={[
-                  'flex h-10 items-center rounded-full px-3 text-[13px] font-medium',
-                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                  active ? 'border border-black/5 shadow-card bg-chana/20 text-ink' : 'text-steel hover:bg-black/5',
+                  'flex min-h-12 items-center rounded-lg px-3 type-caption',
+                  '',
+                  active ? 'border border-line bg-sunken text-ink' : 'text-muted hover:bg-sunken',
                 ].join(' ')}
               >
                 {tab.label}
@@ -75,7 +69,7 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
         {range && (
           <div className="mx-auto mt-3 flex max-w-6xl flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-steel">
+              <span className="type-label text-muted">
                 From
               </span>
               <input
@@ -83,11 +77,11 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
                 value={range.from}
                 max={range.to}
                 onChange={(event) => onRangeChange({ ...range, from: event.target.value })}
-                className="h-11 rounded-xl border-2 border-steel/40 bg-paper px-3 font-mono text-[14px] focus:border-ink focus:outline-none"
+                className="min-h-12 rounded-lg border border-muted bg-surface px-3 type-num"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-steel">
+              <span className="type-label text-muted">
                 To
               </span>
               <input
@@ -95,7 +89,7 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
                 value={range.to}
                 min={range.from}
                 onChange={(event) => onRangeChange({ ...range, to: event.target.value })}
-                className="h-11 rounded-xl border-2 border-steel/40 bg-paper px-3 font-mono text-[14px] focus:border-ink focus:outline-none"
+                className="min-h-12 rounded-lg border border-muted bg-surface px-3 type-num"
               />
             </label>
 
@@ -109,7 +103,7 @@ export default function ReportShell({ title, range, onRangeChange, children }) {
                   key={preset.label}
                   type="button"
                   onClick={() => onRangeChange(lastNDays(preset.days))}
-                  className="h-11 rounded-xl border-2 border-steel/40 px-3 text-[13px] font-medium text-steel hover:border-ink hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="min-h-12 rounded-lg border-2 border-muted px-3 type-caption text-muted hover:border-ink hover:text-ink "
                 >
                   {preset.label}
                 </button>
@@ -140,12 +134,12 @@ export function lastNDays(days) {
 export function ReportSection({ title, description, children, table }) {
   return (
     <section className="mb-8">
-      <h2 className="text-[15px] font-semibold leading-5">{title}</h2>
-      {description && <p className="mt-0.5 text-[13px] leading-[18px] text-steel">{description}</p>}
+      <h2 className="type-body font-semibold font-semibold">{title}</h2>
+      {description && <p className="mt-0.5 type-caption text-muted">{description}</p>}
       <div className="mt-3">{children}</div>
       {table && (
         <details className="mt-3">
-          <summary className="cursor-pointer text-[12px] font-medium text-steel hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+          <summary className="cursor-pointer type-label text-muted hover:text-ink ">
             Show the numbers
           </summary>
           <div className="mt-2">{table}</div>

@@ -42,7 +42,7 @@ const CAN_DISCOUNT_OR_VOID = [ROLES.OWNER, ROLES.MANAGER];
  * so the total is the largest thing on it.
  *
  * Which action is primary changes with the bill's own state, and that is the
- * point: DESIGN-SYSTEM-V2's "one primary action" rule is about what is true on
+ * point: DESIGN-SYSTEM's "one primary action" rule is about what is true on
  * screen right now, not a button that is hard-coded primary regardless of
  * whether it is even the next useful thing to do. Unpaid, the primary action
  * is collecting the payment. Paid, it is printing the receipt.
@@ -95,7 +95,7 @@ export default function BillScreenPage() {
     onSuccess: (updated) => {
       invalidate(updated);
       setPanel(null);
-      // DESIGN-SYSTEM-V2 section 10: the one moment of celebration.
+      // DESIGN-SYSTEM section 10: the one moment of celebration.
       if (updated.status === 'PAID') setJustPaid(true);
       setToast({
         tone: 'success',

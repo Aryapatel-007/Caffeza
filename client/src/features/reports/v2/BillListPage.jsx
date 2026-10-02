@@ -6,7 +6,8 @@ import Spinner from '../../../components/ui/Spinner.jsx';
 import { downloadReport, getBillList } from '../../../api/reportsV2.js';
 import { businessDateToday } from '../../../utils/formatDate.js';
 import { errorMessage } from '../../billing/errorCopy.js';
-import { CheckStrip, Cell, OpenDaysBanner } from './reportCells.jsx';
+import BalanceSeal, { FilterSentence } from '../../../components/ui/BalanceSeal.jsx';
+import { Cell, OpenDaysBanner } from './reportCells.jsx';
 
 /**
  * R19 Bill List. M19, built in P14.
@@ -68,43 +69,43 @@ export default function BillListPage() {
   const pages = meta ? Math.max(1, Math.ceil(meta.total / meta.limit)) : 1;
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="border-b border-black/5 px-4 py-3">
+    <main className="min-h-full bg-ground">
+      <header className="border-b border-line px-4 py-3">
         <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-semibold leading-7">Bill List</h1>
-            <p className="text-[13px] leading-[18px] text-steel">The bills behind any number on a report.</p>
+            <h1 className="type-heading">Bill List</h1>
+            <p className="type-caption text-muted">The bills behind any number on a report.</p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
-            <label className="text-[12px] text-steel">
+            <label className="type-caption text-muted">
               From
               <input
                 type="date"
                 value={query.from}
                 max={today}
                 onChange={(event) => setQuery({ from: event.target.value, page: '' })}
-                className="ml-2 rounded-lg border-2 border-steel/40 px-2 py-1 text-[13px] text-ink"
+                className="ml-2 rounded-lg border-2 border-muted px-2 py-1 type-caption text-ink"
               />
             </label>
-            <label className="text-[12px] text-steel">
+            <label className="type-caption text-muted">
               To
               <input
                 type="date"
                 value={query.to}
                 max={today}
                 onChange={(event) => setQuery({ to: event.target.value, page: '' })}
-                className="ml-2 rounded-lg border-2 border-steel/40 px-2 py-1 text-[13px] text-ink"
+                className="ml-2 rounded-lg border-2 border-muted px-2 py-1 type-caption text-ink"
               />
             </label>
             <button
               type="button"
               onClick={download}
               disabled={downloading || !envelope}
-              className="min-h-10 rounded-xl border border-black/5 shadow-card px-3 text-[13px] font-semibold disabled:opacity-50"
+              className="min-h-10 rounded-lg border border-line px-3 type-caption disabled:opacity-50"
             >
               {downloading ? 'Preparing…' : 'Excel'}
             </button>
-            <Link to="/reports" className="text-[13px] font-medium text-steel underline">
+            <Link to="/reports" className="type-caption text-muted underline">
               Reports
             </Link>
           </div>
@@ -113,22 +114,32 @@ export default function BillListPage() {
 
       <div className="mx-auto grid max-w-6xl gap-4 px-4 py-6">
         {result.isPending && <Spinner label="Loading bills" />}
-        {result.isError && <p className="text-[15px] text-mirch">{errorMessage(result.error)}</p>}
-        {downloadError && <p className="text-[13px] text-mirch">{downloadError}</p>}
+        {result.isError && <p className="type-body text-alert">{errorMessage(result.error)}</p>}
+        {downloadError && <p className="type-caption text-alert">{downloadError}</p>}
 
         {envelope && (
           <>
-            <p className="text-[13px] font-medium leading-[18px]">{envelope.filterSentence}</p>
-            <OpenDaysBanner openDays={envelope.openDays} />
-            <CheckStrip
+            <BalanceSeal
               checks={envelope.checks}
-              onOpenRefs={(check) => setQuery({ billNumber: check.refs[0], page: '' })}
+              renderRefs={(check) =>
+                check.refs?.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery({ billNumber: check.refs[0], page: '' })}
+                    className="type-label min-h-12 text-accent underline underline-offset-4"
+                  >
+                    Show the bills
+                  </button>
+                )
+              }
             />
+            <FilterSentence>{envelope.filterSentence}</FilterSentence>
+            <OpenDaysBanner openDays={envelope.openDays} />
 
             <div className="overflow-x-auto">
-              <table className="w-full text-[13px] leading-[18px]">
+              <table className="w-full type-caption">
                 <thead>
-                  <tr className="border-b border-black/5 text-left text-[12px] uppercase tracking-[0.04em] text-steel">
+                  <tr className="border-b border-line text-left type-caption text-muted">
                     {envelope.columns.map((column) => (
                       <th
                         key={column.key}
@@ -139,14 +150,14 @@ export default function BillListPage() {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-steel/15">
+                <tbody className="divide-y divide-line">
                   {envelope.rows.map((row) => (
                     <tr
                       key={row.billId}
                       tabIndex={0}
                       onClick={() => navigate(`/reports/bills/${row.billId}`)}
                       onKeyDown={(event) => event.key === 'Enter' && navigate(`/reports/bills/${row.billId}`)}
-                      className="cursor-pointer hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
+                      className="cursor-pointer hover:bg-sunken focus-visible:outline-2 focus-visible:outline-accent"
                     >
                       {envelope.columns.map((column) => (
                         <td
@@ -160,7 +171,7 @@ export default function BillListPage() {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-black/5 font-semibold">
+                  <tr className="border-t border-line font-semibold">
                     {envelope.columns.map((column, index) => (
                       <td
                         key={column.key}
@@ -175,16 +186,16 @@ export default function BillListPage() {
                   </tr>
                 </tfoot>
               </table>
-              {envelope.rows.length === 0 && <p className="py-4 text-[15px] text-steel">No bills match.</p>}
+              {envelope.rows.length === 0 && <p className="py-4 type-body text-muted">No bills match.</p>}
             </div>
 
             {pages > 1 && (
-              <div className="flex items-center gap-3 text-[13px]">
+              <div className="flex items-center gap-3 type-caption">
                 <button
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setQuery({ page: String(page - 1) })}
-                  className="min-h-10 rounded-lg border-2 border-steel/40 px-3 disabled:opacity-40"
+                  className="min-h-10 rounded-lg border-2 border-muted px-3 disabled:opacity-40"
                 >
                   Previous
                 </button>
@@ -195,7 +206,7 @@ export default function BillListPage() {
                   type="button"
                   disabled={page >= pages}
                   onClick={() => setQuery({ page: String(page + 1) })}
-                  className="min-h-10 rounded-lg border-2 border-steel/40 px-3 disabled:opacity-40"
+                  className="min-h-10 rounded-lg border-2 border-muted px-3 disabled:opacity-40"
                 >
                   Next
                 </button>

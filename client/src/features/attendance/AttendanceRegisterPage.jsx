@@ -85,18 +85,18 @@ export default function AttendanceRegisterPage() {
     null;
 
   const dateInput =
-    'h-11 rounded-lg border-0 px-3 text-base text-ink ring-1 ring-inset ring-steel/40 focus:ring-2 focus:ring-inset focus:ring-ink';
+    'min-h-12 rounded-lg border-0 px-3 text-base text-ink ring-1 ring-inset ring-muted focus:ring-2 focus:ring-inset focus:ring-ink';
 
   return (
-    <main className="mx-auto flex min-h-full w-full max-w-4xl flex-col bg-paper">
-      <header className="sticky top-0 z-10 flex flex-wrap items-end justify-between gap-3 border-b border-black/5 bg-paper px-5 py-4">
+    <main className="mx-auto flex min-h-full w-full max-w-4xl flex-col bg-ground">
+      <header className="sticky top-0 z-10 flex flex-wrap items-end justify-between gap-3 border-b border-line bg-ground px-5 py-4">
         <h1 className="text-xl font-semibold text-ink">Attendance</h1>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col text-[12px] font-medium uppercase tracking-[0.06em] text-steel">
+          <label className="flex flex-col type-label text-muted">
             From
             <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className={dateInput} />
           </label>
-          <label className="flex flex-col text-[12px] font-medium uppercase tracking-[0.06em] text-steel">
+          <label className="flex flex-col type-label text-muted">
             To
             <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className={dateInput} />
           </label>
@@ -124,7 +124,7 @@ export default function AttendanceRegisterPage() {
         )}
 
         {entries.length > 0 && (
-          <ul className="divide-y divide-steel/20">
+          <ul className="divide-y divide-line">
             {entries.map((entry) => {
               const open = entry.clockOutAt === null;
               return (
@@ -132,33 +132,33 @@ export default function AttendanceRegisterPage() {
                   <button
                     type="button"
                     onClick={() => setPanel({ mode: 'edit', entry })}
-                    className="flex w-full items-center justify-between gap-4 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    className="flex w-full items-center justify-between gap-4 py-3 text-left "
                   >
                     <div className="flex min-w-0 flex-col">
-                      <span className="text-[15px] font-medium text-ink">
+                      <span className="type-body text-ink">
                         {entry.userName}
-                        <span className="ml-2 text-[12px] font-normal uppercase tracking-[0.04em] text-steel">
+                        <span className="ml-2 type-caption text-muted">
                           {entry.userRole}
                         </span>
                         {entry.isVoided && (
-                          <span className="ml-2 font-mono text-[11px] uppercase text-mirch">voided</span>
+                          <span className="ml-2 type-num-meta text-alert">voided</span>
                         )}
                       </span>
-                      <span className="font-mono text-[13px] text-steel">
+                      <span className="type-num-meta text-muted">
                         {formatTimeIst(entry.clockInAt)}
                         {' — '}
                         {open ? 'open' : formatTimeIst(entry.clockOutAt)}
-                        {entry.businessDate ? `  ·  ${entry.businessDate}` : ''}
+                        {entry.businessDate ? ` · ${entry.businessDate}` : ''}
                       </span>
                     </div>
 
                     <div className="flex flex-none items-center gap-3">
                       {entry.requiresAttention && (
-                        <span className="rounded-full border-2 border-mirch px-2 py-0.5 font-mono text-[11px] font-bold uppercase text-mirch">
+                        <span className="rounded-full border-2 border-alert px-2 py-0.5 type-num-meta text-alert">
                           Open 12h+
                         </span>
                       )}
-                      <span className="font-mono text-[15px] font-medium tabular-nums text-ink">
+                      <span className="type-num tabular-nums text-ink">
                         {open ? formatMinutes(entry.openMinutes) : formatMinutes(entry.workedMinutes)}
                       </span>
                     </div>

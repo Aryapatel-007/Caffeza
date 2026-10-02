@@ -96,7 +96,7 @@ export default function CorrectionPanel({
   };
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-30 flex w-full max-w-md flex-col gap-4 overflow-y-auto border-l border-black/5 bg-paper p-6 shadow-[-10px_0_28px_rgba(28,27,25,0.12)]">
+    <aside className="fixed inset-y-0 right-0 z-30 flex w-full max-w-md flex-col gap-4 overflow-y-auto border-l border-line bg-ground p-6 shadow-float">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-ink">
           {isCreate ? 'Add a missed entry' : `Correct ${entry.userName}'s shift`}
@@ -104,7 +104,7 @@ export default function CorrectionPanel({
         <button
           type="button"
           onClick={onClose}
-          className="min-h-[44px] px-1 text-[13px] font-medium text-steel underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="min-h-12 px-1 type-caption text-muted underline-offset-4 hover:underline "
         >
           Close
         </button>
@@ -155,7 +155,7 @@ export default function CorrectionPanel({
               type="button"
               onClick={voidThis}
               disabled={busy}
-              className="ml-auto min-h-[44px] text-[13px] font-medium text-mirch underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
+              className="ml-auto min-h-12 type-caption text-alert underline-offset-4 hover:underline "
             >
               Void this entry
             </button>
@@ -164,17 +164,17 @@ export default function CorrectionPanel({
       </form>
 
       {!isCreate && entry.corrections?.length > 0 && (
-        <section className="mt-2 border-t border-steel/25 pt-4">
-          <h3 className="text-[12px] font-medium uppercase tracking-[0.06em] text-steel">
+        <section className="mt-2 border-t border-line pt-4">
+          <h3 className="type-label text-muted">
             Correction history
           </h3>
           <ul className="mt-2 flex flex-col gap-3">
             {entry.corrections.map((correction) => (
-              <li key={correction.id} className="text-[13px] leading-[18px] text-ink">
-                <span className="font-mono text-steel">{toIst(correction.correctedAt)}</span>
+              <li key={correction.id} className="type-caption text-ink">
+                <span className="font-mono text-muted">{toIst(correction.correctedAt)}</span>
                 <span className="mx-1">·</span>
                 <span className="font-medium">{correction.field}</span>
-                <p className="text-steel">{correction.reason}</p>
+                <p className="text-muted">{correction.reason}</p>
               </li>
             ))}
           </ul>

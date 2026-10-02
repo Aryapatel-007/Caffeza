@@ -2,9 +2,11 @@ import Columns from '../../components/charts/Columns.jsx';
 import HeatGrid from '../../components/charts/HeatGrid.jsx';
 import RankedBars from '../../components/charts/RankedBars.jsx';
 import { StatTile } from '../../components/charts/StatTile.jsx';
-import { formatPaise } from '../../utils/formatMoney.js';
-import { compactPaise, hourLabel, shortBusinessDate } from './formatReport.js';
+
+import { compactMoneyText } from '../../components/ui/Money.jsx';
+import { hourLabel, shortBusinessDate } from './formatReport.js';
 import { formatCell } from './v2/reportCells.jsx';
+import { moneyText } from '../../components/ui/Money.jsx';
 
 /**
  * The chart above a section, where P18 section 9 gives one. Every chart sits
@@ -15,7 +17,7 @@ import { formatCell } from './v2/reportCells.jsx';
  */
 export default function ReportChart({ reportId, section }) {
   const rows = section.rows ?? [];
-  const money = (value) => formatPaise(value);
+  const money = (value) => moneyText(value);
 
   if (reportId === 'R1' && section.key === 'tiles') {
     const [tiles] = rows;
@@ -34,7 +36,7 @@ export default function ReportChart({ reportId, section }) {
       <Columns
         data={rows.map((row) => ({ label: shortBusinessDate(row.businessDate), value: row.netSalesInPaise }))}
         formatValue={money}
-        formatTick={compactPaise}
+        formatTick={compactMoneyText}
         caption="Net sales per day"
       />
     );
@@ -45,7 +47,7 @@ export default function ReportChart({ reportId, section }) {
       <Columns
         data={rows.map((row) => ({ label: hourLabel(row.hour), value: row.netSalesInPaise }))}
         formatValue={money}
-        formatTick={compactPaise}
+        formatTick={compactMoneyText}
         caption="Net sales per hour"
       />
     );
@@ -60,24 +62,24 @@ export default function ReportChart({ reportId, section }) {
     return (
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.06em] text-steel">
+          <p className="mb-2 type-label text-muted">
             {section.columns.find((column) => column.key === 'inHandInPaise')?.label}
           </p>
           <Columns
             data={rows.map((row) => ({ label: shortBusinessDate(row.businessDate), value: row.inHandInPaise }))}
             formatValue={money}
-            formatTick={compactPaise}
+            formatTick={compactMoneyText}
             height={160}
           />
         </div>
         <div>
-          <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.06em] text-steel">
+          <p className="mb-2 type-label text-muted">
             {section.columns.find((column) => column.key === 'platformInPaise')?.label}
           </p>
           <Columns
             data={rows.map((row) => ({ label: shortBusinessDate(row.businessDate), value: row.platformInPaise }))}
             formatValue={money}
-            formatTick={compactPaise}
+            formatTick={compactMoneyText}
             height={160}
           />
         </div>

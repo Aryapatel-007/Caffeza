@@ -86,7 +86,7 @@ export default function StaffFormPage() {
   }
 
   return (
-    <main className="min-h-full bg-linen p-6">
+    <main className="min-h-full bg-sunken p-6">
       <div className="mx-auto w-full max-w-md">
         <h1 className="text-xl font-semibold text-ink">
           {isEditing ? 'Edit staff member' : 'Add staff member'}

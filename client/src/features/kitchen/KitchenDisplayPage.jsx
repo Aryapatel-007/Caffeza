@@ -133,7 +133,7 @@ export default function KitchenDisplayPage() {
   const minutesOpen = (kot) => Math.floor((clock - new Date(kot.firedAt).getTime()) / 60_000);
   const isLate = (kot) => minutesOpen(kot) >= targetFor(kot);
 
-  // DESIGN-SYSTEM-V2 8b: oldest first, late tickets moved to the front.
+  // DESIGN-SYSTEM 8b: oldest first, late tickets moved to the front.
   const kots = [...(tickets.data?.data ?? [])].sort(
     (a, b) => Number(isLate(b)) - Number(isLate(a)) || new Date(a.firedAt) - new Date(b.firedAt),
   );

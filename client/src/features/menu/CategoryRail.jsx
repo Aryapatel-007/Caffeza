@@ -47,8 +47,8 @@ export default function CategoryRail({
   }
 
   return (
-    <nav className="flex w-full flex-col gap-1 border-b border-steel/35 p-4 md:w-64 md:border-r md:border-b-0">
-      <h2 className="px-3 pb-2 text-xs font-medium tracking-[0.06em] text-steel">CATEGORIES</h2>
+    <nav className="flex w-full flex-col gap-1 border-b border-muted p-4 md:w-64 md:border-r md:border-b-0">
+      <h2 className="px-3 pb-2 text-xs font-medium text-muted">Categories</h2>
 
       {categories.map((category) => {
         const isSelected = category.id === selectedId;
@@ -72,19 +72,19 @@ export default function CategoryRail({
             key={category.id}
             className={[
               'group flex items-center gap-2 rounded-lg',
-              isSelected ? 'border border-black/5 shadow-card bg-patta-tint' : 'border-2 border-transparent',
+              isSelected ? 'border border-line bg-ok-tint' : 'border-2 border-transparent',
               category.isActive ? '' : 'opacity-55',
             ].join(' ')}
           >
             <button
               type="button"
               onClick={() => onSelect(category.id)}
-              className="flex min-h-[44px] flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex min-h-12 flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left "
             >
-              <span className={`text-[13px] font-medium ${isSelected ? 'text-ink' : 'text-steel'}`}>
+              <span className={`type-caption ${isSelected ? 'text-ink': 'text-muted'}`}>
                 {category.name}
               </span>
-              <span className="font-mono text-xs text-steel">
+              <span className="font-mono text-xs text-muted">
                 {category.isActive ? '' : 'Off'}
               </span>
             </button>
@@ -101,7 +101,7 @@ export default function CategoryRail({
               const category = categories.find((c) => c.id === selectedId);
               if (category) startRename(category);
             }}
-            className="text-[13px] font-medium text-steel underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="type-caption text-muted underline-offset-4 hover:underline "
           >
             Rename
           </button>
@@ -112,7 +112,7 @@ export default function CategoryRail({
               const category = categories.find((c) => c.id === selectedId);
               if (category) onToggleActive(category);
             }}
-            className="text-[13px] font-medium text-steel underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="type-caption text-muted underline-offset-4 hover:underline "
           >
             {categories.find((c) => c.id === selectedId)?.isActive ? 'Turn off' : 'Turn on'}
           </button>
@@ -122,12 +122,12 @@ export default function CategoryRail({
       {/* P05. Which station this category's dishes go to. */}
       {selectedId && stations.length > 0 && onStationChange && (
         <label className="mt-3 block px-3">
-          <span className="mb-1 block text-xs font-medium tracking-[0.06em] text-steel">STATION</span>
+          <span className="mb-1 block text-xs font-medium text-muted">Station</span>
           <select
             value={categories.find((c) => c.id === selectedId)?.stationId ?? ''}
             disabled={isBusy}
             onChange={(event) => onStationChange(selectedId, event.target.value || null)}
-            className="h-11 w-full rounded-lg border-2 border-steel/40 bg-paper px-2 text-[13px] focus:border-ink focus:outline-none"
+            className="min-h-12 w-full rounded-lg border border-muted bg-surface px-2 type-caption"
           >
             <option value="">First station (default)</option>
             {stations.map((station) => (
@@ -161,7 +161,7 @@ export default function CategoryRail({
         <button
           type="button"
           onClick={() => setIsAdding(true)}
-          className="mt-2 min-h-[44px] rounded-lg px-3 py-2.5 text-left text-[13px] font-medium text-steel hover:bg-patta-tint/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="mt-2 min-h-12 rounded-lg px-3 py-2.5 text-left type-caption text-muted hover:bg-ok-tint/40 "
         >
           +&nbsp;&nbsp;New category
         </button>

@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { CrossIcon } from './icons/index.jsx';
 
 /**
- * A sheet for editing one record. DESIGN-SYSTEM-V2 sections 6, 9 and 10.
+ * A sheet for editing one record. DESIGN-SYSTEM sections 6, 9 and 10.
  *
  * From the right on a wide screen, from the bottom on a phone, never a blocking
  * modal in the middle: a cashier mid-payment often needs to glance at the bill

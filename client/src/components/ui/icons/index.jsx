@@ -1,5 +1,5 @@
 /**
- * The icon set. DESIGN-SYSTEM-V2 section 9: a small set of inline SVGs, drawn
+ * The icon set. DESIGN-SYSTEM section 9: a small set of inline SVGs, drawn
  * at 20px on a 2px stroke, in `currentColor`, so an icon takes its colour from
  * the text beside it. No icon package.
  *

@@ -44,13 +44,13 @@ export default function RecipeEditorPage() {
   }, [selected]);
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-paper px-4 py-3">
+    <main className="min-h-full bg-ground">
+      <header className="sticky top-0 z-10 border-b border-line bg-ground px-4 py-3">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[20px] font-semibold leading-7">Recipes</h1>
+          <h1 className="type-heading">Recipes</h1>
           <Link
             to="/inventory"
-            className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="flex min-h-12 items-center rounded-lg px-3 type-caption text-muted hover:bg-sunken "
           >
             Stock
           </Link>
@@ -64,18 +64,18 @@ export default function RecipeEditorPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search dishes"
-            className="mb-3 h-11 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
+            className="mb-3 min-h-12 w-full rounded-lg border border-muted bg-surface px-3 type-body placeholder:text-muted"
           />
-          {itemsQuery.isPending && <p className="text-[13px] text-steel">Loading…</p>}
-          <ul className="divide-y divide-steel/15 border-y border-black/10">
+          {itemsQuery.isPending && <p className="type-caption text-muted">Loading…</p>}
+          <ul className="divide-y divide-line border-y border-line">
             {items.map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
                   onClick={() => setSelected({ item, variantId: null })}
                   className={[
-                    'flex min-h-[48px] w-full items-center px-2 text-left text-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                    selected?.item.id === item.id ? 'bg-chana/15 font-semibold' : '',
+                    'flex min-h-12 w-full items-center px-2 text-left type-label ',
+                    selected?.item.id === item.id ? 'bg-sunken font-semibold' : '',
                   ].join(' ')}
                 >
                   {item.name}
@@ -87,7 +87,7 @@ export default function RecipeEditorPage() {
 
         <div>
           {!selected && (
-            <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[15px] text-steel">
+            <p className="rounded-lg border-2 border-dashed border-muted px-4 py-8 text-center type-body text-muted">
               Pick a dish on the left to see or edit its recipe.
             </p>
           )}
@@ -101,10 +101,10 @@ export default function RecipeEditorPage() {
                     type="button"
                     onClick={() => setSelected({ item: selected.item, variantId: tab.variantId })}
                     className={[
-                      'min-h-[40px] rounded-full border-2 px-3 text-[13px] font-medium',
+                      'min-h-12 rounded-lg border-2 px-3 type-caption',
                       selected.variantId === tab.variantId
-                        ? 'border-ink bg-chana/20'
-                        : 'border-steel/40 text-steel',
+                        ? 'border-ink bg-sunken'
+                        : 'border-muted text-muted',
                     ].join(' ')}
                   >
                     {tab.label}

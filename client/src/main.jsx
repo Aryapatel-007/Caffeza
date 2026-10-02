@@ -9,24 +9,18 @@ import { ThemeProvider } from './context/ThemeProvider.jsx';
 
 /*
  * Fonts are served from our own server (P12). At the cafe, on a 4G backup
- * line, a request to another site is a delay before the till can draw. Only
- * the weights the design uses: Sans 400, 500, 600 and Mono 400 to 700. The
- * family names these register, 'IBM Plex Sans' and 'IBM Plex Mono', are the
- * ones the tokens in index.css already use.
+ * line, a request to another site is a delay before the till can draw. Plex
+ * Mono for every number, in the weights the type scale uses, 400 to 700.
  */
-import '@fontsource/ibm-plex-sans/400.css';
-import '@fontsource/ibm-plex-sans/500.css';
-import '@fontsource/ibm-plex-sans/600.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import '@fontsource/ibm-plex-mono/700.css';
 /*
- * Version 2, P20A: Anek for every word, variable in weight and width, with its
+ * Version 2: Anek for every word, variable in weight and width, with its
  * Gujarati and Devanagari siblings for the second-language line. `standard.css`
  * registers both axes (weight 100 to 800, width 75 to 125); `index.css` in the
- * same package would register weight only. Plex Sans above stays until P20B
- * moves the back office.
+ * same package would register weight only. IBM Plex Sans was removed in P20B.
  */
 import '@fontsource-variable/anek-latin/standard.css';
 import '@fontsource-variable/anek-gujarati/standard.css';

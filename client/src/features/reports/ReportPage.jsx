@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
+import BalanceSeal, { FilterSentence } from '../../components/ui/BalanceSeal.jsx';
+import Money from '../../components/ui/Money.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import NotFoundPage from '../../components/NotFoundPage.jsx';
 import { StatTile } from '../../components/charts/StatTile.jsx';
@@ -10,7 +12,7 @@ import { listPaymentMethods } from '../../api/paymentMethods.js';
 import { downloadReport, getReport } from '../../api/reportsV2.js';
 import { listStations } from '../../api/stations.js';
 import { businessDateToday } from '../../utils/formatDate.js';
-import { formatPaise } from '../../utils/formatMoney.js';
+
 import { DISCOUNT_REASONS } from '../billing/discountReasons.js';
 import { errorMessage } from '../billing/errorCopy.js';
 import { REPORTS_BY_NAME } from './catalog.js';
@@ -18,7 +20,7 @@ import { PRESETS, presetOf, presetRange, rememberedRange, rememberRange } from '
 import { LABELS } from './labels.js';
 import ReportChart from './ReportCharts.jsx';
 import ReportTable from './ReportTable.jsx';
-import { CheckStrip, OpenDaysBanner } from './v2/reportCells.jsx';
+import { OpenDaysBanner } from './v2/reportCells.jsx';
 
 const DATE_KEYS = ['from', 'to', 'date', 'asOf'];
 const ORDER_TYPES = [
@@ -112,18 +114,18 @@ function ReportScreen({ report }) {
     : [];
 
   return (
-    <main className="min-h-full bg-paper px-4 py-6 lg:px-6">
+    <main className="min-h-full bg-ground px-4 py-6 lg:px-6">
       <div className="mx-auto flex max-w-6xl flex-col gap-4">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[12px] font-medium text-steel print:hidden">
+            <p className="type-label text-muted print:hidden">
               <Link to="/reports" className="hover:underline">
                 Reports
               </Link>{' '}
               › {report.id}
             </p>
-            <h1 className="text-[24px] font-semibold leading-8 tracking-[-0.015em]">{report.title}</h1>
-            <p className="text-[13px] leading-[18px] text-steel print:hidden">{report.question}</p>
+            <h1 className="type-title ">{report.title}</h1>
+            <p className="type-caption text-muted print:hidden">{report.question}</p>
           </div>
           <div className="flex items-center gap-2 print:hidden">
             {!report.downloadOnly && (
@@ -131,7 +133,7 @@ function ReportScreen({ report }) {
                 type="button"
                 onClick={() => window.print()}
                 disabled={!envelope}
-                className="h-11 rounded-full bg-white px-4 text-[13px] font-medium shadow-card hover:bg-linen disabled:opacity-50"
+                className="min-h-12 rounded-lg bg-surface px-4 type-caption border border-line hover:bg-sunken disabled:opacity-50"
               >
                 Print
               </button>
@@ -141,8 +143,8 @@ function ReportScreen({ report }) {
               onClick={download}
               disabled={downloading}
               className={[
-                'h-11 rounded-full px-4 text-[13px] font-semibold shadow-card disabled:opacity-50',
-                report.downloadOnly ? 'bg-chana text-ink' : 'bg-white hover:bg-linen',
+                'min-h-12 rounded-lg px-4 type-caption border border-line disabled:opacity-50',
+                report.downloadOnly ? 'bg-accent text-on-accent' : 'bg-surface hover:bg-sunken',
               ].join(' ')}
             >
               {downloading ? 'Preparing…' : report.downloadOnly ? 'Download for Tally' : 'Excel'}
@@ -150,13 +152,24 @@ function ReportScreen({ report }) {
           </div>
         </header>
 
+        {envelope && (
+          <>
+            <BalanceSeal
+              checks={envelope.checks}
+              scope={envelope.filterSentence ? `for ${envelope.filterSentence.split('. ')[0].replace(/\.$/, '')}` : null}
+              renderRefs={(check) => <CheckRefs check={check} query={query} />}
+            />
+            <FilterSentence>{envelope.filterSentence}</FilterSentence>
+          </>
+        )}
+
         {report.dateMode !== 'none' && (
-          <section className="rounded-2xl bg-white p-3 shadow-card print:hidden">
+          <section className="rounded-[10px] bg-surface p-3 border border-line print:hidden">
             <button
               type="button"
               onClick={() => setFiltersOpen((open) => !open)}
               aria-expanded={filtersOpen}
-              className="flex h-11 w-full items-center justify-between rounded-xl bg-linen px-4 text-[13px] font-semibold sm:hidden"
+              className="flex min-h-12 w-full items-center justify-between rounded-lg bg-sunken px-4 type-caption sm:hidden"
             >
               Filters <span aria-hidden>{filtersOpen ? '▴' : '▾'}</span>
             </button>
@@ -167,10 +180,10 @@ function ReportScreen({ report }) {
           </section>
         )}
 
-        {downloadError && <p className="text-[13px] text-mirch">{downloadError}</p>}
+        {downloadError && <p className="type-caption text-alert">{downloadError}</p>}
 
         {report.downloadOnly && (
-          <p className="rounded-2xl bg-white p-4 text-[14px] leading-5 shadow-card">
+          <p className="rounded-[10px] bg-surface p-4 type-label border border-line">
             The Tally file for the dates above. It is built only when every check passes; if one fails, the download
             names it.
           </p>
@@ -186,19 +199,17 @@ function ReportScreen({ report }) {
 
         {envelope && (
           <>
-            <p className="rounded-xl bg-linen px-3 py-2 text-[13px] leading-[18px]">{envelope.filterSentence}</p>
             <OpenDaysBanner openDays={envelope.openDays} />
-            <CheckStrip checks={envelope.checks} renderRefs={(check) => <CheckRefs check={check} query={query} />} />
 
             {envelope.headline?.wastedValueInPaise !== undefined && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <StatTile label={LABELS.WASTED_VALUE} value={formatPaise(envelope.headline.wastedValueInPaise)} />
+                <StatTile label={LABELS.WASTED_VALUE} value={<Money paise={envelope.headline.wastedValueInPaise} />} />
               </div>
             )}
 
             {sections.map((section) => (
-              <section key={section.key ?? 'main'} className="report-section rounded-2xl bg-white p-4 shadow-card">
-                {section.title && <h2 className="mb-3 text-[16px] font-semibold leading-6">{section.title}</h2>}
+              <section key={section.key ?? 'main'} className="report-section rounded-[10px] bg-surface p-4 border border-line">
+                {section.title && <h2 className="mb-3 type-heading">{section.title}</h2>}
                 <div className="mb-4 empty:mb-0">
                   <ReportChart reportId={envelope.report} section={section} />
                 </div>
@@ -209,8 +220,8 @@ function ReportScreen({ report }) {
             ))}
 
             {envelope.previous && (
-              <section className="report-section rounded-2xl bg-white p-4 shadow-card">
-                <h2 className="mb-3 text-[16px] font-semibold leading-6">
+              <section className="report-section rounded-[10px] bg-surface p-4 border border-line">
+                <h2 className="mb-3 type-heading">
                   Previous period, {envelope.previous.filter.from} to {envelope.previous.filter.to}
                 </h2>
                 <ReportTable columns={envelope.columns} rows={envelope.previous.rows} totals={envelope.previous.totals} />
@@ -229,8 +240,8 @@ function ReportScreen({ report }) {
 
 /** One date, a range with presets, or R17's "as of" date and statement range. */
 function DateControls({ report, query, today, setQuery }) {
-  const field = 'h-11 rounded-full bg-linen px-4 font-mono text-[13px] focus:outline-none focus:ring-2 focus:ring-chana';
-  const labelText = 'flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-steel';
+  const field = 'min-h-12 rounded-lg bg-sunken px-4 type-num-meta ';
+  const labelText = 'flex items-center gap-2 type-label text-muted';
 
   if (report.dateMode === 'date') {
     return (
@@ -305,9 +316,9 @@ function PresetButton({ active, onClick, children }) {
       onClick={onClick}
       aria-pressed={active}
       className={[
-        'h-9 rounded-full px-3.5 text-[12px] font-medium transition-colors',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-        active ? 'bg-ink text-white' : 'bg-linen-2 text-steel hover:text-ink',
+        'h-9 rounded-lg px-3.5 type-caption transition-colors',
+        '',
+        active ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-sunken text-muted hover:text-ink',
       ].join(' ')}
     >
       {children}
@@ -325,8 +336,8 @@ function FilterControls({ report, query, setQuery }) {
   const [category, setCategory] = useState(query.categoryName ?? '');
 
   if (filters.length === 0) return null;
-  const select = 'h-11 rounded-full bg-linen px-4 text-[13px] focus:outline-none focus:ring-2 focus:ring-chana';
-  const labelText = 'flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-steel';
+  const select = 'min-h-12 rounded-lg bg-sunken px-4 type-caption ';
+  const labelText = 'flex items-center gap-2 type-label text-muted';
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -344,7 +355,7 @@ function FilterControls({ report, query, setQuery }) {
         </label>
       )}
       {needs('compare') && (
-        <label className="flex h-11 items-center gap-2 rounded-full bg-linen px-4 text-[12px] font-medium">
+        <label className="flex min-h-12 items-center gap-2 rounded-lg bg-sunken px-4 type-caption">
           <input
             type="checkbox"
             checked={query.compare === 'previous'}
@@ -385,7 +396,7 @@ function FilterControls({ report, query, setQuery }) {
             placeholder="All, or one category's items"
             className={`${select} w-56`}
           />
-          <button type="submit" className="h-11 rounded-full bg-linen-3 px-3 text-[12px] font-semibold normal-case tracking-normal text-ink">
+          <button type="submit" className="min-h-12 rounded-lg bg-sunken px-3 type-caption normal-case text-ink">
             Show
           </button>
         </form>
@@ -467,13 +478,13 @@ function Pager({ meta, onPage }) {
   const pages = Math.max(1, Math.ceil(meta.total / meta.limit));
   return (
     <nav className="flex items-center justify-end gap-2 print:hidden" aria-label="Pages">
-      <span className="text-[12px] text-steel">
+      <span className="type-caption text-muted">
         Page <span className="font-mono">{meta.page}</span> of <span className="font-mono">{pages}</span>
       </span>
-      <button type="button" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)} className="h-9 rounded-lg bg-linen-2 px-3 text-[13px] disabled:opacity-40">
+      <button type="button" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)} className="h-9 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
         Previous
       </button>
-      <button type="button" disabled={meta.page >= pages} onClick={() => onPage(meta.page + 1)} className="h-9 rounded-lg bg-linen-2 px-3 text-[13px] disabled:opacity-40">
+      <button type="button" disabled={meta.page >= pages} onClick={() => onPage(meta.page + 1)} className="h-9 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
         Next
       </button>
     </nav>
@@ -484,15 +495,15 @@ function ReportError({ report, error, onRetry }) {
   if (error?.status === 403 && error?.code !== 'FEATURE_DISABLED') {
     const who = report.roles.length === 1 ? 'an owner' : 'an owner or a manager';
     return (
-      <p className="rounded-2xl bg-white p-4 text-[14px] shadow-card">
+      <p className="rounded-[10px] bg-surface p-4 type-label border border-line">
         Your role cannot open this report. It is for {who}.
       </p>
     );
   }
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-card">
-      <p className="text-[14px] text-mirch">{errorMessage(error)}</p>
-      <button type="button" onClick={onRetry} className="mt-3 h-11 rounded-full bg-linen-2 px-4 text-[13px] font-semibold">
+    <div className="rounded-[10px] bg-surface p-4 border border-line">
+      <p className="type-label text-alert">{errorMessage(error)}</p>
+      <button type="button" onClick={onRetry} className="mt-3 min-h-12 rounded-lg bg-sunken px-4 type-caption">
         Try again
       </button>
     </div>

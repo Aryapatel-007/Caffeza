@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import AvailabilityStamp from '../../components/ui/AvailabilityStamp.jsx';
+import StateChip from '../../components/ui/StateChip.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import * as attendanceApi from '../../api/attendance.js';
 import { listUsers } from '../../api/users.js';
@@ -130,7 +130,7 @@ export default function ClockScreen() {
 
   if (mode === 'pin' && selected) {
     return (
-      <main className="flex min-h-full flex-col justify-center bg-paper px-4 py-10">
+      <main className="flex min-h-full flex-col justify-center bg-ground px-4 py-10">
         <PinPad
           personName={selected.name}
           onSubmit={onSubmitPin}
@@ -146,8 +146,8 @@ export default function ClockScreen() {
     rosterQuery.error?.status === 403 || openQuery.error?.status === 403;
 
   return (
-    <main className="flex min-h-full flex-col bg-paper">
-      <header className="flex items-center justify-between border-b border-black/5 px-5 py-4">
+    <main className="flex min-h-full flex-col bg-ground">
+      <header className="flex items-center justify-between border-b border-line px-5 py-4">
         <h1>
           <Bilingual k="clockTitle" size="lg" />
         </h1>
@@ -162,11 +162,11 @@ export default function ClockScreen() {
         )}
 
         {managerNeeded && (
-          <div className="mx-auto max-w-md rounded-xl border border-black/5 shadow-card bg-white p-6 text-center">
-            <p className="text-[15px] leading-[22px] text-ink">
+          <div className="mx-auto max-w-md rounded-lg border border-line bg-surface p-6 text-center">
+            <p className="type-body text-ink">
               This tablet needs to be signed in as an owner or manager to show the staff list.
             </p>
-            <p lang="hi" className="mt-2 text-[13px] text-steel">
+            <p lang="hi" className="mt-2 type-caption text-muted">
               यह टैबलेट मालिक या मैनेजर से साइन-इन होना चाहिए।
             </p>
           </div>
@@ -184,27 +184,23 @@ export default function ClockScreen() {
                     key={person.id}
                     type="button"
                     onClick={() => onPickName(person)}
-                    className="flex min-h-[112px] flex-col items-start justify-between gap-3 rounded-xl border border-black/5 shadow-card bg-white p-4 text-left active:translate-y-0.5 transition-transform duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    className="flex min-h-[112px] flex-col items-start justify-between gap-3 rounded-lg border border-line bg-surface p-4 text-left "
                   >
                     <div className="flex w-full items-center gap-3">
                       <span
                         aria-hidden="true"
-                        className="flex h-11 w-11 flex-none items-center justify-center rounded-full border border-black/5 shadow-card font-mono text-lg font-semibold text-ink"
+                        className="flex min-h-12 w-11 flex-none items-center justify-center rounded-full border border-line font-mono text-lg font-semibold text-ink"
                       >
                         {initialsOf(person.name)}
                       </span>
-                      <span className="text-[15px] font-medium leading-[20px] text-ink">
+                      <span className="type-body text-ink">
                         {person.name}
                       </span>
                     </div>
                     <div className="flex w-full items-center justify-between">
-                      <AvailabilityStamp
-                        kind="clock"
-                        state={isIn ? 'available' : 'out_of_stock'}
-                        size="sm"
-                      />
+                      <StateChip state={isIn ? 'ok' : 'free'} word={isIn ? LABELS.stateIn : LABELS.stateOut} size="sm" />
                       {isIn && (
-                        <span className="font-mono text-xs text-steel">
+                        <span className="font-mono text-xs text-muted">
                           {LABELS.clockSince} {formatTimeIst(open.clockInAt)}
                         </span>
                       )}
@@ -217,7 +213,7 @@ export default function ClockScreen() {
         )}
 
         {!managerNeeded && !rosterQuery.isLoading && roster.length === 0 && (
-          <p className="text-[15px] text-steel">No active staff to show yet.</p>
+          <p className="type-body text-muted">No active staff to show yet.</p>
         )}
       </div>
     </main>

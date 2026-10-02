@@ -29,9 +29,9 @@ export default function PinPad({ personName, onSubmit, onBack, busy = false, err
   };
 
   const keyBase =
-    'flex min-h-[72px] items-center justify-center rounded-xl border border-black/5 shadow-card bg-white font-mono text-2xl font-medium text-ink ' +
-    'active:translate-y-0.5 transition-transform duration-100 ' +
-    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40';
+    'flex min-h-[72px] items-center justify-center rounded-lg border border-line bg-surface font-mono text-2xl font-medium text-ink ' +
+    ' ' +
+    ' disabled:opacity-40';
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col gap-6">
@@ -39,30 +39,30 @@ export default function PinPad({ personName, onSubmit, onBack, busy = false, err
         <button
           type="button"
           onClick={onBack}
-          className="min-h-[48px] rounded-lg border border-steel/60 px-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="min-h-12 rounded-lg border border-muted px-4 "
         >
           <Bilingual k="back" size="sm" />
         </button>
-        <span className="text-[15px] font-semibold text-ink">{personName}</span>
+        <span className="type-body font-semibold font-semibold text-ink">{personName}</span>
       </div>
 
       <div className="flex flex-col items-center gap-2">
         <Bilingual k="clockEnterPin" size="md" align="center" />
         <div
           aria-live="polite"
-          className="flex h-12 items-center gap-3 font-mono text-3xl tracking-[0.3em] text-ink"
+          className="flex min-h-12 items-center gap-3 font-mono text-3xl text-ink"
         >
           {Array.from({ length: MAX }).map((_, index) => (
             <span
               key={index}
               className={`inline-block h-3 w-3 rounded-full ${
-                index < pin.length ? 'bg-ink' : 'bg-steel/30'
-              }`}
+ index < pin.length ? 'bg-ink' : 'bg-line'
+ }`}
             />
           ))}
         </div>
         {errorLabel && (
-          <p className="flex justify-center text-mirch">
+          <p className="flex justify-center text-alert">
             <Bilingual k={errorLabel} align="center" />
           </p>
         )}
@@ -95,9 +95,9 @@ export default function PinPad({ personName, onSubmit, onBack, busy = false, err
           onClick={submit}
           disabled={pin.length < MIN || busy}
           className={
-            'flex min-h-[72px] items-center justify-center rounded-xl border border-black/5 shadow-card bg-chana text-3xl text-ink ' +
-            'active:translate-y-0.5 transition-transform duration-100 ' +
-            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40'
+            'flex min-h-[72px] items-center justify-center rounded-lg bg-accent text-3xl text-on-accent ' +
+            ' ' +
+            ' disabled:opacity-40'
           }
         >
           <span aria-hidden="true">✓</span>

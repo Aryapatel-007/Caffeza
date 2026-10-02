@@ -15,6 +15,7 @@ import RecipeEditorPage from './features/inventory/RecipeEditorPage.jsx';
 import StockListPage from './features/inventory/StockListPage.jsx';
 import LabourReportPage from './features/reports/LabourPage.jsx';
 import StockReportPage from './features/reports/StockPage.jsx';
+import AppearancePage from './features/settings/AppearancePage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
 import AccountsPage from './features/settlement/AccountsPage.jsx';
 import PayoutsPage from './features/settlement/PayoutsPage.jsx';
@@ -493,6 +494,18 @@ export default function App() {
           <ProtectedRoute>
             <RequireRole roles={SETTINGS_ROLES}>
               <SettingsPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P20B. The look, owner only; the server's settings rule enforces it. */}
+      <Route
+        path="/settings/appearance"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={SETTINGS_ROLES}>
+              <AppearancePage />
             </RequireRole>
           </ProtectedRoute>
         }

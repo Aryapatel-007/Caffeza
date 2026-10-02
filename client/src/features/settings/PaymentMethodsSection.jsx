@@ -70,7 +70,7 @@ function toDraft(method) {
 function OrderTypeChoices({ value, onChange }) {
   return (
     <fieldset className="flex flex-wrap gap-2">
-      <legend className="mb-1 text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
+      <legend className="mb-1 type-label text-muted">
         Order types
       </legend>
       {ORDER_TYPES.map((type) => {
@@ -84,8 +84,8 @@ function OrderTypeChoices({ value, onChange }) {
               onChange(on ? value.filter((entry) => entry !== type.value) : [...value, type.value])
             }
             className={[
-              'min-h-11 rounded-xl border-2 px-3 text-[13px] font-medium',
-              on ? 'border-ink bg-chana/20' : 'border-steel/40 text-steel',
+              'min-h-11 rounded-lg border-2 px-3 type-caption',
+              on ? 'border-ink bg-sunken' : 'border-muted text-muted',
             ].join(' ')}
           >
             {type.label}
@@ -118,10 +118,10 @@ function MethodEditor({ method, onSaved, onError }) {
   });
 
   return (
-    <li className="grid gap-3 border-b border-black/10 py-4">
+    <li className="grid gap-3 border-b border-line py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="font-mono text-[13px] leading-[18px]">{method.code}</p>
-        <p className="text-[12px] uppercase leading-4 tracking-[0.06em] text-steel">
+        <p className="font-mono type-caption">{method.code}</p>
+        <p className="type-caption text-muted">
           {KIND_LABELS[method.kind]}
         </p>
       </div>
@@ -165,9 +165,9 @@ function MethodEditor({ method, onSaved, onError }) {
           type="checkbox"
           checked={draft.isActive}
           onChange={(e) => set('isActive')(e.target.checked)}
-          className="h-5 w-5 rounded border border-black/5 shadow-card text-chana focus:ring-2 focus:ring-chana"
+          className="h-5 w-5 rounded border border-line text-open focus:ring-2 focus:ring-accent"
         />
-        <span className="text-[15px] leading-5">In use at the till</span>
+        <span className="type-body">In use at the till</span>
       </label>
       <div>
         <Button type="button" onClick={() => save.mutate()} isLoading={save.isPending}>
@@ -205,8 +205,8 @@ function NewMethodForm({ onSaved, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
-      <p className="text-[15px] font-semibold leading-6">Add a payment method</p>
+    <div className="grid gap-3 rounded-lg border border-line p-3">
+      <p className="type-body font-semibold font-semibold">Add a payment method</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Input
           label="Code"
@@ -287,8 +287,8 @@ export default function PaymentMethodsSection({ onToast }) {
   };
   const fail = (error) => onToast({ tone: 'error', message: errorMessage(error) });
 
-  if (query.isPending) return <p className="text-[13px] text-steel">Loading payment methods…</p>;
-  if (query.isError) return <p className="text-[13px] text-mirch">{errorMessage(query.error)}</p>;
+  if (query.isPending) return <p className="type-caption text-muted">Loading payment methods…</p>;
+  if (query.isError) return <p className="type-caption text-alert">{errorMessage(query.error)}</p>;
 
   return (
     <div className="grid gap-4">

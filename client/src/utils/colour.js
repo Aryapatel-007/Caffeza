@@ -1,6 +1,6 @@
 /**
  * Colour arithmetic for the restaurant's accent. P20A.
- * docs/DESIGN-SYSTEM-V2.md sections 4c and 13.
+ * docs/DESIGN-SYSTEM.md sections 4c and 13.
  *
  * MIRROR of server/utils/colour.js, used only to preview and explain on the
  * settings screen before saving. The server validates and computes; this file
@@ -30,6 +30,9 @@ export const ACCENT_PRESETS = Object.freeze({
   ESPRESSO: '#55473F',
   GRAPHITE: '#343B41',
 });
+
+/** The example shown in the custom colour field. It passes every rule. */
+export const EXAMPLE_ACCENT = '#2D5DA8';
 
 export const MIN_TEXT_CONTRAST = 4.5;
 export const MIN_GROUND_CONTRAST = 3;
@@ -146,7 +149,7 @@ const PRESET_WORDS = { OCEAN: 'Ocean', INDIGO: 'Indigo', PLUM: 'Plum', OLIVE: 'O
 const STATE_WORDS = { open: 'Open', served: 'Served', bill: 'Bill printed', alert: 'Late', ok: 'Paid' };
 
 /**
- * Checks an owner's accent against the four rules in DESIGN-SYSTEM-V2 4c.
+ * Checks an owner's accent against the four rules in DESIGN-SYSTEM 4c.
  * Returns { ok: true } or { ok: false, rule, message, nearestPreset }.
  */
 export function checkAccent(hex) {

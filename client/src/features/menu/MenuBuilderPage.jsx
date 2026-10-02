@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 
 import * as menuApi from '../../api/menu.js';
 import { listStations } from '../../api/stations.js';
+import StateChip from '../../components/ui/StateChip.jsx';
 import Button from '../../components/ui/Button.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
@@ -144,18 +145,18 @@ export default function MenuBuilderPage() {
     toggleItemActive.isPending;
 
   return (
-    <main className="flex min-h-full flex-col bg-paper">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-black/5 px-5 py-4 sm:px-8">
+    <main className="flex min-h-full flex-col bg-ground">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 sm:px-8">
         <div className="flex items-baseline gap-3">
           <h1 className="text-xl font-semibold text-ink">Menu</h1>
-          <span className="font-mono text-xs text-steel">
+          <span className="font-mono text-xs text-muted">
             {categories.length} categor{categories.length === 1 ? 'y' : 'ies'}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <Link
             to="/menu/availability"
-            className="inline-flex min-h-[44px] items-center rounded-lg border border-steel/50 px-4 text-[13px] font-medium text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-12 items-center rounded-lg border border-muted px-4 type-caption text-ink "
           >
             Availability board
           </Link>
@@ -206,11 +207,11 @@ export default function MenuBuilderPage() {
             ) : (
               <>
                 <div className="flex items-center justify-between pb-1">
-                  <h2 className="text-xs font-medium tracking-[0.06em] text-steel">
-                    {activeCategory?.name?.toUpperCase()}
+                  <h2 className="text-xs font-medium text-muted">
+                    {activeCategory?.name}
                   </h2>
                   {activeCategory && !activeCategory.isActive && (
-                    <span className="font-mono text-xs text-mirch">TURNED OFF</span>
+                    <StateChip state="alert" word="Turned off" size="sm" />
                   )}
                 </div>
 
@@ -247,7 +248,7 @@ export default function MenuBuilderPage() {
                   <button
                     type="button"
                     onClick={() => setEditorState({ item: null })}
-                    className="min-h-[44px] py-4 text-[13px] font-medium text-steel underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    className="min-h-12 py-4 type-caption text-muted underline-offset-4 hover:underline "
                   >
                     +&nbsp;&nbsp;Add item
                   </button>

@@ -19,9 +19,9 @@ import { clockToMinutes, minutesToClock } from './timeOfDay.js';
  */
 function Section({ title, description, children }) {
   return (
-    <section className="border-t border-black/5 pt-5">
-      <h2 className="text-[17px] font-semibold leading-6">{title}</h2>
-      {description && <p className="mt-1 text-[13px] leading-[18px] text-steel">{description}</p>}
+    <section className="border-t border-line pt-5">
+      <h2 className="type-heading">{title}</h2>
+      {description && <p className="mt-1 type-caption text-muted">{description}</p>}
       <div className="mt-4 grid gap-4">{children}</div>
     </section>
   );
@@ -42,11 +42,11 @@ function Checkbox({ label, hint, checked, onChange, disabled }) {
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
         disabled={disabled}
-        className="mt-1 h-5 w-5 rounded border border-black/5 shadow-card text-chana focus:ring-2 focus:ring-chana disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-1 h-5 w-5 rounded border border-line text-open focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
       />
       <span>
-        <span className="text-[15px] leading-5">{label}</span>
-        {hint && <span className="block text-[13px] leading-[18px] text-steel">{hint}</span>}
+        <span className="type-body">{label}</span>
+        {hint && <span className="block type-caption text-muted">{hint}</span>}
       </span>
     </label>
   );
@@ -55,7 +55,7 @@ function Checkbox({ label, hint, checked, onChange, disabled }) {
 /** Said next to the two settings that are stored and not yet read by anything. */
 function NotYetWired() {
   return (
-    <p className="text-[13px] leading-[18px] text-steel">
+    <p className="type-caption text-muted">
       Saved now, and takes effect once billing is updated to read it.
     </p>
   );
@@ -144,7 +144,7 @@ export default function SettingsPage() {
 
   if (query.isLoading || !form) {
     return (
-      <main className="min-h-full bg-paper p-6">
+      <main className="min-h-full bg-ground p-6">
         <Spinner label="Loading settings" />
       </main>
     );
@@ -152,8 +152,8 @@ export default function SettingsPage() {
 
   if (query.isError) {
     return (
-      <main className="min-h-full bg-paper p-6">
-        <p className="text-[15px] text-mirch">{errorMessage(query.error)}</p>
+      <main className="min-h-full bg-ground p-6">
+        <p className="type-body text-alert">{errorMessage(query.error)}</p>
         <Button className="mt-4" onClick={() => query.refetch()}>
           Try again
         </Button>
@@ -178,11 +178,11 @@ export default function SettingsPage() {
   };
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="border-b border-black/5 px-4 py-3">
+    <main className="min-h-full bg-ground">
+      <header className="border-b border-line px-4 py-3">
         <div className="mx-auto max-w-2xl">
-          <h1 className="text-[20px] font-semibold leading-7">Settings</h1>
-          <p className="text-[13px] leading-[18px] text-steel">
+          <h1 className="type-heading">Settings</h1>
+          <p className="type-caption text-muted">
             How this restaurant is configured. Every change is recorded with who made it and why.
           </p>
         </div>
@@ -192,6 +192,12 @@ export default function SettingsPage() {
           warning when the series is being changed, so the last section's
           preview line is never hidden under it. */}
       <form onSubmit={submit} className="mx-auto grid max-w-2xl gap-6 px-4 py-6 pb-64">
+        <Section title="Appearance" description="The accent colour, the name in the top bar, the second language and the Today tiles, with a live preview.">
+          <Link to="/settings/appearance" className="type-button flex min-h-12 w-fit items-center rounded-lg border border-ink bg-surface px-4 hover:bg-sunken">
+            Open Appearance
+          </Link>
+        </Section>
+
         <Section
           title="Business day"
           description="When one day's takings stop and the next day's start. A restaurant that serves past midnight counts those sales under the day service began."
@@ -332,7 +338,7 @@ export default function SettingsPage() {
           title="Kitchen stations"
           description="Which counter cooks which dishes. Managed on its own page, so a manager can change it too."
         >
-          <Link to="/stations" className="text-[15px] font-medium underline underline-offset-4">
+          <Link to="/stations" className="type-body underline underline-offset-4">
             Open kitchen stations
           </Link>
         </Section>
@@ -372,9 +378,9 @@ export default function SettingsPage() {
                   value={choice.value}
                   checked={form.invoice.mode === choice.value}
                   onChange={() => set('invoice', 'mode')(choice.value)}
-                  className="h-5 w-5 border border-black/5 shadow-card text-chana focus:ring-2 focus:ring-chana"
+                  className="h-5 w-5 border border-line text-open focus:ring-2 focus:ring-accent"
                 />
-                <span className="text-[15px] leading-5">{choice.label}</span>
+                <span className="type-body">{choice.label}</span>
               </label>
             ))}
           </fieldset>
@@ -405,17 +411,17 @@ export default function SettingsPage() {
             </>
           )}
 
-          <p className="font-mono text-[13px] leading-[18px]">{invoicePreview(form, original)}</p>
+          <p className="font-mono type-caption">{invoicePreview(form, original)}</p>
         </Section>
 
         {/*
           The reason sits with the save button rather than at the top, because
           it is part of committing the change, not part of describing it.
         */}
-        <div className="fixed inset-x-0 bottom-0 border-t border-black/5 bg-paper px-4 py-3">
+        <div className="fixed inset-x-0 bottom-0 border-t border-line bg-ground px-4 py-3">
           <div className="mx-auto grid max-w-2xl gap-3">
             {patch.invoice && (
-              <p className="rounded-xl border-2 border-mirch px-3 py-2 text-[13px] leading-[18px] text-ink">
+              <p className="rounded-lg border-2 border-alert px-3 py-2 type-caption text-ink">
                 Invoice numbers are a legal record. Change this only before the first bill of a new
                 series, and only after your accountant agrees.
               </p>
@@ -434,7 +440,7 @@ export default function SettingsPage() {
             />
 
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] leading-[18px] text-steel">
+              <p className="type-caption text-muted">
                 {changedCount === 0
                   ? 'No changes yet.'
                   : `${changedCount} ${changedCount === 1 ? 'change' : 'changes'} to save.`}

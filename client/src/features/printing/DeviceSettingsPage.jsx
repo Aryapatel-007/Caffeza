@@ -6,7 +6,7 @@ const DENSITY_LABELS = { COMFORTABLE: 'Comfortable', COMPACT: 'Compact' };
 const LANGUAGE_LABELS = { NONE: 'None', GUJARATI: 'Gujarati', HINDI: 'Hindi' };
 
 /**
- * "This device". Every role. P05, extended in P20A with DESIGN-SYSTEM-V2
+ * "This device". Every role. P05, extended in P20A with DESIGN-SYSTEM
  * section 11b: theme, density, text size and the second language.
  *
  * The printer and the look are properties of the computer or tablet, not of

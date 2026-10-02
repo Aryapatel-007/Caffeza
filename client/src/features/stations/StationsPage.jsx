@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 
 import { createStation, listStations, updateStation } from '../../api/stations.js';
 import Button from '../../components/ui/Button.jsx';
@@ -59,29 +58,26 @@ export default function StationsPage() {
   const list = stations.data ?? [];
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="border-b border-black/5 px-4 py-3">
+    <main className="min-h-full bg-ground">
+      <header className="border-b border-line px-4 py-3">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-semibold leading-7">Kitchen stations</h1>
-            <p className="text-[13px] leading-[18px] text-steel">
+            <h1 className="type-title">Kitchen stations</h1>
+            <p className="type-caption text-muted">
               Each category&rsquo;s dishes go to its station. The first station takes anything not
               routed.
             </p>
           </div>
-          <Link to="/dashboard" className="flex h-11 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5">
-            Dashboard
-          </Link>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-2xl gap-4 px-4 py-6">
         {stations.isPending && <Spinner label="Loading stations" />}
 
-        <ul className="divide-y divide-steel/20 border-y border-black/10">
+        <ul className="divide-y divide-line border-y border-line">
           {list.map((station, index) => (
             <li key={station.id} className={['flex flex-wrap items-center gap-3 py-3', station.isActive ? '' : 'opacity-55'].join(' ')}>
-              <span className="w-6 font-mono text-[13px] text-steel">{index + 1}</span>
+              <span className="w-6 type-num-meta text-muted">{index + 1}</span>
               <input
                 aria-label={`Name of ${station.name}`}
                 defaultValue={station.name}
@@ -90,16 +86,37 @@ export default function StationsPage() {
                   const name = event.target.value.trim();
                   if (name && name !== station.name) update.mutate({ id: station.id, changes: { name } });
                 }}
-                className="h-11 min-w-0 flex-1 rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] focus:border-ink focus:outline-none"
+                className="min-h-12 min-w-0 flex-1 rounded-lg border border-muted bg-surface px-3 type-body"
               />
-              <label className="flex items-center gap-2 text-[13px]">
+              {/* P20A. The kitchen ticket's time edge turns Late at this many minutes. */}
+              <label className="flex items-center gap-2 type-caption">
+                Late after
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={5}
+                  max={120}
+                  step={1}
+                  aria-label={`Minutes before a ticket at ${station.name} is late`}
+                  defaultValue={station.targetMinutes ?? 15}
+                  onBlur={(event) => {
+                    const minutes = Number(event.target.value);
+                    if (Number.isInteger(minutes) && minutes !== station.targetMinutes) {
+                      update.mutate({ id: station.id, changes: { targetMinutes: minutes } });
+                    }
+                  }}
+                  className="type-num min-h-12 w-20 rounded-lg border border-muted bg-surface px-3"
+                />
+                min
+              </label>
+              <label className="flex items-center gap-2 type-caption">
                 <input
                   type="checkbox"
                   checked={station.printsTickets}
                   onChange={(event) =>
                     update.mutate({ id: station.id, changes: { printsTickets: event.target.checked } })
                   }
-                  className="h-5 w-5 rounded border border-black/5 shadow-card"
+                  className="size-5 accent-[var(--color-accent)]"
                 />
                 Prints tickets
               </label>

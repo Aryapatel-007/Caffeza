@@ -28,12 +28,12 @@ export default function SubItemListEditor({ title, entries, onChange, addLabel, 
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-xs font-medium tracking-[0.06em] text-steel">{title.toUpperCase()}</h3>
+      <h3 className="text-xs font-medium text-muted">{title}</h3>
 
       {entries.map((entry, index) => (
         <div
           key={entry.id ?? `new-${index}`}
-          className="flex flex-wrap items-end gap-2 rounded-lg border border-steel/50 p-2.5"
+          className="flex flex-wrap items-end gap-2 rounded-lg border border-muted p-2.5"
         >
           <Input
             className="min-w-0 flex-1"
@@ -53,7 +53,7 @@ export default function SubItemListEditor({ title, entries, onChange, addLabel, 
           <button
             type="button"
             onClick={() => remove(index)}
-            className="min-h-[44px] px-2 text-[13px] font-medium text-mirch underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
+            className="min-h-12 px-2 type-caption text-alert underline-offset-4 hover:underline "
           >
             Remove
           </button>
@@ -63,7 +63,7 @@ export default function SubItemListEditor({ title, entries, onChange, addLabel, 
       <button
         type="button"
         onClick={add}
-        className="self-start py-1 text-[13px] font-medium text-steel underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+        className="self-start py-1 type-caption text-muted underline-offset-4 hover:underline "
       >
         {addLabel}
       </button>

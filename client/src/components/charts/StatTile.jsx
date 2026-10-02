@@ -20,12 +20,10 @@
  */
 export function StatTile({ label, value, hint, className = '' }) {
   return (
-    <div className={`rounded-lg border border-line px-4 py-3 ${className}`}>
-      <p className="text-[12px] font-medium leading-4 text-muted">
-        {label}
-      </p>
-      <p className="mt-1 font-mono text-[24px] font-semibold leading-8 text-ink">{value}</p>
-      {hint && <p className="mt-0.5 text-[12px] leading-4 text-muted">{hint}</p>}
+    <div className={`rounded-[10px] border border-line bg-surface px-4 py-3 ${className}`}>
+      <p className="type-label text-muted">{label}</p>
+      <p className="type-num-hero mt-1 text-ink">{value}</p>
+      {hint && <p className="type-caption mt-0.5 text-muted">{hint}</p>}
     </div>
   );
 }
@@ -34,11 +32,9 @@ export function StatTile({ label, value, hint, className = '' }) {
 export function HeroFigure({ label, value, hint }) {
   return (
     <div>
-      <p className="text-[12px] font-medium leading-4 text-muted">
-        {label}
-      </p>
-      <p className="mt-1 font-mono text-[48px] font-semibold leading-none text-ink">{value}</p>
-      {hint && <p className="mt-2 text-[13px] leading-[18px] text-muted">{hint}</p>}
+      <p className="type-label text-muted">{label}</p>
+      <p className="type-num-hero mt-1 text-ink">{value}</p>
+      {hint && <p className="type-caption mt-2 text-muted">{hint}</p>}
     </div>
   );
 }

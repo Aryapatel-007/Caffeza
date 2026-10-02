@@ -3,7 +3,7 @@ import StateChip from './StateChip.jsx';
 import TimeEdge, { ElapsedTime, useElapsed } from './TimeEdge.jsx';
 
 /**
- * One kitchen ticket. DESIGN-SYSTEM-V2 sections 8b and 9.
+ * One kitchen ticket. DESIGN-SYSTEM sections 8b and 9.
  *
  *   ┌──────────────────┐
  *   │ KOT 412  T 14    │

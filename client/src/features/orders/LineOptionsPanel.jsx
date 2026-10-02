@@ -8,7 +8,7 @@ import StateChip from '../../components/ui/StateChip.jsx';
 /**
  * Choosing a size, extras, a quantity and a note before a line goes on.
  *
- * A sheet, not a modal. DESIGN-SYSTEM-V2 section 9: the
+ * A sheet, not a modal. DESIGN-SYSTEM section 9: the
  * waiter needs to keep seeing the order they are adding to while they pick.
  *
  * Nothing here sends a price. The panel shows prices so the waiter can read

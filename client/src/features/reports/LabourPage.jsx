@@ -38,7 +38,7 @@ export default function LabourPage() {
 
   return (
     <ReportShell title="Labour" range={range} onRangeChange={setRange}>
-      {query.isError && <p className="mb-6 text-[15px] text-mirch">{errorMessage(query.error)}</p>}
+      {query.isError && <p className="mb-6 type-body text-alert">{errorMessage(query.error)}</p>}
 
       {data && (
         <div className={query.isFetching ? 'opacity-60 transition-opacity' : 'transition-opacity'}>

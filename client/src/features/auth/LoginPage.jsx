@@ -52,26 +52,25 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-full flex-col bg-white lg:flex-row">
-      <section className="flex min-h-[260px] flex-col justify-between bg-ink p-8 text-paper lg:min-h-full lg:w-[55%] lg:p-14">
-        <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em]">
-          <span className="size-2 rounded-full bg-chana" aria-hidden="true" />
+    <main className="flex min-h-full flex-col bg-surface lg:flex-row">
+      <section className="flex min-h-[260px] flex-col justify-between bg-ink p-8 text-surface lg:min-h-full lg:w-[55%] lg:p-14">
+        <span className="type-caption inline-flex w-fit items-center gap-2 rounded-full border border-surface/40 px-3 py-1">
           Gandhinagar
         </span>
         <div>
-          <h1 className="text-[40px] font-semibold leading-[48px] tracking-tight">Caffeza</h1>
-          <p className="mt-2 max-w-md text-base leading-6 text-paper/75">
+          <h1 className="type-title">Caffeza</h1>
+          <p className="mt-2 max-w-md text-base leading-6 text-on-accent/75">
             Good coffee, smooth service.
           </p>
         </div>
       </section>
 
-      <section className="flex flex-1 items-center justify-center bg-white p-6 lg:p-14">
+      <section className="flex flex-1 items-center justify-center bg-surface p-6 lg:p-14">
         <div className="w-full max-w-md">
-          <h2 className="text-[28px] font-semibold leading-8 tracking-tight text-ink">
+          <h2 className="type-title text-ink">
             Welcome back
           </h2>
-          <p className="mt-1 text-sm text-steel">Sign in to start your shift.</p>
+          <p className="mt-1 text-sm text-muted">Sign in to start your shift.</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <Input
@@ -104,7 +103,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-steel">
+          <p className="mt-6 text-center text-xs text-muted">
             Accounts are created by your administrator. There is no self signup.
           </p>
         </div>

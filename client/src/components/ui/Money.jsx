@@ -1,5 +1,5 @@
 /**
- * Paise shown as rupees. DESIGN-SYSTEM-V2 section 9: the only place a
+ * Paise shown as rupees. DESIGN-SYSTEM section 9: the only place a
  * component formats money.
  *
  * Plex Mono, Indian grouping, two decimals, a minus sign and `alert` when
@@ -17,6 +17,26 @@ export function moneyText(paise, { symbol = true } = {}) {
   const sign = paise < 0 ? '-' : '';
   const rupees = GROUPING.format(Math.abs(paise) / 100);
   return symbol ? `${sign}₹${rupees}` : `${sign}${rupees}`;
+}
+
+/**
+ * A short rupee label for an axis tick, in Indian units.
+ *
+ * Lakh and crore rather than K and M, because this reads to a restaurant
+ * owner in Ahmedabad and "1.2L" is the form they already use. Rounded hard on
+ * purpose: an axis tick is orientation, not a figure anyone should quote. The
+ * exact number is in the tooltip and in the table view underneath.
+ */
+export function compactMoneyText(paise) {
+  if (!Number.isInteger(paise)) return '';
+  const rupees = paise / 100;
+  const sign = rupees < 0 ? '-' : '';
+  const value = Math.abs(rupees);
+
+  if (value >= 10_000_000) return `${sign}₹${(value / 10_000_000).toFixed(1)}Cr`;
+  if (value >= 100_000) return `${sign}₹${(value / 100_000).toFixed(1)}L`;
+  if (value >= 1_000) return `${sign}₹${(value / 1_000).toFixed(1)}K`;
+  return `${sign}₹${Math.round(value)}`;
 }
 
 const STYLES = {

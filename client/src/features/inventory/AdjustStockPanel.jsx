@@ -75,7 +75,7 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
   if (!type) {
     return (
       <Sheet title={ingredient.name} onCancel={onCancel}>
-        <p className="mb-4 text-[13px] leading-[18px] text-steel">
+        <p className="mb-4 type-caption text-muted">
           Currently{' '}
           <span className="font-mono text-ink">
             {hasPurchaseUnit
@@ -89,14 +89,14 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
               key={reason.type}
               type="button"
               onClick={() => setType(reason.type)}
-              className="flex min-h-[56px] items-center gap-3 rounded-xl border border-black/5 shadow-card bg-white px-4 text-left transition-transform duration-100 active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex min-h-14 items-center gap-3 rounded-lg border border-line bg-surface px-4 text-left "
             >
               <span aria-hidden="true" className="font-mono text-xl">
                 {reason.icon}
               </span>
               <span>
-                <span className="block text-[15px] font-semibold leading-5">{reason.label}</span>
-                <span className="block text-[12px] leading-4 text-steel">{reason.hint}</span>
+                <span className="block type-body font-semibold font-semibold">{reason.label}</span>
+                <span className="block type-caption text-muted">{reason.hint}</span>
               </span>
             </button>
           ))}
@@ -109,14 +109,14 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
   if (type === 'RECOUNT' && !recountDirection) {
     return (
       <Sheet title="Recount" onCancel={() => setType(null)}>
-        <p className="mb-4 text-[15px] leading-[22px]">
+        <p className="mb-4 type-body">
           Compared to what the system shows, the count found:
         </p>
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => setRecountDirection('MORE')}
-            className="flex min-h-[72px] flex-col items-center justify-center rounded-xl border border-black/5 shadow-card bg-white text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="flex min-h-[72px] flex-col items-center justify-center rounded-lg border border-line bg-surface type-body font-semibold font-semibold "
           >
             <span aria-hidden="true" className="font-mono text-2xl">
               +
@@ -126,7 +126,7 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
           <button
             type="button"
             onClick={() => setRecountDirection('LESS')}
-            className="flex min-h-[72px] flex-col items-center justify-center rounded-xl border border-black/5 shadow-card bg-white text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="flex min-h-[72px] flex-col items-center justify-center rounded-lg border border-line bg-surface type-body font-semibold font-semibold "
           >
             <span aria-hidden="true" className="font-mono text-2xl">
               −

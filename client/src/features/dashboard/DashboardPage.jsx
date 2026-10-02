@@ -7,8 +7,9 @@ import { getDashboard } from '../../api/reports.js';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { formatDateIst, formatTimeIst } from '../../utils/formatDate.js';
-import { formatPaise } from '../../utils/formatMoney.js';
+
 import UnclosedDayWarning from '../settlement/UnclosedDayWarning.jsx';
+import Money, { moneyText } from '../../components/ui/Money.jsx';
 
 /**
  * Home. Every figure here is read from the server, none is drawn for show: the
@@ -26,16 +27,16 @@ function greetingFor(now) {
 }
 
 function Card({ className = '', children }) {
-  return <div className={`rounded-2xl bg-white shadow-card ${className}`}>{children}</div>;
+  return <div className={`rounded-[10px] bg-surface border border-line ${className}`}>{children}</div>;
 }
 
 function Stat({ label, value, hint }) {
   return (
     <Card className="flex flex-col justify-between p-5">
-      <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-steel">{label}</span>
+      <span className="type-label text-muted">{label}</span>
       <div className="mt-4">
-        <span className="font-mono text-[28px] font-bold leading-9 tracking-tight">{value}</span>
-        {hint && <p className="mt-1 text-[13px] text-steel">{hint}</p>}
+        <span className="type-num-hero ">{value}</span>
+        {hint && <p className="mt-1 type-caption text-muted">{hint}</p>}
       </div>
     </Card>
   );
@@ -77,7 +78,7 @@ export default function DashboardPage() {
   ].filter((action) => action.show);
 
   return (
-    <main className="min-h-full bg-paper">
+    <main className="min-h-full bg-ground">
       {/* P10. Yesterday traded and was not closed. */}
       {isManager && <UnclosedDayWarning />}
 
@@ -85,16 +86,16 @@ export default function DashboardPage() {
         {profile.isError && <ErrorMessage error={profile.error} />}
 
         <Card className="p-6 lg:p-8">
-          <span className="inline-flex items-center gap-2 rounded-full bg-linen-2 px-3 py-1 text-[13px] text-steel">
-            <span className="size-1.5 rounded-full bg-patta" aria-hidden="true" />
+          <span className="inline-flex items-center gap-2 rounded-lg bg-sunken px-3 py-1 type-caption text-muted">
+            <span className="size-1.5 rounded-full bg-ok" aria-hidden="true" />
             {profile.data?.restaurant?.name ?? 'Caffeza'}
             {profile.data?.branch ? ` · ${profile.data.branch.name}` : ''}
           </span>
-          <h1 className="mt-3 text-[32px] font-semibold leading-10 tracking-tight">
+          <h1 className="mt-3 type-title ">
             {greetingFor(now)}
             {firstName ? `, ${firstName}` : ''}
           </h1>
-          <p className="mt-1 text-sm text-steel">
+          <p className="mt-1 text-sm text-muted">
             {formatDateIst(now)} · signed in as {role?.toLowerCase()}
           </p>
           {actions.length > 0 && (
@@ -104,8 +105,8 @@ export default function DashboardPage() {
                   key={action.to}
                   to={action.to}
                   className={[
-                    'flex h-14 items-center rounded-full px-8 text-base font-semibold shadow-card transition active:scale-[0.98]',
-                    index === 0 ? 'bg-chana text-ink hover:brightness-105' : 'bg-linen-2 hover:bg-linen-3',
+                    'type-button flex min-h-14 items-center rounded-lg px-6',
+                    index === 0 ? 'bg-accent text-on-accent hover:brightness-110' : 'border border-ink bg-surface hover:bg-sunken',
                   ].join(' ')}
                 >
                   {action.title}
@@ -120,17 +121,17 @@ export default function DashboardPage() {
             {today.isError && <ErrorMessage error={today.error} />}
             {data && (
               <>
-                <Stat label="Bill total today" value={formatPaise(data.sales.grossSalesInPaise)} hint={`Business day ${data.businessDate}`} />
-                <Stat label="Bills" value={data.sales.billCount} hint={`Average bill ${formatPaise(data.sales.averageBillInPaise)}`} />
+                <Stat label="Bill total today" value={<Money paise={data.sales.grossSalesInPaise} />} hint={`Business day ${data.businessDate}`} />
+                <Stat label="Bills" value={data.sales.billCount} hint={`Average bill ${moneyText(data.sales.averageBillInPaise)}`} />
                 <Stat
                   label="Open orders"
                   value={data.openOrders.count}
-                  hint={`${formatPaise(data.openOrders.runningValueInPaise)} on the floor`}
+                  hint={`${moneyText(data.openOrders.runningValueInPaise)} on the floor`}
                 />
                 <Stat
                   label="Unpaid bills"
                   value={data.unpaidBills.count}
-                  hint={data.unpaidBills.count > 0 ? `${formatPaise(data.unpaidBills.amountInPaise)} outstanding` : 'Everything settled'}
+                  hint={data.unpaidBills.count > 0 ? `${moneyText(data.unpaidBills.amountInPaise)} outstanding` : 'Everything settled'}
                 />
               </>
             )}
@@ -139,29 +140,28 @@ export default function DashboardPage() {
 
         <section className="grid gap-6 lg:grid-cols-12">
           <div className="flex flex-col gap-3 lg:col-span-5">
-            <h2 className="px-1 text-xl font-semibold">Quick actions</h2>
+            <h2 className="px-1 type-heading">Quick actions</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {actions.map((action) => (
                 <Link
                   key={action.to}
                   to={action.to}
                   className={[
-                    'flex min-h-[96px] flex-col justify-between rounded-2xl p-4 shadow-card transition active:scale-[0.98]',
-                    action.primary ? 'bg-chana text-ink' : 'bg-white hover:bg-linen',
+                    'flex min-h-24 flex-col justify-between rounded-[10px] border border-line bg-surface p-4 hover:bg-sunken',
                   ].join(' ')}
                 >
-                  <span className="text-base font-semibold">{action.title}</span>
-                  <span className={action.primary ? 'text-[13px] text-ink/75' : 'text-[13px] text-steel'}>{action.note}</span>
+                  <span className="type-heading">{action.title}</span>
+                  <span className="type-caption text-muted">{action.note}</span>
                 </Link>
               ))}
-              <Link to="/kitchen" className="flex min-h-[96px] flex-col justify-between rounded-2xl bg-white p-4 shadow-card transition hover:bg-linen active:scale-[0.98]">
-                <span className="text-base font-semibold">Kitchen</span>
-                <span className="text-[13px] text-steel">Tickets at the pass</span>
+              <Link to="/kitchen" className="flex min-h-24 flex-col justify-between rounded-[10px] border border-line bg-surface p-4 hover:bg-sunken">
+                <span className="type-heading">Kitchen</span>
+                <span className="type-caption text-muted">Tickets at the pass</span>
               </Link>
               {isManager && (
-                <Link to="/reports" className="flex min-h-[96px] flex-col justify-between rounded-2xl bg-white p-4 shadow-card transition hover:bg-linen active:scale-[0.98]">
-                  <span className="text-base font-semibold">Reports</span>
-                  <span className="text-[13px] text-steel">Sales, GST and payments</span>
+                <Link to="/reports" className="flex min-h-24 flex-col justify-between rounded-[10px] border border-line bg-surface p-4 hover:bg-sunken">
+                  <span className="type-heading">Reports</span>
+                  <span className="type-caption text-muted">Sales, GST and payments</span>
                 </Link>
               )}
             </div>
@@ -171,8 +171,8 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-3 lg:col-span-7">
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-semibold">Tables seated</h2>
-                  <span className="rounded-full bg-linen-2 px-2 py-0.5 font-mono text-[12px] text-steel">
+                  <h2 className="type-heading">Tables seated</h2>
+                  <span className="rounded-full bg-sunken px-2 py-0.5 type-num-meta text-muted">
                     {seated.length} of {tables.data?.length ?? 0}
                   </span>
                 </div>
@@ -180,31 +180,31 @@ export default function DashboardPage() {
                   Open the floor →
                 </Link>
               </div>
-              {tables.isPending && <p className="px-1 text-sm text-steel">Loading the floor…</p>}
+              {tables.isPending && <p className="px-1 text-sm text-muted">Loading the floor…</p>}
               {tables.isError && <ErrorMessage error={tables.error} />}
               {tables.data && seated.length === 0 && (
-                <Card className="p-6 text-center text-sm text-steel">No table has an open order.</Card>
+                <Card className="p-6 text-center text-sm text-muted">No table has an open order.</Card>
               )}
               <ul className="flex flex-col gap-2">
                 {seated.map((table) => (
                   <li key={table.id}>
                     <Link
                       to={`/orders/${table.occupancy.orderId}`}
-                      className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-card transition hover:bg-linen"
+                      className="flex items-center justify-between gap-3 rounded-[10px] bg-surface p-4 border border-line transition hover:bg-sunken"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="flex h-12 min-w-12 items-center justify-center whitespace-nowrap rounded-xl bg-linen-2 px-3 font-mono text-base font-semibold">
+                        <div className="flex min-h-12 min-w-12 items-center justify-center whitespace-nowrap rounded-lg bg-sunken px-3 font-mono text-base font-semibold">
                           {table.name}
                         </div>
                         <div className="leading-tight">
-                          <p className="font-mono text-sm text-steel">Order #{table.occupancy.orderNumber}</p>
+                          <p className="font-mono text-sm text-muted">Order #{table.occupancy.orderNumber}</p>
                           {table.occupancy.openedAt && (
-                            <p className="text-[13px] text-steel">Opened {formatTimeIst(table.occupancy.openedAt)}</p>
+                            <p className="type-caption text-muted">Opened {formatTimeIst(table.occupancy.openedAt)}</p>
                           )}
                         </div>
                       </div>
                       <span className="font-mono text-base font-bold">
-                        {formatPaise(table.occupancy.runningTotalInPaise ?? 0)}
+                        <Money paise={table.occupancy.runningTotalInPaise ?? 0} />
                       </span>
                     </Link>
                   </li>
@@ -217,22 +217,22 @@ export default function DashboardPage() {
         {isManager && data && (
           <section className="flex flex-col gap-3 pb-6">
             <div className="flex items-baseline justify-between px-1">
-              <h2 className="text-xl font-semibold">Top sellers today</h2>
+              <h2 className="type-heading">Top sellers today</h2>
               <Link to="/reports/sales" className="text-sm font-semibold hover:underline">
                 Sales report →
               </Link>
             </div>
             {data.topItems.length === 0 ? (
-              <Card className="p-6 text-center text-sm text-steel">Nothing sold yet today.</Card>
+              <Card className="p-6 text-center text-sm text-muted">Nothing sold yet today.</Card>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {data.topItems.slice(0, 4).map((item, index) => (
                   <Card key={item.itemName} className="flex flex-col justify-between p-5">
-                    <span className="font-mono text-[12px] text-steel">#{index + 1}</span>
+                    <span className="type-num-meta text-muted">#{index + 1}</span>
                     <h3 className="mt-2 text-base font-semibold leading-6">{item.itemName}</h3>
                     <div className="mt-4 flex items-center justify-between">
-                      <span className="font-mono text-base font-bold">{formatPaise(item.revenueInPaise)}</span>
-                      <span className="rounded-full bg-linen-2 px-2.5 py-1 font-mono text-[12px] text-steel">
+                      <span className="font-mono text-base font-bold"><Money paise={item.revenueInPaise} /></span>
+                      <span className="rounded-full bg-sunken px-2.5 py-1 type-num-meta text-muted">
                         {item.quantity} sold
                       </span>
                     </div>

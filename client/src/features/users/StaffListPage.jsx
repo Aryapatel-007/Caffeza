@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { listUsers, setUserStatus } from '../../api/users.js';
+import StateChip from '../../components/ui/StateChip.jsx';
 import Button from '../../components/ui/Button.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
@@ -84,12 +85,12 @@ export default function StaffListPage() {
   const lastPage = Math.max(1, Math.ceil(meta.total / meta.limit));
 
   return (
-    <main className="min-h-full bg-linen p-6">
+    <main className="min-h-full bg-sunken p-6">
       <div className="mx-auto w-full max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-ink">Staff</h1>
-            <p className="text-sm text-steel">
+            <p className="text-sm text-muted">
               {meta.total} {meta.total === 1 ? 'person' : 'people'}
             </p>
           </div>
@@ -131,9 +132,9 @@ export default function StaffListPage() {
           )}
 
           {!isLoading && !error && staff.length > 0 && (
-            <div className="overflow-x-auto rounded-lg bg-white ring-1 ring-black/10">
+            <div className="overflow-x-auto rounded-lg bg-surface ring-1 ring-line">
               <table className="w-full text-left text-sm">
-                <thead className="border-b border-black/10 text-steel">
+                <thead className="border-b border-line text-muted">
                   <tr>
                     <th className="px-4 py-3 font-medium">Name</th>
                     <th className="px-4 py-3 font-medium">Phone</th>
@@ -144,25 +145,18 @@ export default function StaffListPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {staff.map((member) => (
-                    <tr key={member.id} className={member.isActive ? '' : 'bg-linen text-steel'}>
+                    <tr key={member.id} className={member.isActive ? '' : 'bg-sunken text-muted'}>
                       <td className="px-4 py-3 font-medium text-ink">{member.name}</td>
                       <td className="px-4 py-3 tabular-nums">{member.phone}</td>
                       <td className="px-4 py-3">{ROLE_LABELS[member.role] ?? member.role}</td>
                       <td className="px-4 py-3">
-                        <span
-                          className={[
-                            'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                            member.isActive ? 'bg-green-100 text-green-800' : 'bg-slate-200 text-ink',
-                          ].join(' ')}
-                        >
-                          {member.isActive ? 'Active' : 'Deactivated'}
-                        </span>
+                        <StateChip state={member.isActive ? 'ok' : 'free'} word={member.isActive ? 'Active' : 'Deactivated'} size="sm" />
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
                           <Link
                             to={`/staff/${member.id}/edit`}
-                            className="rounded-lg px-2 py-1 text-sm font-medium text-brand-600 hover:bg-linen-2"
+                            className="rounded-lg px-2 py-1 text-sm font-medium text-accent hover:bg-sunken"
                           >
                             Edit
                           </Link>
@@ -192,7 +186,7 @@ export default function StaffListPage() {
               <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                 Previous
               </Button>
-              <span className="text-sm text-steel">
+              <span className="text-sm text-muted">
                 Page {meta.page} of {lastPage}
               </span>
               <Button size="sm" variant="secondary" disabled={page >= lastPage} onClick={() => setPage(page + 1)}>

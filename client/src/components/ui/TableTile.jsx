@@ -3,7 +3,7 @@ import StateChip from './StateChip.jsx';
 import TimeEdge, { ElapsedTime } from './TimeEdge.jsx';
 
 /**
- * One table on the floor. DESIGN-SYSTEM-V2 sections 7a and 9.
+ * One table on the floor. DESIGN-SYSTEM sections 7a and 9.
  *
  *   ┌─────────────────────┐
  *   │ T 14          ● Open│

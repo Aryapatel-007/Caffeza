@@ -26,11 +26,11 @@ export default function ReportsIndexPage() {
   ].filter((entry) => entry.show);
 
   return (
-    <main className="min-h-full bg-paper px-4 py-6 lg:px-6">
+    <main className="min-h-full bg-ground px-4 py-6 lg:px-6">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header>
-          <h1 className="text-[24px] font-semibold leading-8 tracking-[-0.015em]">Reports</h1>
-          <p className="text-[13px] leading-[18px] text-steel">
+          <h1 className="type-title ">Reports</h1>
+          <p className="type-caption text-muted">
             Every number adds up, and every number opens the bills behind it.
           </p>
         </header>
@@ -40,7 +40,7 @@ export default function ReportsIndexPage() {
           if (entries.length === 0) return null;
           return (
             <section key={group}>
-              <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-steel">{group}</h2>
+              <h2 className="mb-2 type-label text-muted">{group}</h2>
               <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {entries.map((report) => (
                   <li key={report.id}>
@@ -54,7 +54,7 @@ export default function ReportsIndexPage() {
 
         {others.length > 0 && (
           <section>
-            <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-steel">Other</h2>
+            <h2 className="mb-2 type-label text-muted">Other</h2>
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {others.map((entry) => (
                 <li key={entry.to}>
@@ -73,13 +73,13 @@ function ReportCard({ to, id, title, question }) {
   return (
     <Link
       to={to}
-      className="flex h-full flex-col gap-1 rounded-2xl bg-white p-4 shadow-card transition hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      className="flex h-full flex-col gap-1 rounded-[10px] bg-surface p-4 border border-line transition hover:bg-sunken "
     >
       <span className="flex items-center justify-between gap-2">
-        <span className="text-[16px] font-semibold leading-6">{title}</span>
-        {id && <span className="font-mono text-[11px] text-steel">{id}</span>}
+        <span className="type-body font-semibold font-semibold">{title}</span>
+        {id && <span className="type-num-meta text-muted">{id}</span>}
       </span>
-      <span className="text-[13px] leading-[18px] text-steel">{question}</span>
+      <span className="type-caption text-muted">{question}</span>
     </Link>
   );
 }

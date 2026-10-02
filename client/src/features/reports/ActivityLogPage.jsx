@@ -4,9 +4,10 @@ import { Link, useSearchParams } from 'react-router-dom';
 import Spinner from '../../components/ui/Spinner.jsx';
 import { listAudit } from '../../api/audit.js';
 import { businessDateToday, formatDateIst, formatTimeIst } from '../../utils/formatDate.js';
-import { formatPaise } from '../../utils/formatMoney.js';
+
 import { errorMessage } from '../billing/errorCopy.js';
 import { PRESETS, presetOf, presetRange } from './dateRanges.js';
+import Money from '../../components/ui/Money.jsx';
 
 /** What each audit action reads as. The codes are M8's; these are the words on screen. */
 const ACTION_WORDS = {
@@ -67,37 +68,37 @@ export default function ActivityLogPage() {
   const meta = result.data?.meta;
   const pages = meta ? Math.max(1, Math.ceil(meta.total / meta.limit)) : 1;
   const current = presetOf({ from: query.from, to: query.to });
-  const field = 'h-11 rounded-full bg-linen px-4 font-mono text-[13px] focus:outline-none focus:ring-2 focus:ring-chana';
+  const field = 'min-h-12 rounded-lg bg-sunken px-4 type-num-meta ';
 
   return (
-    <main className="min-h-full bg-paper px-4 py-6 lg:px-6">
+    <main className="min-h-full bg-ground px-4 py-6 lg:px-6">
       <div className="mx-auto flex max-w-6xl flex-col gap-4">
         <header>
-          <p className="text-[12px] font-medium text-steel">
+          <p className="type-label text-muted">
             <Link to="/reports" className="hover:underline">
               Reports
             </Link>{' '}
             › R18
           </p>
-          <h1 className="text-[24px] font-semibold leading-8 tracking-[-0.015em]">Activity Log</h1>
-          <p className="text-[13px] leading-[18px] text-steel">Who did something sensitive?</p>
+          <h1 className="type-title ">Activity Log</h1>
+          <p className="type-caption text-muted">Who did something sensitive?</p>
         </header>
 
-        <section className="flex flex-wrap items-center gap-2 rounded-2xl bg-white p-3 shadow-card">
+        <section className="flex flex-wrap items-center gap-2 rounded-[10px] bg-surface p-3 border border-line">
           {PRESETS.map((preset) => (
             <button
               key={preset.key}
               type="button"
               aria-pressed={current === preset.key}
               onClick={() => setQuery(presetRange(preset.key, today))}
-              className={['h-9 rounded-full px-3.5 text-[12px] font-medium', current === preset.key ? 'bg-ink text-white' : 'bg-linen-2 text-steel'].join(' ')}
+              className={['h-9 rounded-lg px-3.5 type-caption', current === preset.key ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-sunken text-muted'].join(' ')}
             >
               {preset.label}
             </button>
           ))}
           <input type="date" aria-label="From" value={query.from} max={today} onChange={(event) => setQuery({ from: event.target.value })} className={field} />
           <input type="date" aria-label="To" value={query.to} max={today} onChange={(event) => setQuery({ to: event.target.value })} className={field} />
-          <select value={query.action ?? ''} onChange={(event) => setQuery({ action: event.target.value })} className="h-11 rounded-full bg-linen px-4 text-[13px]" aria-label="Action">
+          <select value={query.action ?? ''} onChange={(event) => setQuery({ action: event.target.value })} className="min-h-12 rounded-lg bg-sunken px-4 type-caption" aria-label="Action">
             <option value="">Every action</option>
             {Object.entries(ACTION_WORDS).map(([code, words]) => (
               <option key={code} value={code}>
@@ -108,29 +109,29 @@ export default function ActivityLogPage() {
         </section>
 
         {result.isPending && <Spinner label="Reading the log" />}
-        {result.isError && <p className="rounded-2xl bg-white p-4 text-[14px] text-mirch shadow-card">{errorMessage(result.error)}</p>}
+        {result.isError && <p className="rounded-[10px] bg-surface p-4 type-label text-alert border border-line">{errorMessage(result.error)}</p>}
 
         {result.isSuccess && lines.length === 0 && (
-          <p className="rounded-2xl bg-white px-4 py-8 text-center text-[14px] text-steel shadow-card">Nothing recorded in this range.</p>
+          <p className="rounded-[10px] bg-surface px-4 py-8 text-center type-label text-muted border border-line">Nothing recorded in this range.</p>
         )}
 
         {lines.length > 0 && (
-          <ul className="divide-y divide-linen-3 rounded-2xl bg-white shadow-card">
+          <ul className="divide-y divide-linen-3 rounded-[10px] bg-surface border border-line">
             {lines.map((line) => (
               <li key={line.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-[14px] font-semibold">
+                  <p className="type-label">
                     {ACTION_WORDS[line.action] ?? line.action}
-                    {line.entityLabel && <span className="font-mono font-normal text-steel"> · {line.entityLabel}</span>}
+                    {line.entityLabel && <span className="font-mono font-normal text-muted"> · {line.entityLabel}</span>}
                   </p>
-                  <p className="text-[13px] leading-[18px]">{line.reason}</p>
-                  <p className="text-[12px] text-steel">
+                  <p className="type-caption">{line.reason}</p>
+                  <p className="type-caption text-muted">
                     {line.actorName ?? 'Unknown'}, {line.actorRole ?? 'role not recorded'}
                     {line.actorRoleIsCurrent && ' (role now)'} · {formatDateIst(line.at)} {formatTimeIst(line.at)}
                   </p>
                 </div>
                 {line.amountInPaise !== null && (
-                  <span className="font-mono text-[15px] font-bold">{formatPaise(line.amountInPaise)}</span>
+                  <span className="type-num"><Money paise={line.amountInPaise} /></span>
                 )}
               </li>
             ))}
@@ -139,13 +140,13 @@ export default function ActivityLogPage() {
 
         {meta && meta.total > meta.limit && (
           <nav className="flex items-center justify-end gap-2" aria-label="Pages">
-            <span className="text-[12px] text-steel">
+            <span className="type-caption text-muted">
               Page <span className="font-mono">{page}</span> of <span className="font-mono">{pages}</span>
             </span>
-            <button type="button" disabled={page <= 1} onClick={() => setQuery({ page: String(page - 1) })} className="h-9 rounded-lg bg-linen-2 px-3 text-[13px] disabled:opacity-40">
+            <button type="button" disabled={page <= 1} onClick={() => setQuery({ page: String(page - 1) })} className="h-9 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
               Previous
             </button>
-            <button type="button" disabled={page >= pages} onClick={() => setQuery({ page: String(page + 1) })} className="h-9 rounded-lg bg-linen-2 px-3 text-[13px] disabled:opacity-40">
+            <button type="button" disabled={page >= pages} onClick={() => setQuery({ page: String(page + 1) })} className="h-9 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
               Next
             </button>
           </nav>

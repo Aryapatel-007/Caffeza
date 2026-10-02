@@ -10,7 +10,7 @@ import EmptyState from './ui/EmptyState.jsx';
  */
 export default function NotFoundPage() {
   return (
-    <main className="flex min-h-full items-center justify-center bg-linen p-6">
+    <main className="flex min-h-full items-center justify-center bg-sunken p-6">
       <div className="w-full max-w-md">
         <EmptyState
           title="Page not found"
@@ -18,7 +18,7 @@ export default function NotFoundPage() {
           action={
             <Link
               to="/dashboard"
-              className="text-sm font-medium text-brand-600 underline-offset-4 hover:underline"
+              className="text-sm font-medium text-accent underline-offset-4 hover:underline"
             >
               Back to the dashboard
             </Link>

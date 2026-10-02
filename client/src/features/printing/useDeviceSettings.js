@@ -15,7 +15,7 @@ const STORAGE_KEY = 'caffeza.device';
 /** How many printed KOT ids to remember, so a refresh never prints twice. */
 export const PRINTED_KOT_MEMORY = 500;
 
-/** P20A, DESIGN-SYSTEM-V2 section 11b. */
+/** P20A, DESIGN-SYSTEM section 11b. */
 export const THEMES = Object.freeze(['AUTO', 'DAY', 'NIGHT']);
 export const DENSITIES = Object.freeze(['COMFORTABLE', 'COMPACT']);
 export const TEXT_SIZES = Object.freeze([100, 115, 130]);

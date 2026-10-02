@@ -1,6 +1,6 @@
 /**
  * The fixed words that may carry a second-language line. P20A,
- * DESIGN-SYSTEM-V2 section 5d. English here; Gujarati in `gu.js`, Hindi in
+ * DESIGN-SYSTEM section 5d. English here; Gujarati in `gu.js`, Hindi in
  * `hi.js`, keyed the same. Replaces version 1's two per-module copies, the
  * billing screen's Gujarati and the clock screen's Hindi.
  *
@@ -37,7 +37,7 @@ export const LABELS = Object.freeze({
   methodCard: 'Card',
   methodOther: 'Other',
 
-  // States, DESIGN-SYSTEM-V2 section 4b.
+  // States, DESIGN-SYSTEM section 4b.
   stateFree: 'Free',
   stateOpen: 'Open',
   stateServed: 'Served',

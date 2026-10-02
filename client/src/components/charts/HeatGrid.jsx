@@ -14,7 +14,7 @@ export default function HeatGrid({ rows, rowKey, buckets, formatValue, caption }
 
   return (
     <figure className="m-0 overflow-x-auto">
-      <table className="border-separate border-spacing-0.5 text-[11px]">
+      <table className="border-separate border-spacing-0.5 type-caption">
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
           <tr>

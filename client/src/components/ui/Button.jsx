@@ -1,5 +1,5 @@
 /**
- * The button. DESIGN-SYSTEM-V2 section 9.
+ * The button. DESIGN-SYSTEM section 9.
  *
  * Kinds: `primary` in the accent, the one primary action on a screen;
  * `secondary` with an `ink` border; `quiet`, text only; `danger` in `alert`.

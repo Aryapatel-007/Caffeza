@@ -17,7 +17,7 @@ export default function ReportTable({ columns, rows, totals, caption }) {
     const href = drillHref(row.drill?.[column.key]);
     if (!href || row[column.key] === null || row[column.key] === undefined) return content;
     return (
-      <Link to={href} className="underline decoration-steel/40 underline-offset-2 hover:decoration-ink">
+      <Link to={href} className="text-accent underline underline-offset-2">
         {content}
       </Link>
     );
