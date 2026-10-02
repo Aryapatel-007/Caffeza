@@ -22,16 +22,22 @@ import { useTheme } from '../../context/ThemeProvider.jsx';
  *     the logo contained in it on its plate, for the top of the rail.
  *
  * `ground` defaults to the theme: `light` by day, `dark` by night.
+ *
+ * `slot` shows exactly that slot's logo with no fallback and nothing at all
+ * when it is empty: the Appearance page's preview of each slot.
  */
-export default function BrandLogo({ shape = 'lockup', height = 40, ground, maxWidth, textClassName = 'type-heading', className = '' }) {
+export default function BrandLogo({ shape = 'lockup', height = 40, ground, slot, maxWidth, textClassName = 'type-heading', className = '' }) {
   const { theme, brand, name } = useTheme();
   const surface = ground ?? (theme === 'night' ? 'dark' : 'light');
 
   const forThis = surface === 'dark' ? brand.logos?.DARK_GROUND : brand.logos?.LIGHT_GROUND;
   const forOther = surface === 'dark' ? brand.logos?.LIGHT_GROUND : brand.logos?.DARK_GROUND;
-  const logo = forThis?.dataUrl ? forThis : forOther?.dataUrl ? forOther : null;
+  const logo = slot
+    ? (brand.logos?.[slot]?.dataUrl ? brand.logos[slot] : null)
+    : forThis?.dataUrl ? forThis : forOther?.dataUrl ? forOther : null;
 
   if (!logo) {
+    if (slot) return null;
     return <span className={`${textClassName} truncate ${className}`}>{name}</span>;
   }
 

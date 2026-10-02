@@ -24,6 +24,31 @@ import { useTheme } from '../../context/ThemeProvider.jsx';
  * Without one, the screen is as it was before P22, with the restaurant's name,
  * or the product's, in place of a hardcoded client's.
  */
+/**
+ * The brand panel: the logo centred on `brand`, or the name in `on-brand` when
+ * there is no logo. Exported so the Appearance page previews the real thing.
+ * `compact` draws the 180px band a phone shows, at any width.
+ */
+export function BrandPanel({ compact = false, className = '' }) {
+  const { name } = useTheme();
+  if (compact) {
+    return (
+      <section aria-label={name} className={`flex h-[180px] items-center justify-center bg-brand px-6 ${className}`}>
+        <BrandLogo ground="dark" height={120} maxWidth={240} textClassName="type-title text-on-brand" />
+      </section>
+    );
+  }
+  return (
+    <section
+      aria-label={name}
+      className={`flex h-[180px] flex-none items-center justify-center bg-brand px-6 min-[900px]:h-auto min-[900px]:min-h-full min-[900px]:w-2/5 ${className}`}
+    >
+      <BrandLogo ground="dark" height={120} maxWidth={240} textClassName="type-title text-on-brand" className="min-[900px]:hidden" />
+      <BrandLogo ground="dark" height={148} maxWidth={240} textClassName="type-title text-on-brand" className="hidden min-[900px]:flex" />
+    </section>
+  );
+}
+
 export default function LoginPage() {
   const { brand, name } = useTheme();
   const isBranded = Boolean(brand.brandHex && brand.onBrandHex);
@@ -116,13 +141,7 @@ export default function LoginPage() {
   if (isBranded) {
     return (
       <main className="flex min-h-full flex-col bg-ground min-[900px]:flex-row">
-        <section
-          aria-label={name}
-          className="flex h-[180px] flex-none items-center justify-center bg-brand px-6 min-[900px]:h-auto min-[900px]:min-h-full min-[900px]:w-2/5"
-        >
-          <BrandLogo ground="dark" height={120} maxWidth={240} textClassName="type-title text-on-brand" className="min-[900px]:hidden" />
-          <BrandLogo ground="dark" height={148} maxWidth={240} textClassName="type-title text-on-brand" className="hidden min-[900px]:flex" />
-        </section>
+        <BrandPanel />
 
         <section className="flex flex-1 items-start bg-ground px-4 py-8 min-[900px]:items-center min-[900px]:px-12">
           <div className="w-full max-w-[400px]">

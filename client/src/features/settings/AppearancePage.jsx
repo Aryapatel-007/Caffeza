@@ -13,7 +13,10 @@ import TicketCard from '../../components/ui/TicketCard.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { changedSettings, getSettings, updateSettings } from '../../api/settings.js';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { ACCENT_PRESETS, checkAccent, EXAMPLE_ACCENT, nightVariant } from '../../utils/colour.js';
+import { ACCENT_PRESETS, checkAccent, checkBrandPair, EXAMPLE_ACCENT, nightVariant } from '../../utils/colour.js';
+import BrandLogo from '../../components/ui/BrandLogo.jsx';
+import { BrandPanel } from '../auth/LoginPage.jsx';
+import { BrandColours, LogoSection, NeutralTone } from './AppearanceBrand.jsx';
 import gu from '../i18n/gu.js';
 import hi from '../i18n/hi.js';
 import { LABELS as WORDS } from '../i18n/labels.js';
@@ -55,12 +58,16 @@ function accentOf(appearance) {
 }
 
 /**
- * A subtree drawn in one theme and one accent, whatever the page around it is.
- * The tokens are CSS variables on any element with `data-theme`, so this is
- * the real components in the real theme, not pictures of them.
+ * A subtree drawn in one theme, one tone, one accent and one brand pair,
+ * whatever the page around it is. The tokens are CSS variables on any element
+ * with `data-theme` and `data-neutral`, so this is the real components in the
+ * real look, not pictures of them.
  */
-function Themed({ theme, neutral = 'COOL', accent, className = '', children }) {
-  const style = accent ? { '--accent': accent, '--accent-night': nightVariant(accent) } : undefined;
+function Themed({ theme, neutral = 'COOL', accent, brand, className = '', children }) {
+  const style = {
+    ...(accent ? { '--accent': accent, '--accent-night': nightVariant(accent) } : {}),
+    ...(brand?.brandHex && brand?.onBrandHex ? { '--brand': brand.brandHex, '--on-brand': brand.onBrandHex } : {}),
+  };
   return (
     <div data-theme={theme} data-neutral={neutral === 'WARM' ? 'warm' : 'cool'} style={style} className={`bg-ground text-ink ${className}`}>
       {children}
@@ -140,7 +147,9 @@ export default function AppearancePage() {
   const isCustom = form.accentPreset === 'CUSTOM';
   const verdict = isCustom ? checkAccent(hexDraft.trim().toUpperCase()) : { ok: true };
   const accent = accentOf(current);
-  const canSave = changedCount > 0 && reason.trim() && !save.isPending && (!isCustom || verdict.ok) && current.todayTiles.length > 0;
+  // P22. The brand pair is both or neither, and readable; the server checks again.
+  const brandOk = !form.brandHex && !form.onBrandHex ? true : Boolean(form.brandHex && form.onBrandHex && checkBrandPair(form.brandHex, form.onBrandHex).ok);
+  const canSave = changedCount > 0 && reason.trim() && !save.isPending && (!isCustom || verdict.ok) && brandOk && current.todayTiles.length > 0;
 
   const chooseCustomHex = (value) => {
     setHexDraft(value);
@@ -172,6 +181,8 @@ export default function AppearancePage() {
 
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_420px]">
           <div className="flex flex-col gap-6">
+            <LogoSection neutral={form.neutralTone} onDone={(message) => setToast({ tone: 'success', message })} />
+
             <section className="flex flex-col gap-3 rounded-[10px] border border-line bg-surface p-4">
               <h2 className="type-heading">Accent</h2>
               <p className="type-caption text-muted">The colour of the one main button on each screen, the focus ring and links. Nothing else.</p>
@@ -190,10 +201,10 @@ export default function AppearancePage() {
                   >
                     <span className="type-label">{PRESET_NAMES[name]}</span>
                     <span className="grid grid-cols-2 gap-1">
-                      <Themed theme="day" accent={value} className="rounded-md p-1.5">
+                      <Themed theme="day" neutral={form.neutralTone} accent={value} className="rounded-md p-2">
                         <span className="type-label flex min-h-8 items-center justify-center rounded-md bg-accent text-on-accent">Pay</span>
                       </Themed>
-                      <Themed theme="night" accent={value} className="rounded-md p-1.5">
+                      <Themed theme="night" neutral={form.neutralTone} accent={value} className="rounded-md p-2">
                         <span className="type-label flex min-h-8 items-center justify-center rounded-md bg-accent text-on-accent">Pay</span>
                       </Themed>
                     </span>
@@ -237,6 +248,10 @@ export default function AppearancePage() {
               )}
             </section>
 
+            <BrandColours form={form} set={set} />
+
+            <NeutralTone value={form.neutralTone} onChange={(value) => set('neutralTone', value)} />
+
             <section className="flex flex-col gap-3 rounded-[10px] border border-line bg-surface p-4">
               <h2 className="type-heading">Wordmark</h2>
               <Input
@@ -269,7 +284,7 @@ export default function AppearancePage() {
                     </button>
                   ))}
                 </div>
-                <Themed theme="day" accent={accent} className="rounded-lg p-2">
+                <Themed theme="day" neutral={form.neutralTone} accent={accent} className="rounded-lg p-2">
                   <span className="flex min-h-14 min-w-32 flex-col items-center justify-center rounded-lg bg-accent px-4 text-on-accent">
                     <span className="type-button">{WORDS.pay}</span>
                     {language.words && (
@@ -342,7 +357,7 @@ export default function AppearancePage() {
             </section>
           </div>
 
-          <Preview accent={accent} theme={previewTheme} onTheme={setPreviewTheme} />
+          <Preview accent={accent} neutral={form.neutralTone} brand={form} theme={previewTheme} onTheme={setPreviewTheme} />
         </div>
       </div>
 
@@ -354,7 +369,7 @@ export default function AppearancePage() {
 /** A fixed moment for the preview: tables open half an hour, a ticket twenty minutes old. */
 const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
 
-function Preview({ accent, theme, onTheme }) {
+function Preview({ accent, neutral, brand, theme, onTheme }) {
   return (
     <aside aria-label="Preview" className="flex flex-col gap-3 lg:sticky lg:top-4">
       <div className="flex items-center justify-between">
@@ -374,7 +389,14 @@ function Preview({ accent, theme, onTheme }) {
           ))}
         </div>
       </div>
-      <Themed theme={theme} accent={accent} className="pointer-events-none flex flex-col gap-3 rounded-[10px] border border-line p-3">
+      <Themed theme={theme} neutral={neutral} accent={accent} brand={brand} className="pointer-events-none flex flex-col gap-3 rounded-[10px] border border-line p-3">
+        <div className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4">
+          <BrandLogo height={40} />
+          <span className="type-caption text-muted">Owner</span>
+        </div>
+        <div className="overflow-hidden rounded-lg border border-line">
+          <BrandPanel compact />
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <TableTile name="T 1" floorState="FREE" compact />
           <TableTile name="T 2" floorState="OPEN" guestCount={2} amountInPaise={46200} openedAt={minutesAgo(34)} targetMinutes={90} compact />
