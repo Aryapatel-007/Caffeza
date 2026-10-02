@@ -85,7 +85,8 @@ Each prompt names its model at the top.
 | P17 | Audit trail and control reports | M8, M19 | P14 | Part A Rishi, Part B Arya | Opus, high |
 | P18 | Report screens and Today | M19 | P15, P16, P17 | Arya | Opus, high |
 | P19 | Floor plan | M20 | P05 | Arya | Opus, high |
-| P20 | Look, themes and customisation | M20 | P18, P19, and `docs/DESIGN-SYSTEM-V2.md` | Arya | Opus, high |
+| P20A | New look, part 1: foundation and service screens | M20 | P19, and `docs/DESIGN-SYSTEM.md` | Arya | Opus, high |
+| P20B | New look, part 2: back office and customisation | M20 | P20A | Arya | Opus, high |
 | P21 | Golden day, end to end | M19 proof | Everything | Arya | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
@@ -101,7 +102,7 @@ The owners follow the rule "one module, one owner". Change any of them, and reco
 | B. Their way of working | P05 to P10 | Stations, delivery orders, all eight payment methods, No Charge, On Hold, Day Close |
 | C. Live on staging | P11, P12 | Their real menu and tables on a real web address |
 | D. The reports | P13 to P18 | Every report, balancing, drillable and exportable |
-| E. The look | P19, P20 | Their floor plan and the new design |
+| E. The look | P19, P20A, P20B | Their floor plan and the new design |
 | F. Proof | P21 | The golden day replays end to end with every check green |
 
 After milestone F, follow `docs/GO-LIVE.md`.

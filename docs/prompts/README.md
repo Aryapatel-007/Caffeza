@@ -27,7 +27,7 @@ The full table, with dependencies and owners, is in
 | P18 | Report screens and Today | Done |
 | P19 | Floor plan | Done |
 | P20A | New look, part 1: foundation and service screens | Done |
-| P20B | New look, part 2: back office and customisation | Not run |
+| P20B | New look, part 2: back office and customisation | Done |
 | P21 | Golden day, end to end | Not run |
 
 Prompt files that do not exist yet are added as they are written.

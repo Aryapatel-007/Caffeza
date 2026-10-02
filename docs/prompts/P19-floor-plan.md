@@ -204,7 +204,7 @@ The golden day fixture already opens every dine-in order with its guest count, s
 1. `docs/CAFFEZA-PROFILE.md` section 6: the physical layout is still `TO CONFIRM`, and the floor plan editor is ready for it.
 2. `docs/PROJECT-STATE.md`:
    1. The date line.
-   2. "Current stage": "Next: P20, look, themes and customisation. It needs `docs/DESIGN-SYSTEM-V2.md` first."
+   2. "Current stage": "Next: P20, look, themes and customisation. It needs `docs/DESIGN-SYSTEM.md` first."
    3. Module status: M20 becomes IN PROGRESS, "Floor plan built in P19."
    4. Decision log, dated today:
       "Each section is a 24 by 16 grid. Tables have an optional position, size and shape on it, saved per section, with overlaps refused. | Captains find tables by where they are in the room."

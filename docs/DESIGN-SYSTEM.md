@@ -1,7 +1,7 @@
-# Design System, version 2
+# Design System
 
-What every screen looks like from P20 onwards, and why.
-It replaces `docs/DESIGN-SYSTEM.md`. P20 moves every screen onto it, then archives the old file.
+This is version 2, in force from P20A and P20B. Version 1 is archived in `docs/archive/DESIGN-SYSTEM-V1.md`.
+What every screen looks like, and why.
 
 Read this before building or changing any screen.
 If two screens look different, it is because this file was not followed.
@@ -460,7 +460,17 @@ A test fails the build if any component contains a raw hex colour, or any versio
 6. **A printed bill's time edge.** The floor's `GET /tables` occupancy block carries `openedAt` but no time the bill was printed, so a printed bill's edge, on its tile and in the billing strip, measures from the order's opening against `settings.floor.longOpenMinutes`, like any other taken table. Measuring against 10 minutes from printing, as 7a says, needs `billedAt` on the occupancy block: a contract change for its own prompt.
 7. **State words for things that are not tables.** A bill: Unpaid is `bill`, Paid is `ok`, On Hold is `open`, Voided is `alert`. An order line: Not sent has no colour, With the kitchen is `open`, Ready is `ok`, Served is `served`, Cancelled is `alert`. Stock: In stock `ok`, Low `open`, Out `alert`. The clock: In `ok`, Out no colour.
 8. **Selected, not primary.** A chosen option in a group (a payment method, a guest count, a reason) is a 2px `ink` border on `sunken`, never the accent, so the accent stays the one primary action.
-9. **Where things moved.** `PanelShell` became `Sheet` (with `SheetActions` for the common footer); `ReasonPicker` moved to `components/ui/`; the two `Bilingual` copies and their label files became `features/i18n/`. `StatusBadge` and `AvailabilityStamp` are thin wrappers over `StateChip`, kept for the back-office screens that import them, and are removed in P20B.
+9. **Where things moved.** `PanelShell` became `Sheet` (with `SheetActions` for the common footer); `ReasonPicker` moved to `components/ui/`; the two `Bilingual` copies and their label files became `features/i18n/`. `StatusBadge` and `AvailabilityStamp` were thin wrappers over `StateChip` until P20B removed them.
+
+### 13b. Settled while building P20B
+
+1. **Every screen is on version 2.** Version 1's tokens, IBM Plex Sans, `StatusBadge` and `AvailabilityStamp` are gone. Anek is the body font; Plex Mono stays for numbers.
+2. **Guards on the whole client.** `server/tests/designGuard.test.js` fails on a raw hex colour, a version 1 token class, money formatted outside `Money`, or an import of a deleted component, anywhere in `client/src/`. One file is exempt from the hex rule: `utils/colour.js`, the mirror of the server's accent rules, which has to name the state and preset colours to measure against them and styles nothing.
+3. **Money.** `Money`, `moneyText` and `compactMoneyText` (the short axis-tick form, ₹1.2L) are the only money formatters. `utils/formatMoney.js` keeps only input: typed rupees to paise, and back into a keypad.
+4. **Themes on a subtree.** The day and night token sets apply to any element with `data-theme`, not only the root, so the Appearance page's preview can draw a night tile inside a day page. The A4 print stylesheet redeclares the day tokens, so a report always prints in Day.
+5. **The Appearance page** is its own screen, `/settings/appearance`, opened from a section at the top of Settings, because the live preview needs the width the settings form does not have. It saves through `PATCH /settings` with a reason, like every setting. The wordmark field takes up to 24 characters; the server allows 30.
+6. **Today tiles.** R1's `tiles` section follows `settings.appearance.todayTiles`: the owner's tiles in the owner's order, figures unchanged.
+7. **Availability and other two-state toggles** are a `StateChip` with `onClick`: Available is `ok`, Out of stock is `alert`, through `availabilityChip`.
 
 ## 14. How to check a screen
 

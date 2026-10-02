@@ -37,7 +37,7 @@ Each role gets a one-page cheat sheet, printed and laminated, in the language th
 | Station | 15 minutes | Their station screen. Mark an item or a ticket ready. Reprint a ticket if they use paper. |
 | Cashier | 45 minutes | Bill a table. Split a payment. Take a Zomato Gold, Dineout or EazyDiner payment. Enter a delivery order. Charge a bill to an On Hold account. Reprint a bill. |
 | Manager | 45 minutes | Apply a discount. Approve No Charge and voids. Record a cash paid out. Do Day Close with the blind cash count. Read R2 Day Close. |
-| Owner | 30 minutes | Read every report. Click any number through to its bills. Export to Excel. Read the activity log. Change a setting. |
+| Owner | 30 minutes | Read every report. Click any number through to its bills. Export to Excel. Read the activity log. Change a setting. Choose the accent colour and Today tiles on the Appearance page. |
 
 ---
 

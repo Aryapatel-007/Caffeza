@@ -1,5 +1,13 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, early restyle (ahead of P20)
+
+What was built or decided:
+Home (`/dashboard`) was then rebuilt from the user's pasted design: greeting card, four live figures (bill total, bills, open orders, unpaid bills) from the M6 dashboard read for OWNER and MANAGER, quick actions, seated tables with order totals from the floor read, and top sellers. Every number is read from the server; the design's photos, sparklines, percent-change figures and rush-hour banner were not built because no data backs them.
+Visual only. `components/AppShell.jsx` (sidebar by role and feature switch, top bar with date and time, narrow-screen link strip) wraps every route behind `ProtectedRoute`, except the clock screen. Tokens in `index.css` gained linen layers, shadows and soft tints; `paper` is now warmer. Every `border-2 border-ink` became a soft border with a card shadow, grey `slate-*` classes map to the tokens, `Button` and `Input` are pill and rounded, `PanelShell` is a white slide-over, the login is split, the home screen is greeting plus shortcuts, and floor tables are cards. Labels and behaviour are unchanged.
+
+Not done: P20 proper, `docs/DESIGN-SYSTEM-V2.md`, a dark or themed mode, per-screen layouts from the pasted designs (order, kitchen, bill, payment) beyond colour, radius and borders. Lint and build pass; checked by eye in Chrome on home, floor and bills.
+
 ### 2026-10-01 Rishi, P15 daily, money and GST reports
 
 What was built or decided:

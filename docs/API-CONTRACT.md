@@ -3261,7 +3261,7 @@ floor screen knows the section order, the long-open threshold and whether
 
 ### `settings.appearance` (added by P20A)
 
-The restaurant's look, from `docs/DESIGN-SYSTEM-V2.md` section 11a. OWNER only to
+The restaurant's look, from `docs/DESIGN-SYSTEM.md` section 11a. OWNER only to
 change, audited like every setting.
 
 | Field | Type | Default | Notes |

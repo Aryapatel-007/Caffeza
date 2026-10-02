@@ -16,7 +16,7 @@ M20 Floor Plan and Look, the look part. P20B finishes it.
 
 ## 3. The design is already written
 
-`docs/DESIGN-SYSTEM-V2.md` is the spec. Read all of it before writing anything.
+`docs/DESIGN-SYSTEM.md` is the spec. Read all of it before writing anything.
 **Build exactly what it says.** Where it and this prompt disagree, the design system wins, and you tell me.
 Where it is silent, follow the version 1 rule it says it keeps, in its section 2.
 
@@ -26,14 +26,14 @@ Where it is silent, follow the version 1 rule it says it keeps, in its section 2
 
 1. Save this entire prompt, exactly as given, to `docs/prompts/P20A-look-foundation-service.md`.
 2. In `docs/prompts/README.md`, replace the P20 row with two rows: "P20A New look, part 1: foundation and service screens" and "P20B New look, part 2: back office and customisation".
-3. `git pull`. `git status` should show only those two files, plus `docs/DESIGN-SYSTEM-V2.md` if it was just copied in. If it was, commit it on its own first, as `add design system v2`.
+3. `git pull`. `git status` should show only those two files, plus `docs/DESIGN-SYSTEM.md` if it was just copied in. If it was, commit it on its own first, as `add design system v2`.
 4. `docs/prompts/README.md` must show P19 as Done. If not, stop.
-5. `docs/DESIGN-SYSTEM-V2.md` must exist. It is copied into the repo by hand before this prompt. If it is missing, stop and tell me.
+5. `docs/DESIGN-SYSTEM.md` must exist. It is copied into the repo by hand before this prompt. If it is missing, stop and tell me.
 6. Run `npm test` and record the count. It should match P19's "after" count. If anything fails, stop and tell me.
 
 ## 5. Files to read first
 
-1. `docs/DESIGN-SYSTEM-V2.md`, all of it.
+1. `docs/DESIGN-SYSTEM.md`, all of it.
 2. `docs/DESIGN-SYSTEM.md`, version 1, to see what is being replaced.
 3. `client/src/index.css`, `client/src/main.jsx`, `client/src/App.jsx`.
 4. Everything in `client/src/components/`.
@@ -50,7 +50,7 @@ Small, and first, so the client has what it needs.
 
 ### 6a. Appearance settings
 
-Add `settings.appearance`, exactly as `docs/DESIGN-SYSTEM-V2.md` section 11a defines it.
+Add `settings.appearance`, exactly as `docs/DESIGN-SYSTEM.md` section 11a defines it.
 Owner only to change, audited like every setting, through the existing settings code.
 
 `accentHex` is validated by the rules in section 4c of the design system:
@@ -167,7 +167,7 @@ No money changes. The golden day acceptance test and every report test must stil
 
 ## 14. Docs to update
 
-1. `docs/DESIGN-SYSTEM-V2.md`: anything the build settled that it left open, such as the font width mapping and the Tailwind variable method.
+1. `docs/DESIGN-SYSTEM.md`: anything the build settled that it left open, such as the font width mapping and the Tailwind variable method.
 2. `docs/PROJECT-STATE.md`:
    1. The date line.
    2. "Current stage": "Next: P20B, back office and customisation."

@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P20B, back office and customisation.
+Next: P21, the golden day end to end.
 
 ---
 
@@ -47,7 +47,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | DONE | Every report built and proven against the golden day. Engine and R19 in P14, R2 to R10 in P15, R11 to R13 in P16, R14 to R17 in P17 (R18 is M8's read), R1 and every screen in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M20 | Floor Plan and Look | Arya | IN PROGRESS | Floor plan built in P19: table layouts on a 24 by 16 grid per section, the four floor states and the long-running marker, the billing strip, the guest count rule, and the Arrange tables editor. P20A put version 2 of the design system in place and moved every service screen onto it; P20B moves the back office and adds the Appearance page. Built by Rishi, off the listed owner. |
+| M20 | Floor Plan and Look | Arya | DONE | Floor plan in P19, the look in P20A and P20B. Built by Rishi, off the listed owner. Arya's read outstanding. |
 
 ---
 
@@ -386,6 +386,10 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | Until P20B, `ThemeProvider` applies Night only to the routes already on version 2; every other screen stays Day. | The back office still draws with version 1 colours that only exist in day, so Night would make it unreadable. P20B removes the list. |
 | 2026-10-02 | A printed bill's time edge measures from the order's opening against the long-open threshold, not from printing against 10 minutes. | The occupancy block has no time the bill was printed, and adding `billedAt` is a contract change no prompt covers. Written into DESIGN-SYSTEM-V2 section 13a. |
 | 2026-10-02 | The cash drawer is one form with a type picker and the keypad, instead of three stacked forms. | Each form had its own primary button, and every amount is entered on the keypad. Same endpoint, same rules. |
+| 2026-10-02 | Version 2 is the only design system. Version 1 is archived, and guard tests stop its tokens, raw colours and private money formatting from coming back. | One look, enforced, not remembered. |
+| 2026-10-02 | The Appearance page is its own screen, `/settings/appearance`, opened from Settings. | Its live preview needs width the settings form does not have. It saves through the same `PATCH /settings`, with a reason. |
+| 2026-10-02 | `client/src/utils/colour.js` is the one file allowed raw hex colours. | It mirrors the server's accent rules and has to name the colours it measures against. It styles nothing. |
+| 2026-10-02 | The station target time is edited on the Stations screen. | P20A added `targetMinutes` on the server but left it with no screen. |
 
 ---
 
@@ -408,6 +412,29 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-02 Rishi, P20B new look, back office and customisation
+
+What was built or decided:
+Spec first (`add today tiles order to the r1 spec`), then the server: R1's `tiles` section follows `settings.appearance.todayTiles`, in order, switched-off tiles left out of columns, row and drill, figures unchanged; a refused tile key lists the allowed ones.
+Client: every remaining screen moved onto version 2 (reports and the reports index, Bill List and detail, settings and payment methods, menu builder and availability board, staff, dashboard, sign in, inventory, attendance, stations). The report check strip became `BalanceSeal`, first on every report, then `FilterSentence`, then the filters. `DataTable` uses `dense` text, a sunken header, the sticky first column and a 2px `ink` rule above totals. Reports print in Day. `StateChip` everywhere a state is drawn, including availability toggles, the clock and staff status.
+Appearance (`/settings/appearance`, owner only): six presets with day and night sample buttons, "Your own colour" checked as typed with the rule and a one-tap nearest preset, wordmark, second language with a Pay preview, Today tiles with switches and up and down, a reason on save, and a live preview of the real components (four table tiles, a late ticket, the balance seal, a primary button) with a Day and Night switch.
+Version 1 removed: its tokens in `index.css`, IBM Plex Sans, `StatusBadge`, `AvailabilityStamp`, `formatPaise` (axis ticks now `compactMoneyText` in `Money`). `docs/DESIGN-SYSTEM.md` moved to `docs/archive/DESIGN-SYSTEM-V1.md` and version 2 took its name. Guard tests widened to the whole client, plus deleted imports.
+`setup/caffeza.json` sends Gujarati and holds the accent as TO CONFIRM; the setup validator accepts it.
+Also fixed: `changedSettings` compared lists by reference, so any list setting counted as changed on every save; Day before sign-in; sentence case on the last all-caps labels; the station target time made editable.
+
+Checked by hand in headless Chromium against the golden day loaded locally: as the owner, `#9B2F68` on the Appearance page was refused with "too close to the Bill printed state" and Plum offered; Plum chosen and saved, and `--accent` on the page went from `#1C5C86` to `#6A3878`, still so after reloading another page. Net sales and Covers switched off and Unpaid count moved up: the Today screen showed exactly that order. R2 for 26 September opens with "Balanced, with 1 note" for the cash difference. Home, reports index, R2, R3, R4, R11, Bill List, Settings, Appearance, menu, availability, staff, new staff, stations, stock, activity log, attendance register, my hours, accounts, payouts and table setup at 380, 768 and 1280, Day and Night: no sideways scroll, no page errors. Fixed after looking: two primaries and an unreadable caption on Home, an empty status pill on Staff, the sign-in chip's contrast. Not checked at 130% text size for every back-office screen; the service screens were in P20A.
+
+Tests: 925 before, 927 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `features/settings/AppearancePage.jsx`. Moved: `docs/DESIGN-SYSTEM*.md`. Deleted: `components/ui/StatusBadge.jsx`, `AvailabilityStamp.jsx`. Changed: `definitions/today.js`, `validators/settingsValidators.js`, three server tests, `index.css`, `main.jsx`, `ThemeProvider.jsx`, `api/settings.js`, `utils/formatMoney.js`, `Money.jsx`, `StateChip.jsx`, `DataTable.jsx`, `StatTile.jsx`, and every file in the back-office feature folders.
+
+Anything the other developer needs to know:
+The local golden restaurant was left on Plum with fewer Today tiles; `npm run seed:golden` resets it. The wordmark field is capped at 24 characters on screen while the server allows 30.
+
+Anything now blocked or unblocked:
+P21 can start.
 
 ### 2026-10-02 Rishi, P20A new look, foundation and service screens
 
@@ -573,14 +600,6 @@ Switch table and the guest count were not tried on a real tablet.
 
 Anything now blocked or unblocked:
 Nothing.
-
-### 2026-10-01 Rishi, early restyle (ahead of P20)
-
-What was built or decided:
-Home (`/dashboard`) was then rebuilt from the user's pasted design: greeting card, four live figures (bill total, bills, open orders, unpaid bills) from the M6 dashboard read for OWNER and MANAGER, quick actions, seated tables with order totals from the floor read, and top sellers. Every number is read from the server; the design's photos, sparklines, percent-change figures and rush-hour banner were not built because no data backs them.
-Visual only. `components/AppShell.jsx` (sidebar by role and feature switch, top bar with date and time, narrow-screen link strip) wraps every route behind `ProtectedRoute`, except the clock screen. Tokens in `index.css` gained linen layers, shadows and soft tints; `paper` is now warmer. Every `border-2 border-ink` became a soft border with a card shadow, grey `slate-*` classes map to the tokens, `Button` and `Input` are pill and rounded, `PanelShell` is a white slide-over, the login is split, the home screen is greeting plus shortcuts, and floor tables are cards. Labels and behaviour are unchanged.
-
-Not done: P20 proper, `docs/DESIGN-SYSTEM-V2.md`, a dark or themed mode, per-screen layouts from the pasted designs (order, kitchen, bill, payment) beyond colour, radius and borders. Lint and build pass; checked by eye in Chrome on home, floor and bills.
 
 ---
 

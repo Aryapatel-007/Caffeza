@@ -16,7 +16,7 @@ M20 Floor Plan and Look. This prompt completes it.
 
 ## 3. The design is already written
 
-`docs/DESIGN-SYSTEM-V2.md`, as settled by P20A.
+`docs/DESIGN-SYSTEM.md`, as settled by P20A.
 **Build exactly what it says.** Where it and this prompt disagree, the design system wins, and you tell me.
 
 ---
@@ -30,7 +30,7 @@ M20 Floor Plan and Look. This prompt completes it.
 
 ## 5. Files to read first
 
-1. `docs/DESIGN-SYSTEM-V2.md`, all of it, including what P20A added.
+1. `docs/DESIGN-SYSTEM.md`, all of it, including what P20A added.
 2. P20A's entry in `docs/PROJECT-STATE.md`, for what it settled and what it left marked for removal.
 3. Every client folder P20A did not move: `features/reports/`, `features/settings/`, `features/menu/`, `features/users/`, `features/dashboard/`, `features/auth/`, `features/inventory/`, `features/attendance/`, and the screens for stations, payment methods, accounts and payouts.
 4. The R1 Today definition and its tile keys from P18.
@@ -85,8 +85,8 @@ Only after Parts A to C are done and every screen is on version 2:
 2. Remove IBM Plex Sans from the client.
 3. Delete `StatusBadge`, `AvailabilityStamp`, and anything else P20A marked for removal, once nothing imports them.
 4. Widen the guard tests from P20A to the whole of `client/src/`: no raw hex colour outside `index.css`, no version 1 token class, and no money formatting outside `Money`.
-5. Move `docs/DESIGN-SYSTEM.md` to `docs/archive/DESIGN-SYSTEM-V1.md`, then move `docs/DESIGN-SYSTEM-V2.md` to `docs/DESIGN-SYSTEM.md`, both with `git mv`. Change the new file's title to "Design System" and its first lines to say it is version 2 and version 1 is archived.
-6. Search every doc and prompt file for `DESIGN-SYSTEM-V2.md` and point it at `DESIGN-SYSTEM.md`. Leave dated history entries as they are.
+5. Move `docs/DESIGN-SYSTEM.md` to `docs/archive/DESIGN-SYSTEM-V1.md`, then move `docs/DESIGN-SYSTEM.md` to `docs/DESIGN-SYSTEM.md`, both with `git mv`. Change the new file's title to "Design System" and its first lines to say it is version 2 and version 1 is archived.
+6. Search every doc and prompt file for `DESIGN-SYSTEM.md` and point it at `DESIGN-SYSTEM.md`. Leave dated history entries as they are.
 7. Add `DESIGN-SYSTEM-V1.md` to `docs/archive/README.md`.
 
 ## 10. Part E. Caffeza's setup file
