@@ -89,15 +89,15 @@ export default function BillsListPage() {
       <div className="mx-auto flex max-w-[1600px] flex-col gap-6">
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Stat label="Bill total" hint={`${rangeLabel} · voided left out`}>
-            <span className="type-num-hero">
+            <span className="type-num-fit">
               <Money paise={totals.grandTotalInPaise} />
             </span>
           </Stat>
           <Stat label="Bills" hint="Issued and not voided">
-            <span className="type-num-hero">{totals.billCount}</span>
+            <span className="type-num-fit">{totals.billCount}</span>
           </Stat>
           <Stat label="Unpaid bills" hint="Waiting for payment">
-            <span className="type-num-hero text-ink">
+            <span className="type-num-fit text-ink">
               {unpaidCount}
             </span>
             {unpaidCount > 0 && (
@@ -113,7 +113,7 @@ export default function BillsListPage() {
           <Stat label="Voided" hint="Kept in the invoice register">
             <span
               className={[
-                'type-num-hero',
+                'type-num-fit',
                 totals.voidedCount > 0 ? 'text-alert' : '',
               ].join(' ')}
             >
@@ -137,7 +137,7 @@ export default function BillsListPage() {
                       aria-pressed={status === option.value}
                       onClick={() => resetPage(setStatus)(option.value)}
                       className={[
-                        'h-9 rounded-lg px-4 type-caption transition-colors',
+                        'min-h-12 rounded-lg px-4 type-caption transition-colors',
                         '',
                         status === option.value ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'text-muted hover:text-ink',
                       ].join(' ')}
@@ -147,7 +147,7 @@ export default function BillsListPage() {
                   ))}
                 </div>
 
-                <label className="flex h-9 items-center gap-2 rounded-lg bg-sunken px-3">
+                <label className="flex min-h-12 items-center gap-2 rounded-lg bg-sunken px-3">
                   <input
                     type="checkbox"
                     checked={includeVoided}
@@ -224,8 +224,7 @@ export default function BillsListPage() {
                                 onClick={() => setSelectedId(bill.id)}
                                 aria-pressed={isSelected}
                                 className={[
-                                  'flex items-center gap-2 whitespace-nowrap type-num-meta',
-                                  '',
+                                  'flex min-h-12 items-center gap-2 whitespace-nowrap type-num-meta',
                                   struck,
                                 ].join(' ')}
                               >
@@ -407,7 +406,7 @@ function PreviewRow({ label, value, tone = 'text-muted' }) {
 
 function Stat({ label, hint, children }) {
   return (
-    <div className="flex flex-col gap-2 rounded-[10px] bg-surface p-4 border border-line">
+    <div className="@container flex min-w-0 flex-col gap-2 rounded-[10px] bg-surface p-4 border border-line">
       <span className="type-caption text-muted">{label}</span>
       <div className="flex items-baseline">{children}</div>
       <span className="type-caption text-muted">{hint}</span>
@@ -436,7 +435,7 @@ function PageButton({ label, disabled, onClick, children }) {
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-9 items-center justify-center rounded-lg bg-sunken type-heading hover:bg-sunken disabled:opacity-40"
+      className="flex size-12 items-center justify-center rounded-lg bg-sunken type-heading hover:bg-sunken disabled:opacity-40"
     >
       {children}
     </button>

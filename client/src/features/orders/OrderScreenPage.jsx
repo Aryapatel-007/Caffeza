@@ -278,25 +278,6 @@ export default function OrderScreenPage() {
             onStep={changeQuantity}
             onRemove={(line) => setCancelling({ kind: 'line', line })}
             onOpen={(item) => setPickingItem(item)}
-            onPick={(item) => {
-              // Straight on when there is nothing to choose, panel when there is.
-              if (item.variants.length > 0 || item.addOns.length > 0) {
-                setPickingItem(item);
-                return;
-              }
-              const existing = simpleLines.get(item.id);
-              if (existing) {
-                changeQuantity(existing, existing.quantity + 1);
-                return;
-              }
-              run({
-                run: () =>
-                  addOrderLines(order.id, {
-                    version: order.version,
-                    lines: [{ menuItemId: item.id, quantity: 1 }],
-                  }),
-              });
-            }}
           />
 
           <div

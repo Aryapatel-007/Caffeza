@@ -1,13 +1,16 @@
 import { expect } from '@playwright/test';
 
-import { addItems, sendToKitchen } from './order.js';
+import { addFromPanel, addItems, sendToKitchen } from './order.js';
 
 /** A platform order typed in from the platform's tablet, sent to the kitchen. Returns the order's address. */
 export async function newDelivery(page, platform, platformOrderId, items) {
   await page.goto('/orders/delivery');
   await page.getByRole('button', { name: new RegExp(`^${platform}`) }).click();
   await page.getByLabel('Platform order number').fill(platformOrderId);
-  for (const item of items) await page.getByRole('button', { name: `Add ${item}`, exact: true }).click();
+  for (const item of items) {
+    await page.getByRole('button', { name: `Add ${item}`, exact: true }).click();
+    await addFromPanel(page);
+  }
   await page.getByRole('button', { name: /^Send to kitchen/ }).click();
   await expect(page).toHaveURL(/\/orders\/[a-f0-9]{24}$/);
   return page.url();

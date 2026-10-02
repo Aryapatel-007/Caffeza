@@ -161,7 +161,7 @@ function MethodEditor({ method, onSaved, onError }) {
           options={PLATFORM_OPTIONS}
         />
       )}
-      <label className="flex min-h-11 items-center gap-3">
+      <label className="flex min-h-12 items-center gap-3">
         <input
           type="checkbox"
           checked={draft.isActive}

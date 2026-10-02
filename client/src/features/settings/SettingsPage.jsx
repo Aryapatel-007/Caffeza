@@ -338,7 +338,7 @@ export default function SettingsPage() {
           title="Kitchen stations"
           description="Which counter cooks which dishes. Managed on its own page, so a manager can change it too."
         >
-          <Link to="/stations" className="type-body underline underline-offset-4">
+          <Link to="/stations" className="type-body inline-flex min-h-12 items-center underline underline-offset-4">
             Open kitchen stations
           </Link>
         </Section>
@@ -371,7 +371,7 @@ export default function SettingsPage() {
               { value: 'FINANCIAL_YEAR', label: 'Financial year, like 2026-27/000148' },
               { value: 'PREFIX', label: 'Prefix, like CFA/C/22442' },
             ].map((choice) => (
-              <label key={choice.value} className="flex min-h-11 items-center gap-3">
+              <label key={choice.value} className="flex min-h-12 items-center gap-3">
                 <input
                   type="radio"
                   name="invoice-mode"

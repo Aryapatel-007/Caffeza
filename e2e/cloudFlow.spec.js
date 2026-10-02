@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { DEVICES } from './helpers/people.js';
 import { pay } from './pages/bill.js';
 import { markReady } from './pages/kitchen.js';
-import { billOrder, sendToKitchen, serveAll } from './pages/order.js';
+import { addFromPanel, billOrder, details, sendToKitchen, serveAll } from './pages/order.js';
 import { openTable, tile } from './pages/floor.js';
 
 /**
@@ -45,10 +45,14 @@ test('a table, from seating to paid, against the cloud database', async ({ brows
 
   const captain = await signIn(browser, PEOPLE.captain, 'phone');
   await openTable(captain.page, TABLE, 2);
-  for (const item of [DISH, DRINK]) {
-    await captain.page.getByRole('button', { name: `Add ${item}`, exact: true }).click();
-    await expect(captain.page.getByRole('button', { name: 'One more' }).first()).toBeVisible();
-  }
+  // + opens the panel; the dish goes with a note to the chef, the coffee without.
+  await captain.page.getByRole('button', { name: `Add ${DISH}`, exact: true }).click();
+  await captain.page.getByRole('dialog').getByRole('button', { name: 'Less spicy', exact: true }).click();
+  await addFromPanel(captain.page);
+  await captain.page.getByRole('button', { name: `Add ${DRINK}`, exact: true }).click();
+  await addFromPanel(captain.page);
+  await expect((await details(captain.page)).getByText('Less spicy')).toBeVisible();
+  await captain.page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
   await sendToKitchen(captain.page);
   const orderUrl = captain.page.url();
 

@@ -18,6 +18,8 @@ export async function addItems(page, items) {
       unsent.clear();
     }
     await page.getByRole('button', { name: `Add ${item}`, exact: true }).click();
+    // + opens the options panel, with its note to the chef; adding takes one more tap.
+    await addFromPanel(page);
     const stepper = card(page, item).getByRole('button', { name: 'One more' });
     await expect(stepper).toBeVisible();
     for (let more = 1; more < quantity; more += 1) {
@@ -28,6 +30,14 @@ export async function addItems(page, items) {
   }
 }
 
+/** Confirms the options panel that + opens, with no note. */
+export async function addFromPanel(page, note = null) {
+  const sheet = page.getByRole('dialog');
+  if (note) await sheet.getByLabel('Note to chef').fill(note);
+  await sheet.getByRole('button', { name: /^Add to order/ }).click();
+  await expect(sheet).toHaveCount(0);
+}
+
 export async function sendToKitchen(page) {
   await page.getByRole('button', { name: /^Send \d+ to (the )?kitchen/ }).filter({ visible: true }).first().click();
   await expect(page.getByText('Sent to the kitchen.')).toBeVisible();
@@ -35,7 +45,7 @@ export async function sendToKitchen(page) {
 }
 
 /** The lines and the order's own actions: a sheet on a table's order, the panel beside a counter order. */
-async function details(page) {
+export async function details(page) {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   const sheet = page.getByRole('dialog', { name: /^Table/ });
   if (await sheet.isVisible().catch(() => false)) return sheet;

@@ -20,9 +20,10 @@
  */
 export function StatTile({ label, value, hint, className = '' }) {
   return (
-    <div className={`rounded-[10px] border border-line bg-surface px-4 py-3 ${className}`}>
+    <div className={`@container min-w-0 rounded-[10px] border border-line bg-surface px-4 py-3 ${className}`}>
       <p className="type-label text-muted">{label}</p>
-      <p className="type-num-hero mt-1 text-ink">{value}</p>
+      {/* Fits the tile: a lakh amount on a narrow tile shrinks rather than spilling out. */}
+      <p className="type-num-fit mt-1 text-ink">{value}</p>
       {hint && <p className="type-caption mt-1 text-muted">{hint}</p>}
     </div>
   );
@@ -31,9 +32,9 @@ export function StatTile({ label, value, hint, className = '' }) {
 /** The one number the screen leads with. One per view. */
 export function HeroFigure({ label, value, hint }) {
   return (
-    <div>
+    <div className="@container min-w-0">
       <p className="type-label text-muted">{label}</p>
-      <p className="type-num-hero mt-1 text-ink">{value}</p>
+      <p className="type-num-fit mt-1 text-ink">{value}</p>
       {hint && <p className="type-caption mt-2 text-muted">{hint}</p>}
     </div>
   );

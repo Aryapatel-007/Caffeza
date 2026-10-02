@@ -265,6 +265,19 @@
   line-height: 3.25rem;
   font-weight: 600;
 }
+/*
+ * A hero figure that fits its box, 2 October 2026: num-hero's size, made
+ * smaller on a narrow tile so a lakh amount never runs out of its border. The
+ * box carries `@container`; 11% of its width holds thirteen Plex Mono
+ * characters, the length of ₹12,34,567.89. Never wraps.
+ */
+@utility type-num-fit {
+  font-family: var(--font-mono);
+  font-size: min(2.75rem, 11cqi);
+  line-height: 1.2;
+  font-weight: 600;
+  white-space: nowrap;
+}
 @utility type-num-meta {
   font-family: var(--font-mono);
   font-size: 0.8125rem;

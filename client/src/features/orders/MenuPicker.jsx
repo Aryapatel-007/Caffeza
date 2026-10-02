@@ -22,15 +22,11 @@ import Spinner from '../../components/ui/Spinner.jsx';
  * a second line of the same dish, so the kitchen ticket reads "3 × Latte", not
  * three separate lattes. `simpleLines` maps a menu item id to that line.
  *
- * Two taps, two meanings, the same for every dish:
- *   the dish itself (its name) opens the options panel, `onOpen`: size,
- *     extras, quantity and a note, so a note is always one tap away;
- *   + adds one straight away, `onPick`, and never opens a panel. A dish
- *     with sizes or extras shows Choose instead of +, because it cannot go
- *     on without a choice, and Choose opens the panel.
- * Before this, tapping a plain dish's name added it with no way to leave a
- * note, while tapping a dish with sizes opened the panel, so the same tap
- * behaved two ways.
+ * Adding a dish always opens the options panel, `onOpen`, whether the dish or
+ * its + is tapped: quantity, a note to the chef with one-tap requests, and the
+ * sizes and extras where there are any (the owner's request, 2 October 2026).
+ * Once a plain dish is on the order and not yet sent, its stepper changes the
+ * quantity in one tap, with no panel. A dish with sizes or extras shows Choose.
  */
 export default function MenuPicker({
   tree,
@@ -41,7 +37,6 @@ export default function MenuPicker({
   disabled,
   simpleLines,
   pendingCounts,
-  onPick,
   onOpen,
   onStep,
   onRemove,
@@ -114,7 +109,6 @@ export default function MenuPicker({
               line={simpleLines.get(item.id)}
               pendingCount={pendingCounts.get(item.id) ?? 0}
               disabled={disabled}
-              onPick={() => onPick(item)}
               onOpen={() => (onOpen ?? onPick)(item)}
               onStep={onStep}
               onRemove={onRemove}
@@ -126,7 +120,7 @@ export default function MenuPicker({
   );
 }
 
-function DishCard({ item, line, pendingCount, disabled, onPick, onOpen, onStep, onRemove }) {
+function DishCard({ item, line, pendingCount, disabled, onOpen, onStep, onRemove }) {
   const hasChoices = item.variants.length > 0 || item.addOns.length > 0;
   const onOrder = Boolean(line) || (hasChoices && pendingCount > 0);
 
@@ -183,7 +177,7 @@ function DishCard({ item, line, pendingCount, disabled, onPick, onOpen, onStep, 
             type="button"
             aria-label={`Add ${item.name}`}
             disabled={disabled}
-            onClick={onPick}
+            onClick={onOpen}
             className="flex size-12 items-center justify-center self-end rounded-lg border border-ink hover:bg-sunken disabled:opacity-60 min-[600px]:self-auto"
           >
             <PlusIcon />

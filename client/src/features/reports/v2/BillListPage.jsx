@@ -101,11 +101,11 @@ export default function BillListPage() {
               type="button"
               onClick={download}
               disabled={downloading || !envelope}
-              className="min-h-10 rounded-lg border border-line px-3 type-caption disabled:opacity-50"
+              className="min-h-12 rounded-lg border border-line px-3 type-caption disabled:opacity-50"
             >
               {downloading ? 'Preparing…' : 'Excel'}
             </button>
-            <Link to="/reports" className="type-caption text-muted underline">
+            <Link to="/reports" className="type-caption inline-flex min-h-12 items-center text-muted underline">
               Reports
             </Link>
           </div>
@@ -195,7 +195,7 @@ export default function BillListPage() {
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setQuery({ page: String(page - 1) })}
-                  className="min-h-10 rounded-lg border-2 border-muted px-3 disabled:opacity-40"
+                  className="min-h-12 rounded-lg border-2 border-muted px-3 disabled:opacity-40"
                 >
                   Previous
                 </button>
@@ -206,7 +206,7 @@ export default function BillListPage() {
                   type="button"
                   disabled={page >= pages}
                   onClick={() => setQuery({ page: String(page + 1) })}
-                  className="min-h-10 rounded-lg border-2 border-muted px-3 disabled:opacity-40"
+                  className="min-h-12 rounded-lg border-2 border-muted px-3 disabled:opacity-40"
                 >
                   Next
                 </button>

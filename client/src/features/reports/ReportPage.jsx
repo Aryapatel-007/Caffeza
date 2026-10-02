@@ -119,7 +119,7 @@ function ReportScreen({ report }) {
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <p className="type-label text-muted print:hidden">
-              <Link to="/reports" className="hover:underline">
+              <Link to="/reports" className="inline-flex min-h-12 items-center hover:underline">
                 Reports
               </Link>{' '}
               › {report.id}
@@ -316,7 +316,7 @@ function PresetButton({ active, onClick, children }) {
       onClick={onClick}
       aria-pressed={active}
       className={[
-        'h-9 rounded-lg px-3 type-caption transition-colors',
+        'min-h-12 rounded-lg px-3 type-caption transition-colors',
         '',
         active ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-sunken text-muted hover:text-ink',
       ].join(' ')}

@@ -78,7 +78,7 @@ export default function ActivityLogPage() {
       <div className="mx-auto flex max-w-6xl flex-col gap-4">
         <header>
           <p className="type-label text-muted">
-            <Link to="/reports" className="hover:underline">
+            <Link to="/reports" className="inline-flex min-h-12 items-center hover:underline">
               Reports
             </Link>{' '}
             › R18
@@ -94,7 +94,7 @@ export default function ActivityLogPage() {
               type="button"
               aria-pressed={current === preset.key}
               onClick={() => setQuery(presetRange(preset.key, today))}
-              className={['h-9 rounded-lg px-3 type-caption', current === preset.key ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-sunken text-muted'].join(' ')}
+              className={['min-h-12 rounded-lg px-3 type-caption', current === preset.key ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-sunken text-muted'].join(' ')}
             >
               {preset.label}
             </button>

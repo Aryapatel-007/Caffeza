@@ -260,7 +260,10 @@ export default function AppShell({ children }) {
           <span className="type-caption truncate text-muted">{user?.name}</span>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</div>
+        {/* `relative`, so anything absolutely placed inside a screen (screen-reader text,
+            tooltips) belongs to this scroll area. Without it such an element was
+            placed against the window and gave the page a second scroll. */}
+        <div className="relative min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</div>
 
         <nav aria-label="Main" className="flex flex-none items-stretch gap-1 border-t border-line bg-surface px-2 py-1 min-[600px]:hidden print:hidden">
           {places.map((place) => (

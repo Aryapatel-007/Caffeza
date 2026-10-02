@@ -34,7 +34,7 @@ export default function InlineVoid({ isBusy, onConfirm }) {
         type="button"
         disabled={!reason.trim() || isBusy}
         onClick={() => onConfirm(reason.trim())}
-        className="min-h-10 type-caption text-alert underline disabled:opacity-50"
+        className="min-h-12 type-caption text-alert underline disabled:opacity-50"
       >
         Void it
       </button>

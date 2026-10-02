@@ -34,10 +34,10 @@ function Card({ className = '', children }) {
 
 function Stat({ label, value, hint }) {
   return (
-    <Card className="flex flex-col justify-between p-4">
+    <Card className="@container flex min-w-0 flex-col justify-between p-4">
       <span className="type-label text-muted">{label}</span>
       <div className="mt-4">
-        <span className="type-num-hero ">{value}</span>
+        <span className="type-num-fit block">{value}</span>
         {hint && <p className="mt-1 type-caption text-muted">{hint}</p>}
       </div>
     </Card>
@@ -180,7 +180,7 @@ export default function DashboardPage() {
                     {seated.length} of {tables.data?.length ?? 0}
                   </span>
                 </div>
-                <Link to="/floor" className="text-sm font-semibold hover:underline">
+                <Link to="/floor" className="type-label inline-flex min-h-12 items-center font-semibold hover:underline">
                   Open the floor →
                 </Link>
               </div>
@@ -222,7 +222,7 @@ export default function DashboardPage() {
           <section className="flex flex-col gap-3 pb-6">
             <div className="flex items-baseline justify-between px-1">
               <h2 className="type-heading">Top sellers today</h2>
-              <Link to="/reports/sales" className="text-sm font-semibold hover:underline">
+              <Link to="/reports/sales-by-day" className="type-label inline-flex min-h-12 items-center font-semibold hover:underline">
                 Sales report →
               </Link>
             </div>

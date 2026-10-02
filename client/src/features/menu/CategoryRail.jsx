@@ -101,7 +101,7 @@ export default function CategoryRail({
               const category = categories.find((c) => c.id === selectedId);
               if (category) startRename(category);
             }}
-            className="type-caption text-muted underline-offset-4 hover:underline "
+            className="type-caption min-h-12 text-muted underline-offset-4 hover:underline"
           >
             Rename
           </button>
@@ -112,7 +112,7 @@ export default function CategoryRail({
               const category = categories.find((c) => c.id === selectedId);
               if (category) onToggleActive(category);
             }}
-            className="type-caption text-muted underline-offset-4 hover:underline "
+            className="type-caption min-h-12 text-muted underline-offset-4 hover:underline"
           >
             {categories.find((c) => c.id === selectedId)?.isActive ? 'Turn off' : 'Turn on'}
           </button>

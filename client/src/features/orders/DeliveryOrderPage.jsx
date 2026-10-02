@@ -165,7 +165,7 @@ export default function DeliveryOrderPage() {
           <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
             <div>
               <p className="type-label text-muted">
-                <Link to="/floor" className="hover:text-ink">Orders</Link> ›{' '}
+                <Link to="/floor" className="inline-flex min-h-12 items-center hover:text-ink">Orders</Link> ›{' '}
                 <span className="text-ink">New delivery order</span>
               </p>
               <h1 className="mt-1 type-title">
@@ -267,15 +267,6 @@ export default function DeliveryOrderPage() {
             onStep={setQuantity}
             onRemove={(line) => setQuantity(line, 0)}
             onOpen={(item) => setPickingItem(item)}
-            onPick={(item) => {
-              if (item.variants.length > 0 || item.addOns.length > 0) {
-                setPickingItem(item);
-                return;
-              }
-              const existing = simpleLines.get(item.id);
-              if (existing) setQuantity(existing, existing.quantity + 1);
-              else addLine({ menuItemId: item.id, quantity: 1 });
-            }}
           />
         </div>
 

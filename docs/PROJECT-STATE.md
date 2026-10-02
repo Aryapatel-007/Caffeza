@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-02 by Arya
+Last updated: 2026-10-03 by Arya
 
 ---
 
@@ -412,6 +412,9 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | `GET /kots?status=` puts "still to cook" into the query: open means a line is still PENDING. | It filtered after reading the oldest page, so once a kitchen had a page of finished tickets the board showed nothing and new tickets never appeared. With ten days of data it happened at once; at Caffeza it would have happened in the first week. Closes the known problem row. |
 | 2026-10-02 | A floor tile's spoken name does not repeat "Table": "Table 5", not "Table Table 5". | Cafezza's tables are named "Table 1" to "Table 35". |
 | 2026-10-02 | Two mock seeders, both kept: `npm run seed:mock` (Arya's `scripts/loadMockDays.js`, "Cafezza Demo" from `setup/caffeza.json` and the Zomato menu, 22 September to 1 October, the one loaded into the cloud) and `npm run seed:mock:golden` (Rishi's `scripts/seedMockDays.js`, "Cafezza Demo (mock)" from the golden day's menu, the last N days, phones from 970000000, password demo1234). Rishi's was renamed from seed:mock and given the Windows-safe preload. | Both were written the same afternoon under one name and met at merge. They build different restaurants and do not touch each other. Only "Cafezza Demo" is in the cloud. |
+| 2026-10-03 | Adding a dish always opens the options panel, from the dish or its +: quantity, a "Note to chef" box and one-tap requests (Less spicy, Extra spicy, No onion, Jain, Less sugar, No ice), and sizes and extras where there are any. Once a plain dish is on the order and not sent, its stepper still changes the quantity in one tap. This replaces the 2 October line above that + adds at once. | The owner asked for a note every time an item is added. The note is the line's existing `notes` field and prints on the kitchen ticket, so nothing on the server changed. |
+| 2026-10-03 | Big figures in stat boxes use `type-num-fit`, which shrinks with the box (`@container`, `min(2.75rem, 11cqi)`), instead of a fixed size. | Lakh-sized totals ran out of their boxes on the home screen and the bills ledger. |
+| 2026-10-03 | The shell's scrolling area is `relative`. | Absolutely placed pieces inside it were measured against the page, so the page grew a second scroll that slid the whole screen up and left it blank. |
 
 ---
 
@@ -434,6 +437,23 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-03 Arya, boxes, the second scroll, notes to chef and small fixes
+
+What was built or decided:
+From the owner's screenshot, client only, no endpoint changed.
+1. Figures no longer run out of their boxes: `type-num-fit` in `index.css`, used by `StatTile`, `HeroFigure`, the home screen cards and the bills ledger tiles.
+2. The home screen's second scroll is gone: the shell's scroll area in `AppShell.jsx` is `relative`, so nothing inside it stretches the page.
+3. Notes to chef: + opens the options panel every time, with a "Note to chef" box and six one-tap requests that add to or come off the note. The note shows on the line and prints on the kitchen ticket.
+4. Small things, found with a page audit at 380 and 1280 wide: date presets, breadcrumb links, filter chips, the bills pager and bill number rows, menu category actions, settings labels, payment method labels and inline Void raised to 48px tap targets; the home screen's sales link pointed at an old address and now opens Sales by Day.
+
+Tests: only the affected ones, at the user's request. `designGuard.test.js` 11 passing. `npm run e2e:cloud` passes, now adding both items through the panel with Less spicy and checking the note shows on the order. `npm run e2e`, the golden day through the screens, passes with the new panel step. Lint and build pass. No table left busy.
+
+Files or endpoints touched:
+`client/src/index.css`, `components/AppShell.jsx`, `components/charts/StatTile.jsx`, `features/dashboard/DashboardPage.jsx`, `features/billing/BillsListPage.jsx`, `features/orders/LineOptionsPanel.jsx`, `MenuPicker.jsx`, `OrderScreenPage.jsx`, `DeliveryOrderPage.jsx`, `features/reports/ReportPage.jsx`, `ActivityLogPage.jsx`, `v2/BillListPage.jsx`, `features/menu/CategoryRail.jsx`, `features/settings/SettingsPage.jsx`, `PaymentMethodsSection.jsx`, `features/settlement/InlineVoid.jsx`; e2e `pages/order.js` (`addFromPanel`, `details` exported), `pages/counter.js`, `cloudFlow.spec.js`.
+
+Anything the other developer needs to know:
+An e2e step that taps + must now finish the panel with `addFromPanel(page)`. Many sign-ins in a row from one machine trip the login limit for 15 minutes in development; touching `server/server.js` makes nodemon restart and clears it.
 
 ### 2026-10-02 Arya, the cloud database loaded, and four bugs it found
 

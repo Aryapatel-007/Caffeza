@@ -14,6 +14,9 @@ import StateChip from '../../components/ui/StateChip.jsx';
  * Nothing here sends a price. The panel shows prices so the waiter can read
  * them out, and sends back ids and a quantity. The server prices the line.
  */
+/** The requests a cafe hears most, one tap each. Jain is on Cafezza's menu. */
+const QUICK_NOTES = ['Less spicy', 'Extra spicy', 'No onion', 'Jain', 'Less sugar', 'No ice'];
+
 export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) {
   // P04. Start on the first size that can actually be ordered.
   const [variantId, setVariantId] = useState(
@@ -41,6 +44,54 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
     setAddOnIds((current) =>
       current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
     );
+
+  /** A one-tap request, added to the note or taken off it again. */
+  const toggleQuick = (word) =>
+    setNotes((current) => {
+      const parts = current.split(',').map((part) => part.trim()).filter(Boolean);
+      const next = parts.includes(word) ? parts.filter((part) => part !== word) : [...parts, word];
+      return next.join(', ').slice(0, 200);
+    });
+
+  const chosenQuick = notes.split(',').map((part) => part.trim());
+
+  /**
+   * The note to the chef, 2 October 2026: what the guest wants done differently.
+   * First on a plain dish, where it is the only thing to choose; after the sizes
+   * and extras otherwise. The common requests are one tap, so most notes need no
+   * keyboard; anything else is typed. It prints on the kitchen ticket.
+   */
+  const noteField = (
+    <div className="flex flex-col gap-3">
+      <label className="block">
+        <span className="type-label mb-2 block">Note to chef</span>
+        <textarea
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          rows={2}
+          maxLength={200}
+          placeholder="Anything the guest wants changed"
+          className="type-body min-h-12 w-full rounded-lg border border-muted bg-surface px-3 py-2 text-ink placeholder:text-muted"
+        />
+      </label>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Quick notes">
+        {QUICK_NOTES.map((word) => (
+          <button
+            key={word}
+            type="button"
+            aria-pressed={chosenQuick.includes(word)}
+            onClick={() => toggleQuick(word)}
+            className={[
+              'type-label min-h-12 rounded-full border px-4',
+              chosenQuick.includes(word) ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
+            ].join(' ')}
+          >
+            {word}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   const pick = () =>
     onConfirm({
@@ -145,17 +196,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
         </fieldset>
       )}
 
-      <label className="block">
-        <span className="type-label mb-2 block">Note for the kitchen</span>
-        <textarea
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          rows={2}
-          maxLength={200}
-          placeholder="less spicy, no onion"
-          className="type-body w-full rounded-lg min-h-12 border border-muted bg-surface px-3 py-2 text-ink placeholder:text-muted"
-        />
-      </label>
+      {noteField}
     </Sheet>
   );
 }
