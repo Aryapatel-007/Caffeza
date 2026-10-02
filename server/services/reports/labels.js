@@ -101,6 +101,11 @@ export const LABELS = Object.freeze({
   DISCOUNTED_BILLS: 'Discounted bills',
   CANCELLED_VALUE: 'Cancelled value',
   ITEMS_MADE: 'Items made',
+  ITEM_TOTAL_BEFORE_DISCOUNT: 'Item total before discount',
+  BILL_TOTAL_AFTER_DISCOUNT: 'Bill total after discount',
+  NO_CHARGE_VALUE_BEFORE_GST: 'No Charge value, before GST',
+  NO_CHARGE_REASON: 'No Charge reason',
+  AGE_IN_DAYS: 'Age in days',
 });
 
 export const LABEL_VALUES = Object.freeze(Object.values(LABELS));

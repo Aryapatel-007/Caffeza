@@ -466,6 +466,10 @@ describe('every report', () => {
     menu: day,
     captains: day,
     tables: day,
+    discounts: day,
+    cancellations: day,
+    'no-charge': day,
+    accounts: `asOf=${GOLDEN_DATE}`,
     bills: day,
   };
 

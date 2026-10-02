@@ -285,3 +285,8 @@ The labels already defined above keep their meaning.
 | **Discounted bills** | A count of bills with a discount above zero |
 | **Cancelled value** | Line total of cancelled items at menu price, before GST, whether or not they were prepared |
 | **Items made** | Quantity on kitchen ticket lines marked ready |
+| **Item total before discount** | Item total, named in full where a discount sits beside it (R14) |
+| **Bill total after discount** | Bill total, named in full where a discount sits beside it (R14) |
+| **No Charge value, before GST** | No Charge value, with its basis in the header (R16) |
+| **No Charge reason** | The fixed No Charge reason's label, and its note |
+| **Age in days** | Days from the oldest unpaid bill's business date to the date the accounts are read as of |

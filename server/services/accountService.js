@@ -75,8 +75,9 @@ async function recordEntry(req, entry, { session = null, at = nowUtc(), startMin
 }
 
 /** What an account owes now, from its entries. Never a stored running number. */
-export async function outstandingFor(req, accountId, { session = null } = {}) {
-  const entries = await AccountEntry.find({ ...scoped(req), accountId })
+export async function outstandingFor(req, accountId, { session = null, asOf = null } = {}) {
+  // P17: `asOf`, a business date, counts only entries on or before it, for R17.
+  const entries = await AccountEntry.find({ ...scoped(req), accountId, ...(asOf ? { businessDate: { $lte: asOf } } : {}) })
     .select('direction amountInPaise')
     .setOptions(opts(session))
     .lean();
@@ -104,10 +105,17 @@ function oldestUncollectedDate(entries) {
 }
 
 function present(account, entries) {
+  const of = (type) => entries.filter((entry) => entry.type === type);
+  const total = (list) => sumPaise(0, ...list.map((entry) => entry.amountInPaise));
   return {
     ...account.toJSON(),
     outstandingInPaise: sumPaise(0, ...entries.map(signed)),
     oldestUncollectedDate: oldestUncollectedDate(entries),
+    // P17, for R17: the parts of the balance. Charged is net of charges reversed by a void.
+    openingInPaise: total(of(ACCOUNT_ENTRY_TYPES.OPENING)),
+    chargedInPaise: total(of(ACCOUNT_ENTRY_TYPES.CHARGE)) - total(of(ACCOUNT_ENTRY_TYPES.CHARGE_REVERSED)),
+    collectedInPaise: total(of(ACCOUNT_ENTRY_TYPES.COLLECTION)),
+    adjustedInPaise: sumPaise(0, ...of(ACCOUNT_ENTRY_TYPES.ADJUSTMENT).map(signed)),
   };
 }
 
@@ -127,18 +135,20 @@ function rethrowDuplicate(error) {
 }
 
 /** GET /accounts. Each with its outstanding balance and oldest uncollected date. */
-export async function listAccounts(req, { includeInactive = false } = {}) {
+export async function listAccounts(req, { includeInactive = false, asOf = null } = {}) {
   const filter = { ...scoped(req) };
   if (!includeInactive) filter.isActive = true;
   const accounts = await Account.find(filter).sort({ nameLower: 1 });
   if (accounts.length === 0) return [];
 
+  // P17: `asOf` reads the accounts as they stood at the end of that business date (R17).
   const entries = await AccountEntry.find({
     ...scoped(req),
     accountId: { $in: accounts.map((account) => account._id) },
+    ...(asOf ? { businessDate: { $lte: asOf } } : {}),
   })
     .sort({ at: 1, _id: 1 })
-    .select('accountId direction amountInPaise businessDate')
+    .select('accountId type direction amountInPaise businessDate')
     .lean();
 
   const byAccount = new Map(accounts.map((account) => [String(account._id), []]));

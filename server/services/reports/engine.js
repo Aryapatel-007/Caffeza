@@ -166,7 +166,8 @@ export async function runReport(req, definition, query) {
     const count = Object.keys(fields).length;
     throw new ValidationError(count === 1 ? 'One of the values sent was not valid.' : `${count} of the values sent were not valid.`, fields);
   }
-  const params = parsed.data;
+  // A definition may fill a default that needs the request, such as R17's "as of today".
+  const params = definition.prepare ? await definition.prepare(req, parsed.data) : parsed.data;
   const from = params.from ?? params.date;
   const to = params.to ?? params.date;
 

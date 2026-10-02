@@ -6,13 +6,17 @@
  * whose labels are glossary terms, and checks.
  */
 import bills from './definitions/bills.js';
+import accounts from './definitions/accounts.js';
+import cancellations from './definitions/cancellations.js';
 import captains from './definitions/captains.js';
 import cashTill from './definitions/cashTill.js';
 import dayClose from './definitions/dayClose.js';
+import discounts from './definitions/discounts.js';
 import gst from './definitions/gst.js';
 import hours from './definitions/hours.js';
 import invoiceRegister from './definitions/invoiceRegister.js';
 import menu from './definitions/menu.js';
+import noCharge from './definitions/noCharge.js';
 import payments from './definitions/payments.js';
 import platformMoney from './definitions/platformMoney.js';
 import salesByDay from './definitions/salesByDay.js';
@@ -32,6 +36,10 @@ export const REPORTS = Object.freeze([
   menu,
   captains,
   tables,
+  discounts,
+  cancellations,
+  noCharge,
+  accounts,
   bills,
 ]);
 
