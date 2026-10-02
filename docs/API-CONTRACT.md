@@ -4954,6 +4954,11 @@ dates in the range, type `decimal2`), Average table time. Section
 `kots.firedAt` to its lines' `readyAt`) and the five slowest items. Drill: a
 table to R19 with `table`.
 
+P16: the five slowest items are a third section, `slowestItems` (Station,
+Item, Items made, Kitchen time), five per station, slowest first. The kitchen
+section's columns are Station, Items made and Kitchen time. Average table time
+and kitchen time are `decimal2`, see section 14.
+
 ### R14 Discounts, `discounts`
 
 `from`, `to`, `discountReason`, `page`, `limit`. Sections: `byReason`
@@ -5165,3 +5170,39 @@ checks in the envelope's check shape, and its message names each one.
 
 An xlsx export of a report with sections writes them one under another on the
 Report sheet, each with its title; R9 writes one sheet per section instead.
+
+## 14. Settled while building P16
+
+**R11.** With no `categoryName`, rows are categories, grouped by the frozen
+`categoryId` and named from the most recent bill. With `categoryName`, rows are
+items in that category, grouped by `menuItemId` and the frozen `variantName`,
+named "Item (Variant)"; the first column's label is then Item, so a definition
+may return its own `columns` and the engine uses them. A dish cancelled in the
+range but not sold appears with 0 sold and its cancelled quantity. Cancelled
+quantity counts every cancelled line, wasted value only those with
+`wasPrepared: true`. C5.1 and C5.2 each compare item totals over every line,
+then net sales over the lines with shares, against a whole read separately:
+every bill's `subtotalInPaise`, and the net sales of bills whose lines all
+carry shares. The contract's "items that sold nothing" option was not built:
+it is not in this contract, and would be the one read of `menuitems`.
+
+**R12.** Columns: Captain, Bills, Covers, Net sales, Bill total, Average per
+cover (dine-in net sales ÷ covers, as R3), Average table time, Discounted bills,
+Discount, Items cancelled (a count of quantity) and Cancelled value (their line
+total, prepared or not). A bill with no `captainId` groups as "Not recorded".
+A person who cancelled items but captained no bill in the range gets a row with
+their current name from `personNames`.
+
+**Averages of minutes.** The `minutes` type is whole minutes, so an average
+cannot be one. Average table time and kitchen time are sent as `decimal2`,
+integer hundredths, worked out to one decimal place: a total of whole minutes
+divided by a count, after totalling. 60.5 minutes is sent as 6050. With nothing
+to average the cell is `null`, never 0.
+
+**R13.** C5.4 compares the dine-in tables' bill totals plus each other order
+type's against every bill's bill total. The table's section is not shown: the
+contract names no column for it, and the bill does not freeze it. Turns per day
+rounds half up to hundredths.
+
+Labels added to GLOSSARY section 13: Discounted bills, Cancelled value, Items
+made.

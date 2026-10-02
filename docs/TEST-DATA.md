@@ -266,6 +266,32 @@ Averages are rounded half away from zero to the paisa, the same rule as `server/
 | Takeaway | 1 | 0 | ₹440.00 | ₹462.00 |
 | Total | 15 | 27 | ₹8,886.32 | ₹9,269.00 |
 
+Average table time, whole minutes from order opened to bill paid, on paid dine-in bills only (P16):
+Khuman Singh 60.5 minutes from 4 bills, Budha Singh 59.0 from 3, Devendra Singh 53.0 from 3.
+Ranjeet Paswan has none, because both his bills are On Hold. Counter has none, because none of their bills are dine-in.
+
+**R13 Tables and Table Time** (P16)
+
+| Table | Bills | Table time |
+|---|---|---|
+| Table 5 | 1 | 56 min |
+| Table 7 | 1 | 57 min |
+| Table 12 | 1 | 59 min |
+| Table 2 | 1 | 38 min |
+| Table 3 | 1 | 49 min |
+| Table 14 | 1 | 53 min |
+| Table 16 | 1 | 55 min |
+| Table 11 | 1 | 74 min |
+| Table 4 | 1 | 71 min |
+| Table 18 | 1 | 66 min |
+| Table 30 | 1 | none, On Hold |
+| Table 35 | 1 | none, On Hold |
+| Total | 12 | 578 min over 10 paid bills, average 57.8 |
+
+Table 16 counts B12 only; the voided B11 on the same table is left out. Turns per day for every table is 1.00, and 12.00 in total.
+
+**R11 items cancelled.** Cheesy Tornado shows 1 cancelled with ₹0.00 wasted, under Pizza. Thecha Paneer Chilli shows 1 cancelled with ₹390.00 wasted, under Cafezza Mains, and 0 sold. **R12 items cancelled:** Khuman Singh, 2 items, ₹750.00.
+
 **Section F: GST by rate**
 
 | Rate | Net sales | CGST | SGST | GST |

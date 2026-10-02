@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-01 by Rishi
+Last updated: 2026-10-02 by Rishi
 
 ---
 
@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P16, menu, captain and table reports.
+Next: P17, the audit trail and control reports.
 
 ---
 
@@ -46,7 +46,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M16 | Settlement and Day Close | Rishi | DONE | Day Close proven against the golden day in `tests/goldenDay.test.js`. No Charge (P08), On Hold accounts (P09), cash drawer, day figures, checks C1 C3 C4 C6 C8 C9, Day Close with the blind count, and the day lock (P10). Built by Rishi. Arya's read outstanding. |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M19 | Reports v2 | Arya | IN PROGRESS | Specified in P13. Engine and R19 built in P14; R2 to R10 in P15, server only. Screens come in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
+| M19 | Reports v2 | Arya | IN PROGRESS | Specified in P13. Engine and R19 built in P14; R2 to R10 in P15; R11 to R13 in P16; server only. Screens come in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M20 | Floor Plan and Look | Arya | NOT STARTED | P19, P20. |
 
 ---
@@ -356,6 +356,12 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-01 | Seating a free table now asks for the guest count, and the order is created with `guestCount` | The client had never sent it, so every dine-in bill had null covers and average per cover had nothing to divide by. The contract already accepted it. |
 | 2026-10-01 | Tapping a dish with no sizes or extras again raises the quantity of its unsent line rather than adding a second line. The card's minus at 1 opens the line cancel panel. | The kitchen ticket reads "3 × Latte" instead of three lines. An unsent line has no delete, and cancelling it takes a reason (P04). |
 | 2026-10-01 | Switch table is now on the order screen, through the existing `PATCH /orders/:orderId/table`, offering free tables only | The endpoint and the client call existed since M2, but no screen used them. |
+| 2026-10-02 | Share of net sales is computed in basis points after totalling, with the rounding remainder handed out by the largest remainder method, so the column always adds up to exactly 100%. | Caffeza's old category report measured each row against the top one. |
+| 2026-10-02 | Averages of minutes (average table time, kitchen time) are sent as `decimal2`, integer hundredths kept to one decimal, a total of whole minutes over a count. Null when there is nothing to average. | The contract's `minutes` type is whole minutes and P16 asks for 60.5. Contract M19 section 14. |
+| 2026-10-02 | R13's five slowest items are their own section, `slowestItems`, beside `kitchen`. | One table cannot hold a station row and a list of items without nesting. Contract M19 section 14. |
+| 2026-10-02 | R11 by item groups by `menuItemId` and the frozen size, shown as "Item (Size)"; a definition may return its own `columns`, so the first column reads Item. | The contract shapes R11 as categories, or items within one category; P16 asked for both levels. |
+| 2026-10-02 | R12 adds Discounted bills and Cancelled value, and R13 Items made, to GLOSSARY section 13. | Every label comes from the glossary, and these three were missing. |
+| 2026-10-02 | The "items that sold nothing" toggle in R11 was not built. | It is not in the contract, and it would be the only read of `menuitems` in a report. |
 
 ---
 
@@ -378,6 +384,30 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-02 Rishi, P16 menu, captain and table reports
+
+What was built or decided:
+Three report definitions in `server/services/reports/definitions/`, registered in `registry.js`.
+R11 Menu Performance (`menu`): categories, or items within one category with `categoryName`, from the line values frozen in P03; share of net sales by the largest remainder method, always 100.00%; rank; cancelled quantity and wasted value from cancelled order lines by the business date of the cancel; bills from before P03 in a "Not recorded" row with blank shares. Checks C2, C5.1, C5.2, C7.
+R12 Captains (`captains`): by frozen `captainId`, named from the most recent bill; average per cover; average table time on paid dine-in bills only; discounted bills and discount; items cancelled and their value by `cancelledBy`. Check C5.3.
+R13 Tables and Table Time (`tables`): sections `tables` (bills, covers, net sales, turns per day, average table time), `kitchen` (items made and average minutes from fired to ready, per station) and `slowestItems` (five per station). Check C5.4.
+Shared helpers in `definitions/shared.js`: `tenantOf`, `instantsFor`, `minutesExpr`, `averageMinutes`. The engine now takes a definition's own `columns` when it returns them.
+
+`tests/reportsMenu.test.js` builds the golden day once, closes 26 September, and checks TEST-DATA section 4 to the paisa: every category row, Pizza at 20.26% and the column at exactly 10000, B11 left out, Thecha Paneer Chilli 1 cancelled with ₹390.00 wasted and Cheesy Tornado ₹0.00, moving Mexican Bowl afterwards changes nothing, a pre-P03 bill in "Not recorded" with C5 still passing; every captain row with totals equal to R3, average table times 60.5, 59.0 and 53.0 and none for Ranjeet Paswan and Counter, Khuman Singh's 2 items cancelled for ₹750.00, renaming him afterwards changes nothing; the ten table times (578 minutes, average 57.8), Table 16 with one bill, Tables 30 and 35 with no table time. C5 broken by leaving out Pizza fails with ₹1,800.78 missing. Each workbook's totals equal the JSON, and only OWNER and MANAGER may read them.
+
+Tests: 843 before, 859 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `definitions/menu.js`, `captains.js`, `tables.js`, `tests/reportsMenu.test.js`. Changed: `definitions/shared.js`, `reports/engine.js`, `reports/registry.js`, `reports/labels.js` and the client mirror, `tests/reportsDaily.test.js` (its role and export walks now include the three new reports), GLOSSARY section 13, TEST-DATA section 4, API-CONTRACT M19 R13 and section 14.
+Endpoints: `GET /api/v1/reports/v2/{menu, captains, tables}`.
+
+Anything the other developer needs to know:
+`npm test` needs `server/.env.test`, which is gitignored; copy it from `server/.env.test.example` (it holds only `NODE_ENV=test`). It was missing on this machine.
+The prompts P16 to P21, P20A, P20B and `DESIGN-SYSTEM-V2.md` were added to `docs/prompts/` in this session. `P10-cash-drawer-day-close-1.md` is a markdown copy of P10, which is done.
+
+Anything now blocked or unblocked:
+P17 can start. P18 has R11 to R13.
 
 ### 2026-10-01 Rishi, new delivery order on one screen (ahead of P20)
 
@@ -642,230 +672,6 @@ not: these need accounts, payment and judgement.
 
 Anything now blocked or unblocked:
 P13 can start. Staging waits on the checklist.
-
-### 2026-10-01 Rishi, P11 Caffeza setup and menu import
-
-What was built or decided:
-`npm run setup:restaurant` (`server/scripts/setupRestaurant.js`) sets a
-restaurant up from one JSON file: profile, settings, stations, category
-routing, tables, payment methods, On Hold accounts and staff logins.
-`npm run import:menu` (`server/scripts/importMenu.js`) imports a menu CSV,
-with sizes and an optional add-ons CSV. Both start the app in-process, sign in
-as the owner with the password typed hidden, validate everything first and
-list every problem, change nothing without `--apply`, match by name so a re-run
-is safe, and never delete, deactivate, create a bill or set the invoice
-series. `"TO CONFIRM"` values are skipped and listed; a staff member without a
-phone is not created; new logins get a password printed once. Shared code is
-in `server/scripts/lib/scriptApi.js`.
-
-Caffeza's files: `setup/caffeza.json` from the profile (34 tables in Cafe,
-Live Kitchen and Beverages, the nine Beverages categories, eight payment
-methods with their Tally codes, both office accounts, eight staff with phones
-to confirm), `setup/caffeza-menu.csv` (a partial menu of 34 items in 16
-categories, marked to be replaced), and `setup/README.md`.
-
-Verified by hand against a local replica set: a throwaway restaurant was
-provisioned, the setup dry run printed create 43, update 5, skip 29, then
-`--apply` did exactly that; the menu dry run printed 16 categories and 34
-items, then applied; a second setup dry run reported 64 unchanged. The
-database then held 34 active tables in Cafe, Italian Coffees on Beverages,
-Water Bottle at 4761 paise and 8 active payment methods.
-
-Tests: 774 before, 784 after, 0 failing. Lint and build pass.
-
-Files or endpoints touched:
-New: the two scripts, `scripts/lib/scriptApi.js`,
-`tests/setupScripts.test.js`, `setup/`. Changed: both `package.json` files,
-`scripts/seedDemo.js`, `docs/DEPLOYMENT.md` section 7, `docs/GO-LIVE.md`
-section 4. No endpoint, model or screen changed.
-
-Anything the other developer needs to know:
-Fill in every `TO CONFIRM` in `setup/caffeza.json`, including the On Hold
-opening balances, before the production run: an opening balance is set only
-when an account is created. The order screen with the imported menu was not
-opened in a browser; the menu and tables were checked in the database.
-
-Anything now blocked or unblocked:
-P12 can start.
-
-### 2026-10-01 Rishi, P10 cash drawer and Day Close
-
-What was built or decided:
-The cash drawer: `cashmovements` (opening float, paid in, paid out), one live
-float per business date by a partial unique index, paid out for managers with
-`CASH_PAID_OUT`, voids with a reason. Every entry is dated today by the server.
-
-`computeDayFigures` in `services/dayFiguresService.js` returns R2 sections A to
-H from frozen fields only. `reconciliationService.js` has C1, C3, C4, C6, C8 and
-C9 for one business date, each returning the shared result shape with the
-exact wording from RECONCILIATION-RULES.
-
-Day Close: `dayclosures`, five endpoints, blockers reported together in one
-422 `DAY_NOT_READY`, a note required for a cash difference, the snapshot and
-checks stored at close, the history, `DAY_CLOSED` and `DAY_REOPENED`, the
-`dayClose.showCashDifferenceToManager` setting, the blind count enforced on the
-server, and a server-laid-out print at 32 or 48 columns.
-
-The lock: `assertDayOpen` in `services/dayLockService.js`, wired into bill
-creation, discount, void, payment, payment correction, charge to account,
-No Charge, cash movements and their voids, collections, adjustments, and
-payouts and their voids.
-
-The golden day: `tests/helpers/goldenDay.js` builds all of 26 September through
-the API at the real times, and `tests/goldenDay.test.js` closes it. The stored
-snapshot matches every number in TEST-DATA section 4 to the paisa, first time:
-15 bills, 27 covers, item total 931022, discount 42390, net sales 888632, CGST
-19131, SGST 19126, GST 38257, round-off 11, bill total 926900, average bill
-59242, average per cover 26709, expected cash 340400, difference -400. Each of
-C1, C3, C4, C6 and C8 fails exactly as TEST-DATA section 6 says when its one
-thing is broken, and C9 raises the -400 warning.
-
-Client: a Cash drawer screen (`/cash`), a Day Close screen (`/day-close`) with
-blockers linked to their order or bill, the count, a note that turns required,
-figures, checks, print and the owner's reopen, a dashboard warning when
-yesterday traded and was not closed, and the blind-count switch in Settings.
-
-Tests: 749 before, 774 after, 0 failing. Lint and build pass.
-
-Files or endpoints touched:
-New: CashMovement and DayClosure models, `cashService`, `dayFiguresService`,
-`reconciliationService`, `dayCloseService`, `dayLockService`, the day close
-controller, routes and validators, tests `goldenDay.test.js`,
-`dayClose.test.js` and `helpers/goldenDay.js`, client `api/dayClose.js`,
-`CashDrawerPage.jsx`, `DayClosePage.jsx`, `UnclosedDayWarning.jsx`,
-`InlineVoid.jsx`. Changed: `billService`, `accountService`, `payoutService`,
-`noChargeService` (the lock), `money.js` (`averagePaise`), `receiptService`
-(exports `row`), the Restaurant model, settings validators and service,
-AuditLog, `errors.js`, and on the client the dashboard, settings, `App.jsx`,
-`formatDate.js` and the payouts page.
-
-Anything the other developer needs to know:
-Every new write that changes a business date's figures must call
-`assertDayOpen`. R2 in P15 returns `computeDayFigures`, or the stored snapshot
-for a closed day; the golden day fixture and `GOLDEN_EXPECTED` are there to
-reuse. Not done by hand in a browser yet: a float, a cash bill, a paid out, a
-blind close as manager, the owner's view, and the printed close.
-
-Anything now blocked or unblocked:
-P11 and P13 can start.
-
-### 2026-10-01 Rishi, P09 On Hold accounts and platform payouts
-
-What was built or decided:
-On Hold accounts: `accounts` and an append-only `accountentries` ledger, with
-the balance always computed from the entries. Create (an opening balance
-writes an OPENING entry in the same transaction), edit, list with outstanding
-balance and oldest uncollected date, and a statement with a running balance.
-`POST /bills/:id/charge-to-account` (OWNER, MANAGER) puts what is still owed on
-the account in one transaction: the bill becomes ON_ACCOUNT, the order BILLED
-and the table frees, a CHARGE entry and `BILL_CHARGED_TO_ACCOUNT`. Voiding an
-On Hold bill writes CHARGE_REVERSED in the same transaction. Collections take
-in-hand methods only and never more than is owed; owner adjustments write
-`ACCOUNT_BALANCE_ADJUSTED`.
-
-Where ON_ACCOUNT changed existing behaviour: taking a payment and applying a
-discount refuse it; voiding allows it with the reversal; the bill list filters
-and shows it as "On Hold"; the M6 sales figures count it as a sale like any
-live bill; the M6 payments and unpaid figures do not count it, because On Hold
-money is not received money and the bill is not unpaid.
-
-Platform payouts: `platformpayouts`, list (with expected, difference and
-rate-not-set payments), record (409 on an overlapping live period), void
-(owner, reason, kept). Expected is each covered payment's amount at
-(10000 − its frozen commission) basis points through `applyBasisPoints`, summed.
-
-Client: Charge to account on an unpaid bill, an On Hold accounts page
-(`/accounts`) with statements, collections and owner adjustments, and a
-Payouts page (`/payouts`) with a negative difference in `mirch`, both under a
-Money label on the dashboard.
-
-Golden day B09 (4700 to E-210 Office), B10 (50400 to W-330 Office), the
-section 5 collection at 1:15 PM on 27 September, and the Swiggy payout of
-74400 against 93000 at 2000 bps, are reproduced to the paisa. C3 is checked on
-a part-paid charged bill, C10 by hand, C11 in the payout test.
-
-Tests: 730 before, 749 after, 0 failing. Lint and build pass.
-
-Files or endpoints touched:
-New: Account, AccountEntry and PlatformPayout models, `accountService`,
-`payoutService`, account controller, routes and validators, tests
-`accounts.test.js`, client `api/accounts.js`, `ChargeToAccountPanel.jsx`,
-`features/settlement/AccountsPage.jsx` and `PayoutsPage.jsx`. Changed: Bill and
-AuditLog models, `billService` (transactional void), `billPermissionService`,
-`paymentMethodService` (`methodByCode`), `salesReportService`, `utils/errors.js`,
-`tests/tables.test.js`, and on the client the bill screen, badge, list, labels,
-dashboard, `App.jsx` and `formatDate.js` (`formatBusinessDate`).
-
-Anything the other developer needs to know:
-Write account entries only through `accountService`. The P10 closed-day
-refusal points are marked with comments in `accountService` and
-`payoutService`. Not done by hand in a browser yet: charging a bill and seeing
-the table free, the next-day collection, and a Swiggy payout on screen.
-
-Anything now blocked or unblocked:
-P10 can start.
-
-### 2026-10-01 Rishi, P08 payment methods, discount reasons and No Charge
-
-What was built or decided:
-A test clock: `nowUtc()` reads a replaceable clock, `setClockForTests` and
-`resetClockForTests` refuse outside `NODE_ENV=test`, every business-event
-`new Date()` in services and controllers now reads `nowUtc()`, and a guard test
-keeps it that way. Token times are untouched.
-
-M10: a `paymentmethods` collection. Cash, Card, UPI and an inactive Other are
-created by code when missing: at provisioning, and lazily before a list or a
-payment, so existing restaurants need no migration and a renamed method is never
-overwritten. `GET/POST/PATCH /payment-methods`; code and kind never change.
-Taking a payment checks the four rules (active, order type, a platform bill paid
-only by its platform, a platform method only on its platform's bills) and
-freezes the method's name, kind, Tally code, commission and the payment's own
-business date. `POST /bills/:id/payments/:paymentId/correct` changes only the
-method, keeps a `corrections` history and writes `PAYMENT_METHOD_CORRECTED`.
-
-Discounts take a fixed `reasonCode` from `server/config/discountReasons.js`
-(mirrored on the client), an optional note required for Other, and `fundedBy`.
-The old `reason` field is refused. `settings.discounts.cashierMayApplyPlatformDiscounts`
-lets a cashier give platform discounts only.
-
-M16 No Charge: order status `NO_CHARGE` with a frozen `noCharge` record,
-`POST /orders/:id/no-charge` (OWNER, MANAGER), four rules, one transaction,
-`NO_CHARGE_GIVEN`, the table freed, no bill and no invoice number.
-
-Client: payment buttons from the configured methods (a Swiggy bill shows only
-Swiggy), Change payment method on a paid bill for managers, the discount panel
-with reason buttons and Paid for by, a No Charge panel on the order screen, and
-Payment methods and Discounts sections in Settings.
-
-Golden day B02, B05 and B14 and N01 run through the API at their real times.
-B14's payment at 12:02 AM on 27 September carries business date 2026-09-26.
-
-Tests: 700 before, 730 after, 0 failing. Lint and build pass.
-
-Files or endpoints touched:
-New: `models/PaymentMethod.js`, `services/paymentMethodService.js`,
-`services/noChargeService.js`, payment method controller, routes and
-validators, `config/discountReasons.js`, `config/noChargeReasons.js`, tests
-`clock.test.js` and `payments.test.js`, client `api/paymentMethods.js`,
-`MethodButtons.jsx`, `CorrectPaymentPanel.jsx`, `NoChargePanel.jsx`,
-`PaymentMethodsSection.jsx`. Changed: Bill, Order, Restaurant and AuditLog
-models, bill service, permissions, controller, routes and validators, order
-controller, routes and validators, `authController` (`discounts` on
-`/auth/me`), `receiptService`, `salesReportService`, provisioning,
-`seedDemo.js`, `utils/time.js`.
-Part of this work was committed mid-session as `be63016`.
-
-Anything the other developer needs to know:
-Call `nowUtc()`, never `new Date()`, in a service or controller. A payment's
-`methodKind` null reads as IN_HAND and a null `businessDate` as the bill's.
-The closed-day refusal points for P10 are marked with comments in
-`billService.recordPayment`, `billService.correctPayment` and
-`noChargeService.giveNoCharge`.
-Not done by hand in a browser yet: adding Zomato Gold, a Zomato Gold discount
-and payment corrected to UPI, and No Charge freeing a table on screen.
-
-Anything now blocked or unblocked:
-P09 and P11 can start.
 
 ---
 

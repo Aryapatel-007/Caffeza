@@ -22,7 +22,7 @@ The full table, with dependencies and owners, is in
 | P13 | Reports spec | Done |
 | P14 | Report engine | Done |
 | P15 | Daily, money and GST reports | Done |
-| P16 | Menu, captain and table reports | Not run |
+| P16 | Menu, captain and table reports | Done |
 | P17 | Audit trail and control reports | Not run |
 | P18 | Report screens and Today | Not run |
 | P19 | Floor plan | Not run |
