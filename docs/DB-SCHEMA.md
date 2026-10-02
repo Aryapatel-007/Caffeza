@@ -1822,6 +1822,18 @@ setup in P11 switches both off.
 |---|---|---|---|---|
 | `cashierMayApplyPlatformDiscounts` | Boolean | yes | false | When true, a CASHIER may apply a discount whose reason is a platform reason, and no other. `TO CONFIRM` with Caffeza. |
 
+### `settings.appearance` (added by P20A)
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `accentPreset` | String | `OCEAN` | One of six presets, or `CUSTOM` |
+| `accentHex` | String | null | `#RRGGBB`, used with `CUSTOM`, validated by `utils/colour.js` |
+| `wordmark` | String | null | Max 30 characters. Null means the restaurant's name. |
+| `secondLanguage` | String | `NONE` | `NONE`, `GUJARATI`, `HINDI` |
+| `todayTiles` | [String] | every R1 tile key in order | Which Today tiles show, in order |
+
+Additive, every field defaulted.
+
 ### `settings.floor` (added by P19)
 
 | Field | Type | Default | Notes |
@@ -1926,6 +1938,7 @@ collection: `baseSchemaPlugin` then `tenantGuardPlugin`.
 | `nameLower` | String | yes | Internal, derived from `name`, never in a response. Same technique as `categories`. |
 | `displayOrder` | Number | yes | Integer, minimum 0, default 0. The first active station by this order is the default station. |
 | `printsTickets` | Boolean | yes | Default false. Whether this station wants paper KOTs. Read by the kitchen screen's auto-print. |
+| `targetMinutes` | Number | yes | P20A. Integer 5 to 120, default 15. How long a ticket at this station may take before its time edge shows it as late. |
 | `isActive` | Boolean | yes | Default true. This is the delete. A station is never removed. |
 | `createdAt` | Date | auto | UTC |
 | `updatedAt` | Date | auto | UTC |

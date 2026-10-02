@@ -3259,6 +3259,40 @@ Both default to `true`, so nothing changes for an existing restaurant. Switching
 floor screen knows the section order, the long-open threshold and whether
 "Skip" may be offered. The server still decides.
 
+### `settings.appearance` (added by P20A)
+
+The restaurant's look, from `docs/DESIGN-SYSTEM-V2.md` section 11a. OWNER only to
+change, audited like every setting.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `accentPreset` | String | `OCEAN` | `OCEAN`, `INDIGO`, `PLUM`, `OLIVE`, `ESPRESSO`, `GRAPHITE` or `CUSTOM` |
+| `accentHex` | String | null | `#RRGGBB`. Required with `CUSTOM`, ignored otherwise. Validated as below. |
+| `wordmark` | String | null | The name in the top bar, 1 to 30 characters. Null means the restaurant's name. |
+| `secondLanguage` | String | `NONE` | `NONE`, `GUJARATI` or `HINDI`. The restaurant's default; a device may override it. |
+| `todayTiles` | [String] | every R1 tile key, in contract order | Which R1 tiles show on Today, in order. Keys from R1's tile columns, each once. |
+
+A custom `accentHex` is accepted only when, by `server/utils/colour.js`:
+1. it is a six-digit hex colour;
+2. white text on it is at least 4.5 to 1;
+3. it is at least 3 to 1 against day `ground`, `#F2F4F3`;
+4. its hue is at least 30 degrees from the hue of each state colour, `#7A4F00`,
+   `#16614F`, `#922457`, `#A8321C` and `#256640`, unless its saturation is under 25%.
+
+Otherwise 400 `VALIDATION_FAILED` with `fields["appearance.accentHex"]` naming
+the rule it broke and the nearest preset by hue.
+
+`GET /auth/me` returns `appearance` beside `features`, for every role:
+
+```json
+{ "accentPreset": "OCEAN", "accent": "#1C5C86", "accentNight": "#2885C1", "wordmark": "Cafezza", "secondLanguage": "GUJARATI", "todayTiles": ["billTotalInPaise", "netSalesInPaise"] }
+```
+
+`accent` is the preset's day colour or the custom colour; `accentNight` is its
+night variant, worked out on the server by `nightVariant`, so the client does no
+colour arithmetic on load. `wordmark` is already resolved to the restaurant's
+name when unset.
+
 ### `settings.invoice` (added by P02)
 
 | Field | Type | Default | Notes |
@@ -3789,7 +3823,11 @@ PATCH /api/v1/stations/:stationId
 ```
 
 Roles: OWNER, MANAGER. Any of `name`, `displayOrder`, `printsTickets`,
-`isActive`, at least one.
+`targetMinutes`, `isActive`, at least one.
+
+P20A: every station carries `targetMinutes`, an integer 5 to 120, default 15,
+settable on create and update. A kitchen ticket's time edge measures against its
+station's target; a ticket older than it is shown as late.
 
 Deactivating a station that categories still point at is allowed. Those
 categories fall back to the default station. The response carries
