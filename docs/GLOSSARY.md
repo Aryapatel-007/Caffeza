@@ -290,3 +290,26 @@ The labels already defined above keep their meaning.
 | **No Charge value, before GST** | No Charge value, with its basis in the header (R16) |
 | **No Charge reason** | The fixed No Charge reason's label, and its note |
 | **Age in days** | Days from the oldest unpaid bill's business date to the date the accounts are read as of |
+
+---
+
+## 14. Appearance words
+
+Added by P22 for the Appearance page, the activity log and the sign-in screen.
+
+| Term | Meaning |
+|---|---|
+| **Logo** | The restaurant's logo image. Shown only on the sign-in screen, the top bar, the rail and the browser tab. |
+| **Logo for light screens** | The `LIGHT_GROUND` slot: dark artwork on a transparent background, shown by day |
+| **Logo for dark screens** | The `DARK_GROUND` slot: light artwork, shown by night and on the sign-in screen |
+| **Upload** | Choose an image file and save it as a logo |
+| **Remove** | Clear a logo slot. The activity log keeps what was removed. |
+| **No logo** | A slot with no image |
+| **Brand colours** | The logo's own background colour and the colour of text on it |
+| **Brand colour** | The logo's own background colour, `brandHex` |
+| **Text on the brand colour** | The colour of text on the brand colour, `onBrandHex` |
+| **Neutral tone** | Which set of page, card and text colours the restaurant uses |
+| **Cool** | The default neutral tone: green-grey |
+| **Warm** | The linen and espresso neutral tone |
+| **Logo set** | The activity log line `BRAND_LOGO_SET` |
+| **Logo removed** | The activity log line `BRAND_LOGO_REMOVED` |

@@ -85,6 +85,37 @@ Measured contrast, day: `ink` on `surface` 15.6, `muted` on `surface` 6.5, `mute
 Night: `ink` on `surface` 13.7, `muted` on `surface` 6.7.
 Every text pair passes WCAG AA at 4.5 or more.
 
+**The warm set (P22).** The cool set above is every restaurant's default. A restaurant may choose warm instead, `settings.appearance.neutralTone: WARM`. It is Cafezza's printed menu translated into the product: cream cards on linen become white surfaces on a warm linen ground, with espresso ink.
+
+| Token | Warm day | Warm night |
+|---|---|---|
+| `ground` | `#EFE9E1` | `#1A1310` |
+| `surface` | `#FFFFFF` | `#241B17` |
+| `sunken` | `#E9E2D8` | `#140E0C` |
+| `ink` | `#2E201B` | `#F3E8DC` |
+| `muted` | `#625147` | `#B9A699` |
+| `line` | `#D5CABD` | `#3A2E28` |
+
+Shadow and scrim follow the cool recipe, made from warm `ink` by day and pure black by night. Text on a night button is warm night `ground`.
+
+Day `surface` stays pure white, not menu cream. A cream surface lowers the contrast of the amber `open` tint against it, so a free table drifts toward looking open. The warmth comes from the ground, ink, muted text and lines instead.
+
+Measured from the constants in `server/utils/colour.js`, P22:
+
+| Pair | Warm day | Cool day | Warm night | Cool night | Minimum |
+|---|---|---|---|---|---|
+| `ink` on `surface` | 15.69 | 15.58 | 13.97 | 13.72 | 4.5 |
+| `ink` on `ground` | 13.01 | 14.10 | 15.19 | 15.14 | 4.5 |
+| `muted` on `surface` | 7.53 | 6.50 | 7.22 | 6.70 | 4.5 |
+| `muted` on `sunken` | 5.86 | 5.44 | 8.18 | 7.70 | 4.5 |
+| `muted` on `ground` | 6.25 | 5.88 | 7.84 | 7.40 | 4.5 |
+| Each state edge on `surface` | 6.69 to 8.04 | the same | 7.39 to 10.16 | 7.22 to 9.93 | 3 |
+| Each state tint on `surface` | 1.19 to 1.33 | the same | 1.06 to 1.23 | 1.03 to 1.20 | no lower than cool |
+
+Every preset and Cafezza's accent reads at 5.53 or more on warm day `ground`, and every night value at 4.56 or more on warm night `ground`. A test fails if any pair drops below its minimum, and another if `index.css` and the constants disagree.
+
+Printing keeps the cool day set. Paper stays plain.
+
 ### 4b. State colours
 
 Fixed. **No theme and no owner setting can change them**, so "bill printed" looks the same in every restaurant and every year.
@@ -145,6 +176,21 @@ Otherwise the settings screen says why, and suggests the nearest preset.
 The night variant of a custom colour is worked out by raising its lightness until it reaches 4.5 to 1 against night `ground`.
 
 There is no amber, teal, raspberry, red or green preset, because each would collide with a state.
+
+P22: an accent is checked against day `ground` in both tones, and its night variant is raised until it reads on both night grounds, so switching the tone can never break a saved accent. No preset's night value moved. White text at 4.5 to 1 already rules out any colour that would clear 3 to 1 on cool day `ground` and miss it on warm; the check is there so the rule does not depend on that arithmetic staying true.
+
+### 4d. The brand pair
+
+Two tokens, fixed per restaurant from its logo and not chosen as a look: `brand`, the logo's own background colour, and `on-brand`, text on it. `settings.appearance.brandHex` and `onBrandHex`, both or neither, and `on-brand` on `brand` at 4.5 to 1 or more.
+
+They have exactly two uses:
+
+1. The sign-in brand panel.
+2. The plate behind a logo shown on the other ground: a logo made for dark grounds, shown on a day screen, sits on a `brand` plate with an 8px radius.
+
+Nowhere else. Not buttons, not headers, not tiles, not the background of a service screen. A test fails if `bg-brand` or `text-on-brand` appears outside `BrandLogo` and `LoginPage`.
+
+`brand` is the exact logo background, not the adjusted accent, so a logo with its own solid background blends into the panel with no visible edge. Without a brand pair the sign-in screen looks as it did before P22, and a plate falls back to day `ink`.
 
 ---
 
@@ -406,6 +452,18 @@ New settings group `settings.appearance`, audited like every setting:
 | `wordmark` | null | The name in the top bar. Null means the restaurant's name. |
 | `secondLanguage` | `NONE` | `NONE`, `GUJARATI` or `HINDI`. The restaurant's default. |
 | `todayTiles` | Every R1 tile in its contract order | Which tiles the Today screen shows, and in what order |
+| `neutralTone` | `COOL` | `COOL` or `WARM`, section 4a. P22. |
+| `brandHex` | null | The logo's background, section 4d. P22. |
+| `onBrandHex` | null | Text on `brandHex`, section 4d. P22. |
+
+The logo (P22) is not a setting: it is stored on the restaurant, outside `settings`, so an image never travels with `GET /settings` or lands in a settings audit line. Two optional slots:
+
+| Slot | Artwork | Shown on |
+|---|---|---|
+| `LIGHT_GROUND` | Dark artwork on a transparent background | Day screens |
+| `DARK_GROUND` | Light artwork, transparent or on its own solid background | Night screens and the sign-in brand panel |
+
+PNG, WebP or JPEG, at most 200 KB, 128 to 1024 pixels, checked from the file's own bytes. Never SVG. Set and removed by the owner, with a reason, each one audited.
 
 ### 11b. This device, anyone
 
@@ -417,6 +475,8 @@ Stored in the browser, beside the printing settings from P05:
 | Density | Comfortable, Compact | Comfortable. Compact tightens spacing one step, never text size. |
 | Text size | 100%, 115%, 130% | 100% |
 | Second language | The restaurant's choice, or override | The restaurant's choice |
+
+**The last restaurant (P22).** After a sign-in, this device also keeps the restaurant's look beside these settings: the logos as small `data:` URLs with their hashes, the wordmark, the accent pair, the tone and the brand pair. The sign-in screen uses them before anyone signs in, so the screen a cashier opens in the morning already looks like their restaurant, in Day. Signing out keeps them, because none of it is secret. A logo is fetched again only when the hash on `/auth/me` differs from the one kept. A device that has never seen a restaurant shows Ocean, cool, and the product's name.
 
 ### 11c. What can never be changed
 
@@ -472,6 +532,20 @@ A test fails the build if any component contains a raw hex colour, or any versio
 6. **Today tiles.** R1's `tiles` section follows `settings.appearance.todayTiles`: the owner's tiles in the owner's order, figures unchanged.
 7. **Availability and other two-state toggles** are a `StateChip` with `onClick`: Available is `ok`, Out of stock is `alert`, through `availabilityChip`.
 
+### 13c. Settled while building P22
+
+1. **The warm set** lives as `NEUTRALS.WARM` in `server/utils/colour.js` and under `[data-theme][data-neutral='warm']` in `index.css`. ThemeProvider sets `data-neutral` on the root; a preview subtree sets both attributes. The print stylesheet outranks it, so paper is always cool day.
+2. **One component draws a logo**, `components/ui/BrandLogo.jsx`, with the wordmark as its alt text. A test fails on an `<img>` anywhere else in the client, and on a request for the logo's bytes outside `api/brand.js`. A logo is never recoloured, filtered, inverted, cropped or stretched; `object-contain` keeps its proportions. The plate behind a logo has no padding of its own, because a logo file carries its own margin.
+3. **Where the brand shows.** Sign-in: from 900px a `brand` panel about 40% wide with the logo at most 240px wide, the form on `ground` at most 400px wide, vertically centred; below 900px a 180px band and the form below it, starting at the top. Phone top bar: the logo at 32px. Wide back-office top bar: the logo at 40px. Wide service screens (floor, order, bills, kitchen): the logo in a 44px square at the top of the rail, 10px radius, and nothing in the top bar, so a screen shows the brand once. Browser tab: the wordmark as the title and the logo on its plate as the icon. Nowhere else: not tiles, tickets, sheets, reports, exports or printed receipts.
+4. **No client's name in the product.** With no logo, every place above shows the wordmark: the restaurant's, then its name, then the product's, "Restaurant ERP". The sign-in screen, the top bar and the dashboard used to fall back to a hardcoded "Caffeza", and the sign-in screen carried Caffeza's city and a tagline; all three are gone.
+5. **Spacing.** Padding, margin and gap use only 4, 8, 12, 16, 24, 32 and 48. P22 moved every other value to the nearest step: 2 to 4, 6 to 8, 10 to 12, 14 to 12, 20 to 16, 28 to 32, and 40 and 64 of vertical padding to 48. An offset that lines one thing up with another is not spacing and takes that other thing's size instead: the 28px indent under the balance seal's icon (20px icon, 8px gap), the 64px chart axis column, the 32px a table tile keeps clear for its corner menu, and the 20px at a table tile's foot, which is 16px plus its 4px time edge.
+6. **Tap targets.** `Button`'s `sm` size is 48px tall like the others; it was 40. Pager buttons, the table order arrows, the recipe quantity field and the inline Void are 48px.
+7. **Names.** An item name wraps to two lines on a menu tile, an order line, a kitchen ticket and a bill line, then ends with an ellipsis, with the full name as the element's title. A table name wraps at spaces only, never inside a word.
+8. **Prices never wrap.** `Money` is `whitespace-nowrap`, and a price in a column or a repeated row is `tabular`.
+9. **Loading.** `Spinner` no longer spins: it draws the screen's shape in `sunken`, still, a heading and rows. Screens that showed "Loading..." text show it too. A button that is working shows three still dots. A test fails on `animate-spin`, `animate-pulse`, `animate-ping` or `animate-bounce` anywhere in the client.
+10. **Empty lists say what to do next.** Page-level lists use `EmptyState` with a next step; an empty list inside a card keeps its one quiet line and gains the next step.
+11. **One title per screen.** The kitchen's "All caught up" was a second `title`; it is an `EmptyState`. The sign-in screen without a brand shows the name as a `heading`.
+
 ## 14. How to check a screen
 
 Before calling a screen done:
@@ -484,3 +558,29 @@ Before calling a screen done:
 6. Find every state. Each must show its word and icon, not just a colour.
 7. On a service screen, ask whether anything competes with a late time edge. If so, quiet it.
 8. On a report, ask whether the balance seal is the first thing on the page.
+
+## 15. Restaurant brand: Cafezza
+
+Cafezza's registered trademark is a device mark, "CAFEZZA BE CAFFEINATED": the logo is the brand. Measured in P22 from the files in `docs/brand/`, with a throwaway script outside the repository:
+
+| Name | Hex | Where | P22 measured |
+|---|---|---|---|
+| Logo brown | `#4A2E2A` | The logo square's background | `#4A2E2A` exactly, 83% of the pixels and all four corners. Hue 7.5 degrees, saturation 27.6%, lightness 22.7%. |
+| Logo cream | `#F2D7BC` | The logo artwork | Median `#F8DDBF`, about 6 lighter per channel at the anti-aliased edges. `#F2D7BC` is kept. |
+| Menu linen | about `#D6CCBE` | The menu page behind the cards | `#D3CBBD` |
+| Menu card cream | about `#FFF4E8` | The menu item cards | `#FEF3E5` |
+| Menu text brown | about `#543C24` | Item names and prices | `#543C24` exactly |
+
+**Why the accent is `#49302D`, not `#4A2E2A`.** The logo brown sits at hue 7.5 degrees with 27.6% saturation. The `alert` colour is at 9.4 degrees. The brown is less than 30 degrees from it and over 25% saturated, so it fails section 4c: a primary button in it could be read as an error. `#49302D` is the same hue and lightness at 23.7% saturation. It passes through the low-saturation exception, and it is visually the logo brown. White text on it is 12.04 to 1; on cool day `ground` 10.90, on warm 9.98. Its night value is `#A6746E`, at 4.63 to 1 on cool night `ground` and 4.67 on warm. No rule was loosened to make it fit.
+
+| Setting | Value |
+|---|---|
+| `accentPreset`, `accentHex` | `CUSTOM`, `#49302D` |
+| `neutralTone` | `WARM` |
+| `brandHex`, `onBrandHex` | `#4A2E2A`, `#F2D7BC`, at 8.87 to 1 |
+| `wordmark` | `Cafezza` |
+| `DARK_GROUND` logo | `docs/brand/cafezza-lockup-dark.png`, 391 by 241 |
+
+The lockup is the square with only its plain brown margin trimmed, keeping padding of one eighth of the trimmed height on every side: 24px around 343 by 193 of artwork. Every non-brown pixel of the original is inside it, and no pixel of the padding differs from `#4A2E2A`. Nothing was scaled. The square is kept for the favicon and as the app icon. Until the owner sends a transparent version with brown artwork for light grounds, day screens show the cream logo on a brown plate.
+
+The menu's uppercase item names, serif titles, cream cards, rounded menu cards, linen texture and photos are not copied. The menu reference image informs the look and is never shipped.

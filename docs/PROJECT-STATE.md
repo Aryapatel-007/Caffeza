@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-02 by Rishi
+Last updated: 2026-10-02 by Arya
 
 ---
 
@@ -17,7 +17,7 @@ Stage 9: **taking the product live at Caffeza, our first paying client.**
 M0 to M7 are built. `docs/CURRENT-STATE-AUDIT.md` confirms the code is sound,
 and lists what Caffeza still needs.
 
-The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
+The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P22 in
 `docs/prompts/`, then the checklist in `docs/GO-LIVE.md`.
 
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
@@ -53,7 +53,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 
 ## In scope right now
 
-Caffeza go-live work only: prompts P00 to P21, listed in
+Caffeza go-live work only: prompts P00 to P22, listed in
 `docs/CAFFEZA-BUILD-PLAN.md` section 3.
 
 That covers changes to M0, M1, M2, M3 and M7, building M8 and M10, the new
@@ -393,6 +393,11 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | The golden day is played through the real screens with Playwright, each role on its own device size, with the server and browser clocks moved together. A control listener inside the e2e script moves the clock, and the app has no test routes. | Staff use screens, not the API, and nothing that sets a clock may ever reach production. |
 | 2026-10-02 | TEST-DATA's invoice numbers for B13 to B16 now follow the order bills are created (B16 `CFA/C/22454`, B15 `22455`, B13 `22456`, B14 `22457`), and section 2b, the timeline P10 asked for, is in place. The API golden day plays that timeline in order. | The old numbers contradicted the bill times, and the screens can only issue numbers in time order. Agreed with the user in this session. Every total, payment and line share is unchanged; five tests that named B13 to B16 by number, and R1's alert tests (N01 is now at 5:55 PM), were updated to match. |
 | 2026-10-02 | The golden restaurant carries Caffeza's GSTIN. | A printed golden bill must read as a tax invoice, and P21 checks for it. |
+| 2026-10-02 | A restaurant can add its logo, brand colours and warm neutrals. State colours and contrast minimums are unchanged. Cafezza's accent is its logo brown at 24% saturation, because the exact brown sits 1 degree from the alert colour. | The client asked for a look they can make their own. |
+| 2026-10-02 | The logo is stored on the restaurant, `restaurants.brandLogos`, outside `settings`, with its bytes `select: false`. Two slots, for light and dark grounds. PNG, WebP or JPEG only, read from the file's own bytes with no image library; SVG is always refused. | An image must never ride along with `GET /settings`, a settings audit line, or the restaurant document `authenticate` loads on every request. Refusing SVG is safer than cleaning it. |
+| 2026-10-02 | The upload is `PUT /settings/appearance/logo/:slot`, though CONVENTIONS section 3 says PATCH. Removal is `DELETE` with a reason in the body. Only this route parses a body over 100 KB, after the owner check. | The request replaces the whole slot, the same reason `PUT /recipes` is a PUT. A logo is configuration, like a recipe, so clearing it is a DELETE, and the audit line keeps what was removed. |
+| 2026-10-02 | The sign-in screen, the top bar and the dashboard never name a client: the restaurant's wordmark, then its name, then "Restaurant ERP". The sign-in screen lost Caffeza's city and a tagline written into it. | P22: a client's name does not belong inside the product. |
+| 2026-10-02 | `Spinner` draws the screen's shape, still, instead of a spinning ring, and a test fails on any looping animation in the client. | P22's finishing pass: loading shows the layout, and nothing loops. |
 | 2026-10-02 | The kitchen screen opens in Day, like every other screen. Automatic now means Day everywhere; a station tablet can still choose Night on This device. | The owner asked for the kitchen page in the light theme. This reverses DESIGN-SYSTEM sections 8b and 11b's Night default, which are updated. |
 
 ---
@@ -416,6 +421,35 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-02 Arya, P22 Cafezza brand and professional finish
+
+What was built or decided:
+Cafezza's real brand, through settings any restaurant can use, then a finishing pass. Spec first (`spec neutral tone, brand tokens and logo slots`): `settings.appearance` gains `neutralTone`, `brandHex` and `onBrandHex`; `restaurants.brandLogos` holds two logo slots; M20 section P22 has the three logo endpoints; M8 lists `BRAND_LOGO_SET` and `BRAND_LOGO_REMOVED`.
+
+Part A, measured from the pixels with a script outside the repo: logo brown `#4A2E2A` exactly, logo cream median `#F8DDBF` (the table's `#F2D7BC` kept), menu linen `#D3CBBD`, card cream `#FEF3E5`, text brown `#543C24`. `#4A2E2A` is refused as an accent, naming the Late state; `#49302D` passes at 23.7% saturation, night value `#A6746E`.
+
+Warm neutrals: `NEUTRALS.WARM` in `utils/colour.js` and `[data-theme][data-neutral='warm']` in `index.css`, with every pair measured in DESIGN-SYSTEM 4a. Accents are checked on both day grounds and night variants raised for both night grounds; no preset's night value moved. Brand pair: two tokens, used only by `BrandLogo` and `LoginPage`, guarded by a test. Logo: `utils/imageHeader.js` reads PNG, WebP (lossy, lossless, extended) and JPEG sizes from their headers; `services/brandLogoService.js` checks, stores, audits and reads; `GET /restaurant/logo/:slot` serves the bytes with the hash as the ETag. `/auth/me` carries the tone, the brand pair and each slot's hash, never bytes.
+
+Client: `BrandLogo` is the one component that draws a logo. This device keeps the last restaurant's look (`features/brand/`), so the sign-in screen shows Cafezza's brown panel with the logo blending into it before anyone signs in, and keeps it after sign-out. The logo sits at 32px in the phone top bar, 40px in the wide back-office top bar and in a 44px square at the top of the rail on service screens; the tab takes the wordmark and the logo. The Appearance page gains Logo, Brand colours and Neutral tone sections, and its preview shows the real sign-in panel and top bar.
+
+Finishing pass, every screen: off-scale padding, margin and gap moved onto the scale in 32 files; 48px tap targets (Button `sm`, pagers, table order arrows, recipe quantity, inline Void); item names clamp to two lines with the full name as a title on menu tiles, order lines, kitchen tickets and bill lines; table names wrap at spaces only; prices never wrap and columns are tabular; loading draws the screen's shape still and nothing loops; empty lists say what to do next; one title per screen. Every rule is in DESIGN-SYSTEM 13c.
+
+Cafezza: `setup/caffeza.json` sets the accent, warm tone, brand pair and wordmark, and `logos.DARK_GROUND` names `docs/brand/cafezza-lockup-dark.png`, the square with only its brown margin trimmed (391 by 241, 24px of padding, artwork untouched). The setup script checks the file in the dry run with the endpoint's own checks and uploads it through the endpoint.
+
+Tests: 930 before, 988 after, 0 failing. Lint and build pass. `npm run e2e`, the P21 golden day through the screens, passes on the new screens. It was run against the installed Chrome, because Playwright's own browser build was not downloaded on this machine.
+
+Checked by hand in headless Chrome against the local dev server, with Demo Restaurant A and the loaded golden day dressed as Cafezza: sign-in at 380 and 1280 (the panel colour around the logo is one colour, `#4A2E2A`, with no edge), signed out and the look kept, the dashboard, floor, kitchen, order screen, reports and Appearance page, Day and Night, at 100% and 130% text, on the phone and wide. On a phone at 130% in warm, a free table and an open one are told apart at a glance. The tab title is Cafezza and the icon is the logo. An SVG upload was refused with the plain message. Not every screen was opened at every one of the 24 width, theme, tone and size combinations; the fixes were made in shared components and checked on the screens named.
+
+Files or endpoints touched:
+New: `server/utils/imageHeader.js`, `services/brandLogoService.js`, `controllers/brandController.js`, `routes/brandRoutes.js`, `validators/brandValidators.js`, `tests/brand.test.js`; client `api/brand.js`, `components/ui/BrandLogo.jsx`, `features/brand/brand.js`, `features/brand/browserTab.js`, `features/settings/AppearanceBrand.jsx`, `features/settings/logoFile.js`; `docs/brand/` (the square logo, the lockup, the menu reference). Changed: the Restaurant and AuditLog models, settings validators and service, `authController`, `server.js` (body parser), `scripts/setupRestaurant.js`, `scripts/lib/scriptApi.js`, both `utils/colour.js`, `index.css`, `ThemeProvider`, `AppShell`, `LoginPage`, `AppearancePage`, `Spinner`, `Button`, `Money`, `TableTile`, `TicketCard` and the screens in the finishing pass.
+Endpoints: `PUT` and `DELETE /api/v1/settings/appearance/logo/:slot`, `GET /api/v1/restaurant/logo/:slot`.
+
+Anything the other developer needs to know:
+Draw a logo only through `BrandLogo`; `bg-brand` and `text-on-brand` are for it and the sign-in screen alone. A new loading state uses `Spinner`, which no longer spins. `npm run seed:golden` and the e2e config's start command use a `NODE_ENV=` prefix that does not run under Windows `cmd`; run `NODE_ENV=test node scripts/loadGoldenDay.js` from Git Bash in `server/`. A kitchen ticket now clamps a long dish name to two lines; if the kitchen finds that hides too much, the ticket is the one place to revisit the rule.
+
+Anything now blocked or unblocked:
+Nothing blocked. Ask the owner for the vector logo and a transparent brown version for light grounds (CAFFEZA-PROFILE section 15).
 
 ### 2026-10-02 Rishi, P21 the golden day end to end
 
@@ -654,4 +688,5 @@ Things that are broken or half done, so nobody rediscovers them.
 | The hourly report hardcodes `'Asia/Kolkata'` instead of reading `DISPLAY_TIMEZONE`, `salesReportService.js` line 195 | Audit, 2026-09-29 | FIXED in P01. |
 | `scripts/seedDemo.js` can run against a production database | Audit, 2026-09-29 | NOT A PROBLEM. `assertSafeToSeed` already refuses outside development and test, before connecting. Confirmed in P01. |
 | The database-backed tests were not run during the audit. Only the money, tax and unit tests were. | Audit, 2026-09-29 | DONE in P01: 578 passing, 0 failing. Before P01 changed anything: 551 passing, 0 failing. |
+| `npm run seed:golden` and the e2e config's webServer command start with `NODE_ENV=test`, which Windows `cmd` cannot run, so both fail from npm on Windows. | Arya, P22 | OPEN. Workaround: run the command from Git Bash. The fix is `cross-env` or `node --env-file`, outside P22. |
 | Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |

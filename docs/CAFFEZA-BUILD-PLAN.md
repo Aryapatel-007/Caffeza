@@ -88,6 +88,7 @@ Each prompt names its model at the top.
 | P20A | New look, part 1: foundation and service screens | M20 | P19, and `docs/DESIGN-SYSTEM.md` | Arya | Opus, high |
 | P20B | New look, part 2: back office and customisation | M20 | P20A | Arya | Opus, high |
 | P21 | Golden day, end to end | M19 proof | Everything | Arya | Opus, high |
+| P22 | Cafezza brand and professional finish | M20 | P20B, P21 | Arya | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.
@@ -102,7 +103,7 @@ The owners follow the rule "one module, one owner". Change any of them, and reco
 | B. Their way of working | P05 to P10 | Stations, delivery orders, all eight payment methods, No Charge, On Hold, Day Close |
 | C. Live on staging | P11, P12 | Their real menu and tables on a real web address |
 | D. The reports | P13 to P18 | Every report, balancing, drillable and exportable |
-| E. The look | P19, P20A, P20B | Their floor plan and the new design |
+| E. The look | P19, P20A, P20B, P22 | Their floor plan, the new design, and Cafezza's own brand |
 | F. Proof | P21 | The golden day replays end to end with every check green. Done 2026-10-02: `npm run e2e`, and `docs/GO-LIVE-READINESS.md`. |
 
 After milestone F, follow `docs/GO-LIVE.md`.
@@ -140,6 +141,8 @@ M8 reads them all.
 | `DAY_CLOSED` | `DAY` | M16, from P10 | The day is locked |
 | `DAY_REOPENED` | `DAY` | M16, from P10 | A locked day was changed |
 | `PLATFORM_PAYOUT_RECORDED` | `PAYOUT` | M17, from P09 | Platform money arriving |
+| `BRAND_LOGO_SET` | `SETTINGS` | M20, from P22 | The restaurant's logo changed |
+| `BRAND_LOGO_REMOVED` | `SETTINGS` | M20, from P22 | The restaurant's logo was removed |
 
 ---
 
