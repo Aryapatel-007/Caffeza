@@ -9,6 +9,9 @@ import { getBill, getReceipt } from '../../api/bills.js';
 import BillStatusBadge from './BillStatusBadge.jsx';
 import { errorMessage } from './errorCopy.js';
 import { LABELS } from '../i18n/labels.js';
+import BrandLogo from '../../components/ui/BrandLogo.jsx';
+import { useTheme } from '../../context/ThemeProvider.jsx';
+import { printLogo } from '../brand/brand.js';
 import { charactersFor, printText } from '../printing/printText.js';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import { placeLabel } from '../orders/orderLabel.js';
@@ -34,6 +37,7 @@ const PAPER_SIZES = [
 export default function ReceiptPreviewPage() {
   const { billId } = useParams();
   const [device, updateDevice] = useDeviceSettings();
+  const { brand } = useTheme();
   const [toast, setToast] = useState(null);
   const [printing, setPrinting] = useState(false);
 
@@ -49,7 +53,7 @@ export default function ReceiptPreviewPage() {
     if (!receipt.data) return;
     setPrinting(true);
     try {
-      await printText(receipt.data.text, device.paperMm);
+      await printText(receipt.data.text, device.paperMm, { logo: printLogo(brand) });
       setToast({ tone: 'success', message: 'Sent to the printer.' });
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error) });
@@ -149,6 +153,8 @@ export default function ReceiptPreviewPage() {
 
             {receipt.data && (
               <div className="w-fit max-w-full overflow-x-auto bg-surface px-6 py-8 shadow-float [clip-path:polygon(0_6px,3%_0,6%_6px,9%_0,12%_6px,15%_0,18%_6px,21%_0,24%_6px,27%_0,30%_6px,33%_0,36%_6px,39%_0,42%_6px,45%_0,48%_6px,51%_0,54%_6px,57%_0,60%_6px,63%_0,66%_6px,69%_0,72%_6px,75%_0,78%_6px,81%_0,84%_6px,87%_0,90%_6px,93%_0,96%_6px,100%_0,100%_calc(100%-6px),97%_100%,94%_calc(100%-6px),91%_100%,88%_calc(100%-6px),85%_100%,82%_calc(100%-6px),79%_100%,76%_calc(100%-6px),73%_100%,70%_calc(100%-6px),67%_100%,64%_calc(100%-6px),61%_100%,58%_calc(100%-6px),55%_100%,52%_calc(100%-6px),49%_100%,46%_calc(100%-6px),43%_100%,40%_calc(100%-6px),37%_100%,34%_calc(100%-6px),31%_100%,28%_calc(100%-6px),25%_100%,22%_calc(100%-6px),19%_100%,16%_calc(100%-6px),13%_100%,10%_calc(100%-6px),7%_100%,4%_calc(100%-6px),0_100%)]">
+                {/* The logo prints above the text, as on paper. */}
+                <BrandLogo shape="paper" className="mx-auto mb-3 w-3/5" />
                 <pre
                   aria-label="Receipt text"
                   className="whitespace-pre type-num-meta text-black"
