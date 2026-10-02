@@ -178,3 +178,61 @@ describe('neutralTone', () => {
     assert.equal((await patchAppearance(tokens.MANAGER, { neutralTone: 'COOL' })).status, 403);
   });
 });
+
+describe('the brand pair', () => {
+  it('measures Cafezza cream on Cafezza brown at 4.5 to 1 or more', () => {
+    const verdict = colour.checkBrandPair(LOGO_BROWN, '#F2D7BC');
+    assert.equal(verdict.ok, true);
+    assert.ok(verdict.ratio >= 8.8 && verdict.ratio <= 9, String(verdict.ratio));
+  });
+
+  it('saves the pair, upper-cased, and reaches every role on /auth/me', async () => {
+    const { tokens } = await seedTeam();
+    const saved = await patchAppearance(tokens.OWNER, { brandHex: '#4a2e2a', onBrandHex: '#f2d7bc' });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.body.data.appearance.brandHex, LOGO_BROWN);
+    assert.equal(saved.body.data.appearance.onBrandHex, '#F2D7BC');
+
+    const me = (await request('GET', '/api/v1/auth/me', { token: tokens.KITCHEN })).body.data;
+    assert.equal(me.appearance.brandHex, LOGO_BROWN);
+    assert.equal(me.appearance.onBrandHex, '#F2D7BC');
+  });
+
+  it('refuses a pair under 4.5 to 1, giving the measured ratio', async () => {
+    const { tokens } = await seedTeam();
+    const refused = await patchAppearance(tokens.OWNER, { brandHex: LOGO_BROWN, onBrandHex: '#7A5A50' });
+    assert.equal(refused.status, 400);
+    assert.match(refused.body.error.fields['appearance.onBrandHex'], /measures \d\.\d to 1/);
+  });
+
+  it('checks one half against the stored other half', async () => {
+    const { tokens } = await seedTeam();
+    assert.equal((await patchAppearance(tokens.OWNER, { brandHex: LOGO_BROWN, onBrandHex: '#F2D7BC' })).status, 200);
+    // A brand colour too close to the stored cream.
+    const refused = await patchAppearance(tokens.OWNER, { brandHex: '#C8B09A' });
+    assert.equal(refused.status, 400);
+    assert.ok(refused.body.error.fields['appearance.onBrandHex']);
+    assert.equal((await patchAppearance(tokens.OWNER, { brandHex: '#2E201B' })).status, 200);
+  });
+
+  it('refuses one half alone, and clears both together', async () => {
+    const { tokens } = await seedTeam();
+    const alone = await patchAppearance(tokens.OWNER, { brandHex: LOGO_BROWN });
+    assert.equal(alone.status, 400);
+    assert.ok(alone.body.error.fields['appearance.onBrandHex']);
+
+    assert.equal((await patchAppearance(tokens.OWNER, { brandHex: LOGO_BROWN, onBrandHex: '#F2D7BC' })).status, 200);
+    assert.equal((await patchAppearance(tokens.OWNER, { onBrandHex: null })).status, 400);
+    const cleared = await patchAppearance(tokens.OWNER, { brandHex: null, onBrandHex: null });
+    assert.equal(cleared.status, 200);
+    assert.equal(cleared.body.data.appearance.brandHex, null);
+  });
+
+  it('refuses a colour that is not six-digit hex', async () => {
+    const { tokens } = await seedTeam();
+    for (const bad of ['#4A2E2', 'brown', '#GGGGGG']) {
+      const refused = await patchAppearance(tokens.OWNER, { brandHex: bad, onBrandHex: '#F2D7BC' });
+      assert.equal(refused.status, 400, bad);
+    }
+  });
+});

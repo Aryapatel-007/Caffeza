@@ -297,6 +297,8 @@ const appearanceSettingsSchema = new mongoose.Schema(
     },
     // P22. The tone, and the logo's own background and the text on it.
     neutralTone: { type: String, enum: NEUTRAL_TONE_VALUES, required: true, default: 'COOL' },
+    brandHex: { type: String, default: null, match: /^#[0-9A-F]{6}$/ },
+    onBrandHex: { type: String, default: null, match: /^#[0-9A-F]{6}$/ },
   },
   { _id: false },
 );

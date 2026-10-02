@@ -77,6 +77,10 @@ const DEFAULTS = {
       'unpaidInPaise',
       'lastWeekBillTotalInPaise',
     ],
+    // P22.
+    neutralTone: 'COOL',
+    brandHex: null,
+    onBrandHex: null,
   },
 };
 

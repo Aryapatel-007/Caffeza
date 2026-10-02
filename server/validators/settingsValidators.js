@@ -253,6 +253,17 @@ const accentHex = z
     if (!verdict.ok) ctx.addIssue({ code: 'custom', message: verdict.message });
   });
 
+/**
+ * P22. The brand pair, the logo's own background and the text on it. Only the
+ * format is checked here; that the two are set together and read at 4.5 to 1
+ * needs the stored values, so the settings service checks it.
+ */
+const brandColour = z
+  .string({ error: 'Must be a colour like #4A2E2A.' })
+  .trim()
+  .regex(/^#[0-9a-fA-F]{6}$/, 'Must be a six-digit colour, like #4A2E2A.')
+  .transform((value) => value.toUpperCase());
+
 const appearance = z
   .object({
     accentPreset: z.enum(ACCENT_PRESET_NAMES, { error: `Must be one of ${ACCENT_PRESET_NAMES.join(', ')}.` }).optional(),
@@ -273,6 +284,8 @@ const appearance = z
       .refine((keys) => new Set(keys).size === keys.length, 'Each tile appears once.')
       .optional(),
     neutralTone: z.enum(NEUTRAL_TONE_VALUES, { error: `Must be one of ${NEUTRAL_TONE_VALUES.join(', ')}.` }).optional(),
+    brandHex: z.union([brandColour, z.null()]).optional(),
+    onBrandHex: z.union([brandColour, z.null()]).optional(),
   })
   .strict();
 

@@ -38,6 +38,24 @@ const COLOUR_ARITHMETIC = 'utils/colour.js';
 /** The one component allowed to format money. */
 const MONEY_COMPONENT = 'components/ui/Money.jsx';
 
+/** P22. The one component that draws a logo, the one file that fetches it, and the two users of `brand`. */
+const BRAND_LOGO = 'components/ui/BrandLogo.jsx';
+const BRAND_API = 'api/brand.js';
+const BRAND_USERS = [BRAND_LOGO, 'features/auth/LoginPage.jsx'];
+const BRAND_CLASS = /(?<![\w-])(?:[a-z-]+:)*(?:bg|text|border|ring|outline|fill|stroke|from|to|via|divide|shadow)-(?:on-)?brand(?![\w-])|--color-(?:on-)?brand\b/;
+
+/** Every file in the client folder, built output and dependencies left out. */
+function sourceFilesOfAnyKind(dir) {
+  const found = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (['node_modules', 'dist', '.vite'].includes(entry.name)) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) found.push(...sourceFilesOfAnyKind(full));
+    else if (/\.(js|jsx|css|html|json|md)$/.test(entry.name)) found.push(full);
+  }
+  return found;
+}
+
 function sourceFiles(dir) {
   const files = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -108,6 +126,38 @@ describe('design guard: the whole client', () => {
       }
     }
     assert.deepEqual(found, []);
+  });
+
+  // P22. The logo is drawn by one component, and the brand colour has two jobs.
+  it('draw a logo only through BrandLogo', () => {
+    const found = [];
+    for (const { name, code } of files) {
+      code.split('\n').forEach((line, index) => {
+        const where = `${name}:${index + 1}  ${line.trim().slice(0, 100)}`;
+        if (/<img\b/.test(line) && name !== BRAND_LOGO) found.push(where);
+        // Only the brand API file asks the server for the logo's bytes.
+        if (/\/restaurant\/logo/.test(line) && name !== BRAND_API) found.push(where);
+      });
+    }
+    assert.deepEqual(found, []);
+  });
+
+  it('use the brand colour only in BrandLogo and the sign-in screen', () => {
+    const found = offenders(BRAND_CLASS).filter((line) => !BRAND_USERS.some((allowed) => line.startsWith(`${allowed}:`)));
+    assert.deepEqual(found, []);
+  });
+
+  it('never reference the menu reference image', () => {
+    const everything = sourceFilesOfAnyKind(path.resolve(CLIENT_SRC, '..'));
+    const found = everything.filter((file) => /cafezza-menu-reference/.test(readFileSync(file, 'utf8')));
+    assert.deepEqual(found.map((file) => path.relative(SERVER_DIR, file)), []);
+  });
+
+  it('catch a planted logo, brand class and menu reference', () => {
+    assert.ok(BRAND_CLASS.test('className="bg-brand text-on-brand"'));
+    assert.ok(BRAND_CLASS.test("'hover:border-brand'"));
+    assert.ok(!BRAND_CLASS.test('className="bg-surface text-brandish"'));
+    assert.ok(/<img\b/.test('<img src={logo} alt="" />'));
   });
 
   it('catch a planted raw colour, version 1 token and private money format', () => {

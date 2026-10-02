@@ -18,7 +18,7 @@ import { Bill } from '../models/Bill.js';
 import { Counter, COUNTER_NAMES } from '../models/Counter.js';
 import { INVOICE_MODES, Restaurant } from '../models/Restaurant.js';
 import { recordAudit } from './auditService.js';
-import { ACCENT_PRESETS, nightVariant } from '../utils/colour.js';
+import { ACCENT_PRESETS, checkBrandPair, nightVariant } from '../utils/colour.js';
 import { BusinessRuleError, ERROR_CODES, ValidationError } from '../utils/errors.js';
 import { financialYearFor, nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
@@ -75,6 +75,8 @@ const SETTING_PATHS = Object.freeze({
   'appearance.secondLanguage': 'settings.appearance.secondLanguage',
   'appearance.todayTiles': 'settings.appearance.todayTiles',
   'appearance.neutralTone': 'settings.appearance.neutralTone',
+  'appearance.brandHex': 'settings.appearance.brandHex',
+  'appearance.onBrandHex': 'settings.appearance.onBrandHex',
 });
 
 /** The modules a restaurant can switch off. P02. */
@@ -319,6 +321,22 @@ function assertAppearanceComplete(current, next) {
       'appearance.accentHex': 'Choose a colour for the custom accent.',
     });
   }
+
+  // P22. The brand pair is set together and must read, against the stored half
+  // when only one half is sent.
+  const brandHex = next.brandHex !== undefined ? next.brandHex : current.brandHex;
+  const onBrandHex = next.onBrandHex !== undefined ? next.onBrandHex : current.onBrandHex;
+  if (Boolean(brandHex) !== Boolean(onBrandHex)) {
+    const missing = brandHex ? 'appearance.onBrandHex' : 'appearance.brandHex';
+    const message = 'Set the brand colour and the colour of text on it together, or clear both.';
+    throw new ValidationError(message, { [missing]: message });
+  }
+  if (brandHex) {
+    const verdict = checkBrandPair(brandHex, onBrandHex);
+    if (!verdict.ok) {
+      throw new ValidationError(verdict.message, { 'appearance.onBrandHex': verdict.message });
+    }
+  }
 }
 
 /**
@@ -339,6 +357,8 @@ export function presentAppearance(appearance, restaurantName) {
     secondLanguage: appearance.secondLanguage,
     todayTiles: [...appearance.todayTiles],
     neutralTone: appearance.neutralTone ?? 'COOL',
+    brandHex: appearance.brandHex ?? null,
+    onBrandHex: appearance.onBrandHex ?? null,
   };
 }
 
