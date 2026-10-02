@@ -104,7 +104,7 @@ export const GOLDEN_BILLS = [
     items: ['Indian Platters', 'Caffe Latte', 'Water Bottle'], payments: [['CASH', 75300]] },
   { id: 'B07', delivery: { code: 'SWIGGY', orderId: '249377796192385' }, captain: 'Counter', opened: '17:20', billed: '17:21', paid: '17:21',
     items: ['Half & Half Pizza', 'Ferrero Hazelnut Shake', 'Caffe Latte'], payments: [['SWIGGY', 93000]] },
-  { id: 'B08', delivery: { code: 'ZOMATO', orderId: '6912345001' }, captain: 'Counter', opened: '18:05', billed: '18:06', paid: '18:06',
+  { id: 'B08', delivery: { code: 'ZOMATO', orderId: '8645938999' }, captain: 'Counter', opened: '18:05', billed: '18:06', paid: '18:06',
     items: ['Ferrero Hazelnut Shake', 'Masala Pav Sandwich'],
     discount: { kind: 'FLAT', valueInPaise: 20000, reasonCode: 'MERCHANT_PROMO', note: 'TAKE200', fundedBy: 'RESTAURANT' },
     payments: [['ZOMATO', 30500]] },
@@ -231,37 +231,48 @@ async function readyAndServe(token, orderId, kots) {
   return order;
 }
 
+/** The staff, in TEST-DATA section 1's order. */
+const STAFF = [
+  ['Manager', ROLES.MANAGER],
+  ['Counter', ROLES.CASHIER],
+  ['Khuman Singh', ROLES.WAITER],
+  ['Budha Singh', ROLES.WAITER],
+  ['Devendra Singh', ROLES.WAITER],
+  ['Ranjeet Paswan', ROLES.WAITER],
+];
+
 /**
- * Builds the whole golden day. `commissions` sets a platform method's rate
- * before any payment, for example `{ SWIGGY: 2000 }`.
- * Returns the tokens by role and by captain name,
- * the restaurant, and the ids of everything created, keyed by TEST-DATA's
- * names (B01 to B16, N01, the accounts, the tables).
+ * The golden restaurant, ready for the day and with nothing played: staff,
+ * settings, stations, menu, payment methods, accounts and tables, all through
+ * the API. P21 split it out so a browser test can play the day on screen.
+ *
+ * `invoiceSeries: false` leaves the invoice series at its default, for the
+ * browser test, where the owner sets it on the Invoice numbers screen.
+ *
+ * Returns the tokens by role and by person, every person's phone and the one
+ * password they share, and the ids of everything created.
  */
-export async function buildGoldenDay({ name = 'Caffeza', commissions = {} } = {}) {
+export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}, invoiceSeries = true } = {}) {
   setClockForTests(ist('09:00'));
   try {
     const base = await seedFullRestaurant({ name, ownerName: 'Owner' });
     const { restaurant, branch } = base;
     const tokens = { OWNER: await login(base.phone) };
     const people = { Owner: tokens.OWNER };
-    for (const [personName, role] of [
-      ['Manager', ROLES.MANAGER],
-      ['Counter', ROLES.CASHIER],
-      ['Khuman Singh', ROLES.WAITER],
-      ['Budha Singh', ROLES.WAITER],
-      ['Devendra Singh', ROLES.WAITER],
-      ['Ranjeet Paswan', ROLES.WAITER],
-    ]) {
+    const phones = { Owner: base.phone };
+    for (const [personName, role] of STAFF) {
       const seeded = await seedUser({ restaurant, branch, name: personName, role });
       people[personName] = await login(seeded.phone);
+      phones[personName] = seeded.phone;
     }
     tokens.MANAGER = people.Manager;
     tokens.CASHIER = people.Counter;
     tokens.WAITER = people['Khuman Singh'];
     const owner = tokens.OWNER;
     const manager = tokens.MANAGER;
-    const counter = tokens.CASHIER;
+
+    // Caffeza's GSTIN, from setup/caffeza.json, so a printed bill reads as a tax invoice.
+    ok(await request('PATCH', '/api/v1/restaurant', { token: owner, body: { gstin: '24AARFT4546K1ZM' } }), 'gstin');
 
     ok(
       await request('PATCH', '/api/v1/settings', {
@@ -269,7 +280,7 @@ export async function buildGoldenDay({ name = 'Caffeza', commissions = {} } = {}
         body: {
           reason: 'Caffeza setup',
           business: { businessDayStartsAtMinutes: 300 },
-          invoice: { mode: 'PREFIX', prefix: 'CFA/C/', startingNumber: 22442 },
+          ...(invoiceSeries ? { invoice: { mode: 'PREFIX', prefix: 'CFA/C/', startingNumber: 22442 } } : {}),
           features: { inventory: false, attendance: false },
           // P19: Caffeza records guests on every table; every golden dine-in order already does.
           floor: { requireGuestCount: true, longOpenMinutes: 90 },
@@ -349,159 +360,181 @@ export async function buildGoldenDay({ name = 'Caffeza', commissions = {} } = {}
       ).id;
     }
 
-    setClockForTests(ist('11:00'));
+    return {
+      restaurant,
+      branch,
+      tokens,
+      people,
+      phones,
+      password: DEFAULT_PASSWORD,
+      ids: { bills: {}, orders: {}, accounts, tables, items, stations: stationIds, categories: categoryIds },
+    };
+  } finally {
+    resetClockForTests();
+  }
+}
+
+/**
+ * Plays TEST-DATA section 2b through the API, in its order, with the clock at
+ * each row's time, so invoice numbers run in the order bills are created.
+ * Where an order must be made, marked ready or served before it is billed, that
+ * happens at its billing time. Fills in `golden.ids` and returns `golden`.
+ */
+export async function playGoldenDay(golden) {
+  const { tokens, people, ids } = golden;
+  const { items, tables, accounts, bills, orders } = ids;
+  const manager = tokens.MANAGER;
+  const counter = tokens.CASHIER;
+  const spec = Object.fromEntries(GOLDEN_BILLS.map((bill) => [bill.id, bill]));
+  const kotsOf = {};
+  const at = (time, date = GOLDEN_DATE) => setClockForTests(ist(time, date));
+
+  const lineFor = (entry) => {
+    const [itemName, quantity] = Array.isArray(entry) ? entry : [entry, 1];
+    return { menuItemId: items[itemName], quantity };
+  };
+
+  /** Opens an order and sends it to the kitchen. */
+  const open = async (id, body, entries, captain) => {
+    const opened = ok(
+      await request('POST', '/api/v1/orders', { token: captain, body: { ...body, lines: entries.map(lineFor) } }),
+      `open ${id}`,
+    );
+    const fired = await fireReadyServe(captain, opened.id, opened.version);
+    orders[id] = opened.id;
+    kotsOf[id] = fired.kots;
+    return fired.order;
+  };
+  const openTable = (id) => {
+    const bill = spec[id];
+    return open(id, { orderType: 'DINE_IN', tableId: tables[bill.table], guestCount: bill.covers }, bill.items, people[bill.captain]);
+  };
+
+  /** Readies and serves whatever is left, then bills it, then the manager's discount. */
+  const billOrder = async (id, orderOf = id) => {
+    const order = spec[orderOf].delivery || spec[orderOf].takeaway
+      ? await readyAndServe(counter, orders[orderOf], kotsOf[orderOf])
+      : await readyAndServe(people[spec[orderOf].captain], orders[orderOf], kotsOf[orderOf]);
+    kotsOf[orderOf] = [];
+    const bill = ok(
+      await request('POST', '/api/v1/bills', { token: counter, body: { orderId: order.id, version: order.version } }),
+      `bill ${id}`,
+    );
+    bills[id] = bill.id;
+    orders[id] = order.id;
+    if (spec[id].discount) {
+      ok(await request('POST', `/api/v1/bills/${bill.id}/discount`, { token: manager, body: spec[id].discount }), `discount ${id}`);
+    }
+    return bill;
+  };
+  const pay = async (id) => {
+    for (const [method, amountInPaise] of spec[id].payments) {
+      ok(
+        await request('POST', `/api/v1/bills/${bills[id]}/payments`, { token: counter, body: { method, amountInPaise } }),
+        `pay ${id}`,
+      );
+    }
+  };
+  const charge = async (id) =>
     ok(
-      await request('POST', '/api/v1/cash-movements', {
-        token: counter,
-        body: { type: 'OPENING_FLOAT', amountInPaise: 200000 },
+      await request('POST', `/api/v1/bills/${bills[id]}/charge-to-account`, {
+        token: manager,
+        body: { accountId: accounts[spec[id].onHold] },
       }),
+      `charge ${id}`,
+    );
+
+  try {
+    at('11:00');
+    ok(
+      await request('POST', '/api/v1/cash-movements', { token: manager, body: { type: 'OPENING_FLOAT', amountInPaise: 200000 } }),
       'opening float',
     );
 
-    const lineFor = (entry) => {
-      const [itemName, quantity] = Array.isArray(entry) ? entry : [entry, 1];
-      return { menuItemId: items[itemName], quantity };
-    };
+    at('11:40'); await openTable('B01');
+    at('12:30'); await billOrder('B01');
+    at('12:36'); await pay('B01');
+    at('13:01'); await openTable('B02');
+    at('13:10'); await openTable('B03');
+    at('13:52'); await billOrder('B02');
+    at('13:58'); await pay('B02');
+    at('14:02'); await billOrder('B03');
+    at('14:09'); await pay('B03');
+    at('14:20'); await openTable('B04');
+    at('14:55'); await billOrder('B04');
+    at('14:58'); await pay('B04');
+    at('15:05'); await openTable('B05');
+    at('15:50'); await billOrder('B05');
+    at('15:54'); await pay('B05');
+    at('16:10'); await openTable('B06');
+    at('16:58'); await billOrder('B06');
+    at('17:03'); await pay('B06');
 
-    const bills = {};
-    const orders = {};
-
-    for (const spec of GOLDEN_BILLS) {
-      let order;
-
-      if (spec.sameOrderAs) {
-        order = ok(await request('GET', `/api/v1/orders/${orders[spec.sameOrderAs]}`, { token: counter }), 'reread');
-      } else {
-        const captain = people[spec.captain];
-        setClockForTests(ist(spec.opened));
-        const body = spec.delivery
-          ? { orderType: 'DELIVERY', platform: spec.delivery }
-          : spec.takeaway
-            ? { orderType: 'TAKEAWAY' }
-            : { orderType: 'DINE_IN', tableId: tables[spec.table], guestCount: spec.covers };
-        const opened = ok(
-          await request('POST', '/api/v1/orders', {
-            token: captain,
-            body: {
-              ...body,
-              lines: [...spec.items, ...(spec.cancelled ? ['Thecha Paneer Chilli'] : [])].map(lineFor),
-            },
-          }),
-          `open ${spec.id}`,
-        );
-        const fired = await fireReadyServe(captain, opened.id, opened.version);
-        let current = fired.order;
-
-        if (spec.cancelled) {
-          // B13: Thecha Paneer Chilli made and sent back; Cheesy Tornado entered by mistake, never fired.
-          setClockForTests(ist('20:50'));
-          current = ok(
-            await request('POST', `/api/v1/orders/${opened.id}/lines`, {
-              token: captain,
-              body: { version: current.version, lines: [lineFor('Cheesy Tornado')] },
-            }),
-            'add Cheesy Tornado',
-          );
-          const thecha = current.lines.find((line) => line.itemName === 'Thecha Paneer Chilli');
-          current = ok(
-            await request('POST', `/api/v1/orders/${opened.id}/lines/${thecha.id}/cancel`, {
-              token: captain,
-              body: { version: current.version, reasonCode: 'MODIFICATION', wasPrepared: true },
-            }),
-            'cancel Thecha',
-          );
-          const tornado = current.lines.find((line) => line.itemName === 'Cheesy Tornado');
-          current = ok(
-            await request('POST', `/api/v1/orders/${opened.id}/lines/${tornado.id}/cancel`, {
-              token: captain,
-              body: { version: current.version, reasonCode: 'WRONG_ITEM' },
-            }),
-            'cancel Cheesy Tornado',
-          );
-        }
-
-        setClockForTests(ist(spec.billed));
-        order = await readyAndServe(captain, opened.id, fired.kots);
-        orders[spec.id] = order.id;
-      }
-
-      setClockForTests(ist(spec.billed));
-      const bill = ok(
-        await request('POST', '/api/v1/bills', {
-          token: counter,
-          body: { orderId: order.id, version: order.version },
-        }),
-        `bill ${spec.id}`,
-      );
-      bills[spec.id] = bill.id;
-      orders[spec.id] = order.id;
-
-      if (spec.discount) {
-        ok(
-          await request('POST', `/api/v1/bills/${bill.id}/discount`, { token: manager, body: spec.discount }),
-          `discount ${spec.id}`,
-        );
-      }
-
-      if (spec.voidAt) {
-        setClockForTests(ist(spec.voidAt));
-        ok(
-          await request('POST', `/api/v1/bills/${bill.id}/void`, {
-            token: manager,
-            body: { reasonCode: 'WRONG_TABLE' },
-          }),
-          `void ${spec.id}`,
-        );
-        continue;
-      }
-
-      setClockForTests(ist(spec.paid, spec.paidNextDay ? '2026-09-27' : GOLDEN_DATE));
-      if (spec.onHold) {
-        ok(
-          await request('POST', `/api/v1/bills/${bill.id}/charge-to-account`, {
-            token: manager,
-            body: { accountId: accounts[spec.onHold] },
-          }),
-          `charge ${spec.id}`,
-        );
-      }
-      for (const [method, amountInPaise] of spec.payments ?? []) {
-        ok(
-          await request('POST', `/api/v1/bills/${bill.id}/payments`, {
-            token: counter,
-            body: { method, amountInPaise },
-          }),
-          `pay ${spec.id}`,
-        );
-      }
-    }
+    at('17:20'); await open('B07', { orderType: 'DELIVERY', platform: spec.B07.delivery }, spec.B07.items, counter);
+    at('17:21'); await billOrder('B07'); await pay('B07');
 
     // N01: College Sandwich on Table 29, Corporate office order, approved by the Manager.
-    setClockForTests(ist('19:30'));
-    const n01 = ok(
-      await request('POST', '/api/v1/orders', {
-        token: people['Ranjeet Paswan'],
-        body: {
-          orderType: 'DINE_IN',
-          tableId: tables['Table 29'],
-          guestCount: 2,
-          lines: [lineFor('College Sandwich')],
-        },
-      }),
-      'open N01',
-    );
-    const n01Fired = await fireReadyServe(people['Ranjeet Paswan'], n01.id, n01.version);
-    setClockForTests(ist('19:45'));
+    at('17:30');
+    const n01 = await open('N01', { orderType: 'DINE_IN', tableId: tables['Table 29'], guestCount: 1 }, ['College Sandwich'], people['Ranjeet Paswan']);
+    at('17:55');
     ok(
       await request('POST', `/api/v1/orders/${n01.id}/no-charge`, {
         token: manager,
-        body: { version: n01Fired.order.version, reasonCode: 'CORPORATE_OFFICE' },
+        body: { version: n01.version, reasonCode: 'CORPORATE_OFFICE' },
       }),
       'No Charge N01',
     );
-    orders.N01 = n01.id;
 
-    setClockForTests(ist('21:30'));
+    at('18:05');
+    await open('B08', { orderType: 'DELIVERY', platform: spec.B08.delivery }, spec.B08.items, counter);
+    await openTable('B09');
+    at('18:06'); await billOrder('B08'); await pay('B08');
+    at('18:18'); await openTable('B10');
+    at('18:30'); await billOrder('B09'); await charge('B09');
+    at('19:10'); await billOrder('B10'); await charge('B10');
+    at('19:20'); await openTable('B11');
+    at('19:40'); await openTable('B16');
+    at('20:05'); await billOrder('B11');
+    at('20:09');
+    ok(await request('POST', `/api/v1/bills/${bills.B11}/void`, { token: manager, body: { reasonCode: 'WRONG_TABLE' } }), 'void B11');
+    at('20:11'); await billOrder('B12', 'B11');
+    at('20:15'); await pay('B12');
+
+    at('20:30');
+    let b13 = await open('B13', { orderType: 'DINE_IN', tableId: tables['Table 11'], guestCount: 3 }, ['Thecha Paneer Chilli', ...spec.B13.items], people['Khuman Singh']);
+    at('20:40'); await billOrder('B16');
+    at('20:46'); await pay('B16');
+
+    // B13: Cheesy Tornado entered by mistake and never sent; Thecha Paneer Chilli made and sent back.
+    const khuman = people['Khuman Singh'];
+    at('20:50');
+    b13 = ok(
+      await request('POST', `/api/v1/orders/${orders.B13}/lines`, { token: khuman, body: { version: b13.version, lines: [lineFor('Cheesy Tornado')] } }),
+      'add Cheesy Tornado',
+    );
+    const tornado = b13.lines.find((line) => line.itemName === 'Cheesy Tornado');
+    b13 = ok(
+      await request('POST', `/api/v1/orders/${orders.B13}/lines/${tornado.id}/cancel`, {
+        token: khuman,
+        body: { version: b13.version, reasonCode: 'WRONG_ITEM' },
+      }),
+      'cancel Cheesy Tornado',
+    );
+    at('21:00');
+    const thecha = b13.lines.find((line) => line.itemName === 'Thecha Paneer Chilli');
+    ok(
+      await request('POST', `/api/v1/orders/${orders.B13}/lines/${thecha.id}/cancel`, {
+        token: khuman,
+        body: { version: b13.version, reasonCode: 'MODIFICATION', wasPrepared: true },
+      }),
+      'cancel Thecha',
+    );
+
+    at('21:10'); await open('B15', { orderType: 'TAKEAWAY' }, spec.B15.items, counter);
+    at('21:12'); await billOrder('B15');
+    at('21:13'); await pay('B15');
+
+    at('21:30');
     const paidOut = ok(
       await request('POST', '/api/v1/cash-movements', {
         token: manager,
@@ -509,17 +542,29 @@ export async function buildGoldenDay({ name = 'Caffeza', commissions = {} } = {}
       }),
       'paid out',
     );
+    ids.paidOut = paidOut.id;
 
-    return {
-      restaurant,
-      branch,
-      tokens,
-      people,
-      ids: { bills, orders, accounts, tables, items, paidOut: paidOut.id },
-    };
+    at('21:40'); await billOrder('B13');
+    at('21:44'); await pay('B13');
+    at('22:51'); await openTable('B14');
+    at('23:55'); await billOrder('B14');
+    at('00:02', '2026-09-27'); await pay('B14');
+
+    return golden;
   } finally {
     resetClockForTests();
   }
+}
+
+/**
+ * Builds the whole golden day: `setupGoldenRestaurant` then `playGoldenDay`.
+ * `commissions` sets a platform method's rate before any payment, for example
+ * `{ SWIGGY: 2000 }`. Returns the tokens by role and by captain name, the
+ * restaurant, and the ids of everything created, keyed by TEST-DATA's names
+ * (B01 to B16, N01, the accounts, the tables).
+ */
+export async function buildGoldenDay(options = {}) {
+  return playGoldenDay(await setupGoldenRestaurant(options));
 }
 
 /**

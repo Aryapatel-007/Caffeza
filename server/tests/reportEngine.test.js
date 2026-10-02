@@ -245,19 +245,19 @@ describe('the checks, each broken on purpose (TEST-DATA section 6)', () => {
   it('C7 on B13 when one of its lines points at the cancelled Thecha Paneer Chilli', async () => {
     const order = (await request('GET', `/api/v1/orders/${golden.ids.orders.B13}`, { token: golden.tokens.OWNER })).body.data;
     const thecha = order.lines.find((line) => line.itemName === 'Thecha Paneer Chilli');
-    const b13 = (await billByNumber('CFA/C/22454')).toObject();
+    const b13 = (await billByNumber('CFA/C/22456')).toObject();
     const lines = structuredClone(b13.lines);
     lines[0].orderLineId = new Bill.base.Types.ObjectId(thecha.id);
-    const checks = await withBroken('CFA/C/22454', { $set: { lines } }, dayChecks);
+    const checks = await withBroken('CFA/C/22456', { $set: { lines } }, dayChecks);
     assert.deepEqual(failingErrors(checks), ['C7']);
     assert.equal(
       checks.find((check) => check.id === 'C7').message,
-      `C7 Cancelled: item Thecha Paneer Chilli on order ${order.orderNumber} was cancelled but appears on bill CFA/C/22454.`,
+      `C7 Cancelled: item Thecha Paneer Chilli on order ${order.orderNumber} was cancelled but appears on bill CFA/C/22456.`,
     );
   });
 
   it('C8 on B14 when its business date is stored as 2026-09-27', async () => {
-    const checks = await withBroken('CFA/C/22455', { $set: { businessDate: '2026-09-27' } }, dayChecks);
+    const checks = await withBroken('CFA/C/22457', { $set: { businessDate: '2026-09-27' } }, dayChecks);
     assert.deepEqual(failingErrors(checks), ['C8']);
   });
 
@@ -359,12 +359,12 @@ describe('R19 Bill List', () => {
     };
     for (const [query, want] of Object.entries(expected)) assert.equal(await count(query), want, query);
     assert.deepEqual(numbers(await bills('status=VOIDED')), ['CFA/C/22452']);
-    assert.deepEqual(numbers(await bills('hasCancellations=true')), ['CFA/C/22454']);
+    assert.deepEqual(numbers(await bills('hasCancellations=true')), ['CFA/C/22456']);
   });
 
   it('combined filters intersect', async () => {
-    assert.deepEqual(numbers(await bills('method=UPI&orderType=TAKEAWAY')), ['CFA/C/22456']);
-    assert.deepEqual(numbers(await bills('categoryName=Pizza&discountReason=ZOMATO_GOLD')), ['CFA/C/22455']);
+    assert.deepEqual(numbers(await bills('method=UPI&orderType=TAKEAWAY')), ['CFA/C/22455']);
+    assert.deepEqual(numbers(await bills('categoryName=Pizza&discountReason=ZOMATO_GOLD')), ['CFA/C/22457']);
   });
 
   it('the totals row covers every matching bill, across pages', async () => {

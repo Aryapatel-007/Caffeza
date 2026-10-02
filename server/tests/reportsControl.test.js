@@ -84,7 +84,7 @@ describe('R14 Discounts', () => {
     const bills = section(data, 'bills');
     const expected = {
       'CFA/C/22442': 1000, 'CFA/C/22443': 504, 'CFA/C/22449': 3960,
-      'CFA/C/22450': 5000, 'CFA/C/22455': 256, 'CFA/C/22457': 500,
+      'CFA/C/22450': 5000, 'CFA/C/22457': 256, 'CFA/C/22454': 500,
     };
     assert.equal(bills.rows.length, 6);
     assert.equal(meta.total, 6);

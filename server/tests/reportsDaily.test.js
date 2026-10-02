@@ -240,7 +240,7 @@ describe('R5 Payments', () => {
   });
 
   it('counts B14\'s payment at 12:02 AM on 27 September on 26 September', async () => {
-    const b14 = await Bill.findOne({ restaurantId: golden.restaurant._id, billNumber: 'CFA/C/22455' });
+    const b14 = await Bill.findOne({ restaurantId: golden.restaurant._id, billNumber: 'CFA/C/22457' });
     assert.equal(b14.payments[0].receivedAt.toISOString(), '2026-09-26T18:32:00.000Z');
     const data = (await report('payments', 'from=2026-09-27&to=2026-09-27')).body.data;
     assert.equal(section(data, 'days').rows[0].ZOMATO_GOLD, 0);

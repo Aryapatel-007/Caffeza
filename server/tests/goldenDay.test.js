@@ -125,13 +125,13 @@ describe('the checks, each broken on purpose (TEST-DATA section 6)', () => {
   });
 
   it('C8 fails, alone, when B14\'s business date is stored as 2026-09-27', async () => {
-    const checks = await withBroken('CFA/C/22455', { $set: { businessDate: '2026-09-27' } }, checksNow);
+    const checks = await withBroken('CFA/C/22457', { $set: { businessDate: '2026-09-27' } }, checksNow);
     assert.deepEqual(failing(checks).filter((id) => id !== 'C9'), ['C8']);
     const c8 = checks.find((check) => check.id === 'C8');
-    assert.deepEqual(c8.refs, ['CFA/C/22455']);
+    assert.deepEqual(c8.refs, ['CFA/C/22457']);
     assert.equal(
       c8.message,
-      'C8 Date: bill CFA/C/22455 was issued at 2026-09-26 23:55:00 IST India time, which is business date 2026-09-26, but it is stored as 2026-09-27.',
+      'C8 Date: bill CFA/C/22457 was issued at 2026-09-26 23:55:00 IST India time, which is business date 2026-09-26, but it is stored as 2026-09-27.',
     );
   });
 

@@ -104,18 +104,19 @@ describe('R1 Today at 6:00 PM on 26 September', () => {
     ]);
   });
 
-  it('no alerts yet: the void, the large discounts, the cancellation and the No Charge (7:45 PM) all come later', async () => {
+  it('only the No Charge (5:55 PM) by 6:00 PM: the void, the large discounts and the cancellation come later', async () => {
     setClockForTests(ist('18:00'));
-    assert.deepEqual(section((await today()).body.data, 'alerts').rows, []);
+    const alerts = section((await today()).body.data, 'alerts').rows;
+    assert.deepEqual(alerts.map((row) => [row.kind, row.detail, row.amountInPaise]), [['No Charge', 'Table 29', 23000]]);
   });
 
   it('by 10:00 PM the alerts list each event in time order', async () => {
     setClockForTests(ist('22:00'));
     const alerts = section((await today()).body.data, 'alerts').rows;
     assert.deepEqual(alerts.map((row) => [row.kind, row.detail, row.amountInPaise]), [
+      ['No Charge', 'Table 29', 23000],
       ['Discount over 20%', 'CFA/C/22449', 20000],
       ['Discount over 20%', 'CFA/C/22450', 4500],
-      ['No Charge', 'Table 29', 23000],
       ['Void', 'CFA/C/22452', 34700],
       ['Cancelled after preparation', 'Thecha Paneer Chilli', 39000],
     ]);
