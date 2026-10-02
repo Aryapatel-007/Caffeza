@@ -266,6 +266,7 @@ export default function DeliveryOrderPage() {
             pendingCounts={pendingCounts}
             onStep={setQuantity}
             onRemove={(line) => setQuantity(line, 0)}
+            onOpen={(item) => setPickingItem(item)}
             onPick={(item) => {
               if (item.variants.length > 0 || item.addOns.length > 0) {
                 setPickingItem(item);

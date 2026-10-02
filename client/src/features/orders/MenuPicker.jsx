@@ -21,6 +21,16 @@ import Spinner from '../../components/ui/Spinner.jsx';
  * not yet sent. The stepper edits that one line's quantity rather than adding
  * a second line of the same dish, so the kitchen ticket reads "3 × Latte", not
  * three separate lattes. `simpleLines` maps a menu item id to that line.
+ *
+ * Two taps, two meanings, the same for every dish:
+ *   the dish itself (its name) opens the options panel, `onOpen`: size,
+ *     extras, quantity and a note, so a note is always one tap away;
+ *   + adds one straight away, `onPick`, and never opens a panel. A dish
+ *     with sizes or extras shows Choose instead of +, because it cannot go
+ *     on without a choice, and Choose opens the panel.
+ * Before this, tapping a plain dish's name added it with no way to leave a
+ * note, while tapping a dish with sizes opened the panel, so the same tap
+ * behaved two ways.
  */
 export default function MenuPicker({
   tree,
@@ -32,6 +42,7 @@ export default function MenuPicker({
   simpleLines,
   pendingCounts,
   onPick,
+  onOpen,
   onStep,
   onRemove,
 }) {
@@ -104,6 +115,7 @@ export default function MenuPicker({
               pendingCount={pendingCounts.get(item.id) ?? 0}
               disabled={disabled}
               onPick={() => onPick(item)}
+              onOpen={() => (onOpen ?? onPick)(item)}
               onStep={onStep}
               onRemove={onRemove}
             />
@@ -114,7 +126,7 @@ export default function MenuPicker({
   );
 }
 
-function DishCard({ item, line, pendingCount, disabled, onPick, onStep, onRemove }) {
+function DishCard({ item, line, pendingCount, disabled, onPick, onOpen, onStep, onRemove }) {
   const hasChoices = item.variants.length > 0 || item.addOns.length > 0;
   const onOrder = Boolean(line) || (hasChoices && pendingCount > 0);
 
@@ -125,7 +137,13 @@ function DishCard({ item, line, pendingCount, disabled, onPick, onStep, onRemove
         onOrder ? 'border-[3px] border-open' : 'border border-line',
       ].join(' ')}
     >
-      <button type="button" disabled={disabled} onClick={onPick} className="min-h-12 min-w-0 text-left disabled:opacity-60">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onOpen}
+        aria-label={`${item.name}: choose quantity${hasChoices ? ', size or extras' : ''} and add a note`}
+        className="min-h-12 min-w-0 text-left disabled:opacity-60"
+      >
         <h3 className="type-body line-clamp-2 break-words font-semibold" title={item.name}>
           {item.name}
         </h3>
@@ -155,7 +173,7 @@ function DishCard({ item, line, pendingCount, disabled, onPick, onStep, onRemove
           <button
             type="button"
             disabled={disabled}
-            onClick={onPick}
+            onClick={onOpen}
             className="type-label flex min-h-12 items-center gap-1 rounded-lg border border-ink px-3 hover:bg-sunken disabled:opacity-60"
           >
             {pendingCount > 0 ? `${pendingCount} added · Choose` : 'Choose'}

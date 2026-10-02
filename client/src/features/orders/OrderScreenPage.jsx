@@ -277,6 +277,7 @@ export default function OrderScreenPage() {
             pendingCounts={pendingCounts}
             onStep={changeQuantity}
             onRemove={(line) => setCancelling({ kind: 'line', line })}
+            onOpen={(item) => setPickingItem(item)}
             onPick={(item) => {
               // Straight on when there is nothing to choose, panel when there is.
               if (item.variants.length > 0 || item.addOns.length > 0) {
