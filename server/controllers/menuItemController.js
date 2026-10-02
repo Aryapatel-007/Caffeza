@@ -8,7 +8,9 @@
  * obvious implementation of "replace the array" quietly breaks both.
  */
 import { Category } from '../models/Category.js';
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { MenuItem } from '../models/MenuItem.js';
+import { recordAudit } from '../services/auditService.js';
 import { getSetting } from '../services/settingsService.js';
 import {
   AddOnNotFoundError,
@@ -217,6 +219,8 @@ export async function updateMenuItem(req, res) {
   const nextAddOns =
     addOns === undefined ? undefined : reconcileSubdocuments(item.addOns, addOns, AddOnNotFoundError);
 
+  const pricesBefore = priceSnapshot(item);
+
   if (categoryId !== undefined) item.categoryId = categoryId;
   if (name !== undefined) item.name = name;
   if (description !== undefined) item.description = description;
@@ -228,7 +232,44 @@ export async function updateMenuItem(req, res) {
 
   await item.save().catch(rethrowDuplicate);
 
+  // M8. A price quietly moved before or after a shift. A rename writes nothing.
+  const changes = priceChanges(pricesBefore, priceSnapshot(item));
+  if (changes.length > 0) {
+    await recordAudit(req, {
+      action: AUDIT_ACTIONS.MENU_PRICE_CHANGED,
+      entityType: AUDIT_ENTITY_TYPES.MENU_ITEM,
+      entityId: item._id,
+      entityLabel: item.name.slice(0, 100),
+      reason: `${changes.length === 1 ? 'Price' : 'Prices'} changed on ${item.name}.`.slice(0, 500),
+      amountInPaise: changes.find((change) => change.field === 'priceInPaise')?.to ?? null,
+      details: { changes },
+    });
+  }
+
   return sendSuccess(res, item.toJSON());
+}
+
+/** The fields M8 audits: base price, tax rate, and each size's and extra's price, by id. */
+function priceSnapshot(item) {
+  const entries = [
+    ['priceInPaise', item.priceInPaise],
+    ['taxRateBps', item.taxRateBps],
+    ...item.variants.map((variant) => [`variant:${variant._id}`, variant.priceInPaise]),
+    ...item.addOns.map((addOn) => [`addOn:${addOn._id}`, addOn.priceInPaise]),
+  ];
+  return new Map(entries);
+}
+
+/** Every audited field whose value moved, added or removed. Small and flat, no names. */
+function priceChanges(before, after) {
+  const fields = new Set([...before.keys(), ...after.keys()]);
+  const changes = [];
+  for (const field of fields) {
+    const from = before.get(field) ?? null;
+    const to = after.get(field) ?? null;
+    if (from !== to) changes.push({ field, from, to });
+  }
+  return changes;
 }
 
 /**

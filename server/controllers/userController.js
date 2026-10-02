@@ -9,6 +9,7 @@
  * attendance history links to it and a deleted user takes that history with it.
  */
 import { ROLES } from '../config/roles.js';
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { REVOKE_REASONS } from '../models/RefreshToken.js';
 import { User } from '../models/User.js';
 import {
@@ -18,6 +19,7 @@ import {
   setPassword,
   setPin,
 } from '../services/authService.js';
+import { recordAudit } from '../services/auditService.js';
 import { revokeAllForUser } from '../services/tokenService.js';
 import {
   assertCanChangeStatus,
@@ -187,6 +189,7 @@ export async function updateUser(req, res) {
   }
 
   const roleChanged = role !== undefined && role !== user.role;
+  const previousRole = user.role;
 
   if (name !== undefined) user.name = name;
   if (email !== undefined) user.email = email;
@@ -214,6 +217,15 @@ export async function updateUser(req, res) {
       { actorId: req.user.id, targetUserId: String(user._id), newRole: role },
       'Staff role changed. Sessions revoked.',
     );
+
+    // M8. A manager promoting an accomplice to a role that can void bills.
+    await recordAudit(req, {
+      action: AUDIT_ACTIONS.USER_ROLE_CHANGED,
+      entityType: AUDIT_ENTITY_TYPES.USER,
+      entityId: user._id,
+      reason: `Role changed from ${previousRole} to ${role}.`,
+      details: { fromRole: previousRole, toRole: role },
+    });
   }
 
   return sendSuccess(res, present(user));
@@ -253,6 +265,17 @@ export async function updateStatus(req, res) {
     );
   }
 
+  // M8. Removing a colleague's access, or restoring an account switched off for a reason.
+  if (wasActive !== isActive) {
+    await recordAudit(req, {
+      action: isActive ? AUDIT_ACTIONS.USER_REACTIVATED : AUDIT_ACTIONS.USER_DEACTIVATED,
+      entityType: AUDIT_ENTITY_TYPES.USER,
+      entityId: user._id,
+      reason: isActive ? 'Staff account switched back on.' : 'Staff account switched off.',
+      details: { role: user.role },
+    });
+  }
+
   /**
    * Reactivation does not bring old sessions back. They stay revoked and the
    * user signs in fresh, which is the safe direction: whatever reason there
@@ -288,6 +311,15 @@ export async function resetUserPassword(req, res) {
     'Staff password reset. Sessions revoked.',
   );
 
+  // M8. Resetting someone's password is a way to use their account.
+  await recordAudit(req, {
+    action: AUDIT_ACTIONS.USER_PASSWORD_RESET,
+    entityType: AUDIT_ENTITY_TYPES.USER,
+    entityId: user._id,
+    reason: 'Password reset by someone else.',
+    details: { role: user.role },
+  });
+
   // The new password is never echoed back. The manager typed it and knows it.
   return sendSuccess(res, { passwordReset: true });
 }
@@ -311,6 +343,15 @@ export async function setUserPin(req, res) {
   await setPin(user, req.body.pin);
 
   req.log?.info({ actorId: req.user.id, targetUserId: String(user._id) }, 'Staff PIN set.');
+
+  // M8. The same reason as a password reset, for the attendance clock.
+  await recordAudit(req, {
+    action: AUDIT_ACTIONS.USER_PIN_RESET,
+    entityType: AUDIT_ENTITY_TYPES.USER,
+    entityId: user._id,
+    reason: 'Attendance PIN set by someone else.',
+    details: { role: user.role },
+  });
 
   return sendSuccess(res, { pinSet: true });
 }

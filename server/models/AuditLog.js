@@ -8,13 +8,15 @@
  * deferred the shared collection to M3 on the grounds that M3 would be the
  * module to need it. This is that collection.
  *
- * APPEND ONLY. There is no update and no delete endpoint, and no code path
- * writes to an existing document. A tamperable audit log is worse than none,
- * because it is trusted.
+ * APPEND ONLY, by construction since M8: `appendOnlyGuardPlugin` throws on
+ * every update, replace and delete, and on saving an existing document. There
+ * is no update and no delete endpoint. A tamperable audit log is worse than
+ * none, because it is trusted. No TTL index, ever.
  */
 import mongoose from 'mongoose';
 
 import { MAX_PAISE } from '../utils/money.js';
+import { appendOnlyGuardPlugin } from './plugins/appendOnlyGuard.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 
@@ -44,6 +46,14 @@ export const AUDIT_ACTIONS = Object.freeze({
   CASH_PAID_OUT: 'CASH_PAID_OUT',
   DAY_CLOSED: 'DAY_CLOSED',
   DAY_REOPENED: 'DAY_REOPENED',
+  // M8, built in P17. Quiet changes to people, prices and recipes.
+  USER_DEACTIVATED: 'USER_DEACTIVATED',
+  USER_REACTIVATED: 'USER_REACTIVATED',
+  USER_ROLE_CHANGED: 'USER_ROLE_CHANGED',
+  USER_PASSWORD_RESET: 'USER_PASSWORD_RESET',
+  USER_PIN_RESET: 'USER_PIN_RESET',
+  MENU_PRICE_CHANGED: 'MENU_PRICE_CHANGED',
+  RECIPE_CHANGED: 'RECIPE_CHANGED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 
@@ -58,8 +68,35 @@ export const AUDIT_ENTITY_TYPES = Object.freeze({
   // P10.
   CASH: 'CASH',
   DAY: 'DAY',
+  // M8.
+  USER: 'USER',
+  MENU_ITEM: 'MENU_ITEM',
+  RECIPE: 'RECIPE',
 });
 export const AUDIT_ENTITY_TYPE_VALUES = Object.freeze(Object.values(AUDIT_ENTITY_TYPES));
+
+/**
+ * READ-TIME ONLY. Nothing ever writes these to this collection.
+ *
+ * M5 keeps attendance corrections embedded on the attendance entry (decision
+ * D3), and M8 merges them into the audit feed when it is read, in
+ * services/auditReadService.js. They appear in responses with these values and
+ * are deliberately absent from the enums above, so the database refuses a line
+ * that claims to be one.
+ */
+export const ATTENDANCE_CORRECTED = 'ATTENDANCE_CORRECTED';
+export const ATTENDANCE_ENTITY = 'ATTENDANCE';
+
+/**
+ * What a MANAGER may read. The owner watches what managers approve, so every
+ * other action is OWNER only. Kitchen waste and cancelled orders are the
+ * manager's to run. docs/API-CONTRACT.md "M8", the manager restriction.
+ */
+export const MANAGER_VISIBLE_ACTIONS = Object.freeze([
+  AUDIT_ACTIONS.ORDER_CANCELLED,
+  AUDIT_ACTIONS.STOCK_ADJUSTED,
+  AUDIT_ACTIONS.LINE_CANCELLED_AFTER_PREP,
+]);
 
 export const AUDIT_REASON_MAX_LENGTH = 500;
 export const AUDIT_LABEL_MAX_LENGTH = 100;
@@ -110,6 +147,7 @@ const auditLogSchema = new mongoose.Schema({
 
 auditLogSchema.plugin(baseSchemaPlugin);
 auditLogSchema.plugin(tenantGuardPlugin);
+auditLogSchema.plugin(appendOnlyGuardPlugin);
 
 /** The audit read: what happened here lately. */
 auditLogSchema.index({ restaurantId: 1, branchId: 1, at: -1 });

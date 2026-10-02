@@ -11,6 +11,7 @@
 import { Router } from 'express';
 
 import attendanceRoutes from './attendanceRoutes.js';
+import auditRoutes from './auditRoutes.js';
 import authRoutes from './authRoutes.js';
 import billRoutes from './billRoutes.js';
 import branchRoutes from './branchRoutes.js';
@@ -47,5 +48,6 @@ router.use(paymentMethodRoutes);
 router.use(accountRoutes);
 router.use(dayCloseRoutes);
 router.use(reportV2Routes);
+router.use(auditRoutes);
 
 export default router;

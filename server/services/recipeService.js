@@ -5,6 +5,7 @@
  * fallback order, because getting it backwards over-deducts a half plate
  * against a full plate's recipe. See the function itself.
  */
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Ingredient } from '../models/Ingredient.js';
 import { MenuItem } from '../models/MenuItem.js';
 import { Order } from '../models/Order.js';
@@ -12,6 +13,7 @@ import { Recipe } from '../models/Recipe.js';
 import { BusinessRuleError, DuplicateRecipeIngredientError, NotFoundError } from '../utils/errors.js';
 import { businessDateRangeToUtc } from '../utils/time.js';
 import { scoped } from '../utils/scopedQuery.js';
+import { recordAudit } from './auditService.js';
 
 /**
  * Finds the recipe that applies to one order line, or null.
@@ -94,9 +96,23 @@ export async function putRecipe(req, { menuItemId, variantId, items }) {
   const existing = await Recipe.findOne({ ...scoped(req), menuItemId, variantId: variantId ?? null });
 
   if (existing) {
+    const before = recipeItemsKey(existing.items);
     existing.items = items;
     existing.isActive = true;
     await existing.save();
+
+    // M8. A recipe change changes what every later sale deducts: the cleanest
+    // way to hide stock theft in this system. Creating a recipe is not audited.
+    if (recipeItemsKey(existing.items) !== before) {
+      await recordAudit(req, {
+        action: AUDIT_ACTIONS.RECIPE_CHANGED,
+        entityType: AUDIT_ENTITY_TYPES.RECIPE,
+        entityId: existing._id,
+        entityLabel: menuItem.name.slice(0, 100),
+        reason: `Recipe for ${menuItem.name} changed.`.slice(0, 500),
+        details: { menuItemId: String(menuItemId), variantId: variantId ? String(variantId) : null, ingredientCount: items.length },
+      });
+    }
     return { recipe: existing, created: false };
   }
 
@@ -150,6 +166,22 @@ export async function listRecipes(req, { menuItemId, page, limit }) {
 export async function deleteRecipe(req, recipeId) {
   const recipe = await Recipe.findOneAndDelete({ ...scoped(req), _id: recipeId });
   if (!recipe) throw new NotFoundError('Recipe not found.');
+
+  // M8. Removing every ingredient is a change to items[] too.
+  const menuItem = await MenuItem.findOne({ ...scoped(req), _id: recipe.menuItemId }).select('name').lean();
+  await recordAudit(req, {
+    action: AUDIT_ACTIONS.RECIPE_CHANGED,
+    entityType: AUDIT_ENTITY_TYPES.RECIPE,
+    entityId: recipe._id,
+    entityLabel: menuItem?.name?.slice(0, 100) ?? null,
+    reason: `Recipe${menuItem ? ` for ${menuItem.name}` : ''} deleted.`.slice(0, 500),
+    details: { menuItemId: String(recipe.menuItemId), deleted: true },
+  });
+}
+
+/** A recipe's items as one comparable string: ingredient and quantity, in order. */
+function recipeItemsKey(items) {
+  return items.map((item) => `${item.ingredientId}:${item.qtyInBase}`).join('|');
 }
 
 /** How many active recipes still reference this ingredient. For the deactivation guard. */

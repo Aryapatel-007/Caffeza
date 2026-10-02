@@ -582,3 +582,21 @@ export class CheckFailedError extends AppError {
   }
 }
 
+
+/**
+ * Thrown by the append-only guard when code tries to change or remove an
+ * audit line. M8.
+ *
+ * A 500, like the tenant guard: it is our bug, never the caller's. Nothing
+ * legitimately updates an audit line. If one is wrong, the truth is that a
+ * wrong line was written, and the fix is a new line saying so.
+ */
+export class AuditLogImmutableError extends AppError {
+  constructor(operation) {
+    super(`Audit lines are append-only. ${operation} on auditlogs was blocked.`, {
+      statusCode: 500,
+      code: ERROR_CODES.INTERNAL_ERROR,
+    });
+    this.operation = operation;
+  }
+}
