@@ -24,7 +24,7 @@ import {
   revokeOne,
   rotateRefreshToken,
 } from '../services/tokenService.js';
-import { getSettings } from '../services/settingsService.js';
+import { getSettings, presentAppearance } from '../services/settingsService.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from '../utils/authCookie.js';
 import {
   BusinessRuleError,
@@ -213,7 +213,8 @@ export async function me(req, res) {
   // to show a cashier the discount panel. The server still decides.
   // P19. The floor settings too: the section order, when a table runs long, and
   // whether the guest picker may offer "Skip". The server still decides.
-  const { features, discounts, floor } = await getSettings(req.restaurantId, { req });
+  // P20A. The look too, with the night accent worked out on the server.
+  const { features, discounts, floor, appearance } = await getSettings(req.restaurantId, { req });
 
   return sendSuccess(res, {
     user: presentUser(req.currentUser, { includeLastLoginAt: true, includeStation: true }),
@@ -224,6 +225,7 @@ export async function me(req, res) {
       cashierMayApplyPlatformDiscounts: discounts.cashierMayApplyPlatformDiscounts,
     },
     floor,
+    appearance: presentAppearance(appearance, req.currentRestaurant?.name),
   });
 }
 

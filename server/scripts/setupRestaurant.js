@@ -88,6 +88,7 @@ const configShape = z
         discounts: looseObject.optional(),
         dayClose: looseObject.optional(),
         floor: looseObject.optional(),
+        appearance: looseObject.optional(),
       })
       .strict()
       .optional(),

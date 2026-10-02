@@ -16,14 +16,19 @@
 import { z } from 'zod';
 
 import {
+  ACCENT_PRESET_NAMES,
   INVOICE_MAX_STARTING_NUMBER,
   INVOICE_MODE_VALUES,
   INVOICE_MODES,
   INVOICE_PREFIX_PATTERN,
   RECEIPT_FOOTER_MAX_LENGTH,
   RECEIPT_HEADER_MAX_LENGTH,
+  SECOND_LANGUAGES,
   TAX_PRICING_MODE_VALUES,
+  TODAY_TILE_KEYS,
+  WORDMARK_MAX_LENGTH,
 } from '../models/Restaurant.js';
+import { checkAccent } from '../utils/colour.js';
 import { basisPoints } from './common.js';
 
 export const SETTINGS_REASON_MAX_LENGTH = 200;
@@ -230,6 +235,43 @@ const floor = z
   })
   .strict();
 
+/**
+ * The look. P20A, DESIGN-SYSTEM-V2 sections 4c and 11a.
+ *
+ * A custom accent is checked here by `utils/colour.js`, so a refused colour is
+ * a 400 on `appearance.accentHex` naming the rule it broke and the nearest
+ * preset. "CUSTOM with no colour stored" needs the stored value, so the
+ * settings service checks that one.
+ */
+const accentHex = z
+  .string({ error: 'Must be a colour like #2D5DA8.' })
+  .trim()
+  .transform((value) => value.toUpperCase())
+  .superRefine((value, ctx) => {
+    const verdict = checkAccent(value);
+    if (!verdict.ok) ctx.addIssue({ code: 'custom', message: verdict.message });
+  });
+
+const appearance = z
+  .object({
+    accentPreset: z.enum(ACCENT_PRESET_NAMES, { error: `Must be one of ${ACCENT_PRESET_NAMES.join(', ')}.` }).optional(),
+    accentHex: z.union([accentHex, z.null()]).optional(),
+    // A cleared text box sends "", which means the restaurant's own name.
+    wordmark: z
+      .union([
+        z.string({ error: 'Must be text.' }).trim().max(WORDMARK_MAX_LENGTH, `Cannot be longer than ${WORDMARK_MAX_LENGTH} characters.`),
+        z.null(),
+      ])
+      .transform((value) => (value === '' ? null : value))
+      .optional(),
+    secondLanguage: z.enum(SECOND_LANGUAGES, { error: `Must be one of ${SECOND_LANGUAGES.join(', ')}.` }).optional(),
+    todayTiles: z
+      .array(z.enum(TODAY_TILE_KEYS, { error: 'Is not a Today tile.' }), { error: 'Must be a list of Today tiles.' })
+      .refine((keys) => new Set(keys).size === keys.length, 'Each tile appears once.')
+      .optional(),
+  })
+  .strict();
+
 /** Everything except `reason`. Used to tell "a group was sent" from "only a reason was sent". */
 export const SETTINGS_GROUPS = Object.freeze([
   'business',
@@ -242,6 +284,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'discounts',
   'dayClose',
   'floor',
+  'appearance',
 ]);
 
 /**
@@ -285,6 +328,7 @@ export const updateSettingsSchema = z.object({
       discounts: discounts.optional(),
       dayClose: dayClose.optional(),
       floor: floor.optional(),
+      appearance: appearance.optional(),
     })
     .strict()
     .refine(

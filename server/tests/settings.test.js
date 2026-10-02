@@ -59,6 +59,25 @@ const DEFAULTS = {
   dayClose: { showCashDifferenceToManager: false },
   // P19.
   floor: { sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false },
+  // P20A.
+  appearance: {
+    accentPreset: 'OCEAN',
+    accentHex: null,
+    wordmark: null,
+    secondLanguage: 'NONE',
+    todayTiles: [
+      'billTotalInPaise',
+      'netSalesInPaise',
+      'billCount',
+      'covers',
+      'averagePerCoverInPaise',
+      'openTables',
+      'openItemTotalInPaise',
+      'unpaidCount',
+      'unpaidInPaise',
+      'lastWeekBillTotalInPaise',
+    ],
+  },
 };
 
 // ---------------------------------------------------------------------------

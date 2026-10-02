@@ -123,15 +123,16 @@ Six presets. Every one passes the same rules an owner's own colour must pass, be
 
 | Preset | Day | Night, for text, focus and button fill | Hue |
 |---|---|---|---|
-| Ocean, the default | `#1C5C86` | `#2885C1` | 204 degrees |
-| Indigo | `#3446A8` | `#6C7BD1` | 231 degrees |
-| Plum | `#6A3878` | `#A768B8` | 287 degrees |
-| Olive | `#4F6328` | `#6F8B38` | 80 degrees |
+| Ocean, the default | `#1C5C86` | `#2985C2` | 204 degrees |
+| Indigo | `#3446A8` | `#6B7BD1` | 231 degrees |
+| Plum | `#6A3878` | `#A666B8` | 287 degrees |
+| Olive | `#4F6328` | `#6E8A38` | 80 degrees |
 | Espresso | `#55473F` | `#927A6D` | 22 degrees, at 15% saturation |
-| Graphite | `#343B41` | `#748390` | 208 degrees, at 11% saturation |
+| Graphite | `#343B41` | `#71818E` | 208 degrees, at 11% saturation |
 
 On a night button, the text is night `ground`, at 4.5 to 1 or more on every night value above.
 Each night value is what `nightVariant` in section 13 produces, so presets and custom colours follow one rule.
+P20A replaced the first draft's night values with the code's: five moved by one in a channel, Plum's green by two and Graphite's channels by up to three. `nightVariant` steps HSL lightness up by 0.01 from the colour's own and rounds each channel to a whole number, and the draft had rounded differently.
 
 Espresso is the coffee-house brown. It is kept under 25% saturation, so it can never be read as the amber of an open table.
 An earlier draft used a pine green and a roast brown. Both failed the rule below: pine sat within 2 degrees of the `served` teal, and roast between `alert` and `open`. A primary button must never look like a state.

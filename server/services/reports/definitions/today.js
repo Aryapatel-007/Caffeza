@@ -47,6 +47,9 @@ const tileColumns = [
   { key: 'lastWeekBillTotalInPaise', label: LABELS.SAME_WEEKDAY_LAST_WEEK, type: 'money' },
 ];
 
+/** R1's tile keys in contract order. `settings.appearance.todayTiles` is checked against these. */
+export const TILE_KEYS = Object.freeze(tileColumns.map((column) => column.key));
+
 const topItemColumns = [
   { key: 'name', label: LABELS.ITEM, type: 'text' },
   { key: 'quantity', label: LABELS.QUANTITY_SOLD, type: 'count' },

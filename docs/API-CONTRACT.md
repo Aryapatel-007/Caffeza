@@ -3285,7 +3285,7 @@ the rule it broke and the nearest preset by hue.
 `GET /auth/me` returns `appearance` beside `features`, for every role:
 
 ```json
-{ "accentPreset": "OCEAN", "accent": "#1C5C86", "accentNight": "#2885C1", "wordmark": "Cafezza", "secondLanguage": "GUJARATI", "todayTiles": ["billTotalInPaise", "netSalesInPaise"] }
+{ "accentPreset": "OCEAN", "accent": "#1C5C86", "accentNight": "#2985C2", "wordmark": "Cafezza", "secondLanguage": "GUJARATI", "todayTiles": ["billTotalInPaise", "netSalesInPaise"] }
 ```
 
 `accent` is the preset's day colour or the custom colour; `accentNight` is its

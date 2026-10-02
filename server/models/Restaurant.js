@@ -260,6 +260,44 @@ const floorSettingsSchema = new mongoose.Schema(
 );
 
 /**
+ * The look. P20A, docs/DESIGN-SYSTEM-V2.md section 11a. Which accent, the name
+ * in the top bar, the second language for fixed action words, and which Today
+ * tiles show. A custom accent is checked by `utils/colour.js` in the validator;
+ * the model only holds the shape.
+ */
+export const ACCENT_PRESET_NAMES = Object.freeze(['OCEAN', 'INDIGO', 'PLUM', 'OLIVE', 'ESPRESSO', 'GRAPHITE', 'CUSTOM']);
+export const SECOND_LANGUAGES = Object.freeze(['NONE', 'GUJARATI', 'HINDI']);
+export const WORDMARK_MAX_LENGTH = 30;
+
+/** R1's tile keys, in contract order. A test keeps this equal to the R1 definition. */
+export const TODAY_TILE_KEYS = Object.freeze([
+  'billTotalInPaise',
+  'netSalesInPaise',
+  'billCount',
+  'covers',
+  'averagePerCoverInPaise',
+  'openTables',
+  'openItemTotalInPaise',
+  'unpaidCount',
+  'unpaidInPaise',
+  'lastWeekBillTotalInPaise',
+]);
+
+const appearanceSettingsSchema = new mongoose.Schema(
+  {
+    accentPreset: { type: String, enum: ACCENT_PRESET_NAMES, required: true, default: 'OCEAN' },
+    accentHex: { type: String, default: null, match: /^#[0-9A-F]{6}$/ },
+    wordmark: { type: String, trim: true, default: null, maxlength: WORDMARK_MAX_LENGTH },
+    secondLanguage: { type: String, enum: SECOND_LANGUAGES, required: true, default: 'NONE' },
+    todayTiles: {
+      type: [{ type: String, enum: TODAY_TILE_KEYS }],
+      default: () => [...TODAY_TILE_KEYS],
+    },
+  },
+  { _id: false },
+);
+
+/**
  * Restaurant-level settings. Every field has a default, which is what makes M7
  * a no-migration change: a document written before M7 reads back a complete
  * settings object because Mongoose fills missing paths on read.
@@ -306,6 +344,7 @@ const settingsSchema = new mongoose.Schema(
     discounts: { type: discountSettingsSchema, default: () => ({}) },
     dayClose: { type: dayCloseSettingsSchema, default: () => ({}) },
     floor: { type: floorSettingsSchema, default: () => ({}) },
+    appearance: { type: appearanceSettingsSchema, default: () => ({}) },
   },
   { _id: false },
 );

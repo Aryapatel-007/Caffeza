@@ -18,7 +18,8 @@ import { Bill } from '../models/Bill.js';
 import { Counter, COUNTER_NAMES } from '../models/Counter.js';
 import { INVOICE_MODES, Restaurant } from '../models/Restaurant.js';
 import { recordAudit } from './auditService.js';
-import { BusinessRuleError, ERROR_CODES } from '../utils/errors.js';
+import { ACCENT_PRESETS, nightVariant } from '../utils/colour.js';
+import { BusinessRuleError, ERROR_CODES, ValidationError } from '../utils/errors.js';
 import { financialYearFor, nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 
@@ -67,6 +68,12 @@ const SETTING_PATHS = Object.freeze({
   'floor.sectionOrder': 'settings.floor.sectionOrder',
   'floor.longOpenMinutes': 'settings.floor.longOpenMinutes',
   'floor.requireGuestCount': 'settings.floor.requireGuestCount',
+
+  'appearance.accentPreset': 'settings.appearance.accentPreset',
+  'appearance.accentHex': 'settings.appearance.accentHex',
+  'appearance.wordmark': 'settings.appearance.wordmark',
+  'appearance.secondLanguage': 'settings.appearance.secondLanguage',
+  'appearance.todayTiles': 'settings.appearance.todayTiles',
 });
 
 /** The modules a restaurant can switch off. P02. */
@@ -294,6 +301,45 @@ async function assertInvoiceChangeAllowed(restaurantId, current, next) {
   }
 }
 
+/** Lists compare by their contents, so re-sending the same order is not a change. */
+function sameValue(previous, next) {
+  if (Array.isArray(previous) || Array.isArray(next)) {
+    return JSON.stringify([...(previous ?? [])]) === JSON.stringify([...(next ?? [])]);
+  }
+  return previous === next;
+}
+
+/** P20A. CUSTOM needs a colour, either sent now or already stored. */
+function assertAppearanceComplete(current, next) {
+  const preset = next.accentPreset ?? current.accentPreset;
+  const hex = next.accentHex !== undefined ? next.accentHex : current.accentHex;
+  if (preset === 'CUSTOM' && !hex) {
+    throw new ValidationError('Choose a colour for the custom accent.', {
+      'appearance.accentHex': 'Choose a colour for the custom accent.',
+    });
+  }
+}
+
+/**
+ * The look as `GET /auth/me` gives it to every role, P20A: the accent's day and
+ * night colours already worked out, and the wordmark already resolved, so the
+ * client does no colour arithmetic on load.
+ */
+export function presentAppearance(appearance, restaurantName) {
+  const accent =
+    appearance.accentPreset === 'CUSTOM' && appearance.accentHex
+      ? appearance.accentHex
+      : (ACCENT_PRESETS[appearance.accentPreset] ?? ACCENT_PRESETS.OCEAN);
+  return {
+    accentPreset: appearance.accentPreset,
+    accent,
+    accentNight: nightVariant(accent),
+    wordmark: appearance.wordmark ?? restaurantName ?? null,
+    secondLanguage: appearance.secondLanguage,
+    todayTiles: [...appearance.todayTiles],
+  };
+}
+
 /**
  * Applies a patch, writes one audit line per field that actually changed, and
  * returns the full updated object.
@@ -317,13 +363,15 @@ export async function updateSettings(
     await assertInvoiceChangeAllowed(restaurantId, before.invoice, patch.invoice);
   }
 
+  if (patch.appearance !== undefined) assertAppearanceComplete(before.appearance, patch.appearance);
+
   const changes = [];
   for (const apiPath of SETTING_API_PATHS) {
     const next = valueAt(patch, apiPath);
     if (next === undefined) continue;
 
     const previous = valueAt(before, apiPath);
-    if (previous === next) continue;
+    if (sameValue(previous, next)) continue;
 
     changes.push({ apiPath, storedPath: SETTING_PATHS[apiPath], previous, next });
   }

@@ -36,13 +36,14 @@ export async function listStations(req, res) {
 
 /** POST /stations */
 export async function createStation(req, res) {
-  const { name, displayOrder, printsTickets } = req.body;
+  const { name, displayOrder, printsTickets, targetMinutes } = req.body;
 
   const station = new Station({
     ...scoped(req),
     name,
     displayOrder: displayOrder ?? 0,
     printsTickets: printsTickets ?? false,
+    ...(targetMinutes !== undefined && { targetMinutes }),
   });
   await station.save().catch(rethrowDuplicate);
 
@@ -60,7 +61,7 @@ export async function updateStation(req, res) {
   const station = await Station.findOne({ ...scoped(req), _id: req.params.stationId });
   if (!station) throw new NotFoundError('Station not found.');
 
-  for (const field of ['name', 'displayOrder', 'printsTickets', 'isActive']) {
+  for (const field of ['name', 'displayOrder', 'printsTickets', 'targetMinutes', 'isActive']) {
     if (req.body[field] !== undefined) station[field] = req.body[field];
   }
   await station.save().catch(rethrowDuplicate);

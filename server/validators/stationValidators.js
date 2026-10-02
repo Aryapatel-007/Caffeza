@@ -3,7 +3,7 @@
  */
 import { z } from 'zod';
 
-import { STATION_NAME_MAX_LENGTH } from '../models/Station.js';
+import { STATION_NAME_MAX_LENGTH, STATION_TARGET_MINUTES } from '../models/Station.js';
 import { nonEmptyString, objectId, queryBoolean } from './common.js';
 
 const name = nonEmptyString.max(
@@ -18,6 +18,13 @@ const displayOrder = z
 
 const printsTickets = z.boolean({ error: 'Must be true or false.' });
 
+/** P20A. */
+const targetMinutes = z
+  .number({ error: 'Must be a number.' })
+  .int('Must be a whole number of minutes.')
+  .min(STATION_TARGET_MINUTES.min, `Must be at least ${STATION_TARGET_MINUTES.min} minutes.`)
+  .max(STATION_TARGET_MINUTES.max, `Cannot be more than ${STATION_TARGET_MINUTES.max} minutes.`);
+
 const stationIdParam = z.object({ stationId: objectId });
 
 export const listStationsSchema = z.object({
@@ -30,6 +37,7 @@ export const createStationSchema = z.object({
       name,
       displayOrder: displayOrder.optional(),
       printsTickets: printsTickets.optional(),
+      targetMinutes: targetMinutes.optional(),
     })
     .strict('Is not a field you can set here.'),
 });
@@ -41,6 +49,7 @@ export const updateStationSchema = z.object({
       name: name.optional(),
       displayOrder: displayOrder.optional(),
       printsTickets: printsTickets.optional(),
+      targetMinutes: targetMinutes.optional(),
       isActive: z.boolean({ error: 'Must be true or false.' }).optional(),
     })
     .strict('Is not a field you can change here.')
