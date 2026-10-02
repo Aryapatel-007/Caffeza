@@ -450,6 +450,18 @@ A test fails the build if any component contains a raw hex colour, or any versio
 
 ---
 
+### 13a. Settled while building P20A
+
+1. **Fonts.** `@fontsource-variable/anek-latin`, `anek-gujarati` and `anek-devanagari`, each through its `standard.css`, which registers both axes: weight 100 to 800 and width 75 to 125. The design's widths 82, 92, 100 and 112 sit inside that range and are used exactly as written, as `font-stretch` in the `type-*` utilities. No mapping was needed. IBM Plex Sans stays installed until P20B.
+2. **Tailwind.** The neutrals and states are CSS variables on the root element, one set per `data-theme`, exposed through `@theme inline`. `inline` makes the utility read the variable itself, so `bg-surface` follows the theme at runtime. The accent is `--accent-active`, which points at `--accent` in day and `--accent-night` in night. Text on the accent is `text-on-accent`: white in day, night `ground` in night.
+3. **Type scale.** Each style in 5b is a `@utility` (`type-title` to `type-num-meta`), in rem, so the device's text size scales it. Density changes two variables, `--d-gap` and `--d-pad`, and never a font size.
+4. **Focus ring.** One base rule, `:focus-visible` in the accent at 2px with a 2px offset. Components do not draw their own.
+5. **The second-language line on a button.** On a primary button the second line takes the button's own text colour at 80% rather than `muted`, because `muted` on the accent fails contrast. Everywhere else it reads `muted` by the same rule.
+6. **A printed bill's time edge.** The floor's `GET /tables` occupancy block carries `openedAt` but no time the bill was printed, so a printed bill's edge, on its tile and in the billing strip, measures from the order's opening against `settings.floor.longOpenMinutes`, like any other taken table. Measuring against 10 minutes from printing, as 7a says, needs `billedAt` on the occupancy block: a contract change for its own prompt.
+7. **State words for things that are not tables.** A bill: Unpaid is `bill`, Paid is `ok`, On Hold is `open`, Voided is `alert`. An order line: Not sent has no colour, With the kitchen is `open`, Ready is `ok`, Served is `served`, Cancelled is `alert`. Stock: In stock `ok`, Low `open`, Out `alert`. The clock: In `ok`, Out no colour.
+8. **Selected, not primary.** A chosen option in a group (a payment method, a guest count, a reason) is a 2px `ink` border on `sunken`, never the accent, so the accent stays the one primary action.
+9. **Where things moved.** `PanelShell` became `Sheet` (with `SheetActions` for the common footer); `ReasonPicker` moved to `components/ui/`; the two `Bilingual` copies and their label files became `features/i18n/`. `StatusBadge` and `AvailabilityStamp` are thin wrappers over `StateChip`, kept for the back-office screens that import them, and are removed in P20B.
+
 ## 14. How to check a screen
 
 Before calling a screen done:

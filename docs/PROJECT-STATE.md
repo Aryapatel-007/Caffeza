@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P20, look, themes and customisation. It needs `docs/DESIGN-SYSTEM-V2.md` first.
+Next: P20B, back office and customisation.
 
 ---
 
@@ -47,7 +47,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | DONE | Every report built and proven against the golden day. Engine and R19 in P14, R2 to R10 in P15, R11 to R13 in P16, R14 to R17 in P17 (R18 is M8's read), R1 and every screen in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M20 | Floor Plan and Look | Arya | IN PROGRESS | Floor plan built in P19: table layouts on a 24 by 16 grid per section, the four floor states and the long-running marker, the billing strip, the guest count rule, and the Arrange tables editor. The look is P20. Built by Rishi, off the listed owner. |
+| M20 | Floor Plan and Look | Arya | IN PROGRESS | Floor plan built in P19: table layouts on a 24 by 16 grid per section, the four floor states and the long-running marker, the billing strip, the guest count rule, and the Arrange tables editor. P20A put version 2 of the design system in place and moved every service screen onto it; P20B moves the back office and adds the Appearance page. Built by Rishi, off the listed owner. |
 
 ---
 
@@ -380,6 +380,12 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | The floor read is five queries whatever the size of the floor: tables, occupying orders, their unpaid bills, the openers' names, and the settings. The occupancy block keeps every old field and adds the new ones. | P19 test 8 counts them: 6 per request with 5 tables and with 40, the sixth being the sign-in check. |
 | 2026-10-02 | Section order is saved through `PATCH /settings`, so only the owner can change it; a manager sees it read-only on Arrange tables. | Settings are the owner's, and the prompt did not ask to widen that. |
 | 2026-10-02 | No endpoint changes `guestCount` on an open order, and none was added. | P19 section 8c: report it rather than add one. The order screen shows the count. |
+| 2026-10-02 | Version 2 of the design system replaces version 1: day and night themes, six fixed state colours each with a word and an icon, an owner-chosen accent from six tested presets or a validated custom colour, Anek with Gujarati and Devanagari siblings, and two signature elements, the time edge on service screens and the balance seal on reports. | The client asked for a look they can make their own. Service runs on time, and reports run on proof. |
+| 2026-10-02 | The rotated availability stamp is retired in favour of `StateChip`. | A signature element should carry information. |
+| 2026-10-02 | Colour contrast rules are checked on the server in `utils/colour.js`, mirrored on the client. | An owner's brand colour must never make a button unreadable or look like a state. |
+| 2026-10-02 | Until P20B, `ThemeProvider` applies Night only to the routes already on version 2; every other screen stays Day. | The back office still draws with version 1 colours that only exist in day, so Night would make it unreadable. P20B removes the list. |
+| 2026-10-02 | A printed bill's time edge measures from the order's opening against the long-open threshold, not from printing against 10 minutes. | The occupancy block has no time the bill was printed, and adding `billedAt` is a contract change no prompt covers. Written into DESIGN-SYSTEM-V2 section 13a. |
+| 2026-10-02 | The cash drawer is one form with a type picker and the keypad, instead of three stacked forms. | Each form had its own primary button, and every amount is entered on the keypad. Same endpoint, same rules. |
 
 ---
 
@@ -402,6 +408,27 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-02 Rishi, P20A new look, foundation and service screens
+
+What was built or decided:
+Server (committed first, as `add appearance settings spec` then `add appearance settings and station targets`): `settings.appearance` with the accent rules in `server/utils/colour.js` mirrored in `client/src/utils/colour.js`, `appearance` with `accentNight` on `GET /auth/me`, and `stations.targetMinutes` (5 to 120, default 15).
+Client: Anek Latin, Gujarati and Devanagari as variable fonts; every version 2 token for day and night in `index.css` through `@theme inline`; the type scale as `type-*` utilities; one accent focus ring. `ThemeProvider` sets the theme (Automatic is Night on the kitchen screen), the accent from `/auth/me`, density and text size. "This device" gained theme, density, text size and second language under its one storage key.
+Components in `components/ui/`: `StateChip`, `TimeEdge` (one shared minute timer per page), `TableTile`, `TicketCard`, `Money` (the only money formatter), `Sheet` and `SheetActions`, `BalanceSeal` and `FilterSentence` (for P20B), `ErrorState`, the icon set, and `Button`, `NumericKeypad`, `ReasonPicker`, `EmptyState`, `Input`, `Select`, `Toast`, `Spinner` restyled. `features/i18n/` replaces the two `Bilingual` copies, following the restaurant's `secondLanguage` with the device's override.
+Screens moved: the shell (rail from 600px, bottom bar below), floor (plan, tiles, billing strip, guest picker, move), order screen, menu picker, line options, cancel and No Charge, takeaway, delivery, kitchen (Night, late tickets first, each against its station's target), bill and payment, discount, charge to account, payment correction, void, receipt preview, bills list, cash drawer, Day Close, On Hold accounts, payouts, table setup and the layout editor.
+
+Checked by hand in headless Chromium against the golden day loaded locally, with four live tables added (open, with the kitchen, served, bill printed): floor, order, kitchen, bill, bills, cash, Day Close for 26 September, takeaway, delivery, Arrange tables, This device, accounts, payouts, table setup and receipt preview, at 380, 768 and 1280 wide, Day and Night, with no sideways scroll and no page errors; floor, order, kitchen and bill again at 130% text size. Kitchen opened in Night, and the 26 September ticket still open showed the full red edge and "Late". Two things failed and were fixed: amounts and minutes wrapped on phone floor tiles, and the dish card stepper overflowed its card on a phone at 130%. Not done by hand: switching the accent to Espresso through a screen, because the Appearance page is P20B; the server path is covered by the appearance tests.
+
+Tests: 920 before (904 after P19, plus the 16 appearance tests committed earlier in P20A), 925 after, 0 failing. `tests/designGuard.test.js` (5) fails on a raw hex colour, a version 1 token class, or money formatted outside `Money`, in `components/` and the service folders. Lint and build pass.
+
+Files or endpoints touched:
+New: `context/ThemeProvider.jsx`, `features/i18n/`, `components/ui/` `StateChip`, `TimeEdge`, `TableTile`, `TicketCard`, `Money`, `Sheet`, `BalanceSeal`, `ErrorState`, `icons/index.jsx`, `server/tests/designGuard.test.js`. Moved: `ReasonPicker` to `components/ui/`. Deleted: `features/billing/PanelShell.jsx`, the unused `PaymentPanel.jsx`, both old `Bilingual.jsx` and `labels.js`. Changed: every file in `features/orders`, `kitchen`, `billing`, `settlement`, `printing`, the shared components and charts, and the three attendance clock files and two inventory panels that imported what moved.
+
+Anything the other developer needs to know:
+Service screens set `v2` on their outer element. Use `Money`, never `formatPaise`, and `StateChip` for any state. The Gujarati and Hindi words added in P20A beyond version 1's should be read by one of Caffeza's staff.
+
+Anything now blocked or unblocked:
+P20B can start.
 
 ### 2026-10-02 Rishi, P19 floor plan
 
@@ -554,60 +581,6 @@ Home (`/dashboard`) was then rebuilt from the user's pasted design: greeting car
 Visual only. `components/AppShell.jsx` (sidebar by role and feature switch, top bar with date and time, narrow-screen link strip) wraps every route behind `ProtectedRoute`, except the clock screen. Tokens in `index.css` gained linen layers, shadows and soft tints; `paper` is now warmer. Every `border-2 border-ink` became a soft border with a card shadow, grey `slate-*` classes map to the tokens, `Button` and `Input` are pill and rounded, `PanelShell` is a white slide-over, the login is split, the home screen is greeting plus shortcuts, and floor tables are cards. Labels and behaviour are unchanged.
 
 Not done: P20 proper, `docs/DESIGN-SYSTEM-V2.md`, a dark or themed mode, per-screen layouts from the pasted designs (order, kitchen, bill, payment) beyond colour, radius and borders. Lint and build pass; checked by eye in Chrome on home, floor and bills.
-
-### 2026-10-01 Rishi, P15 daily, money and GST reports
-
-What was built or decided:
-Nine report definitions in `server/services/reports/definitions/`, registered
-in `registry.js`: R2 Day Close (`day-close`, through `readDay`, blind count
-applied, C12 when closed), R3 Sales by Day (every date, zeros, `compare=previous`),
-R4 Hours and Weekdays (24 hours and a weekday by hour grid), R5 Payments
-(OWNER only, one column per method plus On Hold, Unpaid and collections),
-R6 Platform Money (payouts with expected from frozen commission, and uncovered
-payments with "Rate not set"), R7 Cash Till (OWNER only, stored close or the
-day so far), R8 GST (sections A to E), R9 Tally Export (a file only, two Tally
-sheets, refuses with 422 `CHECK_FAILED` while an ERROR check fails) and R10
-Invoice Register (voided included, "Missing number" rows, paged).
-
-`splitBillAcrossPayments` is new in `server/utils/tax.js`: one part per payment,
-then On Hold, then Unpaid, net sales, CGST and SGST each split by the largest
-remainder method and checked to add back. Shared column helpers in
-`definitions/shared.js`; `CheckFailedError` in `utils/errors.js`; Figure, Count
-and Value labels in GLOSSARY section 13 and both labels files. The engine gives
-definitions `ctx.paymentMethods` (names and order only) and supports
-`requiresPassingChecks` and `sheetPerSection`. `buildGoldenDay` takes a
-`commissions` option.
-
-`tests/reportsDaily.test.js` builds the golden day once with Swiggy at 2000
-basis points, closes 26 September as the Manager with ₹3,400.00 counted, and
-checks every report against TEST-DATA sections 4 and 5 to the paisa. Broken on
-purpose: B06's stored total (C12 fails, R2 still shows the snapshot), B03's
-round-off (R9 refuses and names C1), and B11 deleted (R10 shows the missing
-number, C6 fails). The split has unit cases and a property test over 1,000
-seeded random bills. Every report's workbook opens with its sheets, and every
-role gets 200 or 403 as the permission table says. M6's tests are unchanged and
-pass.
-
-Tests: 820 before, 843 after, 0 failing. Lint and build pass.
-
-Files or endpoints touched:
-New: `definitions/` dayClose, salesByDay, hours, payments, platformMoney,
-cashTill, gst, tallyExport, invoiceRegister, shared; `tests/reportsDaily.test.js`.
-Changed: `utils/tax.js`, `utils/errors.js`, `reports/engine.js`,
-`reports/exportXlsx.js`, `reports/labels.js`, `reports/registry.js`, client
-`features/reports/labels.js`, `tests/helpers/goldenDay.js`, GLOSSARY section 13,
-API-CONTRACT M19 section 13.
-Endpoints: `GET /api/v1/reports/v2/{day-close, sales-by-day, hours, payments,
-platform-money, cash-till, gst, tally-export, invoice-register}`.
-
-Anything the other developer needs to know:
-No screens yet; P18 builds them on these envelopes. The Tally workbook was
-checked by opening it with exceljs in the test, not in Excel or Tally; the
-accountant should import one before go-live. Commission rates are TO CONFIRM,
-so R6 lists Caffeza's platform payments as "Rate not set" until they are set.
-
-Anything now blocked or unblocked:
-P16 and P17 can start. P18 has its daily and money reports.
 
 ---
 

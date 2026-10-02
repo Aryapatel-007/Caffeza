@@ -1,5 +1,59 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, P15 daily, money and GST reports
+
+What was built or decided:
+Nine report definitions in `server/services/reports/definitions/`, registered
+in `registry.js`: R2 Day Close (`day-close`, through `readDay`, blind count
+applied, C12 when closed), R3 Sales by Day (every date, zeros, `compare=previous`),
+R4 Hours and Weekdays (24 hours and a weekday by hour grid), R5 Payments
+(OWNER only, one column per method plus On Hold, Unpaid and collections),
+R6 Platform Money (payouts with expected from frozen commission, and uncovered
+payments with "Rate not set"), R7 Cash Till (OWNER only, stored close or the
+day so far), R8 GST (sections A to E), R9 Tally Export (a file only, two Tally
+sheets, refuses with 422 `CHECK_FAILED` while an ERROR check fails) and R10
+Invoice Register (voided included, "Missing number" rows, paged).
+
+`splitBillAcrossPayments` is new in `server/utils/tax.js`: one part per payment,
+then On Hold, then Unpaid, net sales, CGST and SGST each split by the largest
+remainder method and checked to add back. Shared column helpers in
+`definitions/shared.js`; `CheckFailedError` in `utils/errors.js`; Figure, Count
+and Value labels in GLOSSARY section 13 and both labels files. The engine gives
+definitions `ctx.paymentMethods` (names and order only) and supports
+`requiresPassingChecks` and `sheetPerSection`. `buildGoldenDay` takes a
+`commissions` option.
+
+`tests/reportsDaily.test.js` builds the golden day once with Swiggy at 2000
+basis points, closes 26 September as the Manager with ₹3,400.00 counted, and
+checks every report against TEST-DATA sections 4 and 5 to the paisa. Broken on
+purpose: B06's stored total (C12 fails, R2 still shows the snapshot), B03's
+round-off (R9 refuses and names C1), and B11 deleted (R10 shows the missing
+number, C6 fails). The split has unit cases and a property test over 1,000
+seeded random bills. Every report's workbook opens with its sheets, and every
+role gets 200 or 403 as the permission table says. M6's tests are unchanged and
+pass.
+
+Tests: 820 before, 843 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `definitions/` dayClose, salesByDay, hours, payments, platformMoney,
+cashTill, gst, tallyExport, invoiceRegister, shared; `tests/reportsDaily.test.js`.
+Changed: `utils/tax.js`, `utils/errors.js`, `reports/engine.js`,
+`reports/exportXlsx.js`, `reports/labels.js`, `reports/registry.js`, client
+`features/reports/labels.js`, `tests/helpers/goldenDay.js`, GLOSSARY section 13,
+API-CONTRACT M19 section 13.
+Endpoints: `GET /api/v1/reports/v2/{day-close, sales-by-day, hours, payments,
+platform-money, cash-till, gst, tally-export, invoice-register}`.
+
+Anything the other developer needs to know:
+No screens yet; P18 builds them on these envelopes. The Tally workbook was
+checked by opening it with exceljs in the test, not in Excel or Tally; the
+accountant should import one before go-live. Commission rates are TO CONFIRM,
+so R6 lists Caffeza's platform payments as "Rate not set" until they are set.
+
+Anything now blocked or unblocked:
+P16 and P17 can start. P18 has its daily and money reports.
+
 ### 2026-10-01 Rishi, P14 report engine
 
 What was built or decided:

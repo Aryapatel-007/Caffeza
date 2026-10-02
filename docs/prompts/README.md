@@ -26,7 +26,7 @@ The full table, with dependencies and owners, is in
 | P17 | Audit trail and control reports | Done |
 | P18 | Report screens and Today | Done |
 | P19 | Floor plan | Done |
-| P20A | New look, part 1: foundation and service screens | Not run |
+| P20A | New look, part 1: foundation and service screens | Done |
 | P20B | New look, part 2: back office and customisation | Not run |
 | P21 | Golden day, end to end | Not run |
 
