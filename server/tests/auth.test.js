@@ -293,11 +293,14 @@ describe('POST /auth/refresh', () => {
     await login(phone, DEFAULT_PASSWORD);
     await login(phone, DEFAULT_PASSWORD);
 
-    // Rotate the first one, so its original value is now revoked.
-    await request('POST', '/api/v1/auth/refresh', withCookie(sessionOne.cookie));
+    // Rotate the first one, then use its replacement too, so the original is
+    // revoked and its replacement has been used: replaying it now is theft,
+    // not a lost reply (2 October 2026).
+    const rotated = await request('POST', '/api/v1/auth/refresh', withCookie(sessionOne.cookie));
+    await request('POST', '/api/v1/auth/refresh', withCookie(refreshCookie(rotated).value));
 
     const before = await RefreshToken.countDocuments({ restaurantId: restaurant._id, revokedAt: null });
-    assert.equal(before, 3, 'two untouched sessions plus the rotated replacement');
+    assert.equal(before, 3, 'two untouched sessions plus the newest replacement');
 
     // Replay the already-rotated token.
     const { status, body } = await request('POST', '/api/v1/auth/refresh', withCookie(sessionOne.cookie));
@@ -313,6 +316,26 @@ describe('POST /auth/refresh', () => {
       revokedReason: REVOKE_REASONS.REUSE_DETECTED,
     });
     assert.equal(reuseRevoked, 3);
+  });
+
+  it('keeps a person signed in when the reply to their refresh was lost, and only then', async () => {
+    const { phone, restaurant } = await seedFullRestaurant();
+    const session = await signIn(phone);
+
+    // The browser sent a refresh, the server rotated, and the reply never arrived:
+    // the page reloaded mid-flight. The browser still holds the original cookie.
+    const lost = await request('POST', '/api/v1/auth/refresh', withCookie(session.cookie));
+    assert.equal(lost.status, 200);
+
+    const again = await request('POST', '/api/v1/auth/refresh', withCookie(session.cookie));
+    assert.equal(again.status, 200, JSON.stringify(again.body));
+    const fresh = refreshCookie(again).value;
+    assert.ok(fresh && fresh !== session.cookie);
+
+    // The orphaned replacement no longer works, and nothing was revoked as theft.
+    assert.equal((await request('POST', '/api/v1/auth/refresh', withCookie(refreshCookie(lost).value))).status, 401);
+    const theft = await RefreshToken.countDocuments({ restaurantId: restaurant._id, revokedReason: REVOKE_REASONS.REUSE_DETECTED });
+    assert.ok(theft > 0, 'replaying the orphan, whose replacement was issued, is theft');
   });
 
   it('rejects an unknown token with the same code as a revoked one', async () => {

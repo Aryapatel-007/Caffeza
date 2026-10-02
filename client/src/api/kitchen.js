@@ -23,9 +23,9 @@ function toQuery(params = {}) {
  * works in and the opposite of every other list in this product.
  *
  * `status` takes a comma-separated string of PENDING, IN_PROGRESS, COMPLETED.
- * Those are derived from the ticket's lines and stored nowhere, which is why
- * the server filters them after reading rather than in the query, and why a
- * page can come back shorter than its limit.
+ * Those are derived from the ticket's lines and stored nowhere. The server puts
+ * "still to cook" into its query (a line still PENDING), so the board's page is
+ * always the open tickets, however much history the kitchen has.
  */
 export function listKots({ status, page, limit, stationId } = {}) {
   return requestWithMeta(`/kots${toQuery({ status, page, limit, stationId })}`);

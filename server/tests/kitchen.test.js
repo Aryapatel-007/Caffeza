@@ -242,6 +242,25 @@ describe('the kitchen display', () => {
     assert.equal(completed.body.data.length, 1);
   });
 
+  it('shows a new ticket however many finished ones come before it (2 October 2026)', async () => {
+    const { tokens, order } = await orderWithTwoLines();
+    let current = order;
+    // Three finished tickets, then one still to cook, with a page of two.
+    for (let n = 0; n < 3; n += 1) {
+      current = (await addLines(tokens.WAITER, current.id, { version: current.version, lines: [{ menuItemId: current.lines[0].menuItemId, quantity: 1 }] })).body.data;
+      const fired = (await fireOrder(tokens.WAITER, current.id, current.version)).body.data;
+      for (const ticket of fired.kots) await markKotReady(tokens.KITCHEN, ticket.id);
+      current = (await readOrder(tokens.WAITER, current.id)).body.data;
+    }
+    current = (await addLines(tokens.WAITER, current.id, { version: current.version, lines: [{ menuItemId: current.lines[0].menuItemId, quantity: 1 }] })).body.data;
+    const fresh = (await fireOrder(tokens.WAITER, current.id, current.version)).body.data.kot;
+
+    const board = await listKots(tokens.KITCHEN, '?status=PENDING,IN_PROGRESS&limit=2');
+    assert.ok(board.body.data.some((ticket) => ticket.id === fresh.id), 'the new ticket is on the first page');
+    assert.ok(board.body.data.every((ticket) => ticket.status !== 'COMPLETED'));
+    assert.equal(board.body.meta.total, board.body.data.length, 'the total counts open tickets only');
+  });
+
   it('answers 404, not 403, for a ticket in another restaurant', async () => {
     const a = await orderWithTwoLines();
     const b = await seedFloor({ name: 'B' });

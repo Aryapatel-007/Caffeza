@@ -5,10 +5,10 @@
  * in this file. The kitchen reads tickets and marks food ready; everything else
  * about a ticket is decided on the floor.
  */
-import { Kot } from '../models/Kot.js';
+import { Kot, KOT_LINE_STATUSES } from '../models/Kot.js';
 import { Order } from '../models/Order.js';
 import { User } from '../models/User.js';
-import { loadKotInTenant, markKotLinesReady, serialiseKot } from '../services/kitchenService.js';
+import { KOT_STATUSES, loadKotInTenant, markKotLinesReady, serialiseKot } from '../services/kitchenService.js';
 import { renderKotTicket } from '../services/kotTicketService.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
@@ -31,6 +31,22 @@ export async function listKots(req, res) {
   const filter = { ...scoped(req) };
   // P05. One station's tickets, or "none" for the ones with no station.
   if (stationId !== undefined) filter.stationId = stationId === 'none' ? null : stationId;
+
+  /**
+   * The status is derived from the lines, but "still to cook" is a plain fact
+   * about them: a ticket is PENDING or IN_PROGRESS exactly when one of its
+   * lines is still PENDING, and COMPLETED when none is. That part of the filter
+   * goes into the query. It used to be applied after reading the oldest page,
+   * so once a kitchen had more than one page of finished tickets the board
+   * read only finished ones and showed nothing, and a new ticket never
+   * appeared (found 2 October 2026 with ten days of data).
+   */
+  if (status !== undefined) {
+    const wantsOpen = status.includes(KOT_STATUSES.PENDING) || status.includes(KOT_STATUSES.IN_PROGRESS);
+    const wantsDone = status.includes(KOT_STATUSES.COMPLETED);
+    if (wantsOpen && !wantsDone) filter['lines.status'] = KOT_LINE_STATUSES.PENDING;
+    if (wantsDone && !wantsOpen) filter['lines.status'] = { $ne: KOT_LINE_STATUSES.PENDING };
+  }
 
   const [tickets, total] = await Promise.all([
     Kot.find(filter)

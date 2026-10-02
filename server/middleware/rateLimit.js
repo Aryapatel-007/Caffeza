@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 
 import { config } from '../config/env.js';
+import { readRefreshCookie } from '../utils/authCookie.js';
 import { RateLimitError } from '../utils/errors.js';
 import { normalisePhoneIndia } from '../validators/common.js';
 
@@ -31,6 +32,16 @@ const MINUTE_MS = 60_000;
  */
 const GENERAL_WINDOW_MINUTES = 15;
 const GENERAL_MAX_REQUESTS = 600;
+
+/**
+ * Session refreshes, 2 October 2026. A refresh is not a sign-in: it is every
+ * device restoring its session on a page load. Only a refresh that carries a
+ * cookie the server refuses is counted, per address, against this ceiling.
+ * Every device in a cafe shares one address, so this sits well above a busy
+ * floor's reloads, and a 64-byte random token is not guessable at this rate.
+ */
+const REFRESH_WINDOW_MINUTES = 15;
+const REFRESH_MAX_FAILURES = 300;
 
 /**
  * Collapses an IPv6 address to its /64 prefix.
@@ -84,6 +95,25 @@ export const generalLimiter = rateLimit({
  * email. The key is hashed. The store keeps a digest, never a phone number or
  * an address, and neither is written to a log line in any form.
  */
+/**
+ * Refresh limiter. Kept apart from the login limiter on 2 October 2026: they
+ * shared one, and a refresh with no cookie, which every sign-in screen sends,
+ * failed and counted as a failed sign-in for the whole address. Ten of those
+ * in fifteen minutes and every device in the cafe was refused its refresh and
+ * signed out on its next reload. A request with no refresh cookie at all is a
+ * person who is not signed in, not a guess, and is never counted.
+ */
+export const refreshLimiter = rateLimit({
+  windowMs: REFRESH_WINDOW_MINUTES * MINUTE_MS,
+  limit: REFRESH_MAX_FAILURES,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  skip: (req) => skipInTest() || !readRefreshCookie(req),
+  keyGenerator: (req) => createHash('sha256').update(`refresh|${normaliseIp(req.ip)}`).digest('hex'),
+  handler: limitReached,
+});
+
 export const authLimiter = rateLimit({
   windowMs: config.LOGIN_RATE_LIMIT_WINDOW_MINUTES * MINUTE_MS,
   limit: config.LOGIN_RATE_LIMIT_MAX_ATTEMPTS,

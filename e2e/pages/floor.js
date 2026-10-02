@@ -1,8 +1,13 @@
 import { expect } from '@playwright/test';
 
-/** A table's tile on the floor, by its name ("Table 5"). Names are matched whole, so Table 1 is not Table 12. */
-export const tile = (page, table, state = '[a-z ]+') =>
-  page.getByRole('button', { name: new RegExp(`^Table ${table}, ${state}, `) });
+/**
+ * A table's tile on the floor, by its name ("Table 5"). Names are matched whole,
+ * so Table 1 is not Table 12. A bare name ("5") is spoken "Table 5" too.
+ */
+export const tile = (page, table, state = '[a-z ]+') => {
+  const spoken = /^table\b/i.test(table) ? table : `Table ${table}`;
+  return page.getByRole('button', { name: new RegExp(`^${spoken}, ${state}, `) });
+};
 
 export async function gotoFloor(page) {
   await page.goto('/floor');

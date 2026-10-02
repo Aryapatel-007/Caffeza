@@ -40,16 +40,31 @@ export function changePassword({ currentPassword, newPassword }) {
  * No body: the credential is the httpOnly cookie the browser sends because of
  * `credentials: 'include'`. `X-Requested-With` is required by the endpoint as a
  * CSRF check.
+ *
+ * ONE REFRESH AT A TIME. The refresh cookie can be used once: the server
+ * rotates it, and treats a second use of the old one as theft and signs the
+ * person out everywhere. React's StrictMode runs the session restore twice on
+ * every page load in development, and several requests can meet an expired
+ * token at once in production, so each used to send its own refresh with the
+ * same cookie, and the second one signed the person out. Every caller now
+ * shares the refresh already in flight.
  */
-export async function refreshSession() {
-  const response = await fetch('/api/v1/auth/refresh', {
-    method: 'POST',
-    headers: { 'X-Requested-With': 'fetch' },
-    credentials: 'include',
-  });
+let refreshInFlight = null;
 
-  const envelope = await response.json().catch(() => null);
-  if (!response.ok || envelope?.success !== true) return null;
-
-  return envelope.data;
+export function refreshSession() {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const response = await fetch('/api/v1/auth/refresh', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'fetch' },
+        credentials: 'include',
+      });
+      const envelope = await response.json().catch(() => null);
+      if (!response.ok || envelope?.success !== true) return null;
+      return envelope.data;
+    })().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
 }

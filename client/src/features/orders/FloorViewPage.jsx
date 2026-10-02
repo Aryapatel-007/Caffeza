@@ -16,6 +16,9 @@ import MoveTablePanel from './MoveTablePanel.jsx';
 import SeatTablePanel from './SeatTablePanel.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 
+/** How a screen reader names a table: "Table 5" for a table called "5", and "Table 5" for one called "Table 5". */
+const spokenName = (name) => (/^table\b/i.test(name) ? name : `Table ${name}`);
+
 const ALL = '__all__';
 const UNASSIGNED = 'Unassigned';
 const GRID_COLUMNS = 24;
@@ -253,7 +256,8 @@ function tileProps(table, target) {
     targetMinutes: target,
     isLong: occupancy.isLong,
     captainName: occupancy.captainName,
-    ariaLabel: taken ? `Table ${table.name}, ${STATE_WORDS[occupancy.state]}, open the order` : `Table ${table.name}, free, seat guests`,
+    // A name that already says "Table" is read as it is, never "Table Table 5".
+    ariaLabel: taken ? `${spokenName(table.name)}, ${STATE_WORDS[occupancy.state]}, open the order` : `${spokenName(table.name)}, free, seat guests`,
   };
 }
 

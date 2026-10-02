@@ -162,6 +162,26 @@ export async function revokeOne(rawToken, reason) {
 }
 
 /**
+ * How long after a rotation the old token may still be presented once, as a
+ * lost reply rather than theft. A constant, like the other auth limits.
+ */
+export const ROTATION_GRACE_MS = 30_000;
+
+/**
+ * True when a revoked token was revoked by rotation moments ago and the token
+ * that replaced it has never been used. That is a refresh whose reply was lost,
+ * not a replay: a thief who had the old token would be racing a replacement the
+ * real browser never received, inside thirty seconds, and gets one session that
+ * the next real refresh then shows up.
+ */
+async function isLostReply(stored) {
+  if (stored.revokedReason !== REVOKE_REASONS.ROTATED || !stored.replacedByTokenHash) return false;
+  if (Date.now() - stored.revokedAt.getTime() > ROTATION_GRACE_MS) return false;
+  const replacement = await findByTokenHash(stored.replacedByTokenHash);
+  return Boolean(replacement && !replacement.revokedAt);
+}
+
+/**
  * Rotates a refresh token, and catches replay while doing it.
  *
  * Every successful refresh issues a new token and revokes the old one, so a
@@ -177,6 +197,29 @@ export async function rotateRefreshToken(rawToken, context = {}) {
   const stored = await findByTokenHash(hashRefreshToken(rawToken));
 
   if (!stored) throw new InvalidRefreshTokenError();
+
+  if (stored.revokedAt && (await isLostReply(stored))) {
+    /**
+     * The reply to the refresh that rotated this token never reached the
+     * browser: the page was reloaded or navigated while it was in flight, so
+     * the browser still holds the old cookie. Not theft: the new token it was
+     * replaced by has not been used. That unused replacement is retired and a
+     * fresh token issued, so the person stays signed in. Added 2 October 2026
+     * after a reload mid-refresh signed a captain out of every device.
+     */
+    const orphan = await findByTokenHash(stored.replacedByTokenHash);
+    orphan.revokedAt = new Date();
+    orphan.revokedReason = REVOKE_REASONS.ROTATED;
+    const nextRawToken = await issueRefreshToken(
+      { _id: stored.userId, restaurantId: stored.restaurantId, branchId: stored.branchId },
+      context,
+    );
+    // The orphan was never delivered, so it points at nothing: presenting it
+    // later is theft, never another lost reply.
+    orphan.replacedByTokenHash = null;
+    await orphan.save();
+    return { refreshToken: nextRawToken, stored };
+  }
 
   if (stored.revokedAt) {
     // Replay. End every session this user has, not just this one.
