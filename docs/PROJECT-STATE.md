@@ -399,6 +399,18 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | The sign-in screen, the top bar and the dashboard never name a client: the restaurant's wordmark, then its name, then "Restaurant ERP". The sign-in screen lost Caffeza's city and a tagline written into it. | P22: a client's name does not belong inside the product. |
 | 2026-10-02 | `Spinner` draws the screen's shape, still, instead of a spinning ring, and a test fails on any looping animation in the client. | P22's finishing pass: loading shows the layout, and nothing loops. |
 | 2026-10-02 | The kitchen screen opens in Day, like every other screen. Automatic now means Day everywhere; a station tablet can still choose Night on This device. | The owner asked for the kitchen page in the light theme. This reverses DESIGN-SYSTEM sections 8b and 11b's Night default, which are updated. |
+| 2026-10-02 | Rishi reverted the merge of his logo and theme commits (`79b8f04`), so `main` is P22 as built: no Coffee preset, cool by default, warm per restaurant, the logo uploaded per restaurant, and no logo on the printed bill. Both developers are on that commit. | Agreed between Arya and Rishi after the merge. The owner's request for the logo on the bill is not built; it needs its own decision. |
+| 2026-10-02 | The application database is the cloud Atlas cluster (`cluster0.dkcsfcz`, database `restaurant-erp`), set in each developer's own `.env`. There is no local database any more. | The user's instruction: nothing local, all cloud. |
+| 2026-10-02 | Ten days of mock trading (22 September to 1 October 2026, about 1,300 bills) go into that database under one restaurant, "Cafezza Demo", at the user's explicit request, although CLAUDE.md says never to create a bill in production to test something. | The user chose it after being told the bills, GST and invoice numbers would sit in the real history. Contained: one restaurant, removed in one step with `npm run seed:mock -- --fresh` or `wipeRestaurantNamed`; default 2026-27/ numbering, never the real CFA/C/ series; demo phones 9000002000 to 9000002009. Remove it before go-live. |
+| 2026-10-02 | A table that no order has ever been on can be deleted, `DELETE /tables/:tableId` (API-CONTRACT 11.6). A used table is only ever turned off, and the server says so. Table setup edits name, section and seats in a sheet. | The user asked to edit and delete tables. Old orders and bills point at a table by id, so deleting a used one would break history. |
+| 2026-10-02 | On a menu card, tapping the dish always opens the options panel (size, extras, quantity, note); + always adds one at once and never opens a panel. A dish with sizes shows Choose instead of +. | Tapping a plain dish used to add it with no way to leave a note, while a dish with sizes opened the panel, so the same tap did two things. |
+| 2026-10-02 | Seed scripts that move the clock run as NODE_ENV=test through a `node --import ./scripts/lib/asTest.js` preload, not a `NODE_ENV=test` prefix. The e2e start command too. | The prefix does not run in Windows cmd, so `npm run seed:golden` and `npm run e2e` failed on Windows. |
+| 2026-10-02 | The mock menu is Cafezza's Zomato listing (176 items, 22 categories), saved as `setup/caffeza-zomato-menu.csv`. The partial `caffeza-menu.csv` stays for the setup tests. Zomato's beverage categories are routed to Beverages in `setup/caffeza.json`. | The user asked for the menu from Zomato. Zomato prices can sit above dine-in prices; the cafe's own export replaces it before cutover. |
+| 2026-10-02 | `POST /auth/refresh` has its own limiter: only a refresh carrying a cookie the server refuses is counted, 300 per 15 minutes per address. A refresh with no cookie is never counted. | It shared the login limiter, and every sign-in screen sends a refresh with no cookie, which failed and counted as a failed sign-in for the whole address. After ten, every device in the cafe, all on one address, was refused its refresh and signed out on its next reload. |
+| 2026-10-02 | A refresh token presented again within 30 seconds of its rotation, while its replacement has never been used, is a lost reply, not theft: the unused replacement is retired and a fresh token issued, once. Any other reuse still revokes every session. | A reload or navigation while a refresh was in flight lost the new cookie, and the next refresh read as theft and signed the person out of every device. |
+| 2026-10-02 | The client sends one refresh at a time; every caller shares the one in flight. | StrictMode runs the session restore twice in development, and parallel requests can meet an expired token at once. Two refreshes with one cookie is the theft case above. |
+| 2026-10-02 | `GET /kots?status=` puts "still to cook" into the query: open means a line is still PENDING. | It filtered after reading the oldest page, so once a kitchen had a page of finished tickets the board showed nothing and new tickets never appeared. With ten days of data it happened at once; at Caffeza it would have happened in the first week. Closes the known problem row. |
+| 2026-10-02 | A floor tile's spoken name does not repeat "Table": "Table 5", not "Table Table 5". | Cafezza's tables are named "Table 1" to "Table 35". |
 
 ---
 
@@ -421,6 +433,46 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-02 Arya, the cloud database loaded, and four bugs it found
+
+What was built or decided:
+`npm run seed:mock` loaded "Cafezza Demo" into the cloud cluster: 1,352 bills from 22 September to 1 October, every day closed on a blind count, and no table left busy. The loader sets an order aside, voiding and cancelling it, if someone is using the restaurant in the app at the same time, and now marks No Charge food ready before giving it (14 tickets left open by the first run were marked ready).
+A new browser check, `npm run e2e:cloud` (`e2e/cloudFlow.spec.js`, its own config, Chrome), runs one table end to end against the app on this machine and the cloud database: a captain on a phone seats Table 1 and sends a dish and a coffee, each station marks its ticket ready, the captain serves, the counter bills and takes cash, the table is free again, and the owner's Sales by Day shows the ten days balanced. It found four bugs, all fixed, and now passes:
+1. Session refreshes counted as failed sign-ins for the whole address, so a cafe's devices were signed out on reload (own limiter now).
+2. A reload during a refresh read as token theft and signed the person out everywhere (30-second lost-reply grace).
+3. The client could send two refreshes with one cookie (one in flight at a time).
+4. The kitchen board read the oldest page of tickets and showed none once there was history (filter in the query).
+Also: a table's spoken name no longer says "Table Table 1", and the e2e tile helper matches the name as it is.
+
+Tests: only what changed, at the user's request: `auth.test.js` (one test changed on purpose to a true replay, one added for the lost reply), `kitchen.test.js` (one added), `tenantGuard.test.js`, `designGuard.test.js`: all passing. `npm run e2e:cloud` passes; `npm run e2e`, the golden day through the screens, passes. Lint and build pass.
+
+Files or endpoints touched:
+New: `e2e/cloudFlow.spec.js`, `e2e/cloud.config.js`. Changed: `middleware/rateLimit.js`, `routes/authRoutes.js`, `services/tokenService.js`, `controllers/kotController.js`, `scripts/loadMockDays.js`, `tests/auth.test.js`, `tests/kitchen.test.js`, client `api/authApi.js`, `api/kitchen.js`, `FloorViewPage.jsx`, `e2e/pages/floor.js`, `e2e/playwright.config.js`, root `package.json` (`e2e:cloud`).
+
+Anything the other developer needs to know:
+Do not use "Cafezza Demo" in the app while `npm run seed:mock` is running. Every "Cafezza Demo" login now has its own generated password (set 2 October, handed to Arya, kept out of git); `demopass123` no longer signs in, so `npm run e2e:cloud` and a resumed `seed:mock` need `DEMO_PASSWORD` set to a login's password, or `--fresh`, which recreates the logins with `DEMO_PASSWORD`. Reports open on today, which is empty: choose 22 September to 1 October to see the mock days.
+
+### 2026-10-02 Arya, cloud database, mock days, table edit and delete, menu card taps
+
+What was built or decided:
+After P22, at the user's request, outside the prompt plan.
+Cloud: `.env` points `MONGO_URI` at the Atlas cluster `cluster0.dkcsfcz`, database `restaurant-erp`, and `SEED_DEMO_ALLOWED_HOSTS` names that host. The local MongoDB is gone. The cluster's Network Access must allow each developer's IP; this machine is `49.36.68.74`.
+Mock data: `npm run seed:mock` (`server/scripts/loadMockDays.js`) sets up "Cafezza Demo" from `setup/caffeza.json` (34 tables, two stations, eight payment methods, both office accounts, the warm look and logo) and the Zomato menu, makes nine demo staff logins, then plays 22 September to 1 October through the real API with the clock at each moment: 120 to 165 orders a day, dine-in, takeaway, Swiggy and Zomato, every payment method, split payments, platform and regular discounts, cancels before and after preparation, one void and re-bill and one No Charge a day, On Hold charges and cash collections, an opening float and paid outs, and each day closed on a blind count, two of them ₹100 short. A closed day is skipped on a re-run; `-- --fresh` wipes and starts again. Every login's password is `DEMO_PASSWORD`.
+Tables: `DELETE /api/v1/tables/:tableId` for a table never used, 422 otherwise; `PATCH /tables/:tableId` accepts `seats: null`. The table setup screen has Edit (a sheet with name, section and seats), Turn off or on, and Delete (a confirming sheet).
+Menu cards: tapping the dish opens the panel; + adds straight away (see the decision log).
+
+Tests: only the affected files were run, at the user's request: `tables.test.js` (two new tests), `designGuard.test.js` and `setupScripts.test.js`, 46 passing. Lint and build pass. The mock loader has not run yet: Atlas refused the connection until this machine's IP is allowed.
+
+Files or endpoints touched:
+New: `server/scripts/loadMockDays.js`, `server/scripts/lib/asTest.js`, `setup/caffeza-zomato-menu.csv`. Changed: `controllers/tableController.js`, `routes/orderRoutes.js`, `validators/orderValidators.js`, `tests/tables.test.js`, both `package.json` files, `e2e/playwright.config.js`, `setup/caffeza.json`, client `TableManagementPage.jsx`, `api/orders.js`, `MenuPicker.jsx`, `OrderScreenPage.jsx`, `DeliveryOrderPage.jsx`, API-CONTRACT 11.3 and 11.6, DB-SCHEMA `tables`.
+Endpoint: `DELETE /api/v1/tables/:tableId`.
+
+Anything the other developer needs to know:
+Rishi: add your own IP to the cluster's Network Access, and set the same `MONGO_URI` in your `.env` (it is not in git). The database credential was pasted into a chat on 2 October; rotate it in Atlas once the mock data is in, and update both `.env` files. "Cafezza Demo" must be removed before go-live.
+
+Anything now blocked or unblocked:
+The mock load waits on the Atlas IP allowlist.
 
 ### 2026-10-02 Arya, P22 Cafezza brand and professional finish
 
@@ -680,7 +732,7 @@ Things that are broken or half done, so nobody rediscovers them.
 | M2 has a second error copy map, `client/src/features/orders/errorCopy.js`, alongside M1's `features/menu/errorCopy.js`. DESIGN-SYSTEM.md section 8 asks for one. They cannot merge as they stand: M1's hard-codes menu wording for codes both modules use. | Rishi, 2026-08-29 | OPEN. The end state is one shared base map with per-module overrides, which means rewriting M1's. M2 was not scoped to change M1 code. |
 | `scripts/provisionRestaurant.js` has its own copy of the optional-transaction dance now that `utils/transaction.js` exists. Two copies of the same fallback logic is how one of them drifts, exactly like the `escapeRegex` row above. | Rishi, 2026-08-29 | OPEN. Left alone deliberately because M2 was not allowed to edit M0 code. Worth switching over in the next M0 touch. |
 | The kitchen display polls every ten seconds, so two people at the pass can briefly disagree about whether a dish is ready, and a ticket can sit on screen for up to ten seconds after it is complete. | Rishi, 2026-08-29 | OPEN by design for v1, same shape as the availability board row above. Revisit only if a pilot kitchen finds ten seconds too slow. |
-| `GET /kots` filters on a status that is derived from the ticket's lines, so the filter is applied after the page is read from the database. A page can therefore come back with fewer rows than its limit while more matching tickets exist further on. | Rishi, 2026-08-29 | OPEN and harmless at one restaurant's volume, where the whole board fits in one page. Becomes real if a kitchen ever has more than 50 open tickets. The fix is a stored status, which brings its own drift problem, so it is not obviously worth it. |
+| `GET /kots` filters on a status that is derived from the ticket's lines, so the filter is applied after the page is read from the database. A page can therefore come back with fewer rows than its limit while more matching tickets exist further on. | Rishi, 2026-08-29 | FIXED 2026-10-02: "still to cook" is in the query, so the board always reads open tickets. |
 | Unique indexes are never built in production. `config/database.js` turns `autoIndex` off when `NODE_ENV=production`, and no script runs `syncIndexes`. On a fresh production database the guards against duplicate bills and double-booked tables would not exist. | Audit, 2026-09-29 | FIXED in P01. |
 | `trust proxy` is off, so behind a host's proxy every device shares one address, and one failed login rate-limits everyone | Audit, 2026-09-29 | FIXED in P01. |
 | `npm run build` crashes with "Invalid URL" when `.env` is missing, from `client/vite.config.js` | Audit, 2026-09-29 | FIXED in P01. |
@@ -688,5 +740,5 @@ Things that are broken or half done, so nobody rediscovers them.
 | The hourly report hardcodes `'Asia/Kolkata'` instead of reading `DISPLAY_TIMEZONE`, `salesReportService.js` line 195 | Audit, 2026-09-29 | FIXED in P01. |
 | `scripts/seedDemo.js` can run against a production database | Audit, 2026-09-29 | NOT A PROBLEM. `assertSafeToSeed` already refuses outside development and test, before connecting. Confirmed in P01. |
 | The database-backed tests were not run during the audit. Only the money, tax and unit tests were. | Audit, 2026-09-29 | DONE in P01: 578 passing, 0 failing. Before P01 changed anything: 551 passing, 0 failing. |
-| `npm run seed:golden` and the e2e config's webServer command start with `NODE_ENV=test`, which Windows `cmd` cannot run, so both fail from npm on Windows. | Arya, P22 | OPEN. Workaround: run the command from Git Bash. The fix is `cross-env` or `node --env-file`, outside P22. |
+| `npm run seed:golden` and the e2e config's webServer command started with `NODE_ENV=test`, which Windows `cmd` cannot run. | Arya, P22 | FIXED 2026-10-02: both use the `scripts/lib/asTest.js` preload. |
 | Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |

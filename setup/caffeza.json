@@ -66,7 +66,10 @@
     "Fresh Fruit Juices And Detox": "Beverages",
     "Boba Teas": "Beverages",
     "Iced Tea": "Beverages",
-    "Assorted Teas": "Beverages"
+    "Assorted Teas": "Beverages",
+    "Cafezza Flavoured Coffee": "Beverages",
+    "Coolers": "Beverages",
+    "Pour Over Coffee": "Beverages"
   },
   "defaultStation": "Live Kitchen",
   "tables": {

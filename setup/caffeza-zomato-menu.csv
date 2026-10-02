@@ -1,0 +1,180 @@
+# Cafezza's menu from its Zomato listing, Airport Gandhinagar Highway, read 2 October 2026.
+# Zomato prices, which can sit above dine-in prices. GST 5% on every item, as their current bills show.
+# For staging and mock data. Replace with the cafe's own export, converted to this format, before cutover.
+category,item,size,price,gst_percent,available
+Appetizers,Chimichuri Broccoli Steak Hummus With Chip & Dip,,565.00,5,yes
+Appetizers,Peri Peri Garlic Toasted Baby Corn Ribs,,565.00,5,yes
+Appetizers,Thecha paneer chili,,565.00,5,yes
+Appetizers,Cheesy Vada Pao Pops,,260.00,5,yes
+Appetizers,Garlic Butter Crinkle Fries,,350.00,5,yes
+Appetizers,Piri Piri Crinkle Fries,,350.00,5,yes
+Appetizers,Mexican Nachos,,350.00,5,yes
+Appetizers,Cottage Cheese Bites,,505.00,5,yes
+Appetizers,Cheesy Croquette,,465.00,5,yes
+Appetizers,Crispy Onion Garlic Bread,,350.00,5,yes
+Appetizers,Crispy Guacamole Tostadas,,520.00,5,yes
+Appetizers,Lasagna Roll Ups with Truffle Cream,,520.00,5,yes
+Appetizers,Cheesy Fried Gnocchi,,350.00,5,yes
+Appetizers,Crinkle Fries,,290.00,5,yes
+Appetizers,Veg Butter Masala Maggi,,350.00,5,yes
+Appetizers,Open Samosa,,350.00,5,yes
+Appetizers,Cottage Cheese Salt & Pepper,,505.00,5,yes
+Appetizers,Cafezza Chip & Dip,,580.00,5,yes
+Appetizers,Olive Toasted Almond Cheese Plate,,565.00,5,yes
+Appetizers,Green Pesto Chickpeas on Tostada,,565.00,5,yes
+Appetizers,Edamame Truffle Hummus With Assorted Lavash,,535.00,5,yes
+Appetizers,Tomato Basil Avacado on Toast,,565.00,5,yes
+Bhel - 2.0,Jhalmori Bhel,,275.00,5,yes
+Bhel - 2.0,Collegian Bhel,,275.00,5,yes
+Boba Teas,Passion Fruit Boba Tea,,360.00,5,yes
+Boba Teas,Mango Boba Tea,,360.00,5,yes
+Boba Teas,Blueberry Boba Tea,,360.00,5,yes
+Cafezza Flavoured Coffee,Classic Cold Cafezza,,375.00,5,yes
+Cafezza Mains,Kadai Paneer,,505.00,5,yes
+Cafezza Mains,Paneer Makhni,,505.00,5,yes
+Cafezza Mains,Paneer Bhurji,,505.00,5,yes
+Cafezza Mains,Methi Garlic Paneer,,505.00,5,yes
+Cafezza Mains,Veg Makhanwala,,505.00,5,yes
+Cafezza Mains,Kadai Veg,,505.00,5,yes
+Cafezza Mains,Veg Kolhapuri,,505.00,5,yes
+Cafezza Mains,Veg Diwni Handi,,505.00,5,yes
+Cafezza Mains,Cheese Butter Masala,,575.00,5,yes
+Cafezza Mains,Dal Double Tadka,,320.00,5,yes
+Cafezza Mains,Dal Tadka,,320.00,5,yes
+Cafezza Mains,Plain Paratha,,100.00,5,yes
+Cafezza Shakes,Ferrero Hazelnut Shake,,480.00,5,yes
+Cafezza Shakes,Nutella Brownie Shake,,480.00,5,yes
+Cafezza Shakes,Wild Berry Cheesecake Shake,,480.00,5,yes
+Cafezza Shakes,Mango Blast Shake,,480.00,5,yes
+Cafezza Shakes,Chocolate Peanut Butter Banana Shake,,480.00,5,yes
+Chataka – 2.1,Tangy Sev Mumra,,190.00,5,yes
+Chataka – 2.1,Dahi Poori,,260.00,5,yes
+Chataka – 2.1,Sev Poori,,260.00,5,yes
+Coolers,Orange Blueberry Mojito,,405.00,5,yes
+Coolers,Frozen Berry Slurp,,505.00,5,yes
+Coolers,Frozen Mojito,,405.00,5,yes
+Coolers,Watermelon Sabja Mojito,,405.00,5,yes
+Coolers,Coconut Mojito,,405.00,5,yes
+Coolers,Passion Fruit Orange Mojito,,405.00,5,yes
+Coolers,Mango Lychee Punch,,405.00,5,yes
+Coolers,Spicy Pineapple Tale,,405.00,5,yes
+Deconstructed Bowls,Mexican Bowl,,580.00,5,yes
+Deconstructed Bowls,Chilli garlic chimichurri noodle Bowl,,580.00,5,yes
+Deconstructed Bowls,Korean Ramen Noodle Bowl,,580.00,5,yes
+Deconstructed Bowls,Awadhi Dum Biryani,,580.00,5,yes
+Deconstructed Bowls,Ratatouille Burrata Bowl,,580.00,5,yes
+Deconstructed Bowls,Jodhpuri Pulao Bowl,,580.00,5,yes
+Deconstructed Bowls,Chimichurri Rice with Brazilian Caril,,580.00,5,yes
+Deconstructed Bowls,Butter Garlic Rice Bowl,,580.00,5,yes
+Deconstructed Bowls,Mangolian cottage cheese rice bowl,,580.00,5,yes
+Deconstructed Bowls,Mumbaiya deconstructed Bowl,,500.00,5,yes
+Desserts from Sweet Nothings,Pistachio Kunafa Brownie,,480.00,5,yes
+Desserts from Sweet Nothings,Lotus Biscoff Waffle,,360.00,5,yes
+Desserts from Sweet Nothings,Lotus Biscoff Cheese Cake,,405.00,5,yes
+Desserts from Sweet Nothings,Cafezza Sunday,,375.00,5,yes
+Desserts from Sweet Nothings,Choice Of Ice Cream,,205.00,5,yes
+Desserts from Sweet Nothings,Blueberry Cream Cheese Waffle,,360.00,5,yes
+Desserts from Sweet Nothings,Chocolate Fondue,,505.00,5,yes
+Desserts from Sweet Nothings,Tiramisu Brownie,,465.00,5,yes
+Extra,Dal Fry,,505.00,5,yes
+Extra,Butter Milk,,109.52,5,yes
+Extra,Roasted Papad,,115.00,5,yes
+Extra,Masala Papad,,215.00,5,yes
+Extra,Steam Rice,,350.00,5,yes
+Extra,Jeera Rice,,360.00,5,yes
+Extra,Fulka Roti,,85.00,5,yes
+Extra,Malabari Paratha,,115.00,5,yes
+Extra,Hariyali Malabari Paratha,,145.00,5,yes
+Extra,Laccha Tawa Paratha,,115.00,5,yes
+Extra,Fried Papad,,100.00,5,yes
+Fresh Fruit Juices And Detox,Watermelon Juice,,335.00,5,yes
+Fresh Fruit Juices And Detox,Orange Basil Juice,,335.00,5,yes
+Fresh Fruit Juices And Detox,Pineapple Juice,,335.00,5,yes
+Fresh Fruit Juices And Detox,Glow From Within,,335.00,5,yes
+Fresh Fruit Juices And Detox,Vitamins & Minerals Treats,,335.00,5,yes
+Fresh Fruit Juices And Detox,Orange You Glad I Said Carrot?,,335.00,5,yes
+Fresh Fruit Juices And Detox,Detox Delight,,335.00,5,yes
+Fresh Fruit Juices And Detox,Vibrant Delight,,335.00,5,yes
+Iced Tea,Basil Raspberry Iced Tea,,350.00,5,yes
+Iced Tea,Lemon & Pineapple Iced Tea,,350.00,5,yes
+Iced Tea,Classic Iced Tea,,335.00,5,yes
+Indian Meal Platter,Chole Kulcha Platter,,505.00,5,yes
+Indian Meal Platter,Dal Khichadi (Platter),,575.00,5,yes
+Indian Meal Platter,Mumbaiya Pav Bhaji Platter,,650.00,5,yes
+Indian Meal Platter,Maharashtrian Missal,,650.00,5,yes
+Indian Meal Platter,Lasooni Paneer (Platter),,650.00,5,yes
+Indian Meal Platter,Paneer Makhani (Platter),,650.00,5,yes
+Indian Meal Platter,Kadai Paneer ( Platter),,650.00,5,yes
+Indian Meal Platter,Methi Garlic Paneer ( Platter),,650.00,5,yes
+Indian Meal Platter,Paneer Bhurji ( Platter ),,650.00,5,yes
+Indian Meal Platter,Veg Makhanvala (Platter),,650.00,5,yes
+Indian Meal Platter,Kadai Vegetable (Platter),,650.00,5,yes
+Indian Meal Platter,Vegetable Kolhapur (Platter),,650.00,5,yes
+Indian Meal Platter,Vegetable Diwani Handi (Platter),,650.00,5,yes
+Indian Meal Platter,Dal Tadka( Platter),,650.00,5,yes
+Indian Meal Platter,Dal Double Tadka (Platter),,650.00,5,yes
+Indian Meal Platter,Cottage Cheese Paratha Platter,,505.00,5,yes
+Indian Meal Platter,Mix Veg Paratha Platter,,505.00,5,yes
+Italian Coffees,Espresso,,160.00,5,yes
+Italian Coffees,Doppio,,215.00,5,yes
+Italian Coffees,Cappuccino,,320.00,5,yes
+Italian Coffees,Caffe Latte,,320.00,5,yes
+Italian Coffees,Americano,,255.00,5,yes
+Italian Coffees,Mochaccino,,320.00,5,yes
+Italian Coffees,Caffe Affogato,,505.00,5,yes
+Italian Coffees,Hot Chocolate,,360.00,5,yes
+Italian Coffees,Nescafe,,130.00,5,yes
+Italian Coffees,Nutella Latte,,375.00,5,yes
+Italian Coffees,Pistachio Latte,,375.00,5,yes
+Italian Coffees,Biscoff Latte,,375.00,5,yes
+Italian Coffees,Orange Zest Mocha,,350.00,5,yes
+Pasta,Aglio Olio Pasta,,625.00,5,yes
+Pasta,Alfredo Pasta,,625.00,5,yes
+Pasta,Baked Macroni With Pineapple,,625.00,5,yes
+Pasta,Creamy Pesto Pasta,,625.00,5,yes
+Pasta,Arrabiata Pasta,,625.00,5,yes
+Pasta,Italian Blush Pasta,,625.00,5,yes
+Pasta,Creamy Caramelized Onion Pasta,,625.00,5,yes
+Pasta,Naga Jolokia Pasta,,625.00,5,yes
+Pasta,Mango habanero pasta,,625.00,5,yes
+Pastries from Sweet Nothings,Choco Mousse Pot,,480.00,5,yes
+Pastries from Sweet Nothings,New York Baked Cheesecake,,405.00,5,yes
+Pastries from Sweet Nothings,Chocolate Pin Wheel,,405.00,5,yes
+Pastries from Sweet Nothings,Dark Chocolate Dome,,405.00,5,yes
+Pastries from Sweet Nothings,7 Layer Chocolate,,405.00,5,yes
+Pastries from Sweet Nothings,Mocha Flower,,405.00,5,yes
+Pastries from Sweet Nothings,Red Velvet,,405.00,5,yes
+Pastries from Sweet Nothings,Baked Raspberry Cheesecake,,405.00,5,yes
+Pastries from Sweet Nothings,Fresh Lime Soda,,290.00,5,yes
+Pastries from Sweet Nothings,Fresh Lime Water,,215.00,5,yes
+Pastries from Sweet Nothings,Lemon Mint Mojito,,360.00,5,yes
+Pizza,Half & Half Pizza,,550.00,5,yes
+Pizza,Amadavadi Tangy Pizza,,320.00,5,yes
+Pizza,Farm Fresh Pizza,,480.00,5,yes
+Pizza,Piri Piri Paneer Pizza,,480.00,5,yes
+Pizza,Cheesy Tornado,,520.00,5,yes
+Pizza,Cheese Corn Spinach Pizza,,480.00,5,yes
+Pour Over Coffee,Black Orange Cold Brew,,405.00,5,yes
+Pour Over Coffee,Peach Redbull Espresso,,480.00,5,yes
+Pour Over Coffee,Vietnamese Cold Brew,,405.00,5,yes
+Pour Over Coffee,Mixed Berry Espresso,,405.00,5,yes
+Pour Over Coffee,Balsamic Cinamon Espresso,,405.00,5,yes
+Pour Over Coffee,Passion Fruit Peach Pineapple Brew,,405.00,5,yes
+Pour Over Coffee,Yuzu Lemon Tripplica,,405.00,5,yes
+Sandwiches & Wraps,Falafel Wrap,,350.00,5,yes
+Sandwiches & Wraps,Grilled Tofu Cream Cheese Avocado Focaccia Bagel,,465.00,5,yes
+Sandwiches & Wraps,College Sandwich,,335.00,5,yes
+Sandwiches & Wraps,Spicy Indiana Sandwich,,420.00,5,yes
+Sandwiches & Wraps,Masala Pav Sandwich,,255.00,5,yes
+Sandwiches & Wraps,Croque Monsieur Sandwich,,465.00,5,yes
+Sandwiches & Wraps,Kadai Paneer Wrap,,350.00,5,yes
+Sandwiches & Wraps,Grilled Veggie Pesto Focaccia Bagel,,465.00,5,yes
+Sandwiches & Wraps,Burrata Caprese Focaccia Bagel,,465.00,5,yes
+Smoothie Bowl,Very Berry Smoothie Bowl,,505.00,5,yes
+Smoothie Bowl,Coconut Strawberry Smoothie Bowl,,505.00,5,yes
+Smoothie Bowl,Nutella Banana Smoothie Bowl,,505.00,5,yes
+Smoothie Bowl,Mango Tango Smoothie Bowl,,505.00,5,yes
+Salads,Watermelon Feta,,480.00,5,yes
+Salads,Fruit Bowl,,480.00,5,yes
+Salads,Grilled Exotic Veg,,480.00,5,yes
+Salads,Crispy Rice Cucumber Salad,,480.00,5,yes

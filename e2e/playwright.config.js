@@ -13,6 +13,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: '.',
   testMatch: '*.spec.js',
+  // The cloud flow runs against the live app, through its own config.
+  testIgnore: 'cloudFlow.spec.js',
   outputDir: 'test-results',
   workers: 1,
   fullyParallel: false,
@@ -30,7 +32,7 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
-    command: 'npm run build && NODE_ENV=test node server/scripts/e2eServer.js',
+    command: 'npm run build && node --import ./server/scripts/lib/asTest.js server/scripts/e2eServer.js',
     cwd: '..',
     url: 'http://127.0.0.1:5056/ready',
     timeout: 5 * 60 * 1000,
