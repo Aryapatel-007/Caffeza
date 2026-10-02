@@ -3271,27 +3271,55 @@ change, audited like every setting.
 | `wordmark` | String | null | The name in the top bar, 1 to 30 characters. Null means the restaurant's name. |
 | `secondLanguage` | String | `NONE` | `NONE`, `GUJARATI` or `HINDI`. The restaurant's default; a device may override it. |
 | `todayTiles` | [String] | every R1 tile key, in contract order | Which R1 tiles show on Today, in order. Keys from R1's tile columns, each once. |
+| `neutralTone` | String | `COOL` | P22. `COOL` or `WARM`: which neutral set every screen uses. DESIGN-SYSTEM section 4a. State colours never change with it. |
+| `brandHex` | String | null | P22. `#RRGGBB`, the logo's own background colour. Used only for the sign-in brand panel and the plate behind a logo. Set together with `onBrandHex`. |
+| `onBrandHex` | String | null | P22. `#RRGGBB`, text on `brandHex`. Set together with `brandHex`. |
 
 A custom `accentHex` is accepted only when, by `server/utils/colour.js`:
 1. it is a six-digit hex colour;
 2. white text on it is at least 4.5 to 1;
-3. it is at least 3 to 1 against day `ground`, `#F2F4F3`;
+3. it is at least 3 to 1 against day `ground` in both neutral sets, `#F2F4F3`
+   (cool) and `#EFE9E1` (warm), so switching the tone can never break a saved
+   accent (P22);
 4. its hue is at least 30 degrees from the hue of each state colour, `#7A4F00`,
    `#16614F`, `#922457`, `#A8321C` and `#256640`, unless its saturation is under 25%.
 
 Otherwise 400 `VALIDATION_FAILED` with `fields["appearance.accentHex"]` naming
 the rule it broke and the nearest preset by hue.
 
+The brand pair (P22): `brandHex` and `onBrandHex` are both six-digit hex colours
+or both null; sending one when the other would be left null is 400 on the one
+missing. When both are set, `onBrandHex` on `brandHex` must be at least 4.5 to 1,
+or 400 `VALIDATION_FAILED` with `fields["appearance.onBrandHex"]` giving the
+measured ratio. A pair that would only be complete with the stored value is
+checked against the stored value, the same way `CUSTOM` is checked against a
+stored `accentHex`. Neither colour is held to the accent rules: `brand` is never
+a button and never a state.
+
 `GET /auth/me` returns `appearance` beside `features`, for every role:
 
 ```json
-{ "accentPreset": "OCEAN", "accent": "#1C5C86", "accentNight": "#2985C2", "wordmark": "Cafezza", "secondLanguage": "GUJARATI", "todayTiles": ["billTotalInPaise", "netSalesInPaise"] }
+{
+  "accentPreset": "CUSTOM", "accent": "#49302D", "accentNight": "#A6746E",
+  "wordmark": "Cafezza", "secondLanguage": "GUJARATI",
+  "todayTiles": ["billTotalInPaise", "netSalesInPaise"],
+  "neutralTone": "WARM", "brandHex": "#4A2E2A", "onBrandHex": "#F2D7BC",
+  "logos": {
+    "LIGHT_GROUND": null,
+    "DARK_GROUND": { "hash": "9f2c...e1", "contentType": "image/png", "width": 447, "height": 285 }
+  }
+}
 ```
 
 `accent` is the preset's day colour or the custom colour; `accentNight` is its
 night variant, worked out on the server by `nightVariant`, so the client does no
-colour arithmetic on load. `wordmark` is already resolved to the restaurant's
-name when unset.
+colour arithmetic on load. `nightVariant` raises lightness until the colour reads
+at 4.5 to 1 on both night grounds, `#0F1715` and `#1A1310`; every preset's night
+value is unchanged by the second ground. `wordmark` is already resolved to the
+restaurant's name when unset. `logos` carries each slot's SHA-256 hash and
+dimensions, or null for an empty slot, and never the image bytes: the client
+fetches a logo from `GET /restaurant/logo/:slot` only when the hash differs from
+the one it saved (M20 section P22).
 
 ### `settings.invoice` (added by P02)
 
@@ -3543,6 +3571,13 @@ Each of these is an action an owner would want to see and which today leaves not
 
 `RECIPE_CHANGED` fires on any change to `items[]`: an ingredient added, removed, or its `qtyInBase` altered.
 
+Added by P22, OWNER only to read like every action outside the manager list:
+
+| Action | Entity | Written by | Why it matters |
+|---|---|---|---|
+| `BRAND_LOGO_SET` | `SETTINGS` | M20, from P22 | The restaurant's logo changed. `details` carries the slot, hash, size, dimensions and type, never the bytes. |
+| `BRAND_LOGO_REMOVED` | `SETTINGS` | M20, from P22 | The restaurant's logo was removed. The same `details`, of the file removed. |
+
 ## 3. What deliberately does not write an audit line
 
 Normal operation. Taking an order, firing a KOT, marking a dish ready, recording a payment, clocking in. These are the job, not exceptions to it, and burying seven real events in forty thousand routine ones defeats the collection.
@@ -3763,6 +3798,106 @@ Nothing of its own: M20's floor plan is three additions to M2 and M7.
    11.2.
 3. `settings.floor` (section order, long-open minutes, the guest count rule):
    M7, and the rule itself in M2 section 12.1.
+
+## P22. The restaurant's logo
+
+Added by P22. The tone and brand colours are fields of `settings.appearance`
+(M7 section 1). The logo is not: an image does not belong in a settings object,
+so it never travels with `GET /settings` and never lands in a `SETTINGS_CHANGED`
+line. It is stored on the restaurant, `restaurants.brandLogos` (DB-SCHEMA
+section 1).
+
+### Slots
+
+| Slot | Artwork | Shown on |
+|---|---|---|
+| `LIGHT_GROUND` | Dark artwork on a transparent background | Day screens |
+| `DARK_GROUND` | Light artwork, transparent or on its own solid background | Night screens and the sign-in brand panel |
+
+Both optional. When a screen's ground has no matching logo, the client shows the
+other one on a plate: a `DARK_GROUND` logo sits on a `brand` plate, 8px radius.
+
+### The file
+
+Accepted only when every check below passes on the decoded bytes. The file
+name, a data URL prefix and anything the client says about the type are never
+read.
+
+1. PNG, WebP or JPEG, recognised by the file signature: `89 50 4E 47 0D 0A 1A 0A`
+   for PNG, `RIFF....WEBP` for WebP, `FF D8 FF` for JPEG.
+2. Width and height read from the image header: PNG `IHDR`, WebP `VP8 `,
+   `VP8L` or `VP8X`, JPEG the first start-of-frame marker. No image library.
+3. At most 200 KB (204,800 bytes).
+4. At most 1024 pixels on the longest side, at least 128 on the shortest.
+5. SVG is refused, always. An SVG can carry script, and refusing it is safer
+   than cleaning it. A vector from the owner is converted to PNG before upload.
+
+A failure is 400 `VALIDATION_FAILED` with `fields.image` saying what is wrong in
+plain words: "This is an SVG. Upload a PNG, WebP or JPEG instead.", "This file is
+not a PNG, WebP or JPEG image.", "This image is 240 KB. The largest allowed is
+200 KB.", "This image is 2048 pixels wide. The largest allowed is 1024.", "This
+image is 96 pixels tall. The smallest allowed is 128."
+
+### `PUT /api/v1/settings/appearance/logo/:slot`
+
+Roles: OWNER. Checked on the server. `:slot` is `LIGHT_GROUND` or `DARK_GROUND`;
+anything else is 400.
+
+`PUT`, not `PATCH`, because the request replaces the whole slot, the same reason
+`PUT /recipes` is a `PUT`. CONVENTIONS section 3 otherwise says `PATCH`.
+
+```json
+{ "reason": "Cafezza's logo", "image": "iVBORw0KGgoAAAANSUhEUgAA..." }
+```
+
+`image` is the file as base64, with no `data:` prefix (one is stripped and
+ignored if sent). `reason` 1 to 500 characters, required.
+
+The JSON body limit on this route alone is 300 KB, enough for 200 KB as base64.
+Every other route keeps 100 KB.
+
+200 with the slot as `/auth/me` gives it: `{ "slot": "DARK_GROUND", "hash", "contentType", "width", "height", "sizeBytes", "setAt" }`.
+Uploading a file identical to the stored one (the same hash) changes nothing and
+writes no audit line.
+
+Writes `BRAND_LOGO_SET`, entity `SETTINGS`, entity id the `restaurantId`,
+`entityLabel` the slot, the reason, and `details: { slot, hash, sizeBytes,
+width, height, contentType }`. Never the bytes. The slot and its audit line
+commit together.
+
+### `DELETE /api/v1/settings/appearance/logo/:slot`
+
+Roles: OWNER. Body `{ "reason": "..." }`, required. An empty slot is 404
+`NOT_FOUND`. 200 with `{ "slot": "DARK_GROUND", "removed": true }`.
+
+Writes `BRAND_LOGO_REMOVED`, with the removed file's `details` as above. The
+slot is cleared, not kept: a logo is configuration, not a record of something
+that happened, the same reasoning as `DELETE /recipes/:recipeId`. The audit line
+keeps its hash, size and dimensions.
+
+### `GET /api/v1/restaurant/logo/:slot`
+
+Roles: all six. The caller's own restaurant, from the token; there is no
+restaurant in the path. Returns the image bytes with:
+
+| Header | Value |
+|---|---|
+| `Content-Type` | the stored type, `image/png`, `image/webp` or `image/jpeg` |
+| `ETag` | `"<sha256 hex>"` |
+| `Cache-Control` | `private, max-age=0, must-revalidate` |
+| `X-Content-Type-Options` | `nosniff`, from helmet |
+
+`If-None-Match` with the current hash is 304. An empty slot is 404 `NOT_FOUND`
+in the JSON envelope. Another restaurant's logo cannot be asked for, and so is
+always 404, never 403.
+
+### Permission summary
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| `PUT /settings/appearance/logo/:slot` | yes | 403 | 403 | 403 | 403 | 403 |
+| `DELETE /settings/appearance/logo/:slot` | yes | 403 | 403 | 403 | 403 | 403 |
+| `GET /restaurant/logo/:slot` | yes | yes | yes | yes | yes | yes |
 
 ---
 

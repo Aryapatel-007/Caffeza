@@ -64,6 +64,8 @@ The tenant. One document per customer restaurant.
 | `settings.tax` | Object | yes | `pricingMode`, `defaultTaxRateBps`, `roundOffEnabled`. Added by M7. See section 17. |
 | `settings.receipt` | Object | yes | Header lines, footer text, and three print toggles. Added by M7. See section 17. |
 | `settings.inventory` | Object | yes | `lowStockAlertsEnabled`. Added by M7. See section 17. |
+| `brandLogos.lightGround` | Object | no | P22. The logo for day screens, or null. See below. |
+| `brandLogos.darkGround` | Object | no | P22. The logo for night screens and the sign-in brand panel, or null. See below. |
 | `isActive` | Boolean | yes | Default true. Platform-controlled, not customer-controlled. |
 | `createdAt` | Date | auto | UTC |
 | `updatedAt` | Date | auto | UTC |
@@ -82,6 +84,30 @@ is the only way any module reads a setting.
 M3 was originally expected to add `settings.tax`. It did not, and M7 added it
 instead, which is why `tax.pricingMode` and `tax.roundOffEnabled` are stored and
 deliberately not yet wired into M3's frozen tax arithmetic. Section 17 says why.
+
+### `brandLogos` (added by P22)
+
+The restaurant's logo, one object per slot, outside `settings` on purpose: an
+image never travels with `GET /settings` and never lands in a `SETTINGS_CHANGED`
+audit line. API-CONTRACT M20 section P22 has the checks and the endpoints.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `contentType` | String | null | `image/png`, `image/webp` or `image/jpeg`, from the file signature, never from the client |
+| `data` | Buffer | null | The image bytes, at most 204,800. **`select: false`**, so `authenticate`, which loads the restaurant on every request, never reads them. Read only by `GET /restaurant/logo/:slot`. |
+| `sha256` | String | null | Hex SHA-256 of `data`. The ETag, and what `/auth/me` sends so a device knows when to fetch again. |
+| `width`, `height` | Number | null | Pixels, from the image header. Each 128 to 1024. |
+| `sizeBytes` | Number | null | The length of `data` |
+| `setAt` | Date | null | UTC |
+| `setBy` | ObjectId | null | The owner who uploaded it |
+
+Each slot is an object with every field defaulted, and a slot is empty when
+`sha256` is null, so a restaurant written before P22 reads back two empty slots
+without a migration. Removing a logo sets every field of the slot back to its
+default; the `BRAND_LOGO_REMOVED` audit line keeps the hash, size and dimensions.
+
+Additive. Rollback: none is needed to run an older server, which ignores the
+field. To remove the data, `$unset: { brandLogos: "" }` on every restaurant.
 
 ---
 
@@ -1831,8 +1857,12 @@ setup in P11 switches both off.
 | `wordmark` | String | null | Max 30 characters. Null means the restaurant's name. |
 | `secondLanguage` | String | `NONE` | `NONE`, `GUJARATI`, `HINDI` |
 | `todayTiles` | [String] | every R1 tile key in order | Which Today tiles show, in order |
+| `neutralTone` | String | `COOL` | P22. `COOL` or `WARM` |
+| `brandHex` | String | null | P22. `#RRGGBB`, the logo's background. Set with `onBrandHex`. |
+| `onBrandHex` | String | null | P22. `#RRGGBB`, text on `brandHex`, at least 4.5 to 1 on it |
 
-Additive, every field defaulted.
+Additive, every field defaulted. P22's three fields are checked in the validator
+and in `settingsService`, the same split as `accentHex`.
 
 ### `settings.floor` (added by P19)
 
@@ -1890,6 +1920,10 @@ line is worse than one that fails outright, because the log is trusted.
 
 `details` holds a field path and two scalar values and nothing else. No personal
 data goes in it, for the reason section 13 already gives.
+
+P22 appends `BRAND_LOGO_SET` and `BRAND_LOGO_REMOVED`, entity type `SETTINGS`,
+entity id the `restaurantId`, `entityLabel` the slot. `details` is
+`{ slot, hash, sizeBytes, width, height, contentType }`. Never the image bytes.
 
 ---
 
