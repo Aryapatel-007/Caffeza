@@ -25,10 +25,13 @@
     "db:indexes": "npm run db:indexes --workspace=server",
     "setup:restaurant": "npm run setup:restaurant --workspace=server --",
     "import:menu": "npm run import:menu --workspace=server --",
-    "smoke": "npm run smoke --workspace=server --"
+    "smoke": "npm run smoke --workspace=server --",
+    "e2e": "playwright test --config e2e/playwright.config.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "concurrently": "^9.1.2",
-    "eslint": "^9.18.0"
+    "eslint": "^9.18.0",
+    "exceljs": "^4.4.0"
   }
 }

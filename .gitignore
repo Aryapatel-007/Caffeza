@@ -48,3 +48,7 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.test.example
+
+# P21 browser tests
+e2e/test-results/
+e2e/screenshots/

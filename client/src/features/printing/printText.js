@@ -29,6 +29,13 @@ function escapeHtml(text) {
  * so a caller can show "Not printed" rather than believing it worked.
  */
 export function printText(text, paperMm = 80) {
+  // P21. The browser tests record what would print instead of printing. Only a
+  // test's init script ever sets this; nothing in the app does.
+  if (typeof window.__E2E_PRINT__ === 'function') {
+    window.__E2E_PRINT__(text, paperMm);
+    return Promise.resolve();
+  }
+
   const paper = PAPER[paperMm] ?? PAPER[80];
 
   return new Promise((resolve, reject) => {

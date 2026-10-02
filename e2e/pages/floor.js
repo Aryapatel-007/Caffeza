@@ -1,0 +1,40 @@
+import { expect } from '@playwright/test';
+
+/** A table's tile on the floor, by its name ("Table 5"). Names are matched whole, so Table 1 is not Table 12. */
+export const tile = (page, table, state = '[a-z ]+') =>
+  page.getByRole('button', { name: new RegExp(`^Table ${table}, ${state}, `) });
+
+export async function gotoFloor(page) {
+  await page.goto('/floor');
+  await expect(page.getByRole('heading', { name: 'Floor', level: 1 })).toBeVisible();
+}
+
+/** Seats guests at a free table and opens its order. */
+export async function openTable(page, table, guests) {
+  await gotoFloor(page);
+  await tile(page, table, 'free').click();
+  const sheet = page.getByRole('dialog');
+  await sheet.getByRole('button', { name: String(guests), exact: true }).click();
+  await sheet.getByRole('button', { name: /^Start order/ }).click();
+  await expect(page).toHaveURL(/\/orders\/[a-f0-9]{24}$/);
+}
+
+/** Opens the order on a taken table. */
+export async function openTableOrder(page, table) {
+  await gotoFloor(page);
+  await tile(page, table).click();
+  await expect(page).toHaveURL(/\/orders\/[a-f0-9]{24}$/);
+}
+
+/** The tile of a taken table says its state and its guests. */
+export async function expectTable(page, table, state, guests) {
+  const button = tile(page, table, state.toLowerCase());
+  await expect(button).toBeVisible();
+  await expect(button).toContainText(`${guests} ${guests === 1 ? 'guest' : 'guests'}`);
+}
+
+/** The billing strip lists a table waiting to pay. */
+export async function expectWaitingToPay(page, table) {
+  const strip = page.getByRole('region', { name: 'Billing' });
+  await expect(strip.getByRole('link').filter({ hasText: new RegExp(`^${table}(?!\\d)`) })).toBeVisible();
+}
