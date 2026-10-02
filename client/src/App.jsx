@@ -13,10 +13,7 @@ import ReceiptPreviewPage from './features/billing/ReceiptPreviewPage.jsx';
 import BillsListPage from './features/billing/BillsListPage.jsx';
 import RecipeEditorPage from './features/inventory/RecipeEditorPage.jsx';
 import StockListPage from './features/inventory/StockListPage.jsx';
-import DiscountsReportPage from './features/reports/DiscountsPage.jsx';
 import LabourReportPage from './features/reports/LabourPage.jsx';
-import PaymentsReportPage from './features/reports/PaymentsPage.jsx';
-import SalesReportPage from './features/reports/SalesPage.jsx';
 import StockReportPage from './features/reports/StockPage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
 import AccountsPage from './features/settlement/AccountsPage.jsx';
@@ -25,8 +22,9 @@ import CashDrawerPage from './features/settlement/CashDrawerPage.jsx';
 import DayClosePage from './features/settlement/DayClosePage.jsx';
 import DeviceSettingsPage from './features/printing/DeviceSettingsPage.jsx';
 import StationsPage from './features/stations/StationsPage.jsx';
-import TaxReportPage from './features/reports/TaxPage.jsx';
-import TodayReportPage from './features/reports/TodayPage.jsx';
+import ActivityLogPage from './features/reports/ActivityLogPage.jsx';
+import ReportPage from './features/reports/ReportPage.jsx';
+import ReportsIndexPage from './features/reports/ReportsIndexPage.jsx';
 import BillListPage from './features/reports/v2/BillListPage.jsx';
 import BillDetailPage from './features/reports/v2/BillDetailPage.jsx';
 import DashboardPage from './features/dashboard/DashboardPage.jsx';
@@ -92,7 +90,6 @@ const RECIPE_EDITOR_ROLES = [ROLES.OWNER, ROLES.MANAGER];
  */
 const REPORT_ROLES = [ROLES.OWNER, ROLES.MANAGER];
 const STOCK_REPORT_ROLES = [ROLES.OWNER, ROLES.MANAGER, ROLES.STOREKEEPER];
-const PAYMENT_REPORT_ROLES = [ROLES.OWNER];
 
 /**
  * M7. Settings are OWNER only here, even though a MANAGER may READ them on the
@@ -409,49 +406,46 @@ export default function App() {
       />
 
       {/* M6. Read-only, back office, desktop. */}
+      {/* M19, P18. Every report through one screen; the index lists what this role may open. */}
       <Route
         path="/reports"
         element={
           <ProtectedRoute>
             <RequireRole roles={REPORT_ROLES}>
-              <TodayReportPage />
+              <ReportsIndexPage />
             </RequireRole>
           </ProtectedRoute>
         }
       />
 
       <Route
-        path="/reports/sales"
+        path="/reports/activity"
         element={
           <ProtectedRoute>
             <RequireRole roles={REPORT_ROLES}>
-              <SalesReportPage />
+              <ActivityLogPage />
             </RequireRole>
           </ProtectedRoute>
         }
       />
 
       <Route
-        path="/reports/tax"
+        path="/reports/:name"
         element={
           <ProtectedRoute>
             <RequireRole roles={REPORT_ROLES}>
-              <TaxReportPage />
+              <ReportPage />
             </RequireRole>
           </ProtectedRoute>
         }
       />
 
-      <Route
-        path="/reports/discounts"
-        element={
-          <ProtectedRoute>
-            <RequireRole roles={REPORT_ROLES}>
-              <DiscountsReportPage />
-            </RequireRole>
-          </ProtectedRoute>
-        }
-      />
+      {/* The old M6 addresses, so links and bookmarks still land on the new screens. */}
+      <Route path="/reports/sales" element={<Navigate to="/reports/sales-by-day" replace />} />
+      <Route path="/reports/tax" element={<Navigate to="/reports/gst" replace />} />
+
+
+
 
       <Route
         path="/reports/stock"
@@ -479,16 +473,6 @@ export default function App() {
         }
       />
 
-      <Route
-        path="/reports/payments"
-        element={
-          <ProtectedRoute>
-            <RequireRole roles={PAYMENT_REPORT_ROLES}>
-              <PaymentsReportPage />
-            </RequireRole>
-          </ProtectedRoute>
-        }
-      />
 
       <Route
         path="/settings"

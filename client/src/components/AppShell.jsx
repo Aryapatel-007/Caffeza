@@ -103,7 +103,7 @@ export default function AppShell({ children }) {
 
   return (
     <div className="flex h-full bg-paper">
-      <aside className="hidden w-64 shrink-0 flex-col justify-between overflow-y-auto bg-linen px-3 py-5 lg:flex">
+      <aside className="hidden w-64 shrink-0 flex-col justify-between overflow-y-auto bg-linen px-3 py-5 lg:flex print:!hidden">
         <div>
           <div className="mb-6 flex items-center gap-3 px-2">
             <div className="flex size-10 items-center justify-center rounded-xl bg-chana text-lg font-bold text-ink shadow-card">
@@ -144,8 +144,8 @@ export default function AppShell({ children }) {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <header className="flex items-center justify-between gap-3 bg-paper/90 px-4 py-3 shadow-[0_1px_8px_rgba(28,27,25,0.04)] lg:px-8">
+      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto print:overflow-visible">
+        <header className="flex items-center justify-between gap-3 bg-paper/90 px-4 py-3 shadow-[0_1px_8px_rgba(28,27,25,0.04)] lg:px-8 print:hidden">
           <div className="flex min-w-0 items-center gap-2 lg:hidden">
             <span className="flex size-8 items-center justify-center rounded-lg bg-chana text-sm font-bold">
               C
@@ -175,7 +175,7 @@ export default function AppShell({ children }) {
         {/* Narrow screens have no sidebar, so the places to go scroll along the top. */}
         <nav
           aria-label="Main"
-          className="flex gap-2 overflow-x-auto px-4 pb-2 pt-1 lg:hidden"
+          className="flex gap-2 overflow-x-auto px-4 pb-2 pt-1 lg:hidden print:hidden"
         >
           {groups.flatMap((group) => group.items).map((item) => (
             <NavLink

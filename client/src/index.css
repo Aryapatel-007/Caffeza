@@ -84,3 +84,45 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * A4 print for reports. P18. The filter sentence, the checks and the tables;
+ * navigation and buttons are hidden with `print:hidden` where they are drawn.
+ * Wide tables print at full width rather than scrolling, and a row is never cut
+ * across a page.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto;
+    background: white;
+  }
+
+  .report-table div {
+    overflow: visible !important;
+  }
+
+  .report-table table {
+    font-size: 10px;
+  }
+
+  .report-section {
+    box-shadow: none !important;
+    break-inside: auto;
+  }
+
+  tr,
+  .report-section h2 {
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+}

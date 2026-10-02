@@ -58,7 +58,7 @@ export default function RankedBars({
             className="flex items-center gap-3 border-b border-steel/15 py-2 last:border-b-0"
             style={{ minHeight: ROW_HEIGHT }}
           >
-            <span className="w-40 shrink-0 truncate text-[13px] leading-[18px]" title={row[labelKey]}>
+            <span className="w-28 shrink-0 truncate text-[13px] leading-[18px] sm:w-40" title={row[labelKey]}>
               {row[labelKey]}
             </span>
 
@@ -70,7 +70,7 @@ export default function RankedBars({
               />
             </span>
 
-            <span className="w-28 shrink-0 text-right font-mono text-[13px] tabular-nums leading-[18px]">
+            <span className="w-24 shrink-0 text-right font-mono text-[13px] tabular-nums leading-[18px] sm:w-28">
               {formatValue(value)}
             </span>
 

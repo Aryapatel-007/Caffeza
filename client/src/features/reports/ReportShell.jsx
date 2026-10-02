@@ -5,6 +5,9 @@ import { businessDateForIst } from '../../utils/formatDate.js';
 import { ROLES } from '../users/roles.js';
 
 /**
+ * P18: only the old Labour and Stock screens still use this frame; every other
+ * report renders through features/reports/ReportPage.jsx.
+ *
  * The frame every report screen sits in: the nav between reports, and ONE
  * date-range filter row above everything it scopes.
  *
@@ -18,13 +21,9 @@ import { ROLES } from '../users/roles.js';
  * The tokens and the type ramp are unchanged.
  */
 const TABS = [
-  { to: '/reports', label: 'Today', end: true },
-  { to: '/reports/sales', label: 'Sales' },
-  { to: '/reports/tax', label: 'Tax' },
-  { to: '/reports/discounts', label: 'Discounts' },
+  { to: '/reports', label: 'All reports', end: true },
   { to: '/reports/stock', label: 'Stock', feature: 'inventory' },
   { to: '/reports/labour', label: 'Labour', feature: 'attendance' },
-  { to: '/reports/payments', label: 'Payments', ownerOnly: true },
 ];
 
 export default function ReportShell({ title, range, onRangeChange, children }) {

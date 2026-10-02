@@ -145,3 +145,32 @@ export function businessDateBefore(businessDate, days = 1) {
   const [year, month, day] = businessDate.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day - days)).toISOString().slice(0, 10);
 }
+
+/* ---------------------------------------------------------------------------
+ * Business-date label arithmetic for report date presets. P18.
+ *
+ * All of it on "YYYY-MM-DD" labels, read in UTC, so no time zone can move a
+ * date. A business date is a label, not an instant.
+ * ------------------------------------------------------------------------- */
+
+const labelParts = (businessDate) => businessDate.split('-').map(Number);
+const label = (year, monthIndex, day) => new Date(Date.UTC(year, monthIndex, day)).toISOString().slice(0, 10);
+
+/** The Monday of the week a business date falls in. Weeks run Monday to Sunday. */
+export function startOfWeek(businessDate) {
+  const [year, month, day] = labelParts(businessDate);
+  const weekday = (new Date(Date.UTC(year, month - 1, day)).getUTCDay() + 6) % 7;
+  return label(year, month - 1, day - weekday);
+}
+
+/** The first day of the month a business date falls in. */
+export function startOfMonth(businessDate) {
+  const [year, month] = labelParts(businessDate);
+  return label(year, month - 1, 1);
+}
+
+/** The last day of the month a business date falls in. */
+export function endOfMonth(businessDate) {
+  const [year, month] = labelParts(businessDate);
+  return label(year, month, 0);
+}

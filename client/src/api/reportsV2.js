@@ -28,3 +28,8 @@ export function getBillDetail(billId) {
 export function downloadReport(name, params) {
   return downloadFile(`/reports/v2/${name}?${reportQuery({ ...params, format: 'xlsx' })}`);
 }
+
+/** Any M19 report as JSON: `{ data: envelope, meta }`. P18. */
+export function getReport(name, params) {
+  return requestWithMeta(`/reports/v2/${name}?${reportQuery(params)}`);
+}

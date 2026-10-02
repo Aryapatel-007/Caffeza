@@ -50,14 +50,18 @@ export function OpenDaysBanner({ openDays }) {
   );
 }
 
-/** Green when every check passed; otherwise each failed check's message. */
-export function CheckStrip({ checks, onOpenRefs }) {
+/**
+ * Green when every check passed; otherwise each failed check's message, red
+ * for an error and amber for a warning, with links to the records behind it.
+ * The strip never hides the report under it.
+ */
+export function CheckStrip({ checks, onOpenRefs, renderRefs }) {
   if (!checks?.length) return null;
   const failed = checks.filter((check) => !check.passed);
   if (failed.length === 0) {
     return (
       <p className="rounded-xl border-2 border-patta bg-patta-tint px-3 py-2 text-[13px] leading-[18px] text-ink">
-        ✓ All {checks.length} checks passed.
+        ✓ {checks.length === 1 ? 'The 1 check passed.' : `All ${checks.length} checks passed.`}
       </p>
     );
   }
@@ -68,16 +72,19 @@ export function CheckStrip({ checks, onOpenRefs }) {
           key={check.id}
           className={[
             'rounded-xl border-2 px-3 py-2 text-[13px] leading-[18px]',
-            check.severity === 'ERROR' ? 'border-mirch text-mirch' : 'border-ink/40 text-ink',
+            check.severity === 'ERROR' ? 'border-mirch bg-mirch-soft text-mirch' : 'border-chana bg-chana-soft text-ink',
           ].join(' ')}
         >
           {check.severity === 'ERROR' ? '✕ ' : '! '}
           {check.message}
-          {check.refs?.length > 0 && onOpenRefs && (
-            <button type="button" onClick={() => onOpenRefs(check)} className="ml-2 underline">
-              Show the bills
-            </button>
-          )}
+          {renderRefs
+            ? renderRefs(check)
+            : check.refs?.length > 0 &&
+              onOpenRefs && (
+                <button type="button" onClick={() => onOpenRefs(check)} className="ml-2 underline">
+                  Show the bills
+                </button>
+              )}
         </li>
       ))}
     </ul>

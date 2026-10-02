@@ -11,7 +11,20 @@
  * columns of figures that must align vertically. The large standalone numbers
  * in StatTile deliberately do not use it.
  */
-export default function DataTable({ columns, rows, emptyMessage = 'Nothing in this range.', caption }) {
+/**
+ * P18: `totals`, a row drawn after a visible rule and always shown, rendered
+ * with each column's `renderTotal`; and `stickyFirstColumn`, which keeps the
+ * first column in place while a wide table scrolls sideways in its own box.
+ */
+export default function DataTable({
+  columns,
+  rows,
+  emptyMessage = 'Nothing in this range.',
+  caption,
+  totals = null,
+  stickyFirstColumn = false,
+}) {
+  const sticky = (index) => (stickyFirstColumn && index === 0 ? 'sticky left-0 z-[1] bg-white' : '');
   if (!rows || rows.length === 0) {
     return (
       <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
@@ -28,13 +41,13 @@ export default function DataTable({ columns, rows, emptyMessage = 'Nothing in th
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
           <tr className="border-b border-black/5">
-            {columns.map((column) => (
+            {columns.map((column, index) => (
               <th
                 key={column.key}
                 scope="col"
                 className={`whitespace-nowrap px-2 py-2 text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel ${
                   column.numeric ? 'text-right' : 'text-left'
-                }`}
+                } ${sticky(index)}`}
               >
                 {column.header}
               </th>
@@ -44,12 +57,12 @@ export default function DataTable({ columns, rows, emptyMessage = 'Nothing in th
         <tbody>
           {rows.map((row, index) => (
             <tr key={row.key ?? index} className="border-b border-steel/15 last:border-b-0">
-              {columns.map((column) => (
+              {columns.map((column, columnIndex) => (
                 <td
                   key={column.key}
                   className={`px-2 py-2 leading-[18px] ${
                     column.numeric ? 'text-right font-mono tabular-nums' : 'text-left'
-                  }`}
+                  } ${sticky(columnIndex)}`}
                 >
                   {column.render ? column.render(row) : row[column.key]}
                 </td>
@@ -57,6 +70,22 @@ export default function DataTable({ columns, rows, emptyMessage = 'Nothing in th
             </tr>
           ))}
         </tbody>
+        {totals && (
+          <tfoot>
+            <tr className="border-t-2 border-ink/30 font-semibold">
+              {columns.map((column, columnIndex) => (
+                <td
+                  key={column.key}
+                  className={`px-2 py-2 leading-[18px] ${
+                    column.numeric ? 'text-right font-mono tabular-nums' : 'text-left'
+                  } ${sticky(columnIndex)}`}
+                >
+                  {column.renderTotal ? column.renderTotal(totals) : null}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );
