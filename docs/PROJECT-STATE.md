@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P18, report screens and Today.
+Next: P19, floor plan.
 
 ---
 
@@ -46,7 +46,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M16 | Settlement and Day Close | Rishi | DONE | Day Close proven against the golden day in `tests/goldenDay.test.js`. No Charge (P08), On Hold accounts (P09), cash drawer, day figures, checks C1 C3 C4 C6 C8 C9, Day Close with the blind count, and the day lock (P10). Built by Rishi. Arya's read outstanding. |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M19 | Reports v2 | Arya | IN PROGRESS | Specified in P13. Engine and R19 built in P14; R2 to R10 in P15; R11 to R13 in P16; R14 to R17 in P17 (R18 is M8's own read); server only. Screens come in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
+| M19 | Reports v2 | Arya | DONE | Every report built and proven against the golden day. Engine and R19 in P14, R2 to R10 in P15, R11 to R13 in P16, R14 to R17 in P17 (R18 is M8's read), R1 and every screen in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M20 | Floor Plan and Look | Arya | NOT STARTED | P19, P20. |
 
 ---
@@ -368,6 +368,11 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | The audit summary's `byAction` and total include merged attendance corrections when attendance is on; `byActor` never does. | The spec says `byActor` excludes them and was silent on the rest. |
 | 2026-10-02 | R17 reads accounts as of a date through `accountService.listAccounts(req, { asOf })`, which now also returns opening, charged, collected and adjusted amounts. The engine gained a `prepare` hook for R17's "as of today". | P17: outstanding must use the P09 function, never a second calculation. |
 | 2026-10-02 | R15 sends both `stage` (the code, as in the contract's example) and `stageLabel` (the words, which the column shows). | The contract's column text and its example disagreed; both are kept. |
+| 2026-10-02 | `computeDayFigures` takes `upTo`, an instant, and R1 Today reads it with `upTo: now`. | P18: Today and Day Close must never disagree, and the golden day test reads Today at 6:00 PM after the whole day exists. Day Close never passes it. |
+| 2026-10-02 | One client page, `ReportPage.jsx`, renders every report envelope; the old M6 sales, tax, discounts, payments and today screens are deleted. Labour and Stock keep their screens and `ReportShell`. | One screen means every report looks and behaves the same. |
+| 2026-10-02 | `DataTable` gained an always-shown totals row and a sticky first column; `HeatGrid` is the one new chart, for R4's weekday by hour. | P18 asked for both, and no existing chart shows two dimensions. |
+| 2026-10-02 | The seed guard and restaurant wipe moved to `server/scripts/lib/localSeed.js`, shared by `seed:demo` and the new `seed:golden`. | One copy of the guard that keeps seed scripts off real databases. |
+| 2026-10-02 | `seed:golden` runs with `NODE_ENV=test` against the local database. | The fixture sets the clock, and the clock refuses to be set outside test. The localhost guard still applies. |
 
 ---
 
@@ -390,6 +395,27 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-02 Rishi, P18 report screens and Today
+
+What was built or decided:
+Server: R1 Today (`today`), a definition like the others, for the current business date: tiles, money so far, top five items, alerts (voids, No Charge, discounts over 20%, items cancelled after preparation). Its figures come from `computeDayFigures` with a new `upTo` option. `tests/reportsToday.test.js` reads it at 6:00 PM on the golden day: B01 to B07, ₹5,854.00, no alerts; at 10:00 PM the five alerts in order; equal to `computeDayFigures` for the same moment; roles.
+Client: one page for every report, `features/reports/ReportPage.jsx`, at `/reports/{name}`: date presets (Today, Yesterday, This week, Last 7 days, This month, Last month, Custom) on the business date, the report's filters as pickers, everything in the address, the last range remembered per report, the filter sentence, the open-day banner, the check strip (green, amber, red, with links to the bills or days in `refs`), each section's chart and table with drill links and the server's totals, paging, Excel, and A4 print. On a phone the filters fold behind one button and tables scroll in their box with the first column fixed. Charts: tiles for R1, columns for R3, R4 and R5, the weekday by hour grid for R4, ranked bars for R11 and R12. The reports index at `/reports` lists what the role may open, grouped, with each report's question; R9 opens to its download; Labour and Stock sit under Other while their features are on. R18 Activity Log has its own screen over `GET /audit`. The old M6 screens for sales, tax, discounts, payments and today are deleted; their addresses redirect.
+`npm run seed:golden` loads the golden day into the local database and closes 26 September (`server/scripts/loadGoldenDay.js`, localhost only).
+
+Checked by hand in headless Chromium against the golden day loaded locally: every report for 26 September opens with its filter sentence, and the headline figures match TEST-DATA section 4 (R2 bill total ₹9,269.00, net sales ₹8,886.32, GST ₹382.57; R11 Pizza ₹1,800.78); every check passes except C9's ₹4.00 warning; Pizza's net sales in R11 drills to B03, B05, B07, B12 and B14; C1 broken on B03's round-off shows the red strip and its link opens B03, then the data was restored; R3 downloads as Excel; R2 prints to a 3-page A4 PDF with navigation hidden; R11 and R12 at 380 pixels have no sideways scroll. No page errors.
+
+Tests: 885 before, 893 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `definitions/today.js`, `tests/reportsToday.test.js`, `scripts/loadGoldenDay.js`, `scripts/lib/localSeed.js`, client `features/reports/` `ReportPage.jsx`, `ReportTable.jsx`, `ReportCharts.jsx`, `ReportsIndexPage.jsx`, `ActivityLogPage.jsx`, `catalog.js`, `dateRanges.js`, `components/charts/HeatGrid.jsx`, `api/audit.js`. Changed: `dayFiguresService.js`, `reports/registry.js`, `tests/reportsDaily.test.js`, `scripts/seedDemo.js`, both `package.json`, client `App.jsx`, `AppShell.jsx` (hidden in print), `DataTable.jsx`, `RankedBars.jsx`, `reportCells.jsx`, `ReportShell.jsx`, `api/reportsV2.js`, `utils/formatDate.js`, `index.css`. Deleted: `SalesPage.jsx`, `PaymentsPage.jsx`, `TaxPage.jsx`, `DiscountsPage.jsx`, `TodayPage.jsx`.
+Endpoint: `GET /api/v1/reports/v2/today`.
+
+Anything the other developer needs to know:
+Not done by hand: the Print button through a real browser's dialog (the A4 layout was checked with a PDF from the print stylesheet), and Today with live orders open.
+
+Anything now blocked or unblocked:
+P19 can start. P20 has every report screen to restyle.
 
 ### 2026-10-02 Rishi, P17 audit trail and control reports
 
@@ -608,45 +634,6 @@ check, so the check ran on 5055.
 
 Anything now blocked or unblocked:
 P15, P16 and P17 can start.
-
-### 2026-10-01 Rishi, P13 reports spec
-
-What was built or decided:
-The M19 contract, docs only: `docs/API-CONTRACT.md` section "M19 Reports v2".
-Principles (M6's carried over by reference, plus nine M19 rules), the shared
-request and its filters, the shared envelope shown filled in for R3 on the
-golden day, column types, drill downs, sections, open days, the filter
-sentence's exact construction, the checks per report, the Excel export, every
-report R1 to R19 with its endpoint, roles, filters, columns and the stored field
-each reads, examples for R2, R5, R11 and R15 from the golden day, the indexes
-P14 adds, the permissions table, a new `CHECK_FAILED` code, and the fields still
-not stored.
-
-REPORT-SPEC section 6 now points at the contract, and R3, R4 and R14 name their
-new paths. RECONCILIATION-RULES section 3 matches the contract. GLOSSARY gained
-section 13, the column labels. CONVENTIONS gained `CHECK_FAILED`.
-
-The four self-checks:
-1. Every number in TEST-DATA section 4 has a home: R2's sections A to H carry
-   all of A, B, D, E, F, G and H (`sales.*`, `money.*`, `cash.*`, `orderTypes`,
-   `gst`, `controls.*`, `invoices`); the category table is R11's rows; the
-   captain table is R12's rows.
-2. Every column names a stored field that DB-SCHEMA has, except the names of
-   people other than the captain, listed in the contract's section 11.
-3. R19's filters express every drill down from every other report; cash
-   lines, payouts, cancelled lines and No Charge open their own records.
-4. Not stored: the name, at the time, of whoever discounted, cancelled, voided
-   or approved. Not invented; shown as the current name.
-
-Files or endpoints touched:
-Docs only. No code.
-
-Anything the other developer needs to know:
-M19 paths are `/api/v1/reports/v2/{name}`. A definition never reads `users`,
-`menuitems`, `categories` or `paymentmethods`; names come through the engine.
-
-Anything now blocked or unblocked:
-P14 can start.
 
 ---
 

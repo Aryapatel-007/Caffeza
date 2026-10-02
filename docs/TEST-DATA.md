@@ -318,6 +318,25 @@ Wasted value ₹390.00. Voids: CFA/C/22452, ₹347.00, Billed to the wrong table
 **R17 On Hold:** as of 26 September, E-210 Office ₹47.00 and W-330 Office ₹504.00. As of 27 September, after section 5's collection, W-330 Office ₹0.00 and E-210 Office ₹47.00, oldest unpaid bill 26 September, 1 day.
 **M8 summary:** Manager voided ₹347.00 on 1 bill, applied ₹423.90 of discounts on 6 bills, and approved ₹230.00 of No Charge on 1 order.
 
+**R1 at 6:00 PM** (P18)
+
+With the clock at 6:00 PM on 26 September, Today shows exactly B01 to B07, the bills issued by then.
+
+| Tile | Value |
+|---|---|
+| Bill total | ₹5,854.00 |
+| Net sales | ₹5,619.15 |
+| Bills | 7 |
+| Covers | 14 |
+| Average per cover | ₹334.94 (dine-in net sales ₹4,689.15 ÷ 14) |
+| Open tables | 0, with item total ₹0.00 |
+| Unpaid | 0, ₹0.00 |
+| Same weekday last week | ₹0.00 |
+
+Money so far: Cash ₹1,754.00, Card ₹1,061.00, UPI ₹663.00, Zomato Gold ₹1,446.00, Swiggy ₹930.00; money in hand ₹3,478.00, platform money ₹2,376.00, nothing On Hold or unpaid, total ₹5,854.00.
+Top items: Caffe Latte 3, Roasted Papad 3, Ferrero Hazelnut Shake 2, Half & Half Pizza 2, Indian Platters 2 (ties by name; Water Bottle is sixth).
+Alerts: none. The large discounts (B08 at 6:06 PM, B09 at 6:30 PM), the No Charge N01 (7:45 PM), the void of B11 (8:09 PM) and Thecha Paneer Chilli cancelled after preparation (8:50 PM) all come later. By 10:00 PM all five are listed, in that order.
+
 **Section F: GST by rate**
 
 | Rate | Net sales | CGST | SGST | GST |

@@ -5268,3 +5268,28 @@ date and Age in days.
 
 Labels added to GLOSSARY section 13: Item total before discount, Bill total
 after discount, No Charge value before GST, No Charge reason, Age in days.
+
+## 16. Settled while building P18
+
+**R1.** Sections `tiles` (one row, the contract's keys), `money` (each method,
+each On Hold account, and Unpaid bill, with totals `amountInPaise`,
+`inHandInPaise` and `platformInPaise`), `topItems` (five, quantity then name),
+and `alerts` (Time, kind in words, the bill number, table or item, and Value;
+`kindCode` carries the code). The envelope adds `date` and `asAt`. The day's
+figures come from `computeDayFigures(req, date, { upTo: now })`: the new `upTo`
+option replays the loaded records as they stood at that instant (a bill issued
+later left out, a later payment, charge or void taken off), and Day Close and
+R2 never pass it. `unpaidInPaise` is what is still owed on unpaid bills, the
+same figure as R2's Unpaid line. A discount alert is one above 2000 basis points
+of the bill's item total. R1 uses the engine's `prepare` hook to fix today's
+business date.
+
+**Drill targets.** A drill whose `report` is `ORDER` opens the order screen
+`/orders/{orderId}`; any other report id opens that report's screen with the
+query.
+
+**Screens.** Every report except R18 and R19 renders through one page,
+`/reports/{name}`. R18 is its own screen over `GET /audit`. The old M6 screens
+for sales, tax, discounts, payments and today are gone; `/reports/sales` and
+`/reports/tax` redirect to R3 and R8, and `/reports/discounts` and
+`/reports/payments` are R14 and R5. The M6 endpoints stay.

@@ -1,5 +1,44 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, P13 reports spec
+
+What was built or decided:
+The M19 contract, docs only: `docs/API-CONTRACT.md` section "M19 Reports v2".
+Principles (M6's carried over by reference, plus nine M19 rules), the shared
+request and its filters, the shared envelope shown filled in for R3 on the
+golden day, column types, drill downs, sections, open days, the filter
+sentence's exact construction, the checks per report, the Excel export, every
+report R1 to R19 with its endpoint, roles, filters, columns and the stored field
+each reads, examples for R2, R5, R11 and R15 from the golden day, the indexes
+P14 adds, the permissions table, a new `CHECK_FAILED` code, and the fields still
+not stored.
+
+REPORT-SPEC section 6 now points at the contract, and R3, R4 and R14 name their
+new paths. RECONCILIATION-RULES section 3 matches the contract. GLOSSARY gained
+section 13, the column labels. CONVENTIONS gained `CHECK_FAILED`.
+
+The four self-checks:
+1. Every number in TEST-DATA section 4 has a home: R2's sections A to H carry
+   all of A, B, D, E, F, G and H (`sales.*`, `money.*`, `cash.*`, `orderTypes`,
+   `gst`, `controls.*`, `invoices`); the category table is R11's rows; the
+   captain table is R12's rows.
+2. Every column names a stored field that DB-SCHEMA has, except the names of
+   people other than the captain, listed in the contract's section 11.
+3. R19's filters express every drill down from every other report; cash
+   lines, payouts, cancelled lines and No Charge open their own records.
+4. Not stored: the name, at the time, of whoever discounted, cancelled, voided
+   or approved. Not invented; shown as the current name.
+
+Files or endpoints touched:
+Docs only. No code.
+
+Anything the other developer needs to know:
+M19 paths are `/api/v1/reports/v2/{name}`. A definition never reads `users`,
+`menuitems`, `categories` or `paymentmethods`; names come through the engine.
+
+Anything now blocked or unblocked:
+P14 can start.
+
 ### 2026-10-01 Rishi, P12 cloud deployment
 
 What was built or decided:
