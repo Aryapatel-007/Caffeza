@@ -146,7 +146,7 @@ export default function MenuBuilderPage() {
 
   return (
     <main className="flex min-h-full flex-col bg-ground">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 sm:px-8">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-4 sm:px-8">
         <div className="flex items-baseline gap-3">
           <h1 className="text-xl font-semibold text-ink">Menu</h1>
           <span className="font-mono text-xs text-muted">
@@ -198,7 +198,7 @@ export default function MenuBuilderPage() {
             onStationChange={(id, stationId) => setCategoryStation.mutate({ id, stationId })}
           />
 
-          <section className="flex-1 overflow-y-auto p-5 sm:px-7">
+          <section className="flex-1 overflow-y-auto p-4 sm:px-8">
             {categories.length === 0 ? (
               <EmptyState
                 title="Nothing on the menu yet"

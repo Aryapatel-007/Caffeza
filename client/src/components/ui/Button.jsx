@@ -16,7 +16,8 @@ const VARIANTS = {
 VARIANTS.ghost = VARIANTS.quiet;
 
 const SIZES = {
-  sm: 'min-h-10 px-3 type-label',
+  // P22. 48px like the rest: every tap target is at least 48 pixels.
+  sm: 'min-h-12 px-3 type-label',
   md: 'min-h-12 px-4 type-button',
   lg: 'min-h-14 px-6 type-button',
 };
@@ -52,8 +53,13 @@ export default function Button({
         .join(' ')}
       {...props}
     >
+      {/* P22. Still, not spinning: nothing in the product loops. */}
       {isLoading && (
-        <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <span aria-hidden="true" className="inline-flex gap-1 opacity-70">
+          <span className="size-1 rounded-full bg-current" />
+          <span className="size-1 rounded-full bg-current" />
+          <span className="size-1 rounded-full bg-current" />
+        </span>
       )}
       {children}
     </button>

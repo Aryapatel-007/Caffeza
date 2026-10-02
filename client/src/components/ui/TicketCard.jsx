@@ -77,7 +77,10 @@ export default function TicketCard({
               >
                 <span className="type-num-tile w-8 flex-none text-right">{line.quantity}</span>
                 <span className="min-w-0 flex-1">
-                  <span className={['type-ticket-item block', isDone || isCancelled ? 'text-muted line-through' : ''].join(' ')}>
+                  <span
+                    title={line.variantName ? `${line.itemName} · ${line.variantName}` : line.itemName}
+                    className={['type-ticket-item line-clamp-2 break-words', isDone || isCancelled ? 'text-muted line-through' : ''].join(' ')}
+                  >
                     {line.itemName}
                     {line.variantName && <span className="text-muted"> · {line.variantName}</span>}
                   </span>

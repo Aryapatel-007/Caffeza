@@ -13,7 +13,7 @@ export default function InlineVoid({ isBusy, onConfirm }) {
       <button
         type="button"
         onClick={() => setAsking(true)}
-        className="min-h-10 type-caption text-alert underline"
+        className="min-h-12 type-caption text-alert underline"
       >
         Void
       </button>

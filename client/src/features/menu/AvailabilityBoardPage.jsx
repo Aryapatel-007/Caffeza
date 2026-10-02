@@ -103,7 +103,7 @@ export default function AvailabilityBoardPage() {
 
   return (
     <main className="flex min-h-full flex-col bg-ground">
-      <header className="sticky top-0 z-10 flex flex-col gap-3 border-b border-line bg-ground px-4 py-4 sm:px-5">
+      <header className="sticky top-0 z-10 flex flex-col gap-3 border-b border-line bg-ground px-4 py-4 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-semibold text-ink">Availability</h1>
           <div className="flex items-center gap-3">
@@ -148,7 +148,7 @@ export default function AvailabilityBoardPage() {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-5">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-4">
         {menuQuery.isLoading && <Spinner label="Loading the menu" />}
 
         {menuQuery.isError && (

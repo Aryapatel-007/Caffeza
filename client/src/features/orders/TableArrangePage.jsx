@@ -8,6 +8,7 @@ import { updateSettings } from '../../api/settings.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { ROLES } from '../users/roles.js';
 import { errorMessage } from './errorCopy.js';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 const COLUMNS = 24;
 const ROWS = 16;
@@ -62,7 +63,7 @@ export default function TableArrangePage() {
 
   return (
     <main className="v2 text-ink min-h-full bg-ground px-4 py-6 sm:px-6">
-      <div className="mx-auto flex max-w-7xl flex-col gap-5">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="type-label text-muted">
@@ -79,7 +80,7 @@ export default function TableArrangePage() {
           </Link>
         </header>
 
-        {tables.isPending && <p className="type-body text-muted">Loading tables…</p>}
+        {tables.isPending && <Spinner label="Loading tables" />}
         {tables.isError && <p className="type-body text-alert">{errorMessage(tables.error)}</p>}
         {tables.isSuccess && sectionNames.length === 0 && (
           <p className="rounded-[10px] bg-surface p-6 type-label border border-line">
@@ -95,7 +96,7 @@ export default function TableArrangePage() {
                 type="button"
                 aria-pressed={active === name}
                 onClick={() => setSection(name)}
-                className={['min-h-12 rounded-lg px-5 type-label border border-line', active === name ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-surface text-muted'].join(' ')}
+                className={['min-h-12 rounded-lg px-4 type-label border border-line', active === name ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-surface text-muted'].join(' ')}
               >
                 {name}
               </button>
@@ -268,7 +269,7 @@ function SectionEditor({ section, tables, onSaved, onError }) {
                 onClick={() => setSelectedId(id)}
                 aria-label={`${nameOf[id]}, column ${layout.x + 1}, row ${layout.y + 1}`}
                 className={[
-                  'absolute flex touch-none items-center justify-center p-0.5 font-mono text-[clamp(9px,1.4vw,15px)] font-bold',
+                  'absolute flex touch-none items-center justify-center p-1 font-mono text-[clamp(9px,1.4vw,15px)] font-bold',
                   'focus-visible:outline-2 focus-visible:outline-accent',
                 ].join(' ')}
                 style={{
@@ -416,10 +417,10 @@ function SectionOrder({ names, canSave, onSaved, onError }) {
             </span>
             {canSave && (
               <span className="flex gap-1">
-                <button type="button" aria-label={`Move ${name} up`} disabled={index === 0} onClick={() => swap(index, -1)} className="size-11 rounded-lg bg-surface type-body border border-line disabled:opacity-40">
+                <button type="button" aria-label={`Move ${name} up`} disabled={index === 0} onClick={() => swap(index, -1)} className="size-12 rounded-lg bg-surface type-body border border-line disabled:opacity-40">
                   ↑
                 </button>
-                <button type="button" aria-label={`Move ${name} down`} disabled={index === order.length - 1} onClick={() => swap(index, 1)} className="size-11 rounded-lg bg-surface type-body border border-line disabled:opacity-40">
+                <button type="button" aria-label={`Move ${name} down`} disabled={index === order.length - 1} onClick={() => swap(index, 1)} className="size-12 rounded-lg bg-surface type-body border border-line disabled:opacity-40">
                   ↓
                 </button>
               </span>
@@ -432,7 +433,7 @@ function SectionOrder({ names, canSave, onSaved, onError }) {
           type="button"
           disabled={!moved || save.isPending}
           onClick={() => save.mutate()}
-          className="type-label mt-3 min-h-12 rounded-lg border border-ink bg-surface text-ink hover:bg-sunken px-5 disabled:opacity-50"
+          className="type-label mt-3 min-h-12 rounded-lg border border-ink bg-surface text-ink hover:bg-sunken px-4 disabled:opacity-50"
         >
           {save.isPending ? 'Saving…' : 'Save section order'}
         </button>

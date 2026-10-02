@@ -134,7 +134,7 @@ function PlaceLink({ place, layout }) {
       to={place.to}
       aria-current={active ? 'page' : undefined}
       className={[
-        'flex flex-col items-center justify-center gap-0.5 rounded-lg transition-colors',
+        'flex flex-col items-center justify-center gap-1 rounded-lg transition-colors',
         layout === 'rail' ? 'min-h-14 w-16' : 'min-h-14 flex-1',
         active ? 'bg-sunken text-ink' : 'text-muted hover:bg-sunken hover:text-ink',
       ].join(' ')}
@@ -153,7 +153,7 @@ function MoreButton({ onClick, layout }) {
       type="button"
       onClick={onClick}
       className={[
-        'flex flex-col items-center justify-center gap-0.5 rounded-lg text-muted transition-colors hover:bg-sunken hover:text-ink',
+        'flex flex-col items-center justify-center gap-1 rounded-lg text-muted transition-colors hover:bg-sunken hover:text-ink',
         layout === 'rail' ? 'min-h-14 w-16' : 'min-h-14 flex-1',
       ].join(' ')}
     >
@@ -168,7 +168,7 @@ function MoreSheet({ onClose }) {
   const groups = useMoreGroups();
   return (
     <Sheet title="All places" subtitle={user ? `${user.name}` : null} onClose={onClose}>
-      <nav aria-label="All places" className="flex flex-col gap-5">
+      <nav aria-label="All places" className="flex flex-col gap-4">
         {groups.map((group) => (
           <div key={group.title}>
             <p className="type-label mb-1 text-muted">{group.title}</p>

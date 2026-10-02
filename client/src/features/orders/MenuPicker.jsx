@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 
 import { MinusIcon, PlusIcon } from '../../components/ui/icons/index.jsx';
-import Money from '../../components/ui/Money.jsx';
+import Money from '../../components/ui/Money.jsx';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 /**
  * The menu, for adding lines to an order.
@@ -75,7 +76,7 @@ export default function MenuPicker({
         </div>
       )}
 
-      {isPending && <p className="type-body text-muted">Loading the menu…</p>}
+      {isPending && <Spinner label="Loading the menu" />}
 
       {isError && (
         <p className="type-body text-alert">The menu could not be loaded. Check your connection.</p>
@@ -125,7 +126,9 @@ function DishCard({ item, line, pendingCount, disabled, onPick, onStep, onRemove
       ].join(' ')}
     >
       <button type="button" disabled={disabled} onClick={onPick} className="min-h-12 min-w-0 text-left disabled:opacity-60">
-        <h3 className="type-body line-clamp-2 font-semibold">{item.name}</h3>
+        <h3 className="type-body line-clamp-2 break-words font-semibold" title={item.name}>
+          {item.name}
+        </h3>
         {item.description && <p className="type-caption mt-1 line-clamp-2 text-muted">{item.description}</p>}
         {hasChoices && (
           <span className="type-caption mt-1 block text-muted">{item.variants.length > 0 ? `${item.variants.length} sizes` : 'Extras'}</span>

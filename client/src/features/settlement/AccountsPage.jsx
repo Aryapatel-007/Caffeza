@@ -180,12 +180,12 @@ function Statement({ account }) {
                 {entry.direction === 'DOWN' ? '− ' : ''}
                 <Money paise={entry.amountInPaise} />
               </td>
-              <td className="py-2 text-right font-mono"><Money paise={entry.balanceInPaise} /></td>
+              <td className="py-2 text-right font-mono"><Money paise={entry.balanceInPaise} tabular /></td>
             </tr>
           ))}
         </tbody>
       </table>
-      {query.data.entries.length === 0 && <p className="py-3 type-caption text-muted">Nothing recorded yet.</p>}
+      {query.data.entries.length === 0 && <p className="py-3 type-caption text-muted">Nothing recorded yet. Charges and collections appear here as they happen.</p>}
     </div>
   );
 }
@@ -281,7 +281,7 @@ export default function AccountsPage() {
             );
           })}
           {query.isSuccess && accounts.length === 0 && (
-            <li className="py-4 type-body text-muted">No accounts yet.</li>
+            <li className="py-4 type-body text-muted">No accounts yet. Add one for a regular who pays later.</li>
           )}
         </ul>
 

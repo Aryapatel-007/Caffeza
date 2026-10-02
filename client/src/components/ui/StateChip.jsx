@@ -30,7 +30,7 @@ export const STATES = Object.freeze({
 
 const SIZES = {
   sm: { box: 'h-6 gap-1 px-2 type-caption', icon: 14 },
-  md: { box: 'h-8 gap-1.5 px-3 type-label', icon: 16 },
+  md: { box: 'h-8 gap-2 px-3 type-label', icon: 16 },
   lg: { box: 'h-12 gap-2 px-4 type-button', icon: 20 },
 };
 

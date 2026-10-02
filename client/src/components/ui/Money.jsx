@@ -62,6 +62,8 @@ export default function Money({ paise, size = 'inherit', tabular = false, symbol
     <span
       className={[
         STYLES[size] ?? STYLES.inherit,
+        // P22. A price never wraps onto a second line.
+        'whitespace-nowrap',
         tabular ? 'tabular-nums' : '',
         negative ? 'text-alert' : '',
         className,

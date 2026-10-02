@@ -13,7 +13,8 @@ import { createOrder, getOrder, listTables, moveOrderToTable } from '../../api/o
 import { useAuth } from '../../context/AuthContext.jsx';
 import { errorMessage, occupiedByOrderId } from './errorCopy.js';
 import MoveTablePanel from './MoveTablePanel.jsx';
-import SeatTablePanel from './SeatTablePanel.jsx';
+import SeatTablePanel from './SeatTablePanel.jsx';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 const ALL = '__all__';
 const UNASSIGNED = 'Unassigned';
@@ -194,7 +195,7 @@ export default function FloorViewPage() {
           </div>
         )}
 
-        {tables.isPending && <p className="type-body text-muted">Loading the floor…</p>}
+        {tables.isPending && <Spinner label="Loading the floor" />}
         {tables.isError && <ErrorState error={errorMessage(tables.error)} onRetry={() => tables.refetch()} />}
 
         {tables.isSuccess && rows.length === 0 && (
@@ -202,7 +203,7 @@ export default function FloorViewPage() {
             title="No tables have been set up yet"
             description="An owner or manager adds them on the Table setup screen."
             action={
-              <Link to="/tables" className="type-button flex min-h-12 items-center rounded-lg bg-accent px-5 text-on-accent">
+              <Link to="/tables" className="type-button flex min-h-12 items-center rounded-lg bg-accent px-4 text-on-accent">
                 Set up tables
               </Link>
             }

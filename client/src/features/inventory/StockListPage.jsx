@@ -11,6 +11,8 @@ import { ROLES } from '../users/roles.js';
 import AdjustStockPanel from './AdjustStockPanel.jsx';
 import { errorMessage } from './errorCopy.js';
 import NewIngredientPanel from './NewIngredientPanel.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 /** IN_STOCK/LOW/OUT, one shared badge component with M3's bill status. */
 const STOCK_FACES = {
@@ -102,13 +104,14 @@ export default function StockListPage() {
       </header>
 
       <div className="mx-auto max-w-2xl px-4 py-4">
-        {query.isPending && <p className="type-body text-muted">Loading stock…</p>}
+        {query.isPending && <Spinner label="Loading stock" />}
         {query.isError && <p className="type-body text-alert">{errorMessage(query.error)}</p>}
 
         {query.isSuccess && ingredients.length === 0 && (
-          <p className="rounded-lg border-2 border-dashed border-muted px-4 py-8 text-center type-body text-muted">
-            {lowStockOnly ? 'Nothing is running low.' : 'No ingredients yet.'}
-          </p>
+          <EmptyState
+            title={lowStockOnly ? 'Nothing is running low' : 'No ingredients yet'}
+            description={lowStockOnly ? 'Show every ingredient to see the full stock.' : 'Add the first ingredient to start counting stock.'}
+          />
         )}
 
         <ul className="divide-y divide-line border-y border-line">
@@ -118,7 +121,7 @@ export default function StockListPage() {
                 type="button"
                 onClick={() => canWrite && setAdjusting(ingredient)}
                 disabled={!canWrite}
-                className="flex min-h-[64px] w-full items-center justify-between gap-3 py-2.5 text-left disabled:cursor-default"
+                className="flex min-h-[64px] w-full items-center justify-between gap-3 py-3 text-left disabled:cursor-default"
               >
                 <div>
                   <p className="type-body">

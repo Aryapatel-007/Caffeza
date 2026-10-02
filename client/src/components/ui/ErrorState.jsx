@@ -18,7 +18,7 @@ export default function ErrorState({ error, onRetry, className = '' }) {
   return (
     <div role="alert" className={`rounded-[10px] border border-line border-l-[3px] border-l-alert bg-surface p-4 ${className}`}>
       <p className="type-body flex items-start gap-2 text-alert">
-        <TriangleIcon className="mt-0.5" />
+        <TriangleIcon className="mt-1" />
         <span>{message}</span>
       </p>
 

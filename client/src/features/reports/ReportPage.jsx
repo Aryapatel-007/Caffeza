@@ -190,7 +190,7 @@ function ReportScreen({ report }) {
         )}
 
         {!report.downloadOnly && result.isPending && (
-          <div className="py-10">
+          <div className="py-12">
             <Spinner label="Working out the report" />
           </div>
         )}
@@ -316,7 +316,7 @@ function PresetButton({ active, onClick, children }) {
       onClick={onClick}
       aria-pressed={active}
       className={[
-        'h-9 rounded-lg px-3.5 type-caption transition-colors',
+        'h-9 rounded-lg px-3 type-caption transition-colors',
         '',
         active ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-sunken text-muted hover:text-ink',
       ].join(' ')}
@@ -481,10 +481,10 @@ function Pager({ meta, onPage }) {
       <span className="type-caption text-muted">
         Page <span className="font-mono">{meta.page}</span> of <span className="font-mono">{pages}</span>
       </span>
-      <button type="button" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)} className="h-9 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
+      <button type="button" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)} className="h-12 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
         Previous
       </button>
-      <button type="button" disabled={meta.page >= pages} onClick={() => onPage(meta.page + 1)} className="h-9 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
+      <button type="button" disabled={meta.page >= pages} onClick={() => onPage(meta.page + 1)} className="h-12 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
         Next
       </button>
     </nav>

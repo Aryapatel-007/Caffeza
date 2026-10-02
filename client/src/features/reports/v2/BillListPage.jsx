@@ -186,7 +186,7 @@ export default function BillListPage() {
                   </tr>
                 </tfoot>
               </table>
-              {envelope.rows.length === 0 && <p className="py-4 type-body text-muted">No bills match.</p>}
+              {envelope.rows.length === 0 && <p className="py-4 type-body text-muted">No bills match. Clear a filter to see more.</p>}
             </div>
 
             {pages > 1 && (

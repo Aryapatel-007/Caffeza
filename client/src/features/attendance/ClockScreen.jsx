@@ -130,7 +130,7 @@ export default function ClockScreen() {
 
   if (mode === 'pin' && selected) {
     return (
-      <main className="flex min-h-full flex-col justify-center bg-ground px-4 py-10">
+      <main className="flex min-h-full flex-col justify-center bg-ground px-4 py-12">
         <PinPad
           personName={selected.name}
           onSubmit={onSubmitPin}
@@ -147,7 +147,7 @@ export default function ClockScreen() {
 
   return (
     <main className="flex min-h-full flex-col bg-ground">
-      <header className="flex items-center justify-between border-b border-line px-5 py-4">
+      <header className="flex items-center justify-between border-b border-line px-4 py-4">
         <h1>
           <Bilingual k="clockTitle" size="lg" />
         </h1>
@@ -156,7 +156,7 @@ export default function ClockScreen() {
         </span>
       </header>
 
-      <div className="flex flex-1 flex-col gap-5 p-5">
+      <div className="flex flex-1 flex-col gap-4 p-4">
         {(rosterQuery.isLoading || openQuery.isLoading) && !managerNeeded && (
           <Spinner label="Loading the roster" />
         )}

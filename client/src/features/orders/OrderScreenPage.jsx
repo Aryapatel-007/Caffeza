@@ -31,7 +31,8 @@ import MoveTablePanel from './MoveTablePanel.jsx';
 import NoChargePanel from './NoChargePanel.jsx';
 import OrderLineList from './OrderLineList.jsx';
 import { errorMessage, shouldRefetch } from './errorCopy.js';
-import { placeLabel } from './orderLabel.js';
+import { placeLabel } from './orderLabel.js';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 /** Only these two may cancel a whole order. The server is what enforces it. */
 const CAN_CANCEL_ORDER = ['OWNER', 'MANAGER'];
@@ -145,7 +146,7 @@ export default function OrderScreenPage() {
   }, [order]);
 
   if (orderQuery.isPending) {
-    return <Shell><p className="type-body text-muted">Loading the order…</p></Shell>;
+    return <Shell><Spinner label="Loading the order" /></Shell>;
   }
 
   if (orderQuery.isError) {
@@ -333,7 +334,7 @@ export default function OrderScreenPage() {
                   type="button"
                   disabled={pendingCount === 0 || write.isPending}
                   onClick={fire}
-                  className="min-h-14 rounded-lg bg-accent px-5 text-on-accent hover:brightness-110 disabled:opacity-50 sm:px-7"
+                  className="min-h-14 rounded-lg bg-accent px-4 text-on-accent hover:brightness-110 disabled:opacity-50 sm:px-8"
                 >
                   {pendingCount === 0 ? (
                     <span className="type-button">Nothing to send</span>
@@ -502,7 +503,7 @@ function OrderDetails({
         />
       </div>
 
-      <footer className="flex flex-col gap-2 border-t border-line px-5 py-4">
+      <footer className="flex flex-col gap-2 border-t border-line px-4 py-4">
         <div className="flex items-baseline justify-between">
           <span className="type-label text-muted">Item total</span>
           <Money paise={order.totals.subtotalInPaise} size="tile" />

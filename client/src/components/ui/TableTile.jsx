@@ -67,8 +67,10 @@ export default function TableTile({
           <PlanFace name={name} look={look} taken={taken} isLong={isLong} />
         ) : (
           <>
-            <span className="flex w-full items-start justify-between gap-2 pr-10">
-              <span className="type-tile-name truncate">{name}</span>
+            <span className={`flex w-full items-start justify-between gap-2 ${menu ? 'pr-8' : ''}`}>
+              <span className="type-tile-name line-clamp-2" title={name}>
+                {name}
+              </span>
             </span>
             <span className="flex flex-wrap items-center gap-2">
               <StateChip state={look.state} word={look.word} size="sm" />
@@ -100,7 +102,7 @@ export default function TableTile({
 /** The small face drawn on a floor plan, where a table may be a few centimetres wide. */
 function PlanFace({ name, look, taken, isLong }) {
   return (
-    <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 text-center">
+    <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-center">
       <span className="font-anek text-[clamp(11px,1.6vw,20px)] font-[660] leading-tight [font-stretch:112%]">{name}</span>
       <span className={`flex items-center gap-1 text-[clamp(9px,0.9vw,12px)] font-semibold ${taken ? STATE_TEXT[look.state] : 'text-muted'}`}>
         {look.word}

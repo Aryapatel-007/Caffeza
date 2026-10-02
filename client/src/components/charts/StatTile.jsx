@@ -23,7 +23,7 @@ export function StatTile({ label, value, hint, className = '' }) {
     <div className={`rounded-[10px] border border-line bg-surface px-4 py-3 ${className}`}>
       <p className="type-label text-muted">{label}</p>
       <p className="type-num-hero mt-1 text-ink">{value}</p>
-      {hint && <p className="type-caption mt-0.5 text-muted">{hint}</p>}
+      {hint && <p className="type-caption mt-1 text-muted">{hint}</p>}
     </div>
   );
 }

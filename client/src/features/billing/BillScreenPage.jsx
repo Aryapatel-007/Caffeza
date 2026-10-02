@@ -289,7 +289,7 @@ export default function BillScreenPage() {
               {bill.lines.map((line) => (
                 <li key={line.orderLineId} className="flex items-start justify-between gap-3 py-2">
                   <div className="min-w-0">
-                    <p className="type-body">
+                    <p className="type-body line-clamp-2 break-words" title={line.itemName}>
                       <span className="type-num mr-2">{line.quantity}</span>
                       {line.itemName}
                       {line.variantName ? ` (${line.variantName})` : ''}
@@ -340,7 +340,7 @@ export default function BillScreenPage() {
             {bill.status === 'ON_ACCOUNT' && !bill.isVoided && bill.account && (
               <p className="type-body mt-3">
                 On Hold on <span className="font-semibold">{bill.account.accountName}</span>:{' '}
-                <Money paise={bill.chargedToAccountInPaise} size="num" />
+                <Money paise={bill.chargedToAccountInPaise} tabular size="num" />
               </p>
             )}
 
@@ -355,7 +355,7 @@ export default function BillScreenPage() {
                           {paymentMethodName(payment)}
                           {payment.reference ? ` · ${payment.reference}` : ''}
                         </span>
-                        <Money paise={payment.amountInPaise} size="num" />
+                        <Money paise={payment.amountInPaise} tabular size="num" />
                       </div>
                       {(payment.corrections ?? []).map((change) => (
                         <p key={`${change.at}-${change.toMethod}`} className="type-caption text-muted">

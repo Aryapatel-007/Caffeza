@@ -146,8 +146,8 @@ export default function PayoutsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="py-2 pr-3 text-right font-mono"><Money paise={payout.amountReceivedInPaise} /></td>
-                    <td className="py-2 pr-3 text-right font-mono"><Money paise={payout.expectedInPaise} /></td>
+                    <td className="py-2 pr-3 text-right font-mono"><Money paise={payout.amountReceivedInPaise} tabular /></td>
+                    <td className="py-2 pr-3 text-right font-mono"><Money paise={payout.expectedInPaise} tabular /></td>
                     <td
                       className={[
                         'py-2 pr-3 text-right font-mono',
@@ -168,7 +168,7 @@ export default function PayoutsPage() {
                 ))}
               </tbody>
             </table>
-            {payouts.data.length === 0 && <p className="py-4 type-body text-muted">No payouts recorded yet.</p>}
+            {payouts.data.length === 0 && <p className="py-4 type-body text-muted">No payouts recorded yet. Record one when platform money reaches the bank.</p>}
           </div>
         )}
 

@@ -12,6 +12,8 @@ import { formatTimeIst } from '../../utils/formatDate.js';
 import { errorMessage } from '../orders/errorCopy.js';
 import { charactersFor, printText } from '../printing/printText.js';
 import { rememberPrinted, useDeviceSettings } from '../printing/useDeviceSettings.js';
+import EmptyState from '../../components/ui/EmptyState.jsx';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 const ALL_STATIONS = 'ALL';
 
@@ -186,15 +188,12 @@ export default function KitchenDisplayPage() {
       </header>
 
       <div className="p-4 sm:p-6">
-        {tickets.isPending && <p className="type-body text-muted">Loading tickets…</p>}
+        {tickets.isPending && <Spinner label="Loading tickets" />}
 
         {tickets.isError && <p className="type-body text-alert">{errorMessage(tickets.error)}</p>}
 
         {tickets.isSuccess && kots.length === 0 && (
-          <div className="py-16">
-            <p className="type-title">All caught up</p>
-            <p className="type-body mt-1 text-muted">Nothing is waiting. New tickets appear here on their own.</p>
-          </div>
+          <EmptyState title="All caught up" description="Nothing is waiting. New tickets appear here on their own." />
         )}
 
         <ul className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">

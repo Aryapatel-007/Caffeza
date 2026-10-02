@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button.jsx';
 import { deleteRecipe, listRecipes, putRecipe } from '../../api/inventory.js';
 import { BASE_UNIT_SHORT_LABELS } from '../../utils/units.js';
 import { errorMessage } from './errorCopy.js';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 /**
  * The ingredient rows for exactly one (menuItemId, variantId) recipe.
@@ -75,7 +76,7 @@ export default function RecipeLineEditor({ menuItemId, variantId, ingredients, o
     (ingredient) => !rows.some((row) => row.ingredientId === ingredient.id),
   );
 
-  if (recipesQuery.isPending) return <p className="type-caption text-muted">Loading recipe…</p>;
+  if (recipesQuery.isPending) return <Spinner label="Loading recipe" size="sm" />;
 
   return (
     <div>
@@ -102,7 +103,7 @@ export default function RecipeLineEditor({ menuItemId, variantId, ingredients, o
                     current.map((r) => (r.ingredientId === row.ingredientId ? { ...r, qtyInBase: value } : r)),
                   );
                 }}
-                className="h-9 w-24 rounded-lg border-2 border-muted px-2 text-right type-num"
+                className="h-12 w-24 rounded-lg border-2 border-muted px-2 text-right type-num"
               />
               <span className="w-6 type-num-meta text-muted">{unitFor(row.ingredientId)}</span>
               <button

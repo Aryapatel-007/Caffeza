@@ -12,6 +12,7 @@ import { errorMessage } from './errorCopy.js';
 import { paymentMethodName } from './paymentMethodsForBill.js';
 import { placeLabel } from '../orders/orderLabel.js';
 import Money, { moneyText } from '../../components/ui/Money.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 
 const PAGE_SIZE = 50;
 
@@ -103,7 +104,7 @@ export default function BillsListPage() {
               <button
                 type="button"
                 onClick={() => resetPage(setStatus)('UNPAID')}
-                className="ml-3 rounded-full bg-open-tint px-2.5 py-0.5 type-caption hover:bg-sunken"
+                className="ml-3 rounded-full bg-open-tint px-3 py-1 type-caption hover:bg-sunken"
               >
                 Show them
               </button>
@@ -182,9 +183,11 @@ export default function BillsListPage() {
               )}
 
               {query.isSuccess && rows.length === 0 && (
-                <p className="px-4 py-10 text-center type-body text-muted">
-                  {needle ? `No bill on this page matches “${search.trim()}”.` : 'No bills in this range.'}
-                </p>
+                <EmptyState
+                  className="m-4"
+                  title={needle ? `No bill on this page matches “${search.trim()}”` : 'No bills in this range'}
+                  description={needle ? 'Check the number, or clear the search.' : 'Choose other dates above, or bill a table from the floor.'}
+                />
               )}
 
               {rows.length > 0 && (
@@ -192,13 +195,13 @@ export default function BillsListPage() {
                   <table className="w-full border-collapse text-left">
                     <thead>
                       <tr className="bg-sunken/70 type-num-metar text-muted">
-                        <th className="px-4 py-3.5 font-semibold">Invoice number</th>
-                        <th className="px-2 py-3.5 font-semibold">Time issued</th>
-                        <th className="px-4 py-3.5 font-semibold">Table</th>
-                        <th className="hidden px-4 py-3.5 font-semibold xl:table-cell">Captain</th>
-                        <th className="hidden px-4 py-3.5 font-semibold xl:table-cell">Paid with</th>
-                        <th className="px-2 py-3.5 font-semibold">Status</th>
-                        <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Bill total</th>
+                        <th className="px-4 py-3 font-semibold">Invoice number</th>
+                        <th className="px-2 py-3 font-semibold">Time issued</th>
+                        <th className="px-4 py-3 font-semibold">Table</th>
+                        <th className="hidden px-4 py-3 font-semibold xl:table-cell">Captain</th>
+                        <th className="hidden px-4 py-3 font-semibold xl:table-cell">Paid with</th>
+                        <th className="px-2 py-3 font-semibold">Status</th>
+                        <th className="whitespace-nowrap px-4 py-3 text-right font-semibold">Bill total</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line">
@@ -215,7 +218,7 @@ export default function BillsListPage() {
                               bill.isVoided ? 'opacity-70' : '',
                             ].join(' ')}
                           >
-                            <td className="px-4 py-3.5">
+                            <td className="px-4 py-3">
                               <button
                                 type="button"
                                 onClick={() => setSelectedId(bill.id)}
@@ -230,24 +233,24 @@ export default function BillsListPage() {
                                 {bill.billNumber}
                               </button>
                             </td>
-                            <td className={`whitespace-nowrap px-2 py-3.5 type-num-meta text-muted ${struck}`}>
+                            <td className={`whitespace-nowrap px-2 py-3 type-num-meta text-muted ${struck}`}>
                               {bill.billedAt ? formatTimeIst(bill.billedAt) : ''}
                             </td>
-                            <td className="px-4 py-3.5">
-                              <span className={`inline-flex rounded-full bg-sunken px-2.5 py-1 type-caption ${struck}`}>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex rounded-full bg-sunken px-3 py-1 type-caption ${struck}`}>
                                 {placeLabel(bill)}
                               </span>
                             </td>
-                            <td className={`hidden px-4 py-3.5 type-caption xl:table-cell ${struck}`}>
+                            <td className={`hidden px-4 py-3 type-caption xl:table-cell ${struck}`}>
                               {bill.captainName ?? '—'}
                             </td>
-                            <td className={`hidden px-4 py-3.5 type-caption text-muted xl:table-cell ${struck}`}>
+                            <td className={`hidden px-4 py-3 type-caption text-muted xl:table-cell ${struck}`}>
                               {(bill.payments ?? []).map(paymentMethodName).join(', ') || '—'}
                             </td>
-                            <td className="px-2 py-3.5">
+                            <td className="px-2 py-3">
                               <BillStatusBadge bill={bill} />
                             </td>
-                            <td className={`whitespace-nowrap px-4 py-3.5 text-right type-num ${struck}`}>
+                            <td className={`whitespace-nowrap px-4 py-3 text-right type-num ${struck}`}>
                               <Money paise={bill.grandTotalInPaise} />
                             </td>
                           </tr>
@@ -325,7 +328,7 @@ function PreviewBody({ bill }) {
       </header>
 
       {isUnpaid && (
-        <p className="bg-open-tint px-4 py-2.5 type-caption">
+        <p className="bg-open-tint px-4 py-3 type-caption">
           Waiting for payment · <span className="font-mono"><Money paise={outstanding} /></span> outstanding
         </p>
       )}
@@ -334,7 +337,7 @@ function PreviewBody({ bill }) {
         {bill.lines.map((line) => (
           <li key={line.orderLineId} className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="type-label">
+              <p className="type-label line-clamp-2 break-words" title={line.itemName}>
                 {line.itemName}
                 {line.variantName ? ` (${line.variantName})` : ''}
               </p>
@@ -348,7 +351,7 @@ function PreviewBody({ bill }) {
         ))}
       </ul>
 
-      <dl className="flex flex-col gap-1.5 bg-sunken p-4 type-caption">
+      <dl className="flex flex-col gap-2 bg-sunken p-4 type-caption">
         <PreviewRow label="Item total" value={<Money paise={bill.subtotalInPaise} />} />
         {bill.discount && (
           <PreviewRow tone="text-ok" label="Discount" value={`− ${moneyText(bill.discount.amountInPaise)}`} />
@@ -368,7 +371,7 @@ function PreviewBody({ bill }) {
       </dl>
 
       {bill.captainName && (
-        <p className="bg-sunken/60 px-4 py-2.5 type-caption text-muted">
+        <p className="bg-sunken/60 px-4 py-3 type-caption text-muted">
           Captain: <span className="font-semibold text-ink">{bill.captainName}</span>
           {bill.guestCount != null && ` · ${bill.guestCount} covers`}
         </p>

@@ -158,7 +158,7 @@ export default function CashDrawerPage() {
                 </span>
               </li>
             ))}
-            {movements.length === 0 && <li className="py-4 type-body text-muted">Nothing recorded yet today.</li>}
+            {movements.length === 0 && <li className="py-4 type-body text-muted">Nothing recorded yet today. Start with the opening float.</li>}
           </ul>
         )}
 

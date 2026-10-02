@@ -69,6 +69,10 @@ export const ACCENT_PRESETS = Object.freeze({
 /** The example shown in the custom colour field. It passes every rule. */
 export const EXAMPLE_ACCENT = '#2D5DA8';
 
+/** The examples shown in the brand colour fields, P22. A readable pair. */
+export const EXAMPLE_BRAND = '#4A2E2A';
+export const EXAMPLE_ON_BRAND = '#F2D7BC';
+
 export const MIN_TEXT_CONTRAST = 4.5;
 export const MIN_GROUND_CONTRAST = 3;
 export const MIN_HUE_DISTANCE = 30;

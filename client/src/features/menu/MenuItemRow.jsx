@@ -15,7 +15,7 @@ export default function MenuItemRow({ item, onEdit, onToggleAvailability, isBusy
   return (
     <div
       className={[
-        'flex items-center gap-3 border-b border-line py-3.5 sm:gap-5',
+        'flex items-center gap-3 border-b border-line py-3 sm:gap-4',
         item.isActive ? '' : 'opacity-50',
       ].join(' ')}
     >
@@ -23,7 +23,7 @@ export default function MenuItemRow({ item, onEdit, onToggleAvailability, isBusy
         <div className="flex flex-wrap items-center gap-2">
           <span className="type-body text-ink">{item.name}</span>
           {!item.isActive && (
-            <span className="type-caption rounded-full border border-line px-2 py-0.5 text-muted">
+            <span className="type-caption rounded-full border border-line px-2 py-1 text-muted">
               Off the menu
             </span>
           )}
@@ -32,14 +32,14 @@ export default function MenuItemRow({ item, onEdit, onToggleAvailability, isBusy
           <p className="type-caption text-muted">{item.description}</p>
         )}
         {item.variants?.length > 0 && (
-          <p className="mt-0.5 font-mono text-xs text-muted">
+          <p className="mt-1 font-mono text-xs text-muted">
             {item.variants.length} variant{item.variants.length === 1 ? '' : 's'}
             {item.addOns?.length > 0 ? ` · ${item.addOns.length} add-on${item.addOns.length === 1 ? '' : 's'}` : ''}
           </p>
         )}
       </div>
 
-      <span className="hidden rounded border border-muted px-2 py-0.5 font-mono text-xs text-muted sm:inline">
+      <span className="hidden rounded border border-muted px-2 py-1 font-mono text-xs text-muted sm:inline">
         GST {formatBasisPoints(item.taxRateBps)}
       </span>
 

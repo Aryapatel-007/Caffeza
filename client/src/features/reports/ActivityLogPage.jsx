@@ -8,6 +8,7 @@ import { businessDateToday, formatDateIst, formatTimeIst } from '../../utils/for
 import { errorMessage } from '../billing/errorCopy.js';
 import { PRESETS, presetOf, presetRange } from './dateRanges.js';
 import Money from '../../components/ui/Money.jsx';
+import EmptyState from '../../components/ui/EmptyState.jsx';
 
 /** What each audit action reads as. The codes are M8's; these are the words on screen. */
 const ACTION_WORDS = {
@@ -93,7 +94,7 @@ export default function ActivityLogPage() {
               type="button"
               aria-pressed={current === preset.key}
               onClick={() => setQuery(presetRange(preset.key, today))}
-              className={['h-9 rounded-lg px-3.5 type-caption', current === preset.key ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-sunken text-muted'].join(' ')}
+              className={['h-9 rounded-lg px-3 type-caption', current === preset.key ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-sunken text-muted'].join(' ')}
             >
               {preset.label}
             </button>
@@ -114,7 +115,7 @@ export default function ActivityLogPage() {
         {result.isError && <p className="rounded-[10px] bg-surface p-4 type-label text-alert border border-line">{errorMessage(result.error)}</p>}
 
         {result.isSuccess && lines.length === 0 && (
-          <p className="rounded-[10px] bg-surface px-4 py-8 text-center type-label text-muted border border-line">Nothing recorded in this range.</p>
+          <EmptyState title="Nothing recorded in this range" description="Choose a wider range above." />
         )}
 
         {lines.length > 0 && (
@@ -145,10 +146,10 @@ export default function ActivityLogPage() {
             <span className="type-caption text-muted">
               Page <span className="font-mono">{page}</span> of <span className="font-mono">{pages}</span>
             </span>
-            <button type="button" disabled={page <= 1} onClick={() => setQuery({ page: String(page - 1) })} className="h-9 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
+            <button type="button" disabled={page <= 1} onClick={() => setQuery({ page: String(page - 1) })} className="h-12 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
               Previous
             </button>
-            <button type="button" disabled={page >= pages} onClick={() => setQuery({ page: String(page + 1) })} className="h-9 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
+            <button type="button" disabled={page >= pages} onClick={() => setQuery({ page: String(page + 1) })} className="h-12 rounded-lg bg-sunken px-3 type-caption disabled:opacity-40">
               Next
             </button>
           </nav>

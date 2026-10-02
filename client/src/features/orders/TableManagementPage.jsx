@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom';
 import Toast from '../../components/ui/Toast.jsx';
 import { createTable, listTables, setTableActive, updateTable } from '../../api/orders.js';
 import { errorMessage } from './errorCopy.js';
+import EmptyState from '../../components/ui/EmptyState.jsx';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 /**
  * Setting up the floor. Owner and manager only.
@@ -142,19 +144,17 @@ export default function TableManagementPage() {
           <button
             type="submit"
             disabled={!draft.name.trim() || isBusy}
-            className="min-h-12 rounded-lg bg-accent px-5 type-button text-on-accent disabled:opacity-50"
+            className="min-h-12 rounded-lg bg-accent px-4 type-button text-on-accent disabled:opacity-50"
           >
             Add table
           </button>
         </form>
 
-        {tables.isPending && <p className="type-body text-muted">Loading tables…</p>}
+        {tables.isPending && <Spinner label="Loading tables" />}
         {tables.isError && <p className="type-body text-alert">{errorMessage(tables.error)}</p>}
 
         {tables.isSuccess && tables.data.length === 0 && (
-          <p className="type-body text-muted">
-            No tables yet. Add the first one above.
-          </p>
+          <EmptyState title="No tables yet" description="Add the first one above." />
         )}
 
         <ul className="divide-y divide-line">

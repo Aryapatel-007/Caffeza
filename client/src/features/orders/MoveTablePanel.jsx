@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import ErrorState from '../../components/ui/ErrorState.jsx';
 import Sheet from '../../components/ui/Sheet.jsx';
 import { listTables } from '../../api/orders.js';
-import { errorMessage } from './errorCopy.js';
+import { errorMessage } from './errorCopy.js';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 /**
  * Moving an open dine-in order to another table, through
@@ -20,7 +21,7 @@ export default function MoveTablePanel({ order, isBusy, onCancel, onConfirm }) {
 
   return (
     <Sheet title={`Move ${order.tableName ?? 'order'} to`} onCancel={onCancel}>
-      {tables.isPending && <p className="type-body text-muted">Loading the tables…</p>}
+      {tables.isPending && <Spinner label="Loading the tables" size="sm" />}
       {tables.isError && <ErrorState error={errorMessage(tables.error)} />}
       {tables.isSuccess && free.length === 0 && <p className="type-body text-muted">Every other table is taken.</p>}
 

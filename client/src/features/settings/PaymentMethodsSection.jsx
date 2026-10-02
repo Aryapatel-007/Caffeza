@@ -10,7 +10,8 @@ import {
   updatePaymentMethod,
 } from '../../api/paymentMethods.js';
 import { PLATFORMS } from '../orders/platforms.js';
-import { errorMessage } from './errorCopy.js';
+import { errorMessage } from './errorCopy.js';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 /**
  * Payment methods. P08. OWNER only, like the rest of this page.
@@ -287,7 +288,7 @@ export default function PaymentMethodsSection({ onToast }) {
   };
   const fail = (error) => onToast({ tone: 'error', message: errorMessage(error) });
 
-  if (query.isPending) return <p className="type-caption text-muted">Loading payment methods…</p>;
+  if (query.isPending) return <Spinner label="Loading payment methods" size="sm" />;
   if (query.isError) return <p className="type-caption text-alert">{errorMessage(query.error)}</p>;
 
   return (

@@ -168,7 +168,7 @@ export default function DeliveryOrderPage() {
                 <Link to="/floor" className="hover:text-ink">Orders</Link> ›{' '}
                 <span className="text-ink">New delivery order</span>
               </p>
-              <h1 className="mt-0.5 type-title">
+              <h1 className="mt-1 type-title">
                 New delivery order
               </h1>
             </div>
@@ -284,7 +284,7 @@ export default function DeliveryOrderPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="type-heading">Delivery order summary</h2>
-                <p className="type-num-meta mt-0.5 text-muted">
+                <p className="type-num-meta mt-1 text-muted">
                   {platform && orderIdValid ? `${platform.name} ${platformOrderId.trim()}` : 'Not saved yet'}
                 </p>
               </div>
@@ -302,9 +302,11 @@ export default function DeliveryOrderPage() {
                     className="flex items-center justify-between gap-2 border-b border-line py-2 last:border-b-0"
                   >
                     <div className="min-w-0">
-                      <p className="type-body truncate font-semibold">{line.name}</p>
+                      <p className="type-body line-clamp-2 break-words font-semibold" title={line.name}>
+                        {line.name}
+                      </p>
                       {line.detail && <p className="type-caption truncate text-muted">{line.detail}</p>}
-                      <Money paise={line.unitInPaise * line.quantity} size="num" />
+                      <Money paise={line.unitInPaise * line.quantity} tabular size="num" />
                     </div>
                     <div className="flex flex-none items-center rounded-lg border border-ink">
                       <button
@@ -349,7 +351,7 @@ export default function DeliveryOrderPage() {
               <Money paise={itemTotal} size="tile" />
             </div>
 
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-3">
               <button
                 type="button"
                 disabled={Boolean(missing) || save.isPending}

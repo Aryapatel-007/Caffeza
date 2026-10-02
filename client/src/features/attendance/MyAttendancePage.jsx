@@ -24,11 +24,11 @@ export default function MyAttendancePage() {
 
   return (
     <main className="mx-auto flex min-h-full w-full max-w-2xl flex-col bg-ground">
-      <header className="border-b border-line px-5 py-4">
+      <header className="border-b border-line px-4 py-4">
         <h1 className="text-xl font-semibold text-ink">My hours</h1>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-5">
+      <div className="flex flex-1 flex-col gap-6 p-4">
         {meQuery.isLoading && <Spinner label="Loading your hours" />}
 
         {meQuery.isError && (
@@ -59,7 +59,7 @@ export default function MyAttendancePage() {
             </section>
 
             {data.recent.length === 0 ? (
-              <p className="type-body text-muted">No closed shifts in the last seven days.</p>
+              <p className="type-body text-muted">No closed shifts in the last seven days. Clock in on the clock screen to start one.</p>
             ) : (
               <ul className="divide-y divide-line">
                 {data.recent.map((entry) => (

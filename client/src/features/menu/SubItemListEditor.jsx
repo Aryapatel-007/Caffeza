@@ -33,7 +33,7 @@ export default function SubItemListEditor({ title, entries, onChange, addLabel, 
       {entries.map((entry, index) => (
         <div
           key={entry.id ?? `new-${index}`}
-          className="flex flex-wrap items-end gap-2 rounded-lg border border-muted p-2.5"
+          className="flex flex-wrap items-end gap-2 rounded-lg border border-muted p-3"
         >
           <Input
             className="min-w-0 flex-1"

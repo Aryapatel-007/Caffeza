@@ -79,7 +79,7 @@ export default function CategoryRail({
             <button
               type="button"
               onClick={() => onSelect(category.id)}
-              className="flex min-h-12 flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left "
+              className="flex min-h-12 flex-1 items-center justify-between gap-2 px-3 py-3 text-left "
             >
               <span className={`type-caption ${isSelected ? 'text-ink': 'text-muted'}`}>
                 {category.name}
@@ -161,7 +161,7 @@ export default function CategoryRail({
         <button
           type="button"
           onClick={() => setIsAdding(true)}
-          className="mt-2 min-h-12 rounded-lg px-3 py-2.5 text-left type-caption text-muted hover:bg-ok-tint/40 "
+          className="mt-2 min-h-12 rounded-lg px-3 py-3 text-left type-caption text-muted hover:bg-ok-tint/40 "
         >
           +&nbsp;&nbsp;New category
         </button>

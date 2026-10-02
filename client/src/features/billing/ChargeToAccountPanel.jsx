@@ -6,7 +6,8 @@ import { listAccounts } from '../../api/accounts.js';
 import { errorMessage } from './errorCopy.js';
 import { LABELS } from '../i18n/labels.js';
 import Sheet from '../../components/ui/Sheet.jsx';
-import Money from '../../components/ui/Money.jsx';
+import Money from '../../components/ui/Money.jsx';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 /**
  * Charging a bill to an On Hold account. P09. OWNER and MANAGER.
@@ -45,7 +46,7 @@ export default function ChargeToAccountPanel({ owedInPaise, isBusy, error, onCan
         />
       </label>
 
-      {query.isPending && <p className="type-caption text-muted">Loading accounts…</p>}
+      {query.isPending && <Spinner label="Loading accounts" size="sm" />}
       {query.isError && <p className="type-caption text-alert">{errorMessage(query.error)}</p>}
 
       <ul className="mb-4 divide-y divide-line">

@@ -103,7 +103,7 @@ export default function DiscountPanel({
         </div>
       }
     >
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
         <section className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-2">
             {[
@@ -182,7 +182,7 @@ export default function DiscountPanel({
                   aria-pressed={fundedBy === option.value}
                   onClick={() => setFundedBy(option.value)}
                   className={[
-                    'type-label min-h-12 rounded-lg px-5',
+                    'type-label min-h-12 rounded-lg px-4',
                     fundedBy === option.value ? 'border-2 border-ink bg-sunken text-ink' : 'border border-line bg-surface text-muted',
                   ].join(' ')}
                 >

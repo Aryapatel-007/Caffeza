@@ -5,7 +5,8 @@ import { Link } from 'react-router-dom';
 import Toast from '../../components/ui/Toast.jsx';
 import { listIngredients } from '../../api/inventory.js';
 import { listMenuItems } from '../../api/menu.js';
-import RecipeLineEditor from './RecipeLineEditor.jsx';
+import RecipeLineEditor from './RecipeLineEditor.jsx';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 /**
  * The recipe editor. The one back-office screen in M4, and it is allowed to
@@ -66,7 +67,7 @@ export default function RecipeEditorPage() {
             placeholder="Search dishes"
             className="mb-3 min-h-12 w-full rounded-lg border border-muted bg-surface px-3 type-body placeholder:text-muted"
           />
-          {itemsQuery.isPending && <p className="type-caption text-muted">Loading…</p>}
+          {itemsQuery.isPending && <Spinner label="Loading" size="sm" />}
           <ul className="divide-y divide-line border-y border-line">
             {items.map((item) => (
               <li key={item.id}>

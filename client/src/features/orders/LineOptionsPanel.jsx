@@ -103,7 +103,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
                       className="size-5 accent-[var(--color-accent)]"
                     />
                   </span>
-                  {out ? <StateChip state="alert" word="Out of stock" size="sm" /> : <Money paise={variant.priceInPaise} size="num" />}
+                  {out ? <StateChip state="alert" word="Out of stock" size="sm" /> : <Money paise={variant.priceInPaise} tabular size="num" />}
                 </label>
               );
             })}

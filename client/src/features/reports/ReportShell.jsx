@@ -135,7 +135,7 @@ export function ReportSection({ title, description, children, table }) {
   return (
     <section className="mb-8">
       <h2 className="type-body font-semibold font-semibold">{title}</h2>
-      {description && <p className="mt-0.5 type-caption text-muted">{description}</p>}
+      {description && <p className="mt-1 type-caption text-muted">{description}</p>}
       <div className="mt-3">{children}</div>
       {table && (
         <details className="mt-3">

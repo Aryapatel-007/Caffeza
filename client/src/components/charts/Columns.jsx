@@ -125,7 +125,7 @@ export default function Columns({
           {hovered !== null && (
             <div
               role="status"
-              className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[8px] border border-line bg-surface px-2.5 py-1.5 shadow-float"
+              className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[8px] border border-line bg-surface px-3 py-2 shadow-float"
               style={{
                 left: `${((hovered + 0.5) / rows.length) * 100}%`,
                 bottom: '100%',

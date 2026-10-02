@@ -89,7 +89,7 @@ export default function ReceiptPreviewPage() {
 
         <div className="grid grid-cols-12 items-start gap-6">
           <div className="col-span-12 flex flex-col gap-4 xl:col-span-4">
-            <section className="flex flex-col gap-4 rounded-[10px] bg-surface p-5 border border-line">
+            <section className="flex flex-col gap-4 rounded-[10px] bg-surface p-4 border border-line">
               <div>
                 <p className="type-caption text-muted">This device</p>
                 <h2 className="type-heading">Print the receipt</h2>
@@ -140,7 +140,7 @@ export default function ReceiptPreviewPage() {
           </div>
 
           <div className="col-span-12 flex flex-col items-center xl:col-span-5">
-            <p className="mb-3 rounded-lg bg-sunken/70 px-4 py-1.5 type-num-meta">
+            <p className="mb-3 rounded-lg bg-sunken/70 px-4 py-2 type-num-meta">
               As printed · {device.paperMm} mm · {width} characters per line
             </p>
 
@@ -162,7 +162,7 @@ export default function ReceiptPreviewPage() {
 
           <div className="col-span-12 flex flex-col gap-4 xl:col-span-3">
             {bill.data && (
-              <section className="flex flex-col gap-3 rounded-[10px] bg-surface p-5 border border-line">
+              <section className="flex flex-col gap-3 rounded-[10px] bg-surface p-4 border border-line">
                 <p className="type-caption text-muted">On this bill</p>
                 <dl className="flex flex-col gap-2 type-caption">
                   <Row label="Item total" value={<Money paise={bill.data.subtotalInPaise} />} />

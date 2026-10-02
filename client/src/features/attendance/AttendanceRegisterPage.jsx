@@ -89,7 +89,7 @@ export default function AttendanceRegisterPage() {
 
   return (
     <main className="mx-auto flex min-h-full w-full max-w-4xl flex-col bg-ground">
-      <header className="sticky top-0 z-10 flex flex-wrap items-end justify-between gap-3 border-b border-line bg-ground px-5 py-4">
+      <header className="sticky top-0 z-10 flex flex-wrap items-end justify-between gap-3 border-b border-line bg-ground px-4 py-4">
         <h1 className="text-xl font-semibold text-ink">Attendance</h1>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col type-label text-muted">
@@ -106,7 +106,7 @@ export default function AttendanceRegisterPage() {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-5">
+      <div className="flex flex-1 flex-col gap-4 p-4">
         {registerQuery.isLoading && <Spinner label="Loading the register" />}
 
         {registerQuery.isError && (
@@ -154,7 +154,7 @@ export default function AttendanceRegisterPage() {
 
                     <div className="flex flex-none items-center gap-3">
                       {entry.requiresAttention && (
-                        <span className="rounded-full border-2 border-alert px-2 py-0.5 type-num-meta text-alert">
+                        <span className="rounded-full border-2 border-alert px-2 py-1 type-num-meta text-alert">
                           Open 12h+
                         </span>
                       )}

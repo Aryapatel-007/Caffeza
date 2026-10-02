@@ -62,7 +62,7 @@ export default function BillDetailPage() {
                 <tr key={line.orderLineId}>
                   <td className="py-2 pr-3">{line.quantity} × {line.itemName}{line.variantName ? ` (${line.variantName})` : ''}</td>
                   <td className="py-2 pr-3 text-muted">{line.categoryName ?? 'Not recorded'}</td>
-                  <td className="py-2 pr-3 text-right font-mono"><Money paise={line.lineTotalInPaise} /></td>
+                  <td className="py-2 pr-3 text-right font-mono"><Money paise={line.lineTotalInPaise} tabular /></td>
                   <td className="py-2 pr-3 text-right font-mono">{line.discountShareInPaise === null ? '' : moneyText(line.discountShareInPaise)}</td>
                   <td className="py-2 pr-3 text-right font-mono">{line.taxableInPaise === null ? '' : moneyText(line.taxableInPaise)}</td>
                   <td className="py-2 text-right font-mono">{line.taxInPaise === null ? '' : moneyText(line.taxInPaise)}</td>

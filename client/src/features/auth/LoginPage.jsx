@@ -157,7 +157,7 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-full flex-col bg-surface lg:flex-row">
       <section className="flex min-h-[260px] flex-col justify-end bg-ink p-8 text-surface lg:min-h-full lg:w-[55%] lg:p-12">
-        <h1 className="type-title">{name}</h1>
+        <h1 className="type-heading">{name}</h1>
       </section>
 
       <section className="flex flex-1 items-center bg-surface px-4 py-8 lg:p-12">

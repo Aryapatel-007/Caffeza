@@ -10,7 +10,8 @@ import { useTheme } from '../../context/ThemeProvider.jsx';
 import { formatDateIst, formatTimeIst } from '../../utils/formatDate.js';
 
 import UnclosedDayWarning from '../settlement/UnclosedDayWarning.jsx';
-import Money, { moneyText } from '../../components/ui/Money.jsx';
+import Money, { moneyText } from '../../components/ui/Money.jsx';
+import Spinner from '../../components/ui/Spinner.jsx';
 
 /**
  * Home. Every figure here is read from the server, none is drawn for show: the
@@ -33,7 +34,7 @@ function Card({ className = '', children }) {
 
 function Stat({ label, value, hint }) {
   return (
-    <Card className="flex flex-col justify-between p-5">
+    <Card className="flex flex-col justify-between p-4">
       <span className="type-label text-muted">{label}</span>
       <div className="mt-4">
         <span className="type-num-hero ">{value}</span>
@@ -175,7 +176,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2">
                   <h2 className="type-heading">Tables seated</h2>
-                  <span className="rounded-full bg-sunken px-2 py-0.5 type-num-meta text-muted">
+                  <span className="rounded-full bg-sunken px-2 py-1 type-num-meta text-muted">
                     {seated.length} of {tables.data?.length ?? 0}
                   </span>
                 </div>
@@ -183,7 +184,7 @@ export default function DashboardPage() {
                   Open the floor →
                 </Link>
               </div>
-              {tables.isPending && <p className="px-1 text-sm text-muted">Loading the floor…</p>}
+              {tables.isPending && <Spinner label="Loading the floor" size="sm" />}
               {tables.isError && <ErrorMessage error={tables.error} />}
               {tables.data && seated.length === 0 && (
                 <Card className="p-6 text-center text-sm text-muted">No table has an open order.</Card>
@@ -230,12 +231,12 @@ export default function DashboardPage() {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {data.topItems.slice(0, 4).map((item, index) => (
-                  <Card key={item.itemName} className="flex flex-col justify-between p-5">
+                  <Card key={item.itemName} className="flex flex-col justify-between p-4">
                     <span className="type-num-meta text-muted">#{index + 1}</span>
                     <h3 className="mt-2 text-base font-semibold leading-6">{item.itemName}</h3>
                     <div className="mt-4 flex items-center justify-between">
                       <span className="font-mono text-base font-bold"><Money paise={item.revenueInPaise} /></span>
-                      <span className="rounded-full bg-sunken px-2.5 py-1 type-num-meta text-muted">
+                      <span className="rounded-full bg-sunken px-3 py-1 type-num-meta text-muted">
                         {item.quantity} sold
                       </span>
                     </div>

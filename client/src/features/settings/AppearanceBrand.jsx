@@ -5,7 +5,7 @@ import BrandLogo from '../../components/ui/BrandLogo.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { checkBrandPair } from '../../utils/colour.js';
+import { checkBrandPair, EXAMPLE_BRAND, EXAMPLE_ON_BRAND } from '../../utils/colour.js';
 import { errorMessage } from './errorCopy.js';
 import { checkLogoFile } from './logoFile.js';
 
@@ -175,8 +175,8 @@ export function BrandColours({ form, set }) {
         a button and never a state.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Input label="Brand colour" value={brandDraft} maxLength={7} placeholder="#4A2E2A" onChange={update('brandHex', setBrandDraft)} />
-        <Input label="Text on the brand colour" value={onBrandDraft} maxLength={7} placeholder="#F2D7BC" onChange={update('onBrandHex', setOnBrandDraft)} />
+        <Input label="Brand colour" value={brandDraft} maxLength={7} placeholder={EXAMPLE_BRAND} onChange={update('brandHex', setBrandDraft)} />
+        <Input label="Text on the brand colour" value={onBrandDraft} maxLength={7} placeholder={EXAMPLE_ON_BRAND} onChange={update('onBrandHex', setOnBrandDraft)} />
       </div>
       {onlyOne && <p className="type-body text-muted">Set both colours, or clear both.</p>}
       {words && <p className={`type-body ${words.ok ? 'text-ok' : 'text-alert'}`}>{words.text}</p>}

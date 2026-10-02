@@ -45,12 +45,13 @@ export default function OrderLineList({
         const isPending = line.status === 'PENDING';
 
         return (
-          <li key={line.id} className={['px-5 py-3', isCancelled ? 'opacity-60' : ''].join(' ')}>
+          <li key={line.id} className={['px-4 py-3', isCancelled ? 'opacity-60' : ''].join(' ')}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p
+                  title={line.variantName ? `${line.itemName} · ${line.variantName}` : line.itemName}
                   className={[
-                    'type-body',
+                    'type-body line-clamp-2 break-words',
                     isCancelled ? 'line-through' : '',
                   ].join(' ')}
                 >
@@ -94,7 +95,7 @@ export default function OrderLineList({
             </div>
 
             {!isCancelled && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 {isPending && (
                   <QuantityStepper
                     value={line.quantity}

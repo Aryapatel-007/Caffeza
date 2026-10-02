@@ -116,7 +116,7 @@ function Checks({ checks }) {
         const Icon = check.passed ? TickIcon : check.severity === 'ERROR' ? TriangleIcon : DotIcon;
         return (
           <li key={check.id} className={`type-body flex items-start gap-2 ${STATE_TEXT[state]}`}>
-            <Icon className="mt-0.5" />
+            <Icon className="mt-1" />
             <span className={check.passed ? 'text-ink' : ''}>{check.message}</span>
           </li>
         );

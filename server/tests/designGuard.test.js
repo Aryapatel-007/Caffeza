@@ -42,6 +42,7 @@ const MONEY_COMPONENT = 'components/ui/Money.jsx';
 const BRAND_LOGO = 'components/ui/BrandLogo.jsx';
 const BRAND_API = 'api/brand.js';
 const BRAND_USERS = [BRAND_LOGO, 'features/auth/LoginPage.jsx'];
+const LOOPING = /(?<![\w-])(?:[a-z-]+:)*animate-(?:spin|pulse|ping|bounce)(?![\w-])/;
 const BRAND_CLASS = /(?<![\w-])(?:[a-z-]+:)*(?:bg|text|border|ring|outline|fill|stroke|from|to|via|divide|shadow)-(?:on-)?brand(?![\w-])|--color-(?:on-)?brand\b/;
 
 /** Every file in the client folder, built output and dependencies left out. */
@@ -153,7 +154,14 @@ describe('design guard: the whole client', () => {
     assert.deepEqual(found.map((file) => path.relative(SERVER_DIR, file)), []);
   });
 
+  // P22, DESIGN-SYSTEM 13c. Loading shows the screen's shape, still; nothing loops.
+  it('use no looping animation', () => {
+    assert.deepEqual(offenders(LOOPING), []);
+  });
+
   it('catch a planted logo, brand class and menu reference', () => {
+    assert.ok(LOOPING.test('className="animate-spin rounded-full"'));
+    assert.ok(!LOOPING.test("animation: 'sheet-in-right 180ms'"));
     assert.ok(BRAND_CLASS.test('className="bg-brand text-on-brand"'));
     assert.ok(BRAND_CLASS.test("'hover:border-brand'"));
     assert.ok(!BRAND_CLASS.test('className="bg-surface text-brandish"'));

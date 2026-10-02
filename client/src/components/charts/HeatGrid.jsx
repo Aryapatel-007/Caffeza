@@ -20,7 +20,7 @@ export default function HeatGrid({ rows, rowKey, buckets, formatValue, caption }
           <tr>
             <th scope="col" className="sticky left-0 bg-surface" />
             {buckets.map((bucket) => (
-              <th key={bucket.key} scope="col" className="px-0.5 text-center font-mono font-normal text-muted">
+              <th key={bucket.key} scope="col" className="px-1 text-center font-mono font-normal text-muted">
                 {bucket.label}
               </th>
             ))}

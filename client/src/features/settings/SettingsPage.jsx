@@ -19,7 +19,7 @@ import { clockToMinutes, minutesToClock } from './timeOfDay.js';
  */
 function Section({ title, description, children }) {
   return (
-    <section className="border-t border-line pt-5">
+    <section className="border-t border-line pt-4">
       <h2 className="type-heading">{title}</h2>
       {description && <p className="mt-1 type-caption text-muted">{description}</p>}
       <div className="mt-4 grid gap-4">{children}</div>
