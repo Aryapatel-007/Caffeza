@@ -21,6 +21,7 @@ import {
   INVOICE_MODE_VALUES,
   INVOICE_MODES,
   INVOICE_PREFIX_PATTERN,
+  NEUTRAL_TONE_VALUES,
   RECEIPT_FOOTER_MAX_LENGTH,
   RECEIPT_HEADER_MAX_LENGTH,
   SECOND_LANGUAGES,
@@ -271,6 +272,7 @@ const appearance = z
       })
       .refine((keys) => new Set(keys).size === keys.length, 'Each tile appears once.')
       .optional(),
+    neutralTone: z.enum(NEUTRAL_TONE_VALUES, { error: `Must be one of ${NEUTRAL_TONE_VALUES.join(', ')}.` }).optional(),
   })
   .strict();
 

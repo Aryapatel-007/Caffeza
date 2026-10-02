@@ -8,17 +8,52 @@
  * NO IMPORTS, so the mirror can stay identical.
  */
 
-/** Day `ground` and night `ground`, the two surfaces an accent must read on. */
-export const DAY_GROUND = '#F2F4F3';
-export const NIGHT_GROUND = '#0F1715';
+/**
+ * The two neutral sets, DESIGN-SYSTEM section 4a. COOL is every restaurant's
+ * default. WARM was added by P22, translated from Cafezza's printed menu: cream
+ * cards on linen become white surfaces on a warm linen ground, with espresso
+ * ink. Day `surface` stays pure white in both, so the state tints read exactly
+ * as they do on cool. index.css carries the same values; a test compares them.
+ */
+export const NEUTRALS = Object.freeze({
+  COOL: Object.freeze({
+    day: Object.freeze({ ground: '#F2F4F3', surface: '#FFFFFF', sunken: '#E7ECEA', ink: '#1B2623', muted: '#53615C', line: '#C9D2CE' }),
+    night: Object.freeze({ ground: '#0F1715', surface: '#17211E', sunken: '#0B1210', ink: '#E4ECE8', muted: '#98A9A2', line: '#2B3733' }),
+  }),
+  WARM: Object.freeze({
+    day: Object.freeze({ ground: '#EFE9E1', surface: '#FFFFFF', sunken: '#E9E2D8', ink: '#2E201B', muted: '#625147', line: '#D5CABD' }),
+    night: Object.freeze({ ground: '#1A1310', surface: '#241B17', sunken: '#140E0C', ink: '#F3E8DC', muted: '#B9A699', line: '#3A2E28' }),
+  }),
+});
+export const NEUTRAL_TONES = Object.freeze(['COOL', 'WARM']);
+
+/** Cool day `ground` and cool night `ground`. Kept by name for the callers that predate P22. */
+export const DAY_GROUND = NEUTRALS.COOL.day.ground;
+export const NIGHT_GROUND = NEUTRALS.COOL.night.ground;
+
+/** Every ground an accent must read on, in both tones, so switching tone never breaks a saved accent. */
+export const DAY_GROUNDS = Object.freeze([NEUTRALS.COOL.day.ground, NEUTRALS.WARM.day.ground]);
+export const NIGHT_GROUNDS = Object.freeze([NEUTRALS.COOL.night.ground, NEUTRALS.WARM.night.ground]);
+
+/**
+ * The five fixed state colours, DESIGN-SYSTEM section 4b: a tint and a text and
+ * edge colour, in day and night. No tone and no setting changes them.
+ */
+export const STATES = Object.freeze({
+  open: Object.freeze({ day: { tint: '#FBEAC4', edge: '#7A4F00' }, night: { tint: '#3A2B0C', edge: '#F2C25B' } }),
+  served: Object.freeze({ day: { tint: '#D2ECE5', edge: '#16614F' }, night: { tint: '#11322B', edge: '#6FD0BC' } }),
+  bill: Object.freeze({ day: { tint: '#F5D8E5', edge: '#922457' }, night: { tint: '#3A1526', edge: '#F28FBB' } }),
+  alert: Object.freeze({ day: { tint: '#F8DCD5', edge: '#A8321C' }, night: { tint: '#3D1610', edge: '#FF8B73' } }),
+  ok: Object.freeze({ day: { tint: '#D6EADC', edge: '#256640' }, night: { tint: '#112F1E', edge: '#7BD69C' } }),
+});
 
 /** The five fixed state colours' text and edge values, day. An accent must not look like one. */
 export const STATE_COLOURS = Object.freeze({
-  open: '#7A4F00',
-  served: '#16614F',
-  bill: '#922457',
-  alert: '#A8321C',
-  ok: '#256640',
+  open: STATES.open.day.edge,
+  served: STATES.served.day.edge,
+  bill: STATES.bill.day.edge,
+  alert: STATES.alert.day.edge,
+  ok: STATES.ok.day.edge,
 });
 
 /** The six accent presets, day values. Night values come from nightVariant. */
@@ -118,16 +153,23 @@ export function hueDistance(a, b) {
   return d > 180 ? 360 - d : d;
 }
 
+/** The lowest contrast a colour has against any of the grounds given. */
+export function lowestContrast(hex, grounds) {
+  return Math.min(...grounds.map((ground) => contrastRatio(hex, ground)));
+}
+
 /**
  * The night variant of an accent: its HSL lightness raised by 0.01 at a time,
- * from its own, until it reaches 4.5 to 1 against night `ground`. A colour
- * that already reads on night ground is returned as it is.
+ * from its own, until it reaches 4.5 to 1 against both night grounds, cool and
+ * warm. A colour that already reads on both is returned as it is. Warm night
+ * ground is the lighter of the two by a little, and P22 measured every preset's
+ * night value still passing on it, so no preset's night value moved.
  */
 export function nightVariant(hex) {
   const { h, s, l } = toHsl(hex);
   let lightness = l;
   let candidate = toHex(parseHex(hex));
-  while (contrastRatio(candidate, NIGHT_GROUND) < MIN_TEXT_CONTRAST && lightness < 1) {
+  while (lowestContrast(candidate, NIGHT_GROUNDS) < MIN_TEXT_CONTRAST && lightness < 1) {
     lightness = Math.min(1, Math.round((lightness + 0.01) * 100) / 100);
     candidate = fromHsl({ h, s, l: lightness });
   }
@@ -161,7 +203,7 @@ export function checkAccent(hex) {
   if (contrastRatio('#FFFFFF', hex) < MIN_TEXT_CONTRAST) {
     return { ok: false, rule: 'TEXT_CONTRAST', message: `White text on this colour is too faint to read. ${tryInstead}`, nearestPreset: suggestion };
   }
-  if (contrastRatio(hex, DAY_GROUND) < MIN_GROUND_CONTRAST) {
+  if (lowestContrast(hex, DAY_GROUNDS) < MIN_GROUND_CONTRAST) {
     return { ok: false, rule: 'GROUND_CONTRAST', message: `This colour is too light to stand out on the page. ${tryInstead}`, nearestPreset: suggestion };
   }
   const { h, s } = toHsl(hex);
@@ -180,4 +222,26 @@ export function checkAccent(hex) {
   return { ok: true };
 }
 
-export default { checkAccent, contrastRatio, nearestPreset, nightVariant, parseHex, toHsl };
+/**
+ * The brand pair, P22, DESIGN-SYSTEM section 4d: the logo's background and the
+ * text that sits on it. Not an accent, so not held to the accent rules; only
+ * readable. Returns { ok: true, ratio } or { ok: false, ratio, message }.
+ */
+export const MIN_BRAND_CONTRAST = 4.5;
+
+export function checkBrandPair(brandHex, onBrandHex) {
+  if (!parseHex(brandHex) || !parseHex(onBrandHex)) {
+    return { ok: false, ratio: null, message: 'Enter two six-digit colours, like #4A2E2A.' };
+  }
+  const ratio = contrastRatio(brandHex, onBrandHex);
+  if (ratio < MIN_BRAND_CONTRAST) {
+    return {
+      ok: false,
+      ratio,
+      message: `Text on the brand colour measures ${ratio.toFixed(1)} to 1. It needs at least 4.5 to 1 to be read.`,
+    };
+  }
+  return { ok: true, ratio };
+}
+
+export default { checkAccent, checkBrandPair, contrastRatio, nearestPreset, nightVariant, parseHex, toHsl };

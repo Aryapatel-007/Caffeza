@@ -166,6 +166,8 @@ describe('appearance on /auth/me', () => {
       wordmark: restaurant.name,
       secondLanguage: 'NONE',
       todayTiles: [...TODAY_TILE_KEYS],
+      // P22. The tone, at its default.
+      neutralTone: 'COOL',
     });
   });
 });

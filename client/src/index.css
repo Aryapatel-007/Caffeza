@@ -84,6 +84,40 @@
   color-scheme: dark;
 }
 
+/*
+ * The warm neutral set, P22, DESIGN-SYSTEM section 4a: white surfaces on a
+ * warm linen ground, with espresso ink. Chosen per restaurant by
+ * `settings.appearance.neutralTone`; ThemeProvider sets `data-neutral` beside
+ * `data-theme`. Only the neutrals, the shadow and the scrim change: the state
+ * tints and colours above are the same in every tone. The values equal
+ * NEUTRALS.WARM in server/utils/colour.js, and a test compares them.
+ */
+[data-theme='day'][data-neutral='warm'] {
+  --ground: #efe9e1;
+  --surface: #ffffff;
+  --sunken: #e9e2d8;
+  --ink-v2: #2e201b;
+  --muted: #625147;
+  --line: #d5cabd;
+
+  --float-shadow: 0 12px 32px rgb(46 32 27 / 0.18);
+  --scrim: rgb(46 32 27 / 0.45);
+}
+
+[data-theme='night'][data-neutral='warm'] {
+  --ground: #1a1310;
+  --surface: #241b17;
+  --sunken: #140e0c;
+  --ink-v2: #f3e8dc;
+  --muted: #b9a699;
+  --line: #3a2e28;
+
+  --on-accent: #1a1310;
+
+  --float-shadow: 0 12px 32px rgb(0 0 0 / 0.5);
+  --scrim: rgb(0 0 0 / 0.6);
+}
+
 :root[data-text-size='115'] {
   font-size: 115%;
 }
@@ -317,8 +351,13 @@ body {
     background: var(--surface);
   }
 
-  /* Reports print in the day theme, whatever this device is set to. */
-  :root {
+  /*
+   * Reports print in the cool day set, whatever this device and this
+   * restaurant's tone are set to: paper stays plain. The second selector
+   * outranks the warm set's two-attribute selector.
+   */
+  :root,
+  [data-theme][data-neutral] {
     --ground: #f2f4f3;
     --surface: #ffffff;
     --sunken: #e7ecea;
@@ -337,6 +376,8 @@ body {
     --ok: #256640;
     --accent-active: var(--accent);
     --on-accent: #ffffff;
+    --float-shadow: 0 12px 32px rgb(27 38 35 / 0.18);
+    --scrim: rgb(27 38 35 / 0.45);
     color-scheme: light;
   }
 

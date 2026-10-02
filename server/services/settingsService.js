@@ -74,6 +74,7 @@ const SETTING_PATHS = Object.freeze({
   'appearance.wordmark': 'settings.appearance.wordmark',
   'appearance.secondLanguage': 'settings.appearance.secondLanguage',
   'appearance.todayTiles': 'settings.appearance.todayTiles',
+  'appearance.neutralTone': 'settings.appearance.neutralTone',
 });
 
 /** The modules a restaurant can switch off. P02. */
@@ -337,6 +338,7 @@ export function presentAppearance(appearance, restaurantName) {
     wordmark: appearance.wordmark ?? restaurantName ?? null,
     secondLanguage: appearance.secondLanguage,
     todayTiles: [...appearance.todayTiles],
+    neutralTone: appearance.neutralTone ?? 'COOL',
   };
 }
 

@@ -29,6 +29,13 @@ export function ThemeProvider({ children }) {
   const theme = user ? themeFor(device.theme) : 'day';
   const secondLanguage = device.secondLanguage ?? appearance?.secondLanguage ?? 'NONE';
 
+  // P22. The restaurant's neutral set, cool unless it chose warm.
+  const neutral = appearance?.neutralTone === 'WARM' ? 'warm' : 'cool';
+
+  useEffect(() => {
+    document.documentElement.dataset.neutral = neutral;
+  }, [neutral]);
+
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.theme = theme;
@@ -48,7 +55,7 @@ export function ThemeProvider({ children }) {
     }
   }, [appearance?.accent, appearance?.accentNight]);
 
-  const value = useMemo(() => ({ theme, secondLanguage }), [theme, secondLanguage]);
+  const value = useMemo(() => ({ theme, neutral, secondLanguage }), [theme, neutral, secondLanguage]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 

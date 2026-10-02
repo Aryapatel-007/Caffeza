@@ -59,10 +59,10 @@ function accentOf(appearance) {
  * The tokens are CSS variables on any element with `data-theme`, so this is
  * the real components in the real theme, not pictures of them.
  */
-function Themed({ theme, accent, className = '', children }) {
+function Themed({ theme, neutral = 'COOL', accent, className = '', children }) {
   const style = accent ? { '--accent': accent, '--accent-night': nightVariant(accent) } : undefined;
   return (
-    <div data-theme={theme} style={style} className={`bg-ground text-ink ${className}`}>
+    <div data-theme={theme} data-neutral={neutral === 'WARM' ? 'warm' : 'cool'} style={style} className={`bg-ground text-ink ${className}`}>
       {children}
     </div>
   );

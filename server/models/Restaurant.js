@@ -268,6 +268,8 @@ const floorSettingsSchema = new mongoose.Schema(
 export const ACCENT_PRESET_NAMES = Object.freeze(['OCEAN', 'INDIGO', 'PLUM', 'OLIVE', 'ESPRESSO', 'GRAPHITE', 'CUSTOM']);
 export const SECOND_LANGUAGES = Object.freeze(['NONE', 'GUJARATI', 'HINDI']);
 export const WORDMARK_MAX_LENGTH = 30;
+/** P22. Which neutral set every screen uses, DESIGN-SYSTEM section 4a. */
+export const NEUTRAL_TONE_VALUES = Object.freeze(['COOL', 'WARM']);
 
 /** R1's tile keys, in contract order. A test keeps this equal to the R1 definition. */
 export const TODAY_TILE_KEYS = Object.freeze([
@@ -293,6 +295,8 @@ const appearanceSettingsSchema = new mongoose.Schema(
       type: [{ type: String, enum: TODAY_TILE_KEYS }],
       default: () => [...TODAY_TILE_KEYS],
     },
+    // P22. The tone, and the logo's own background and the text on it.
+    neutralTone: { type: String, enum: NEUTRAL_TONE_VALUES, required: true, default: 'COOL' },
   },
   { _id: false },
 );
