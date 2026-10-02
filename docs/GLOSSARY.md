@@ -282,3 +282,6 @@ The labels already defined above keep their meaning.
 | **Figure** | One named number on a day's report, like Net sales or Paid out. The first column of R2's sections. |
 | **Count** | How many, on a line of R2: bills, covers, cancelled items |
 | **Value** | A figure's money, on a line of R2, in rupees |
+| **Discounted bills** | A count of bills with a discount above zero |
+| **Cancelled value** | Line total of cancelled items at menu price, before GST, whether or not they were prepared |
+| **Items made** | Quantity on kitchen ticket lines marked ready |

@@ -212,7 +212,7 @@ export async function runReport(req, definition, query) {
     openDays,
     ...(result.sections
       ? { sections: result.sections }
-      : { columns: definition.columns, rows: result.rows, totals: result.totals }),
+      : { columns: result.columns ?? definition.columns, rows: result.rows, totals: result.totals }),
     ...(result.extra ?? {}),
     ...(definition.sheetPerSection ? { sheetPerSection: true } : {}),
     checks,

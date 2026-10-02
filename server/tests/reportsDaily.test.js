@@ -463,6 +463,9 @@ describe('every report', () => {
     gst: day,
     'tally-export': day,
     'invoice-register': day,
+    menu: day,
+    captains: day,
+    tables: day,
     bills: day,
   };
 

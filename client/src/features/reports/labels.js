@@ -97,4 +97,7 @@ export const LABELS = Object.freeze({
   FIGURE: 'Figure',
   COUNT: 'Count',
   VALUE: 'Value',
+  DISCOUNTED_BILLS: 'Discounted bills',
+  CANCELLED_VALUE: 'Cancelled value',
+  ITEMS_MADE: 'Items made',
 });
