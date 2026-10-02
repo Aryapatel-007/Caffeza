@@ -61,7 +61,7 @@ const DEFAULTS = {
   floor: { sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false },
   // P20A.
   appearance: {
-    accentPreset: 'OCEAN',
+    accentPreset: 'COFFEE',
     accentHex: null,
     wordmark: null,
     secondLanguage: 'NONE',

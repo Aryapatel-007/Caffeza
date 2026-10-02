@@ -22,12 +22,12 @@
 
 :root,
 [data-theme='day'] {
-  --ground: #f2f4f3;
-  --surface: #ffffff;
-  --sunken: #e7ecea;
-  --ink-v2: #1b2623;
-  --muted: #53615c;
-  --line: #c9d2ce;
+  --ground: #f5ecdf;
+  --surface: #fffbf5;
+  --sunken: #efe3d2;
+  --ink-v2: #2a1c19;
+  --muted: #6b5750;
+  --line: #ddccb8;
 
   --open-tint: #fbeac4;
   --open: #7a4f00;
@@ -40,14 +40,18 @@
   --ok-tint: #d6eadc;
   --ok: #256640;
 
-  /* Ocean until /auth/me says otherwise. */
-  --accent: #1c5c86;
-  --accent-night: #2985c2;
+  /* Coffee, the brown of the logo, until /auth/me says otherwise. */
+  --accent: #4a2f2a;
+  --accent-night: #aa7369;
   --accent-active: var(--accent);
   --on-accent: #ffffff;
 
-  --float-shadow: 0 12px 32px rgb(27 38 35 / 0.18);
-  --scrim: rgb(27 38 35 / 0.45);
+  --float-shadow: 0 12px 32px rgb(42 28 25 / 0.18);
+  --scrim: rgb(42 28 25 / 0.45);
+
+  /* The logo's own brown and beige, for the surfaces the logo sits on. Fixed in both themes. */
+  --brand: #4a2f2a;
+  --brand-ink: #f8ddbf;
 
   /* Density, section 11b. Compact tightens spacing one step, never text. */
   --d-gap: 1rem;
@@ -57,12 +61,12 @@
 }
 
 [data-theme='night'] {
-  --ground: #0f1715;
-  --surface: #17211e;
-  --sunken: #0b1210;
-  --ink-v2: #e4ece8;
-  --muted: #98a9a2;
-  --line: #2b3733;
+  --ground: #1c1412;
+  --surface: #271d1a;
+  --sunken: #150f0d;
+  --ink-v2: #f5e9da;
+  --muted: #bba493;
+  --line: #3d2f2a;
 
   --open-tint: #3a2b0c;
   --open: #f2c25b;
@@ -76,7 +80,7 @@
   --ok: #7bd69c;
 
   --accent-active: var(--accent-night);
-  --on-accent: #0f1715;
+  --on-accent: #1c1412;
 
   --float-shadow: 0 12px 32px rgb(0 0 0 / 0.5);
   --scrim: rgb(0 0 0 / 0.6);
@@ -116,6 +120,8 @@
   --color-ok-tint: var(--ok-tint);
 
   --color-accent: var(--accent-active);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
   --color-on-accent: var(--on-accent);
   --color-scrim: var(--scrim);
 
@@ -319,12 +325,12 @@ body {
 
   /* Reports print in the day theme, whatever this device is set to. */
   :root {
-    --ground: #f2f4f3;
-    --surface: #ffffff;
-    --sunken: #e7ecea;
-    --ink-v2: #1b2623;
-    --muted: #53615c;
-    --line: #c9d2ce;
+    --ground: #f5ecdf;
+    --surface: #fffbf5;
+    --sunken: #efe3d2;
+    --ink-v2: #2a1c19;
+    --muted: #6b5750;
+    --line: #ddccb8;
     --open-tint: #fbeac4;
     --open: #7a4f00;
     --served-tint: #d2ece5;

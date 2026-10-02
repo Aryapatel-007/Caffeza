@@ -36,9 +36,9 @@ const ALL_FEATURES_ON = Object.freeze({ inventory: true, attendance: true });
  */
 const DEFAULT_FLOOR = Object.freeze({ sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false });
 
-/** P20A. Ocean and no second language until /auth/me says otherwise. */
+/** Coffee and no second language until /auth/me says otherwise. */
 const DEFAULT_APPEARANCE = Object.freeze({
-  accentPreset: 'OCEAN',
+  accentPreset: 'COFFEE',
   accent: null,
   accentNight: null,
   wordmark: null,

@@ -34,7 +34,7 @@
       "requireGuestCount": true,
       "longOpenMinutes": 90
     },
-    "appearance": { "accentPreset": "TO CONFIRM", "secondLanguage": "GUJARATI" }
+    "appearance": { "accentPreset": "COFFEE", "secondLanguage": "GUJARATI" }
   },
   "stations": [
     {

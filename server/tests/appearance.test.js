@@ -30,6 +30,7 @@ const patchAppearance = (token, appearance) =>
 
 /** The night column of DESIGN-SYSTEM section 4c, as nightVariant produces it. */
 const NIGHT = {
+  COFFEE: '#AA7369',
   OCEAN: '#2985C2',
   INDIGO: '#6B7BD1',
   PLUM: '#A666B8',
@@ -160,9 +161,9 @@ describe('appearance on /auth/me', () => {
     const response = await request('GET', '/api/v1/auth/me', { token: tokens.WAITER });
     assert.equal(response.status, 200);
     assert.deepEqual(response.body.data.appearance, {
-      accentPreset: 'OCEAN',
-      accent: '#1C5C86',
-      accentNight: NIGHT.OCEAN,
+      accentPreset: 'COFFEE',
+      accent: '#4A2F2A',
+      accentNight: NIGHT.COFFEE,
       wordmark: restaurant.name,
       secondLanguage: 'NONE',
       todayTiles: [...TODAY_TILE_KEYS],

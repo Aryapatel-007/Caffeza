@@ -265,7 +265,7 @@ const floorSettingsSchema = new mongoose.Schema(
  * tiles show. A custom accent is checked by `utils/colour.js` in the validator;
  * the model only holds the shape.
  */
-export const ACCENT_PRESET_NAMES = Object.freeze(['OCEAN', 'INDIGO', 'PLUM', 'OLIVE', 'ESPRESSO', 'GRAPHITE', 'CUSTOM']);
+export const ACCENT_PRESET_NAMES = Object.freeze(['COFFEE', 'OCEAN', 'INDIGO', 'PLUM', 'OLIVE', 'ESPRESSO', 'GRAPHITE', 'CUSTOM']);
 export const SECOND_LANGUAGES = Object.freeze(['NONE', 'GUJARATI', 'HINDI']);
 export const WORDMARK_MAX_LENGTH = 30;
 
@@ -285,7 +285,7 @@ export const TODAY_TILE_KEYS = Object.freeze([
 
 const appearanceSettingsSchema = new mongoose.Schema(
   {
-    accentPreset: { type: String, enum: ACCENT_PRESET_NAMES, required: true, default: 'OCEAN' },
+    accentPreset: { type: String, enum: ACCENT_PRESET_NAMES, required: true, default: 'COFFEE' },
     accentHex: { type: String, default: null, match: /^#[0-9A-F]{6}$/ },
     wordmark: { type: String, trim: true, default: null, maxlength: WORDMARK_MAX_LENGTH },
     secondLanguage: { type: String, enum: SECOND_LANGUAGES, required: true, default: 'NONE' },

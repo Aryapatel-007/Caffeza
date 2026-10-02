@@ -329,7 +329,7 @@ export function presentAppearance(appearance, restaurantName) {
   const accent =
     appearance.accentPreset === 'CUSTOM' && appearance.accentHex
       ? appearance.accentHex
-      : (ACCENT_PRESETS[appearance.accentPreset] ?? ACCENT_PRESETS.OCEAN);
+      : (ACCENT_PRESETS[appearance.accentPreset] ?? ACCENT_PRESETS.COFFEE);
   return {
     accentPreset: appearance.accentPreset,
     accent,

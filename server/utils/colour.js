@@ -9,8 +9,8 @@
  */
 
 /** Day `ground` and night `ground`, the two surfaces an accent must read on. */
-export const DAY_GROUND = '#F2F4F3';
-export const NIGHT_GROUND = '#0F1715';
+export const DAY_GROUND = '#F5ECDF';
+export const NIGHT_GROUND = '#1C1412';
 
 /** The five fixed state colours' text and edge values, day. An accent must not look like one. */
 export const STATE_COLOURS = Object.freeze({
@@ -21,8 +21,17 @@ export const STATE_COLOURS = Object.freeze({
   ok: '#256640',
 });
 
-/** The six accent presets, day values. Night values come from nightVariant. */
+/**
+ * The accent presets, day values. Night values come from nightVariant.
+ *
+ * COFFEE is the default, the brown of Cafezza's logo. It is the one preset that
+ * does not pass the state-hue rule by measure: its hue is the hue of Open and
+ * Late. It is allowed because, at 23% lightness and 28% saturation, it reads as
+ * near-black brown beside those mid-tone, saturated colours, and a preset is a
+ * fixed, reviewed choice. An owner's own colour still faces every rule.
+ */
 export const ACCENT_PRESETS = Object.freeze({
+  COFFEE: '#4A2F2A',
   OCEAN: '#1C5C86',
   INDIGO: '#3446A8',
   PLUM: '#6A3878',
@@ -136,13 +145,15 @@ export function nearestPreset(hex) {
   const { h } = toHsl(hex);
   let best = null;
   for (const [name, value] of Object.entries(ACCENT_PRESETS)) {
+    // Coffee shares a hue with two states, so it is never offered in place of a refused colour.
+    if (name === 'COFFEE') continue;
     const distance = hueDistance(h, toHsl(value).h);
     if (!best || distance < best.distance) best = { name, value, distance };
   }
   return best.name;
 }
 
-const PRESET_WORDS = { OCEAN: 'Ocean', INDIGO: 'Indigo', PLUM: 'Plum', OLIVE: 'Olive', ESPRESSO: 'Espresso', GRAPHITE: 'Graphite' };
+const PRESET_WORDS = { COFFEE: 'Coffee', OCEAN: 'Ocean', INDIGO: 'Indigo', PLUM: 'Plum', OLIVE: 'Olive', ESPRESSO: 'Espresso', GRAPHITE: 'Graphite' };
 const STATE_WORDS = { open: 'Open', served: 'Served', bill: 'Bill printed', alert: 'Late', ok: 'Paid' };
 
 /**

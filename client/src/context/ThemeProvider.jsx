@@ -12,7 +12,7 @@ import { useAuth } from './AuthContext.jsx';
  *
  * Automatic is Day on every screen, the kitchen included (the owner's call,
  * 2 October 2026). A device that wants Night chooses it on This device. Before
- * sign-in it is Ocean and Day.
+ * sign-in it is Coffee and Day.
  */
 const ThemeContext = createContext({ theme: 'day', secondLanguage: 'NONE' });
 
@@ -25,7 +25,7 @@ export function ThemeProvider({ children }) {
   const [device] = useDeviceSettings();
 
   const appearance = user ? features.appearance : null;
-  // Before sign-in: Ocean and Day, whatever this device is set to.
+  // Before sign-in: Coffee and Day, whatever this device is set to.
   const theme = user ? themeFor(device.theme) : 'day';
   const secondLanguage = device.secondLanguage ?? appearance?.secondLanguage ?? 'NONE';
 
@@ -42,7 +42,7 @@ export function ThemeProvider({ children }) {
       root.style.setProperty('--accent', appearance.accent);
       root.style.setProperty('--accent-night', appearance.accentNight);
     } else {
-      // Ocean, from index.css.
+      // Coffee, from index.css.
       root.style.removeProperty('--accent');
       root.style.removeProperty('--accent-night');
     }
