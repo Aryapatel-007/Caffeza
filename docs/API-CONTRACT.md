@@ -3645,6 +3645,15 @@ There is no escape hatch. `tenantGuard` needed one because three legitimate look
 
 **No CSV export.** Same call as M6. A day of work whenever someone asks.
 
+## Settled while building M8 (P17)
+
+1. A `USER` line stores no name. Its `entityLabel` is null in the collection and is the staff member's current name in the response, resolved at read time like `actorName`, so a log never carries a name written into it. `details` carries roles only.
+2. `MENU_PRICE_CHANGED` carries `details.changes`, each `{ field, from, to }`, where `field` is `priceInPaise`, `taxRateBps`, `variant:{id}` or `addOn:{id}`. A size or extra added or removed counts. `amountInPaise` is the new base price when it changed.
+3. `RECIPE_CHANGED` is written when a saved recipe's ingredients or quantities differ from before, and when a recipe is deleted (`details.deleted: true`). Saving the same items again writes nothing.
+4. `GET /audit/entity/...` is 404 when this restaurant has no line for the record at all. A MANAGER asking for a record whose every line is outside their actions gets `[]`, not a 404: the record is theirs to know exists.
+5. An attendance correction keeps its own subdocument id as `id`. A MANAGER never sees one, in the feed or in an entity's history.
+6. The guard is `appendOnlyGuardPlugin` in `server/models/plugins/appendOnlyGuard.js`, and the error `AuditLogImmutableError`, a 500.
+
 ---
 
 # M18 Kitchen Stations
@@ -5220,3 +5229,42 @@ rounds half up to hundredths.
 
 Labels added to GLOSSARY section 13: Discounted bills, Cancelled value, Items
 made.
+
+## 15. Settled while building P17
+
+**R18 is M8.** P17 asked for a thin R18 definition under the engine; this
+contract's R18 entry says M8's own `GET /audit` and `GET /audit/summary`, not
+under `/reports/v2` and not through the engine. The contract was followed: R18
+is the M8 read, with M8's roles and manager restriction, and no envelope or
+Excel file of its own.
+
+**R14.** Sections `byReason` (in the order of the fixed reason list), `byPerson`
+(by `discount.appliedBy`, highest first) and `bills`, which alone is paged; its
+totals cover every bill. Percent off is `discount × 10000 ÷ item total`, rounded
+half away from zero like `averagePaise`. The bill columns name the totals in
+full: Item total before discount, Bill total after discount. Discount funded by
+reads Restaurant or Platform.
+
+**R15.** `items` is paged; the other sections are not. Each item row carries
+`stage` as the code, as in the example above, and `stageLabel` in words, which
+is the column shown. A reason reads "label: note" when there is a note. The
+summary has three sections, `byReason`, `byPerson` and `byItem`, over every
+cancelled line, including those cancelled with their order under the order's
+reason. Wasted value counts lines with `wasPrepared: true` either way, and is
+`headline.wastedValueInPaise`. An item or order drills to `{ report: "ORDER",
+query: { orderId } }`.
+
+**R16.** Columns Time, Table, Item (the order's live lines as text), No Charge
+value before GST, No Charge reason, Requested by, Approved by; paged. Drills to
+the order.
+
+**R17.** `asOf` defaults to today's business date, and `from` and `to` to
+`asOf`, through a `prepare(req, params)` hook the engine now calls before the
+range check. Balances come from `accountService.listAccounts(req, { asOf })`,
+which now also returns each account's opening, charged (net of reversals),
+collected and adjusted amounts; `outstandingFor` takes `asOf` too. An inactive
+account with nothing owed is left out. Oldest unpaid bill is two columns, the
+date and Age in days.
+
+Labels added to GLOSSARY section 13: Item total before discount, Bill total
+after discount, No Charge value before GST, No Charge reason, Age in days.

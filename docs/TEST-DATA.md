@@ -292,6 +292,32 @@ Table 16 counts B12 only; the voided B11 on the same table is left out. Turns pe
 
 **R11 items cancelled.** Cheesy Tornado shows 1 cancelled with ₹0.00 wasted, under Pizza. Thecha Paneer Chilli shows 1 cancelled with ₹390.00 wasted, under Cafezza Mains, and 0 sold. **R12 items cancelled:** Khuman Singh, 2 items, ₹750.00.
 
+**R14 Discounts** (P17)
+
+| Discount reason | Bills | Discount |
+|---|---|---|
+| Zomato Gold | 2 | ₹86.90 |
+| Dineout | 1 | ₹39.00 |
+| Regular guest | 1 | ₹53.00 |
+| Staff or office | 1 | ₹45.00 |
+| Merchant promo | 1 | ₹200.00 |
+| Total | 6 | ₹423.90, equal to R2's discount |
+
+Percent off: B01 10.00%, B02 5.04%, B08 39.60%, B09 50.00%, B14 2.56%, B16 5.00%. All six were applied by Manager.
+
+**R15 Cancellations and Voids** (P17)
+
+| Item | Line total | Stage | Cancel reason | Cancelled by |
+|---|---|---|---|---|
+| Thecha Paneer Chilli | ₹390.00 | Cancelled after preparation | Guest changed the order | Khuman Singh |
+| Cheesy Tornado | ₹360.00 | Cancelled before preparation | Wrong item entered | Khuman Singh |
+
+Wasted value ₹390.00. Voids: CFA/C/22452, ₹347.00, Billed to the wrong table, by Manager. No whole order is cancelled.
+
+**R16 No Charge:** Table 29, College Sandwich, ₹230.00 before GST, Corporate office order, opened by Ranjeet Paswan, approved by Manager.
+**R17 On Hold:** as of 26 September, E-210 Office ₹47.00 and W-330 Office ₹504.00. As of 27 September, after section 5's collection, W-330 Office ₹0.00 and E-210 Office ₹47.00, oldest unpaid bill 26 September, 1 day.
+**M8 summary:** Manager voided ₹347.00 on 1 bill, applied ₹423.90 of discounts on 6 bills, and approved ₹230.00 of No Charge on 1 order.
+
 **Section F: GST by rate**
 
 | Rate | Net sales | CGST | SGST | GST |

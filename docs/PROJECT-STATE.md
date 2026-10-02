@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P17, the audit trail and control reports.
+Next: P18, report screens and Today.
 
 ---
 
@@ -41,12 +41,12 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M5 | Employee Attendance | Arya | DONE | Built by Rishi, not the listed owner, the same crossing as M1. Merged to `main` on 2026-08-30 via pull request #5. Eleven endpoints including `POST /attendance/station/clock` wired to `authService.verifyPin`, and three React screens (the clock, the register, my hours). Marked DONE on the code and the tests; Arya's read is still outstanding and is in the known problems table. Switched off for the Caffeza go-live by P02. |
 | M6 | Reports and Dashboard | Rishi | IN PROGRESS | Server and screens both built on `feat/m6/reports`: ten read-only endpoints, no collection, 34 tests, seven screens. Verified live against the seeded Atlas data, where its figures reconcile exactly with the independent Section 11 verification. Not done under BUILD-PLAN section 13: Arya has not read it. |
 | M7 | Restaurant Settings | Rishi | DONE | Phase 1B's first module. Two endpoints, no new collection: `restaurants.settings` gains `tax`, `receipt` and `inventory`, every field with a schema default so there is no migration. `settingsService` is now the only way any module reads configuration. 27 new tests. Verified live against the Atlas cluster, including a genuine pre-M7 document reading back complete. Not done under BUILD-PLAN section 13: Arya has not read it. P02 added `settings.features` (inventory and attendance switches, enforced by `requireFeature`) and `settings.invoice` (financial-year or prefix numbering). |
-| M8 | Audit Trail | Rishi | NOT STARTED | Specified in API-CONTRACT.md. Pulled forward for Caffeza. Built in P17 part A. |
+| M8 | Audit Trail | Rishi | DONE | Built in P17, with the manager restriction extended to every new action. `GET /audit`, `/audit/entity/:entityType/:entityId`, `/audit/summary`; append-only by construction; attendance corrections merged at read time. Seven new actions written: user role, deactivate, reactivate, password and PIN resets, menu price changes, recipe changes. Arya's read outstanding. |
 | M10 | Payments | Rishi | IN PROGRESS | Specified in P07. Built in P08: configurable payment methods, frozen payment details, method corrections, discount reasons and funding. Arya's read outstanding. |
 | M16 | Settlement and Day Close | Rishi | DONE | Day Close proven against the golden day in `tests/goldenDay.test.js`. No Charge (P08), On Hold accounts (P09), cash drawer, day figures, checks C1 C3 C4 C6 C8 C9, Day Close with the blind count, and the day lock (P10). Built by Rishi. Arya's read outstanding. |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M19 | Reports v2 | Arya | IN PROGRESS | Specified in P13. Engine and R19 built in P14; R2 to R10 in P15; R11 to R13 in P16; server only. Screens come in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
+| M19 | Reports v2 | Arya | IN PROGRESS | Specified in P13. Engine and R19 built in P14; R2 to R10 in P15; R11 to R13 in P16; R14 to R17 in P17 (R18 is M8's own read); server only. Screens come in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M20 | Floor Plan and Look | Arya | NOT STARTED | P19, P20. |
 
 ---
@@ -362,6 +362,12 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | R11 by item groups by `menuItemId` and the frozen size, shown as "Item (Size)"; a definition may return its own `columns`, so the first column reads Item. | The contract shapes R11 as categories, or items within one category; P16 asked for both levels. |
 | 2026-10-02 | R12 adds Discounted bills and Cancelled value, and R13 Items made, to GLOSSARY section 13. | Every label comes from the glossary, and these three were missing. |
 | 2026-10-02 | The "items that sold nothing" toggle in R11 was not built. | It is not in the contract, and it would be the only read of `menuitems` in a report. |
+| 2026-10-02 | A MANAGER may see `ORDER_CANCELLED`, `STOCK_ADJUSTED` and `LINE_CANCELLED_AFTER_PREP` in the audit trail. Every other action is OWNER only. | The owner watches what managers approve. Kitchen waste is the manager's to manage. |
+| 2026-10-02 | R18 is M8's own `GET /audit` and `/audit/summary`, not a definition under the report engine. | P17 asked for a thin definition; the contract's R18 entry says M8 as written, outside `/reports/v2`, and the contract wins. M19 section 15. |
+| 2026-10-02 | Audit lines about a staff member store no name; the name is resolved when the log is read. | The audit collection is a log, and CONVENTIONS keeps names out of logs. M8 "Settled while building M8". |
+| 2026-10-02 | The audit summary's `byAction` and total include merged attendance corrections when attendance is on; `byActor` never does. | The spec says `byActor` excludes them and was silent on the rest. |
+| 2026-10-02 | R17 reads accounts as of a date through `accountService.listAccounts(req, { asOf })`, which now also returns opening, charged, collected and adjusted amounts. The engine gained a `prepare` hook for R17's "as of today". | P17: outstanding must use the P09 function, never a second calculation. |
+| 2026-10-02 | R15 sends both `stage` (the code, as in the contract's example) and `stageLabel` (the words, which the column shows). | The contract's column text and its example disagreed; both are kept. |
 
 ---
 
@@ -384,6 +390,29 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-02 Rishi, P17 audit trail and control reports
+
+What was built or decided:
+Part A, M8. The spec was extended first (`extend m8 spec for new audit actions`): the manager restriction now covers `ORDER_CANCELLED`, `STOCK_ADJUSTED` and `LINE_CANCELLED_AFTER_PREP`, every other action is OWNER only, and the summary ranks people by No Charge value and payment corrections as well. Then built: `GET /audit` (range, action list, entity type, actor, paging), `GET /audit/entity/:entityType/:entityId`, `GET /audit/summary`, in `services/auditReadService.js`, `controllers/auditController.js`, `routes/auditRoutes.js`, `validators/auditValidators.js`. The restriction is in every query, so `total` never leaks. Attendance corrections are merged at read time for the owner when attendance is on, with `actorRoleIsCurrent: true`. `appendOnlyGuardPlugin` makes `auditlogs` append-only: every update, replace and delete, and re-saving a line, throws `AuditLogImmutableError`. New lines written: `USER_ROLE_CHANGED`, `USER_DEACTIVATED`, `USER_REACTIVATED`, `USER_PASSWORD_RESET`, `USER_PIN_RESET` (user controller), `MENU_PRICE_CHANGED` (price, tax rate, size and extra prices; never a rename), `RECIPE_CHANGED` (ingredients changed or recipe deleted).
+
+Part B, M19. R14 Discounts (`discounts`: by reason, by person, bills paged, percent off), R15 Cancellations and Voids (`cancellations`: items, orders, voids, summary by reason, person and item, wasted value headline), R16 No Charge (`no-charge`), R17 On Hold Accounts (`accounts`, as of a date, with the statement). R18 is M8's read, as the contract says.
+
+Final audit actions and who sees them: OWNER all 21, plus merged `ATTENDANCE_CORRECTED`. MANAGER `ORDER_CANCELLED`, `STOCK_ADJUSTED`, `LINE_CANCELLED_AFTER_PREP`. Summary OWNER only.
+
+Tests: `tests/auditTrail.test.js` (15) and `tests/reportsControl.test.js` (11). The golden day already applies discounts, the void and No Charge as Manager and cancels as the captain, so the fixture is unchanged. Checked: Manager voided ₹347.00 on 1 bill, ₹423.90 of discounts on 6, ₹230.00 of No Charge on 1; R14 by reason and percent off; R15 items, wasted ₹390.00, the void, and a whole-order cancel taking the order's reason; R16's one row; R17 as of 26 and 27 September; workbooks and roles.
+
+Tests: 859 before, 885 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `models/plugins/appendOnlyGuard.js`, `services/auditReadService.js`, `controllers/auditController.js`, `routes/auditRoutes.js`, `validators/auditValidators.js`, `definitions/discounts.js`, `cancellations.js`, `noCharge.js`, `accounts.js`, two test files. Changed: `models/AuditLog.js`, `utils/errors.js`, `routes/index.js`, `controllers/userController.js`, `controllers/menuItemController.js`, `services/recipeService.js`, `services/accountService.js`, `reports/engine.js`, `reports/registry.js`, both labels files, `tests/reportsDaily.test.js` (its walks include the new reports), GLOSSARY section 13, TEST-DATA section 4, API-CONTRACT M8 and M19 section 15.
+Endpoints: `GET /api/v1/audit`, `/audit/entity/:entityType/:entityId`, `/audit/summary`, `GET /api/v1/reports/v2/{discounts, cancellations, no-charge, accounts}`.
+
+Anything the other developer needs to know:
+Audit lines can no longer be changed through Mongoose at all. Test helpers clear the database with raw collection calls, which is why they still work.
+
+Anything now blocked or unblocked:
+P18 can start: every report it draws exists.
 
 ### 2026-10-02 Rishi, P16 menu, captain and table reports
 
@@ -618,60 +647,6 @@ M19 paths are `/api/v1/reports/v2/{name}`. A definition never reads `users`,
 
 Anything now blocked or unblocked:
 P14 can start.
-
-### 2026-10-01 Rishi, P12 cloud deployment
-
-What was built or decided:
-In production `createApp` serves `client/dist` after the API routes: `/assets/`
-for a year as immutable, `index.html` with `no-cache`, and `index.html` for any
-other GET outside `/api/`, so reloading `/day-close` works. An unknown `/api/`
-address still gets the JSON 404. A production start refuses with "The client has
-not been built. Run npm run build, then start again." when the build is missing.
-
-IBM Plex Sans (400, 500, 600) and Mono (400 to 700) now come from
-`@fontsource`, imported in `main.jsx`; the Google Fonts lines are gone.
-`GET /api/v1/health` gains `release`, from the new optional `RELEASE_VERSION`.
-A host-neutral `Dockerfile` (Node 20 build, Node 20 slim run as the `node` user,
-health check on `/api/v1/health`, no secret, no index building on start) and
-`.dockerignore`. `npm run smoke -- --url <address>` makes only reading requests
-and prints one line per check. `docs/DEPLOYMENT.md` sections 2 and 6 and a new
-section 13 are the runbook.
-
-Verified by hand: built the client, built indexes, and started with
-`NODE_ENV=production` against a local replica set on port 5000. The smoke check
-passed every line, with the https check skipped for http, and health showed the
-release. In Chrome the production build showed no CSP violation, no request to
-another site, both font families loaded from our own server, and a reload of
-`/day-close` landed in the app. Docker is installed on this machine but its
-daemon was not running, so `docker build .` was not run.
-
-Tests: 784 before, 793 after, 0 failing. Lint and build pass.
-
-Files or endpoints touched:
-New: `Dockerfile`, `.dockerignore`, `server/scripts/smokeCheck.js`,
-`server/tests/production.test.js`. Changed: `server/server.js`,
-`server/config/env.js`, `server/controllers/healthController.js`,
-`server/tests/app.test.js` (the health field list gains `release`, on purpose),
-`.env.example`, both `package.json` files and the lock file, `client/index.html`,
-`client/src/main.jsx`, `client/package.json`.
-
-Anything the other developer needs to know:
-Arya brings staging up by hand from the checklist below. A coding session must
-not: these need accounts, payment and judgement.
-1. Choose the host, against docs/DEPLOYMENT.md section 2. It must give a fixed outbound address, or stop and decide together.
-2. Create the Atlas staging cluster, docs/DEPLOYMENT.md section 3, allowing only the host's address.
-3. Buy the domain and point caffeza-staging.<domain> at the host.
-4. Set every environment variable from docs/DEPLOYMENT.md section 4 on the host. NODE_ENV=production, TRUST_PROXY per the host's documentation, CLIENT_ORIGIN exactly the staging address, new secrets from openssl rand -base64 48.
-5. Deploy. Run npm run db:indexes against staging. Start.
-6. Run npm run smoke -- --url https://caffeza-staging.<domain>. Every line must pass.
-7. npm run provision:restaurant against staging for Caffeza's owner.
-8. npm run setup:restaurant and npm run import:menu, dry run first, then --apply.
-9. Sign in on a phone and on a laptop. Open a table, fire, bill, print, pay, close the day.
-10. Set up the uptime monitor on /api/v1/health.
-11. Record the host choice and these dates in docs/PROJECT-STATE.md.
-
-Anything now blocked or unblocked:
-P13 can start. Staging waits on the checklist.
 
 ---
 

@@ -1,5 +1,59 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, P12 cloud deployment
+
+What was built or decided:
+In production `createApp` serves `client/dist` after the API routes: `/assets/`
+for a year as immutable, `index.html` with `no-cache`, and `index.html` for any
+other GET outside `/api/`, so reloading `/day-close` works. An unknown `/api/`
+address still gets the JSON 404. A production start refuses with "The client has
+not been built. Run npm run build, then start again." when the build is missing.
+
+IBM Plex Sans (400, 500, 600) and Mono (400 to 700) now come from
+`@fontsource`, imported in `main.jsx`; the Google Fonts lines are gone.
+`GET /api/v1/health` gains `release`, from the new optional `RELEASE_VERSION`.
+A host-neutral `Dockerfile` (Node 20 build, Node 20 slim run as the `node` user,
+health check on `/api/v1/health`, no secret, no index building on start) and
+`.dockerignore`. `npm run smoke -- --url <address>` makes only reading requests
+and prints one line per check. `docs/DEPLOYMENT.md` sections 2 and 6 and a new
+section 13 are the runbook.
+
+Verified by hand: built the client, built indexes, and started with
+`NODE_ENV=production` against a local replica set on port 5000. The smoke check
+passed every line, with the https check skipped for http, and health showed the
+release. In Chrome the production build showed no CSP violation, no request to
+another site, both font families loaded from our own server, and a reload of
+`/day-close` landed in the app. Docker is installed on this machine but its
+daemon was not running, so `docker build .` was not run.
+
+Tests: 784 before, 793 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `Dockerfile`, `.dockerignore`, `server/scripts/smokeCheck.js`,
+`server/tests/production.test.js`. Changed: `server/server.js`,
+`server/config/env.js`, `server/controllers/healthController.js`,
+`server/tests/app.test.js` (the health field list gains `release`, on purpose),
+`.env.example`, both `package.json` files and the lock file, `client/index.html`,
+`client/src/main.jsx`, `client/package.json`.
+
+Anything the other developer needs to know:
+Arya brings staging up by hand from the checklist below. A coding session must
+not: these need accounts, payment and judgement.
+1. Choose the host, against docs/DEPLOYMENT.md section 2. It must give a fixed outbound address, or stop and decide together.
+2. Create the Atlas staging cluster, docs/DEPLOYMENT.md section 3, allowing only the host's address.
+3. Buy the domain and point caffeza-staging.<domain> at the host.
+4. Set every environment variable from docs/DEPLOYMENT.md section 4 on the host. NODE_ENV=production, TRUST_PROXY per the host's documentation, CLIENT_ORIGIN exactly the staging address, new secrets from openssl rand -base64 48.
+5. Deploy. Run npm run db:indexes against staging. Start.
+6. Run npm run smoke -- --url https://caffeza-staging.<domain>. Every line must pass.
+7. npm run provision:restaurant against staging for Caffeza's owner.
+8. npm run setup:restaurant and npm run import:menu, dry run first, then --apply.
+9. Sign in on a phone and on a laptop. Open a table, fire, bill, print, pay, close the day.
+10. Set up the uptime monitor on /api/v1/health.
+11. Record the host choice and these dates in docs/PROJECT-STATE.md.
+
+Anything now blocked or unblocked:
+P13 can start. Staging waits on the checklist.
+
 ### 2026-10-01 Rishi, P11 Caffeza setup and menu import
 
 What was built or decided:
