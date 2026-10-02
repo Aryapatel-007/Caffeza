@@ -25,7 +25,7 @@ The full table, with dependencies and owners, is in
 | P16 | Menu, captain and table reports | Done |
 | P17 | Audit trail and control reports | Done |
 | P18 | Report screens and Today | Done |
-| P19 | Floor plan | Not run |
+| P19 | Floor plan | Done |
 | P20 | Look, themes and customisation | Not run |
 | P21 | Golden day, end to end | Not run |
 

@@ -1,5 +1,59 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, P14 report engine
+
+What was built or decided:
+`server/services/reports/`: `engine.js` (`runReport` in the nine contract
+steps, the filter sentence, open days, `personNames`), `labels.js` (88 glossary
+terms, mirrored on the client), `params.js` (every contract filter),
+`registry.js`, `exportXlsx.js` (four sheets, money in rupees with the Indian
+format, the file name rule), and `definitions/bills.js`, R19 with every filter,
+totals across pages and `readBillDetail` with the order's timeline. Routes:
+`GET /api/v1/reports/v2/bills` and `/reports/v2/bills/:billId`; M6 routes
+untouched.
+
+`reconciliationService.js` is complete: C2, C5, C7, C10, C11, C12 added, and
+`runRangeChecks` runs C1, C2, C3, C4, C6, C7, C8, C10, C11 and C12 over a range,
+one result per check. Day Close runs every one-day check.
+
+Five new indexes, each starting with `restaurantId`: payments by business
+date and a series in sequence order on `bills`; cancelled lines by time,
+cancelled orders by time, and No Charge orders by date on `orders`.
+`npm run db:indexes` created them locally, and a second run created none.
+
+Client: `/reports/bills` reads every filter from the address, shows the filter
+sentence, open-day banner, check strip, table, paging and the totals row, and
+has an Excel button; `/reports/bills/:billId` shows lines with shares and the
+timeline. Shared cells, banner and strip in `features/reports/v2/`.
+
+Every row of TEST-DATA section 6 is broken on purpose in
+`tests/reportEngine.test.js` and fails exactly its own check (C3's row also
+fails C4, as TEST-DATA says). The opt-in speed test, `PERF=1`, ran R19 over a
+full year of 66,430 bills with its totals in 233 ms.
+
+Checked by hand in Chrome on a local production build: a Bill List filtered by
+captain opened from its address, and a bill's timeline. The Excel button was
+not clicked in the browser, because that downloads a file; the workbook is
+opened and checked in the test instead.
+
+Tests: 793 before, 820 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `server/services/reports/*`, `routes/reportV2Routes.js`,
+`controllers/reportV2Controller.js`, tests `reportEngine.test.js` and
+`reportPerf.test.js`, client `api/reportsV2.js`, `features/reports/labels.js`,
+`features/reports/v2/*`. Changed: `reconciliationService.js`, Bill and Order
+models (indexes), `tests/helpers/goldenDay.js` (`addNextDay`),
+`api/client.js` (`downloadFile`), `App.jsx`, server `package.json` (exceljs).
+
+Anything the other developer needs to know:
+A new report is one file in `definitions/` plus a line in `registry.js`.
+Port 5000 on this machine was held by another server process during the hand
+check, so the check ran on 5055.
+
+Anything now blocked or unblocked:
+P15, P16 and P17 can start.
+
 ### 2026-10-01 Rishi, P13 reports spec
 
 What was built or decided:

@@ -92,7 +92,9 @@ One area, "Cafe".
 Tables are named "Table 1" to "Table 35", with no Table 13.
 That is 34 tables, which matches the "Cafe (34)" label on their screen.
 The number of guests at each table is recorded.
-Physical layout of the tables: `TO CONFIRM`, needed for the floor plan in M20.
+Physical layout of the tables: `TO CONFIRM`.
+The floor plan editor is ready for it (P19): Table setup › Arrange tables places each table on the section's 24 by 16 grid, with its size and shape.
+`settings.floor.requireGuestCount` is on in `setup/caffeza.json`, so every table records its guests, as it does today.
 
 ---
 

@@ -23,7 +23,7 @@ The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P21 in
 Hosting is decided: a cloud server next to a separate Atlas cluster used only
 by Caffeza, in the same region.
 
-Next: P19, floor plan.
+Next: P20, look, themes and customisation. It needs `docs/DESIGN-SYSTEM-V2.md` first.
 
 ---
 
@@ -47,7 +47,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | DONE | Every report built and proven against the golden day. Engine and R19 in P14, R2 to R10 in P15, R11 to R13 in P16, R14 to R17 in P17 (R18 is M8's read), R1 and every screen in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M20 | Floor Plan and Look | Arya | NOT STARTED | P19, P20. |
+| M20 | Floor Plan and Look | Arya | IN PROGRESS | Floor plan built in P19: table layouts on a 24 by 16 grid per section, the four floor states and the long-running marker, the billing strip, the guest count rule, and the Arrange tables editor. The look is P20. Built by Rishi, off the listed owner. |
 
 ---
 
@@ -373,6 +373,13 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | `DataTable` gained an always-shown totals row and a sticky first column; `HeatGrid` is the one new chart, for R4's weekday by hour. | P18 asked for both, and no existing chart shows two dimensions. |
 | 2026-10-02 | The seed guard and restaurant wipe moved to `server/scripts/lib/localSeed.js`, shared by `seed:demo` and the new `seed:golden`. | One copy of the guard that keeps seed scripts off real databases. |
 | 2026-10-02 | `seed:golden` runs with `NODE_ENV=test` against the local database. | The fixture sets the clock, and the clock refuses to be set outside test. The localhost guard still applies. |
+| 2026-10-02 | Each section is a 24 by 16 grid. Tables have an optional position, size and shape on it, saved per section, with overlaps refused. | Captains find tables by where they are in the room. |
+| 2026-10-02 | The floor shows four table states, Free, Open, Served and Bill printed, plus a long-running marker, and a strip of tables waiting to pay. | Caffeza's current screen works this way and their staff know it. |
+| 2026-10-02 | `settings.floor.requireGuestCount`, off by default and on for Caffeza, makes the guest count required on dine-in orders. | Average per cover is wrong when tables open without guests. |
+| 2026-10-02 | `GET /auth/me` returns `floor` beside `features` and `discounts`. | Every role's floor needs the section order, the long-open threshold and whether to offer Skip, and `GET /settings` is owner and manager only. Contract M7. |
+| 2026-10-02 | The floor read is five queries whatever the size of the floor: tables, occupying orders, their unpaid bills, the openers' names, and the settings. The occupancy block keeps every old field and adds the new ones. | P19 test 8 counts them: 6 per request with 5 tables and with 40, the sixth being the sign-in check. |
+| 2026-10-02 | Section order is saved through `PATCH /settings`, so only the owner can change it; a manager sees it read-only on Arrange tables. | Settings are the owner's, and the prompt did not ask to widen that. |
+| 2026-10-02 | No endpoint changes `guestCount` on an open order, and none was added. | P19 section 8c: report it rather than add one. The order screen shows the count. |
 
 ---
 
@@ -395,6 +402,27 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-02 Rishi, P19 floor plan
+
+What was built or decided:
+Spec first (`add floor plan spec`): `layout` on tables, `PATCH /tables/layout`, the extended occupancy block, the guest count rule, `settings.floor`, and a short M20 section pointing at each.
+Server: `tables.layout` (`{ x, y, w, h, shape }` on a 24 by 16 grid per section, or null); `PATCH /tables/layout` saves a section at once, refuses another section's or restaurant's table and out-of-grid values with 400 and overlaps with 422 naming each pair, inside one transaction. `GET /tables` occupancy gains `state` (FREE, OPEN, SERVED, BILL_PRINTED), `guestCount`, `isLong`, `captainName`, `itemTotalInPaise` from frozen lines, and the printed bill's id, number and total, in a fixed number of queries. `settings.floor` (`sectionOrder`, `longOpenMinutes` 90, `requireGuestCount` false), on `/auth/me` too. With `requireGuestCount` on, a dine-in order without guests is 400 "How many guests? Enter the number before opening the table."; takeaway and delivery never need one. Caffeza's setup file and the golden day fixture turn it on.
+Client: the floor shows each section as a plan when any table has a place, or tiles, remembered per section; four states in words and looks from existing tokens, a red ring and "Long" past the threshold; guests, minutes open and the item total, or the bill total once printed; a "⋯" menu with Move to another table and View bill; a billing strip of tables waiting to pay, newest first, each opening its bill. The guest picker offers 1 to 7 and More, and Skip only when the rule is off. "Arrange tables" (`/tables/arrange`, from Table setup): pick a section, drag tables from the tray onto the grid or around it with pointer events, snap to cells, size presets and shape, overlaps red and Save off while any exist, Remove from plan, and the section order up and down (saved by the owner).
+
+Checked by hand on a 1024 by 768 window against the local demo restaurant: six Cafe tables arranged by dragging, an overlap made and Save disabled, saved, and seen in place on the floor; with the rule on, the picker had no Skip; Cafe 2 opened with 3 guests, fired, served (Served), billed (Bill printed, ₹74.00, in the strip with 3 guests), paid from the strip's bill, and free again. The demo restaurant keeps the six Cafe tables; its guest rule was set back to off.
+
+Tests: 893 before, 904 after, 0 failing. `tests/floorPlan.test.js` (11). Five existing tests that pin exact shapes were updated on purpose for the additive fields: the occupancy block (tables), `/auth/me` keys (auth), and the settings defaults (settings). Query count from test 8: 6 for 5 tables and 6 for 40. Lint and build pass.
+
+Files or endpoints touched:
+New: `client/src/features/orders/TableArrangePage.jsx`, `server/tests/floorPlan.test.js`. Changed: `models/Table.js`, `models/Restaurant.js`, `controllers/tableController.js`, `controllers/orderController.js`, `controllers/authController.js`, `routes/orderRoutes.js`, `validators/orderValidators.js`, `validators/settingsValidators.js`, `services/settingsService.js`, `scripts/setupRestaurant.js`, `tests/helpers/goldenDay.js`, three shape tests, `setup/caffeza.json`, client `FloorViewPage.jsx`, `SeatTablePanel.jsx`, `TableManagementPage.jsx`, `App.jsx`, `AuthContext.jsx`, `api/orders.js`, API-CONTRACT M2, M7 and M20, DB-SCHEMA tables and section 17, CAFFEZA-PROFILE section 6.
+Endpoint: `PATCH /api/v1/tables/layout`.
+
+Anything the other developer needs to know:
+Caffeza's real room is still TO CONFIRM; the editor is ready for it. Plan tables at 2 by 2 on a tablet are small; 3 by 2 or larger reads better.
+
+Anything now blocked or unblocked:
+P20 can start once `docs/DESIGN-SYSTEM-V2.md` is in place (it is in `docs/prompts/`).
 
 ### 2026-10-02 Rishi, P18 report screens and Today
 
@@ -580,60 +608,6 @@ so R6 lists Caffeza's platform payments as "Rate not set" until they are set.
 
 Anything now blocked or unblocked:
 P16 and P17 can start. P18 has its daily and money reports.
-
-### 2026-10-01 Rishi, P14 report engine
-
-What was built or decided:
-`server/services/reports/`: `engine.js` (`runReport` in the nine contract
-steps, the filter sentence, open days, `personNames`), `labels.js` (88 glossary
-terms, mirrored on the client), `params.js` (every contract filter),
-`registry.js`, `exportXlsx.js` (four sheets, money in rupees with the Indian
-format, the file name rule), and `definitions/bills.js`, R19 with every filter,
-totals across pages and `readBillDetail` with the order's timeline. Routes:
-`GET /api/v1/reports/v2/bills` and `/reports/v2/bills/:billId`; M6 routes
-untouched.
-
-`reconciliationService.js` is complete: C2, C5, C7, C10, C11, C12 added, and
-`runRangeChecks` runs C1, C2, C3, C4, C6, C7, C8, C10, C11 and C12 over a range,
-one result per check. Day Close runs every one-day check.
-
-Five new indexes, each starting with `restaurantId`: payments by business
-date and a series in sequence order on `bills`; cancelled lines by time,
-cancelled orders by time, and No Charge orders by date on `orders`.
-`npm run db:indexes` created them locally, and a second run created none.
-
-Client: `/reports/bills` reads every filter from the address, shows the filter
-sentence, open-day banner, check strip, table, paging and the totals row, and
-has an Excel button; `/reports/bills/:billId` shows lines with shares and the
-timeline. Shared cells, banner and strip in `features/reports/v2/`.
-
-Every row of TEST-DATA section 6 is broken on purpose in
-`tests/reportEngine.test.js` and fails exactly its own check (C3's row also
-fails C4, as TEST-DATA says). The opt-in speed test, `PERF=1`, ran R19 over a
-full year of 66,430 bills with its totals in 233 ms.
-
-Checked by hand in Chrome on a local production build: a Bill List filtered by
-captain opened from its address, and a bill's timeline. The Excel button was
-not clicked in the browser, because that downloads a file; the workbook is
-opened and checked in the test instead.
-
-Tests: 793 before, 820 after, 0 failing. Lint and build pass.
-
-Files or endpoints touched:
-New: `server/services/reports/*`, `routes/reportV2Routes.js`,
-`controllers/reportV2Controller.js`, tests `reportEngine.test.js` and
-`reportPerf.test.js`, client `api/reportsV2.js`, `features/reports/labels.js`,
-`features/reports/v2/*`. Changed: `reconciliationService.js`, Bill and Order
-models (indexes), `tests/helpers/goldenDay.js` (`addNextDay`),
-`api/client.js` (`downloadFile`), `App.jsx`, server `package.json` (exceljs).
-
-Anything the other developer needs to know:
-A new report is one file in `definitions/` plus a line in `registry.js`.
-Port 5000 on this machine was held by another server process during the hand
-check, so the check ran on 5055.
-
-Anything now blocked or unblocked:
-P15, P16 and P17 can start.
 
 ---
 
