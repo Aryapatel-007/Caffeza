@@ -44,7 +44,7 @@ export default function Columns({
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
+      <p className="rounded-lg border-2 border-dashed border-muted px-4 py-8 text-center text-[13px] text-muted">
         {emptyMessage}
       </p>
     );
@@ -74,7 +74,7 @@ export default function Columns({
           {ticks.map((tick) => (
             <span
               key={tick}
-              className="font-mono text-[11px] tabular-nums leading-none text-steel"
+              className="font-mono text-[11px] tabular-nums leading-none text-muted"
               style={{ transform: 'translateY(50%)' }}
             >
               {formatTick(Math.round(tick))}
@@ -86,7 +86,7 @@ export default function Columns({
           {/* Gridlines: hairline, solid, one step off the surface. Never dashed. */}
           <div className="absolute inset-0 flex flex-col-reverse justify-between" aria-hidden="true">
             {ticks.map((tick) => (
-              <span key={tick} className="h-px w-full bg-steel/20" />
+              <span key={tick} className="h-px w-full bg-line" />
             ))}
           </div>
 
@@ -105,7 +105,7 @@ export default function Columns({
                   // The hit target is the whole band at full height, so a
                   // quiet day with a zero-height column is as hoverable as
                   // the busiest one.
-                  className="flex h-full min-w-0 flex-1 cursor-default items-end justify-center px-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
+                  className="flex h-full min-w-0 flex-1 cursor-default items-end justify-center px-px focus-visible:outline-2 focus-visible:outline-accent"
                   onMouseEnter={() => setHovered(index)}
                   onMouseLeave={() => setHovered(null)}
                   onFocus={() => setHovered(index)}
@@ -125,14 +125,14 @@ export default function Columns({
           {hovered !== null && (
             <div
               role="status"
-              className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[8px] border border-black/5 shadow-card bg-white px-2.5 py-1.5 shadow-[0_4px_12px_rgba(28,27,25,0.18)]"
+              className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[8px] border border-line bg-surface px-2.5 py-1.5 shadow-float"
               style={{
                 left: `${((hovered + 0.5) / rows.length) * 100}%`,
                 bottom: '100%',
                 transform: 'translate(-50%, -8px)',
               }}
             >
-              <p className="text-[12px] leading-4 text-steel">{rows[hovered][labelKey]}</p>
+              <p className="text-[12px] leading-4 text-muted">{rows[hovered][labelKey]}</p>
               <p className="font-mono text-[14px] font-semibold leading-5 text-ink">
                 {formatValue(rows[hovered][valueKey] ?? 0)}
               </p>
@@ -147,7 +147,7 @@ export default function Columns({
         {rows.map((row, index) => (
           <span
             key={row[labelKey] ?? index}
-            className="flex min-w-0 flex-1 justify-center overflow-visible whitespace-nowrap font-mono text-[10px] leading-3 text-steel"
+            className="flex min-w-0 flex-1 justify-center overflow-visible whitespace-nowrap font-mono text-[10px] leading-3 text-muted"
           >
             {index % labelEvery === 0 ? row[labelKey] : ''}
           </span>
@@ -155,7 +155,7 @@ export default function Columns({
       </div>
 
       {caption && (
-        <figcaption className="ml-16 mt-2 text-[12px] leading-4 text-steel">{caption}</figcaption>
+        <figcaption className="ml-16 mt-2 text-[12px] leading-4 text-muted">{caption}</figcaption>
       )}
     </figure>
   );

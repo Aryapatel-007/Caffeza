@@ -24,9 +24,9 @@ export default function UnclosedDayWarning() {
   if (!traded) return null;
 
   return (
-    <p className="border-b-2 border-mirch bg-mirch/5 px-6 py-3 text-sm text-ink">
+    <p className="v2 type-body border-b border-line border-l-[3px] border-l-open bg-surface px-4 py-3 text-ink">
       {formatBusinessDate(yesterday)} has not been closed.{' '}
-      <Link to={`/day-close?date=${yesterday}`} className="font-semibold underline">
+      <Link to={`/day-close?date=${yesterday}`} className="font-semibold text-accent underline underline-offset-4">
         Close it now
       </Link>
     </p>

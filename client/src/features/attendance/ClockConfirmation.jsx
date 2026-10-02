@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import AvailabilityStamp from '../../components/ui/AvailabilityStamp.jsx';
 import { formatTimeIst } from '../../utils/formatDate.js';
 import { formatMinutes } from '../../utils/formatDuration.js';
-import Bilingual from './Bilingual.jsx';
-import { CLOCK_LABELS } from './labels.js';
+import Bilingual from '../i18n/Bilingual.jsx';
+import { LABELS } from '../i18n/labels.js';
 
 /**
  * The full-screen "it's done" panel, held for a few seconds after a clock event.
@@ -45,7 +45,7 @@ export default function ClockConfirmation({ result, onUndo, onDone, undoBusy = f
       <div className="flex flex-col items-center gap-2">
         <span className="text-2xl font-semibold text-ink">{result.userName}</span>
         <Bilingual
-          label={clockedOut ? CLOCK_LABELS.clockedOut : CLOCK_LABELS.clockedIn}
+          k={clockedOut ? 'clockedOut' : 'clockedIn'}
           size="md"
           align="center"
         />
@@ -57,12 +57,12 @@ export default function ClockConfirmation({ result, onUndo, onDone, undoBusy = f
         </span>
         {clockedOut && typeof result.workedMinutes === 'number' && (
           <span className="font-mono text-lg text-steel">
-            {CLOCK_LABELS.worked.en} {formatMinutes(result.workedMinutes)}
+            {LABELS.clockWorked} {formatMinutes(result.workedMinutes)}
           </span>
         )}
         {clockedIn && (
           <span className="text-[13px] text-steel">
-            {CLOCK_LABELS.since.en} {formatTimeIst(result.at)}
+            {LABELS.clockSince} {formatTimeIst(result.at)}
           </span>
         )}
       </div>
@@ -73,10 +73,7 @@ export default function ClockConfirmation({ result, onUndo, onDone, undoBusy = f
         disabled={undoBusy || secondsLeft <= 0}
         className="flex min-h-[72px] min-w-[220px] items-center justify-center gap-2 rounded-full border-[3px] border-mirch bg-paper px-8 text-xl font-semibold text-mirch active:translate-y-0.5 transition-transform duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-40"
       >
-        <span>{CLOCK_LABELS.undo.en}</span>
-        <span lang="hi" className="text-base font-normal">
-          {CLOCK_LABELS.undo.hi}
-        </span>
+        <Bilingual k="clockUndo" size="lg" align="center" />
         {secondsLeft > 0 && (
           <span className="font-mono text-base tabular-nums text-steel">{secondsLeft}</span>
         )}

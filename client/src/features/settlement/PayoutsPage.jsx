@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 
 import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
@@ -11,10 +10,11 @@ import { listPayouts, recordPayout, voidPayout } from '../../api/accounts.js';
 import { listPaymentMethods } from '../../api/paymentMethods.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { businessDateToday, formatBusinessDate } from '../../utils/formatDate.js';
-import { formatPaise, parseRupeesToPaise } from '../../utils/formatMoney.js';
+import { parseRupeesToPaise } from '../../utils/formatMoney.js';
 import { errorMessage } from '../billing/errorCopy.js';
 import { ROLES } from '../users/roles.js';
 import InlineVoid from './InlineVoid.jsx';
+import Money from '../../components/ui/Money.jsx';
 
 /**
  * Platform payouts. P09. OWNER and MANAGER.
@@ -53,8 +53,8 @@ function PayoutForm({ methods, onDone, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
-      <p className="text-[15px] font-semibold leading-6">Record payout</p>
+    <div className="grid gap-3 rounded-lg border border-line p-3">
+      <p className="type-body font-semibold">Record payout</p>
       <Select
         label="Platform"
         value={draft.method}
@@ -105,28 +105,25 @@ export default function PayoutsPage() {
   });
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="border-b border-black/5 px-4 py-3">
+    <main className="v2 text-ink min-h-full bg-ground">
+      <header className="px-4 pt-4">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-semibold leading-7">Platform payouts</h1>
-            <p className="text-[13px] leading-[18px] text-steel">What each platform sent, against what it owed.</p>
+            <h1 className="type-title">Platform payouts</h1>
+            <p className="type-caption text-muted">What each platform sent, against what it owed.</p>
           </div>
-          <Link to="/dashboard" className="text-[13px] font-medium text-steel underline">
-            Dashboard
-          </Link>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-3xl gap-6 px-4 py-6">
         {payouts.isPending && <Spinner label="Loading payouts" />}
-        {payouts.isError && <p className="text-[15px] text-mirch">{errorMessage(payouts.error)}</p>}
+        {payouts.isError && <p className="type-body text-alert">{errorMessage(payouts.error)}</p>}
 
         {payouts.isSuccess && (
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px] leading-[18px]">
+            <table className="w-full type-caption">
               <thead>
-                <tr className="border-b border-black/5 text-left text-[12px] uppercase tracking-[0.06em] text-steel">
+                <tr className="border-b border-line text-left type-caption text-muted">
                   <th className="py-2 pr-3 font-medium">Platform</th>
                   <th className="py-2 pr-3 font-medium">Period</th>
                   <th className="py-2 pr-3 text-right font-medium">Received payout</th>
@@ -135,29 +132,29 @@ export default function PayoutsPage() {
                   <th className="py-2 font-medium" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-steel/15">
+              <tbody className="divide-y divide-line">
                 {payouts.data.map((payout) => (
-                  <tr key={payout.id} className={payout.isVoided ? 'text-steel line-through' : ''}>
+                  <tr key={payout.id} className={payout.isVoided ? 'text-muted line-through' : ''}>
                     <td className="py-2 pr-3">{payout.methodName}</td>
                     <td className="py-2 pr-3 font-mono">
                       {formatBusinessDate(payout.periodFrom)}
                       {payout.periodTo !== payout.periodFrom ? ` to ${formatBusinessDate(payout.periodTo)}` : ''}
                       {payout.rateNotSet.length > 0 && (
-                        <span className="block font-sans text-[12px] text-steel no-underline">
+                        <span className="block font-anek type-caption text-muted no-underline">
                           {payout.rateNotSet.length} payment{payout.rateNotSet.length === 1 ? '' : 's'} with no
                           commission set, not counted
                         </span>
                       )}
                     </td>
-                    <td className="py-2 pr-3 text-right font-mono">{formatPaise(payout.amountReceivedInPaise)}</td>
-                    <td className="py-2 pr-3 text-right font-mono">{formatPaise(payout.expectedInPaise)}</td>
+                    <td className="py-2 pr-3 text-right font-mono"><Money paise={payout.amountReceivedInPaise} /></td>
+                    <td className="py-2 pr-3 text-right font-mono"><Money paise={payout.expectedInPaise} /></td>
                     <td
                       className={[
                         'py-2 pr-3 text-right font-mono',
-                        payout.differenceInPaise < 0 && !payout.isVoided ? 'text-mirch' : '',
+                        payout.differenceInPaise < 0 && !payout.isVoided ? 'text-alert' : '',
                       ].join(' ')}
                     >
-                      {formatPaise(payout.differenceInPaise)}
+                      <Money paise={payout.differenceInPaise} />
                     </td>
                     <td className="py-2 text-right">
                       {isOwner && !payout.isVoided && (
@@ -171,12 +168,12 @@ export default function PayoutsPage() {
                 ))}
               </tbody>
             </table>
-            {payouts.data.length === 0 && <p className="py-4 text-[15px] text-steel">No payouts recorded yet.</p>}
+            {payouts.data.length === 0 && <p className="py-4 type-body text-muted">No payouts recorded yet.</p>}
           </div>
         )}
 
         {methods.isSuccess && platformMethods.length === 0 && (
-          <p className="text-[13px] text-steel">
+          <p className="type-caption text-muted">
             There are no platform payment methods yet. An owner adds them in Settings.
           </p>
         )}

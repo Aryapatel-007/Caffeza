@@ -20,12 +20,12 @@
  */
 export function StatTile({ label, value, hint, className = '' }) {
   return (
-    <div className={`rounded-xl border border-black/5 shadow-card px-4 py-3 ${className}`}>
-      <p className="text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
+    <div className={`rounded-lg border border-line px-4 py-3 ${className}`}>
+      <p className="text-[12px] font-medium leading-4 text-muted">
         {label}
       </p>
       <p className="mt-1 font-mono text-[24px] font-semibold leading-8 text-ink">{value}</p>
-      {hint && <p className="mt-0.5 text-[12px] leading-4 text-steel">{hint}</p>}
+      {hint && <p className="mt-0.5 text-[12px] leading-4 text-muted">{hint}</p>}
     </div>
   );
 }
@@ -34,11 +34,11 @@ export function StatTile({ label, value, hint, className = '' }) {
 export function HeroFigure({ label, value, hint }) {
   return (
     <div>
-      <p className="text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
+      <p className="text-[12px] font-medium leading-4 text-muted">
         {label}
       </p>
       <p className="mt-1 font-mono text-[48px] font-semibold leading-none text-ink">{value}</p>
-      {hint && <p className="mt-2 text-[13px] leading-[18px] text-steel">{hint}</p>}
+      {hint && <p className="mt-2 text-[13px] leading-[18px] text-muted">{hint}</p>}
     </div>
   );
 }

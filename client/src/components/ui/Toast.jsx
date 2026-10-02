@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
 
+import { TickIcon, TriangleIcon } from './icons/index.jsx';
+
 /**
- * A short message about something that just happened.
+ * A short message about something that just happened. It floats, so it is one
+ * of the few things that casts a shadow.
  *
- * Plain language only: never a raw error code, never an HTTP status. The
- * sentence comes from features/menu/errorCopy.js for failures, and from the
- * caller for successes, using the same verb as the button that caused it
- * ("Item saved", not "Success").
+ * Plain language only: never a code, never an HTTP status. A success repeats
+ * the verb of the button that caused it ("Item saved", not "Success").
  */
 export default function Toast({ tone = 'success', message, onDismiss, onRetry, autoHideMs = 4000 }) {
   useEffect(() => {
@@ -23,30 +24,21 @@ export default function Toast({ tone = 'success', message, onDismiss, onRetry, a
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-4 bottom-5 z-20 mx-auto flex max-w-xl items-center gap-3.5 rounded-xl border-2 bg-paper px-4 py-3.5 shadow-[0_6px_20px_rgba(28,27,25,0.18)] sm:inset-x-auto sm:left-1/2 sm:w-[36rem] sm:-translate-x-1/2"
-      style={{ borderColor: isError ? 'var(--color-mirch)' : 'var(--color-ink)' }}
+      className={[
+        'v2 fixed inset-x-4 bottom-20 z-40 mx-auto flex max-w-xl items-center gap-3 rounded-[10px] border border-line border-l-[3px] bg-surface px-4 py-3 text-ink shadow-float',
+        'sm:inset-x-auto sm:bottom-5 sm:left-1/2 sm:w-[36rem] sm:-translate-x-1/2',
+        isError ? 'border-l-alert' : 'border-l-ok',
+      ].join(' ')}
     >
-      <span
-        aria-hidden="true"
-        className="h-6 w-1 flex-none rounded-sm"
-        style={{ background: isError ? 'var(--color-mirch)' : 'var(--color-patta)' }}
-      />
-      <p className="flex-1 text-[15px] leading-[22px] text-ink">{message}</p>
+      <span className={isError ? 'text-alert' : 'text-ok'}>{isError ? <TriangleIcon /> : <TickIcon />}</span>
+      <p className="type-body flex-1">{message}</p>
       {onRetry && (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="flex-none text-[13px] font-medium text-mirch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
-        >
+        <button type="button" onClick={onRetry} className="type-label min-h-12 flex-none px-2 text-accent">
           Retry
         </button>
       )}
       {onDismiss && !onRetry && (
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="flex-none text-[13px] font-medium text-steel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-        >
+        <button type="button" onClick={onDismiss} className="type-label min-h-12 flex-none px-2 text-muted hover:text-ink">
           Dismiss
         </button>
       )}

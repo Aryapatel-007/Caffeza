@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
 import NumericKeypad from '../../components/ui/NumericKeypad.jsx';
-import PanelShell from '../billing/PanelShell.jsx';
+import Sheet from '../../components/ui/Sheet.jsx';
 import { adjustStock } from '../../api/inventory.js';
 import { baseToPurchaseDisplay, BASE_UNIT_SHORT_LABELS, purchaseToBaseInteger } from '../../utils/units.js';
 import { errorMessage } from './errorCopy.js';
@@ -74,7 +74,7 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
   // Step 1: pick a reason.
   if (!type) {
     return (
-      <PanelShell title={ingredient.name} onCancel={onCancel}>
+      <Sheet title={ingredient.name} onCancel={onCancel}>
         <p className="mb-4 text-[13px] leading-[18px] text-steel">
           Currently{' '}
           <span className="font-mono text-ink">
@@ -101,14 +101,14 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
             </button>
           ))}
         </div>
-      </PanelShell>
+      </Sheet>
     );
   }
 
   // RECOUNT needs a direction before a magnitude means anything.
   if (type === 'RECOUNT' && !recountDirection) {
     return (
-      <PanelShell title="Recount" onCancel={() => setType(null)}>
+      <Sheet title="Recount" onCancel={() => setType(null)}>
         <p className="mb-4 text-[15px] leading-[22px]">
           Compared to what the system shows, the count found:
         </p>
@@ -134,13 +134,13 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
             Less
           </button>
         </div>
-      </PanelShell>
+      </Sheet>
     );
   }
 
   // Step 2: the quantity, in the ingredient's own purchase unit.
   return (
-    <PanelShell title={REASONS.find((r) => r.type === type).label} onCancel={() => setType(null)}>
+    <Sheet title={REASONS.find((r) => r.type === type).label} onCancel={() => setType(null)}>
       <QuantityStep
         unitLabel={unitLabel}
         unitsPerBase={unitsPerBase}
@@ -151,7 +151,7 @@ export default function AdjustStockPanel({ ingredient, onCancel, onAdjusted }) {
         onCancel={() => (type === 'RECOUNT' ? setRecountDirection(null) : setType(null))}
         onConfirm={submit}
       />
-    </PanelShell>
+    </Sheet>
   );
 }
 

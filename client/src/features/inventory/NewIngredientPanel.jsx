@@ -6,7 +6,7 @@ import Input from '../../components/ui/Input.jsx';
 import Select from '../../components/ui/Select.jsx';
 import { createIngredient } from '../../api/inventory.js';
 import { purchaseToBaseInteger } from '../../utils/units.js';
-import PanelShell from '../billing/PanelShell.jsx';
+import Sheet from '../../components/ui/Sheet.jsx';
 import { errorMessage } from './errorCopy.js';
 
 const BASE_UNIT_OPTIONS = [
@@ -65,7 +65,7 @@ export default function NewIngredientPanel({ onCancel, onCreated }) {
   };
 
   return (
-    <PanelShell title="New ingredient" onCancel={onCancel}>
+    <Sheet title="New ingredient" onCancel={onCancel}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
 
@@ -120,6 +120,6 @@ export default function NewIngredientPanel({ onCancel, onCreated }) {
           </Button>
         </div>
       </form>
-    </PanelShell>
+    </Sheet>
   );
 }

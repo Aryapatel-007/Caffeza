@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-import Bilingual from './Bilingual.jsx';
-import { CLOCK_LABELS } from './labels.js';
+import Bilingual from '../i18n/Bilingual.jsx';
+import { LABELS } from '../i18n/labels.js';
 
 /**
  * A numeric PIN entry, for the clock screen and nowhere else.
@@ -41,13 +41,13 @@ export default function PinPad({ personName, onSubmit, onBack, busy = false, err
           onClick={onBack}
           className="min-h-[48px] rounded-lg border border-steel/60 px-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
-          <Bilingual label={CLOCK_LABELS.back} size="sm" />
+          <Bilingual k="back" size="sm" />
         </button>
         <span className="text-[15px] font-semibold text-ink">{personName}</span>
       </div>
 
       <div className="flex flex-col items-center gap-2">
-        <Bilingual label={CLOCK_LABELS.enterPin} size="md" align="center" />
+        <Bilingual k="clockEnterPin" size="md" align="center" />
         <div
           aria-live="polite"
           className="flex h-12 items-center gap-3 font-mono text-3xl tracking-[0.3em] text-ink"
@@ -62,9 +62,8 @@ export default function PinPad({ personName, onSubmit, onBack, busy = false, err
           ))}
         </div>
         {errorLabel && (
-          <p lang="hi" className="text-center text-[15px] font-medium text-mirch">
-            {errorLabel.en}
-            <span className="block text-[13px] font-normal text-mirch/80">{errorLabel.hi}</span>
+          <p className="flex justify-center text-mirch">
+            <Bilingual k={errorLabel} align="center" />
           </p>
         )}
       </div>
@@ -84,7 +83,7 @@ export default function PinPad({ personName, onSubmit, onBack, busy = false, err
 
         <button type="button" className={keyBase} onClick={clear} disabled={busy || pin.length === 0}>
           <span aria-hidden="true">⌫</span>
-          <span className="sr-only">{CLOCK_LABELS.clear.en}</span>
+          <span className="sr-only">{LABELS.clear}</span>
         </button>
 
         <button key="0" type="button" className={keyBase} onClick={() => press('0')} disabled={busy}>

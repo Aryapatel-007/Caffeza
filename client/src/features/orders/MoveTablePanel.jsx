@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
-import PanelShell from '../billing/PanelShell.jsx';
+import ErrorState from '../../components/ui/ErrorState.jsx';
+import Sheet from '../../components/ui/Sheet.jsx';
 import { listTables } from '../../api/orders.js';
 import { errorMessage } from './errorCopy.js';
 
@@ -15,37 +16,31 @@ export default function MoveTablePanel({ order, isBusy, onCancel, onConfirm }) {
     queryFn: () => listTables(),
   });
 
-  const free = (tables.data ?? []).filter(
-    (table) => !table.occupancy.isOccupied && table.id !== order.tableId,
-  );
+  const free = (tables.data ?? []).filter((table) => !table.occupancy.isOccupied && table.id !== order.tableId);
 
   return (
-    <PanelShell title={`Move ${order.tableName ?? 'order'} to`} onCancel={onCancel}>
-      {tables.isPending && <p className="text-[15px] text-steel">Loading the tables…</p>}
-      {tables.isError && <p className="text-[15px] text-mirch">{errorMessage(tables.error)}</p>}
-      {tables.isSuccess && free.length === 0 && (
-        <p className="text-[15px] text-steel">Every other table is taken.</p>
-      )}
+    <Sheet title={`Move ${order.tableName ?? 'order'} to`} onCancel={onCancel}>
+      {tables.isPending && <p className="type-body text-muted">Loading the tables…</p>}
+      {tables.isError && <ErrorState error={errorMessage(tables.error)} />}
+      {tables.isSuccess && free.length === 0 && <p className="type-body text-muted">Every other table is taken.</p>}
 
-      <ul className="grid grid-cols-2 gap-3">
+      <ul className="grid grid-cols-2 gap-2">
         {free.map((table) => (
           <li key={table.id}>
             <button
               type="button"
               disabled={isBusy}
               onClick={() => onConfirm(table)}
-              className="flex min-h-[72px] w-full flex-col justify-between rounded-2xl bg-linen p-3 text-left hover:bg-linen-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+              className="flex min-h-20 w-full flex-col justify-between rounded-[10px] border border-line bg-surface p-3 text-left hover:bg-sunken disabled:opacity-50"
             >
-              <span className="font-mono text-[18px] font-bold">{table.name}</span>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-steel">
-                {[table.section, table.seats != null && `${table.seats} seats`]
-                  .filter(Boolean)
-                  .join(' · ')}
+              <span className="type-tile-name">{table.name}</span>
+              <span className="type-caption text-muted">
+                {[table.section, table.seats != null && `${table.seats} seats`].filter(Boolean).join(' · ') || 'Free'}
               </span>
             </button>
           </li>
         ))}
       </ul>
-    </PanelShell>
+    </Sheet>
   );
 }

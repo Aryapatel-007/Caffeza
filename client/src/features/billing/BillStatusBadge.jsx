@@ -1,22 +1,21 @@
-import StatusBadge from '../../components/ui/StatusBadge.jsx';
-import { STATUS_LABELS } from './labels.js';
+import StateChip from '../../components/ui/StateChip.jsx';
+import { LABELS } from '../i18n/labels.js';
 
 /**
- * A bill's status: UNPAID, PAID, ON_ACCOUNT (On Hold, P09), or VOIDED. A thin wrapper over the shared
- * `StatusBadge`, which M4's stock state badge also uses -- one component, two
- * modules' words. English only here, not the Gujarati pairing `labels.js`
- * also carries: that pairing is for the handful of words a cashier actively
- * acts on, and a two-line stack does not fit a compact status pill.
+ * A bill's status through `StateChip`. DESIGN-SYSTEM-V2 section 4b.
+ *
+ * Unpaid is a printed bill waiting to be paid, so it wears `bill`. Paid is
+ * `ok`. On Hold (P09) is money still to come, a caution, so `open`. Voided is
+ * `alert`: the bill was cancelled after it was issued.
  */
 const FACES = {
-  UNPAID: { icon: '○', label: STATUS_LABELS.UNPAID.en, classes: 'border-steel/50 text-steel' },
-  PAID: { icon: '✓', label: STATUS_LABELS.PAID.en, classes: 'border-patta bg-patta-tint text-ink' },
-  VOIDED: { icon: '✕', label: STATUS_LABELS.VOIDED.en, classes: 'border-mirch text-mirch' },
-  // P09. Settled by an account, the money still to come.
-  ON_ACCOUNT: { icon: '◐', label: STATUS_LABELS.ON_ACCOUNT.en, classes: 'border-ink text-ink' },
+  UNPAID: { state: 'bill', word: LABELS.statusUnpaid },
+  PAID: { state: 'ok', word: LABELS.statusPaid },
+  ON_ACCOUNT: { state: 'open', word: LABELS.statusOnAccount },
+  VOIDED: { state: 'alert', word: LABELS.statusVoided },
 };
 
 export default function BillStatusBadge({ bill, size = 'md', className = '' }) {
-  const state = bill.isVoided ? 'VOIDED' : bill.status;
-  return <StatusBadge state={state} faces={FACES} size={size} className={className} />;
+  const face = FACES[bill.isVoided ? 'VOIDED' : bill.status] ?? FACES.UNPAID;
+  return <StateChip state={face.state} word={face.word} size={size === 'lg' ? 'md' : 'sm'} className={className} />;
 }

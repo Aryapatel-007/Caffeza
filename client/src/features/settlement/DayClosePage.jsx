@@ -3,13 +3,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import Button from '../../components/ui/Button.jsx';
+import { DotIcon, PrintIcon, TickIcon, TriangleIcon } from '../../components/ui/icons/index.jsx';
 import Input from '../../components/ui/Input.jsx';
+import Money from '../../components/ui/Money.jsx';
+import NumericKeypad from '../../components/ui/NumericKeypad.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
+import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { closeDay, getDay, getDayPrint, reopenDay } from '../../api/dayClose.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { businessDateBefore, businessDateToday, formatBusinessDate } from '../../utils/formatDate.js';
-import { formatPaise, parseRupeesToPaise } from '../../utils/formatMoney.js';
+import { parseRupeesToPaise } from '../../utils/formatMoney.js';
 import { errorMessage } from '../billing/errorCopy.js';
 import { charactersFor, printText } from '../printing/printText.js';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
@@ -25,9 +29,9 @@ import { ROLES } from '../users/roles.js';
  */
 function Row({ label, value, strong = false, tone = '' }) {
   return (
-    <div className="flex justify-between gap-3 py-1">
-      <dt className="text-steel">{label}</dt>
-      <dd className={`font-mono ${strong ? 'font-semibold text-ink' : ''} ${tone}`}>{value}</dd>
+    <div className={`flex justify-between gap-3 py-1 ${strong ? 'border-t-2 border-ink' : ''}`}>
+      <dt className={strong ? 'type-body font-semibold' : 'type-body text-muted'}>{label}</dt>
+      <dd className={`type-num tabular-nums ${strong ? 'font-semibold' : ''} ${tone}`}>{value}</dd>
     </div>
   );
 }
@@ -35,69 +39,69 @@ function Row({ label, value, strong = false, tone = '' }) {
 function Figures({ day }) {
   const { sales, money, cash, controls } = day.figures;
   return (
-    <div className="grid gap-6 text-[13px] leading-[18px] sm:grid-cols-2">
+    <div className="grid gap-6 rounded-[10px] border border-line bg-surface p-4 sm:grid-cols-2">
       <section>
-        <h2 className="mb-1 text-[12px] font-medium uppercase tracking-[0.06em] text-steel">Sales</h2>
+        <h2 className="type-heading mb-1">Sales</h2>
         <dl>
           <Row label="Bills" value={sales.billCount} />
           <Row label="Covers" value={sales.covers} />
-          <Row label="Item total" value={formatPaise(sales.itemTotalInPaise)} />
-          <Row label="Discount" value={formatPaise(sales.discountInPaise)} />
-          <Row label="Net sales" value={formatPaise(sales.netSalesInPaise)} />
-          <Row label="GST" value={formatPaise(sales.gstInPaise)} />
-          <Row label="Round-off" value={formatPaise(sales.roundOffInPaise)} />
-          <Row label="Bill total" value={formatPaise(sales.billTotalInPaise)} strong />
-          <Row label="Average bill" value={formatPaise(sales.averageBillInPaise)} />
-          <Row label="Average per cover" value={formatPaise(sales.averagePerCoverInPaise)} />
+          <Row label="Item total" value={<Money paise={sales.itemTotalInPaise} />} />
+          <Row label="Discount" value={<Money paise={sales.discountInPaise} />} />
+          <Row label="Net sales" value={<Money paise={sales.netSalesInPaise} />} />
+          <Row label="GST" value={<Money paise={sales.gstInPaise} />} />
+          <Row label="Round-off" value={<Money paise={sales.roundOffInPaise} />} />
+          <Row label="Bill total" value={<Money paise={sales.billTotalInPaise} />} strong />
+          <Row label="Average bill" value={<Money paise={sales.averageBillInPaise} />} />
+          <Row label="Average per cover" value={<Money paise={sales.averagePerCoverInPaise} />} />
         </dl>
       </section>
       <section>
-        <h2 className="mb-1 text-[12px] font-medium uppercase tracking-[0.06em] text-steel">Where the bill total went</h2>
+        <h2 className="type-heading mb-1">Where the bill total went</h2>
         <dl>
           {money.methods.map((row) => (
-            <Row key={row.method} label={row.methodName} value={formatPaise(row.amountInPaise)} />
+            <Row key={row.method} label={row.methodName} value={<Money paise={row.amountInPaise} />} />
           ))}
-          <Row label="Money in hand" value={formatPaise(money.inHandInPaise)} />
-          <Row label="Platform money" value={formatPaise(money.platformInPaise)} />
+          <Row label="Money in hand" value={<Money paise={money.inHandInPaise} />} />
+          <Row label="Platform money" value={<Money paise={money.platformInPaise} />} />
           {money.onHold.map((row) => (
-            <Row key={row.accountName} label={`On Hold: ${row.accountName}`} value={formatPaise(row.amountInPaise)} />
+            <Row key={row.accountName} label={`On Hold: ${row.accountName}`} value={<Money paise={row.amountInPaise} />} />
           ))}
-          <Row label="Unpaid" value={formatPaise(money.unpaidInPaise)} />
-          <Row label="Total" value={formatPaise(money.totalInPaise)} strong />
+          <Row label="Unpaid" value={<Money paise={money.unpaidInPaise} />} />
+          <Row label="Total" value={<Money paise={money.totalInPaise} />} strong />
         </dl>
       </section>
       <section>
-        <h2 className="mb-1 text-[12px] font-medium uppercase tracking-[0.06em] text-steel">Cash drawer</h2>
+        <h2 className="type-heading mb-1">Cash drawer</h2>
         <dl>
-          <Row label="Opening float" value={formatPaise(cash.openingFloatInPaise)} />
-          <Row label="Cash from bills" value={formatPaise(cash.cashFromBillsInPaise)} />
-          <Row label="Cash collections" value={formatPaise(cash.cashCollectionsInPaise)} />
-          <Row label="Paid in" value={formatPaise(cash.paidInInPaise)} />
-          <Row label="Paid out" value={formatPaise(cash.paidOutInPaise)} />
+          <Row label="Opening float" value={<Money paise={cash.openingFloatInPaise} />} />
+          <Row label="Cash from bills" value={<Money paise={cash.cashFromBillsInPaise} />} />
+          <Row label="Cash collections" value={<Money paise={cash.cashCollectionsInPaise} />} />
+          <Row label="Paid in" value={<Money paise={cash.paidInInPaise} />} />
+          <Row label="Paid out" value={<Money paise={cash.paidOutInPaise} />} />
           {cash.expectedCashInPaise !== undefined && (
-            <Row label="Expected cash" value={formatPaise(cash.expectedCashInPaise)} strong />
+            <Row label="Expected cash" value={<Money paise={cash.expectedCashInPaise} />} strong />
           )}
           {day.countedCashInPaise !== null && day.countedCashInPaise !== undefined && (
-            <Row label="Counted cash" value={formatPaise(day.countedCashInPaise)} />
+            <Row label="Counted cash" value={<Money paise={day.countedCashInPaise} />} />
           )}
           {day.differenceInPaise !== null && day.differenceInPaise !== undefined && (
             <Row
               label="Cash difference"
-              value={formatPaise(day.differenceInPaise)}
-              tone={day.differenceInPaise < 0 ? 'text-mirch' : ''}
+              value={<Money paise={day.differenceInPaise} />}
+              tone={day.differenceInPaise < 0 ? 'text-alert' : ''}
             />
           )}
         </dl>
       </section>
       <section>
-        <h2 className="mb-1 text-[12px] font-medium uppercase tracking-[0.06em] text-steel">Controls</h2>
+        <h2 className="type-heading mb-1">Controls</h2>
         <dl>
-          <Row label={`Discounts (${controls.discounts.count})`} value={formatPaise(controls.discounts.totalInPaise)} />
-          <Row label={`No Charge (${controls.noCharge.count})`} value={formatPaise(controls.noCharge.valueInPaise)} />
-          <Row label={`Items cancelled (${controls.cancelledItems.count})`} value={formatPaise(controls.cancelledItems.valueInPaise)} />
-          <Row label="Wasted value" value={formatPaise(controls.cancelledItems.wastedValueInPaise)} />
-          <Row label={`Orders cancelled (${controls.cancelledOrders.count})`} value={formatPaise(controls.cancelledOrders.valueInPaise)} />
-          <Row label={`Voided bills (${controls.voidedBills.count})`} value={formatPaise(controls.voidedBills.valueInPaise)} />
+          <Row label={`Discounts (${controls.discounts.count})`} value={<Money paise={controls.discounts.totalInPaise} />} />
+          <Row label={`No Charge (${controls.noCharge.count})`} value={<Money paise={controls.noCharge.valueInPaise} />} />
+          <Row label={`Items cancelled (${controls.cancelledItems.count})`} value={<Money paise={controls.cancelledItems.valueInPaise} />} />
+          <Row label="Wasted value" value={<Money paise={controls.cancelledItems.wastedValueInPaise} />} />
+          <Row label={`Orders cancelled (${controls.cancelledOrders.count})`} value={<Money paise={controls.cancelledOrders.valueInPaise} />} />
+          <Row label={`Voided bills (${controls.voidedBills.count})`} value={<Money paise={controls.voidedBills.valueInPaise} />} />
         </dl>
       </section>
     </div>
@@ -106,22 +110,22 @@ function Figures({ day }) {
 
 function Checks({ checks }) {
   return (
-    <ul className="grid gap-1 text-[13px] leading-[18px]">
-      {checks.map((check) => (
-        <li
-          key={check.id}
-          className={[
-            'rounded-lg border-2 px-3 py-2',
-            check.passed ? 'border-patta/50' : check.severity === 'ERROR' ? 'border-mirch text-mirch' : 'border-ink/40',
-          ].join(' ')}
-        >
-          {check.passed ? '✓ ' : check.severity === 'ERROR' ? '✕ ' : '! '}
-          {check.message}
-        </li>
-      ))}
+    <ul className="flex flex-col gap-1">
+      {checks.map((check) => {
+        const state = check.passed ? 'ok' : check.severity === 'ERROR' ? 'alert' : 'open';
+        const Icon = check.passed ? TickIcon : check.severity === 'ERROR' ? TriangleIcon : DotIcon;
+        return (
+          <li key={check.id} className={`type-body flex items-start gap-2 ${STATE_TEXT[state]}`}>
+            <Icon className="mt-0.5" />
+            <span className={check.passed ? 'text-ink' : ''}>{check.message}</span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
+
+const STATE_TEXT = { ok: 'text-ok', alert: 'text-alert', open: 'text-open' };
 
 export default function DayClosePage() {
   const queryClient = useQueryClient();
@@ -179,12 +183,12 @@ export default function DayClosePage() {
   const countedInPaise = parseRupeesToPaise(counted);
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="border-b border-black/5 px-4 py-3">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
+    <main className="v2 text-ink min-h-full bg-ground">
+      <header className="px-4 pt-4">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-semibold leading-7">Day Close</h1>
-            <p className="text-[13px] leading-[18px] text-steel">Count the drawer and lock the day.</p>
+            <h1 className="type-title">Day Close</h1>
+            <p className="type-caption text-muted">Count the drawer and lock the day.</p>
           </div>
           <div className="flex items-center gap-3">
             <Input
@@ -194,33 +198,36 @@ export default function DayClosePage() {
               value={businessDate}
               onChange={(event) => event.target.value && setParams({ date: event.target.value })}
             />
-            <Link to="/dashboard" className="text-[13px] font-medium text-steel underline">
-              Dashboard
-            </Link>
           </div>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-3xl gap-6 px-4 py-6">
         {query.isPending && <Spinner label="Working out the day" />}
-        {query.isError && <p className="text-[15px] text-mirch">{errorMessage(query.error)}</p>}
+        {query.isError && <p className="type-body text-alert">{errorMessage(query.error)}</p>}
 
         {day && (
           <>
-            <p className="text-[15px] font-semibold leading-6">
-              {formatBusinessDate(businessDate)}:{' '}
-              {day.isClosed ? 'closed' : day.status === 'REOPENED' ? 'reopened, still open' : 'still open'}
+            <p className="flex flex-wrap items-center gap-2">
+              <span className="type-heading">{formatBusinessDate(businessDate)}</span>
+              <StateChip
+                state={day.isClosed ? 'ok' : 'open'}
+                word={day.isClosed ? 'Closed' : day.status === 'REOPENED' ? 'Reopened, still open' : 'Still open'}
+              />
             </p>
 
             {!day.isClosed && day.blockers.length > 0 && (
-              <section className="rounded-xl border-2 border-mirch/60 p-3">
-                <h2 className="mb-2 text-[15px] font-semibold">Sort these out first</h2>
-                <ul className="grid gap-1 text-[13px] leading-[18px]">
+              <section className="rounded-[10px] border border-line border-l-[3px] border-l-alert bg-surface p-4">
+                <h2 className="type-heading mb-2 flex items-center gap-2 text-alert">
+                  <TriangleIcon />
+                  Sort these out first
+                </h2>
+                <ul className="type-body flex flex-col gap-1">
                   {day.blockers.map((blocker) => (
                     <li key={`${blocker.kind}-${blocker.ref}`}>
-                      {blocker.kind === 'OPEN_ORDER' && <Link className="underline" to={`/orders/${blocker.ref}`}>{blocker.message}</Link>}
-                      {blocker.kind === 'UNPAID_BILL' && <Link className="underline" to={`/bills/${blocker.ref}`}>{blocker.message}</Link>}
-                      {blocker.kind === 'CHECK' && <span className="text-mirch">{blocker.message}</span>}
+                      {blocker.kind === 'OPEN_ORDER' && <Link className="text-accent underline underline-offset-4" to={`/orders/${blocker.ref}`}>{blocker.message}</Link>}
+                      {blocker.kind === 'UNPAID_BILL' && <Link className="text-accent underline underline-offset-4" to={`/bills/${blocker.ref}`}>{blocker.message}</Link>}
+                      {blocker.kind === 'CHECK' && <span className="text-alert">{blocker.message}</span>}
                     </li>
                   ))}
                 </ul>
@@ -228,13 +235,15 @@ export default function DayClosePage() {
             )}
 
             {!day.isClosed && (
-              <section className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
-                <Input
-                  label="Cash counted in the drawer"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={counted}
-                  onChange={(event) => setCounted(event.target.value)}
+              <section className="grid gap-4 rounded-[10px] border border-line bg-surface p-4">
+                <NumericKeypad
+                  key={`${businessDate}-${day.status}`}
+                  title="Cash counted in the drawer"
+                  prefix="₹"
+                  allowDecimal
+                  initialValue={counted}
+                  onChange={setCounted}
+                  hideActions
                 />
                 <Input
                   label={noteRequired ? 'Note, required: the count is not what the drawer should hold' : 'Note, optional'}
@@ -258,6 +267,7 @@ export default function DayClosePage() {
             {day.isClosed && (
               <div className="flex flex-wrap items-center gap-3">
                 <Button type="button" onClick={print}>
+                  <PrintIcon />
                   Print
                 </Button>
                 {isOwner && (
@@ -270,6 +280,7 @@ export default function DayClosePage() {
                     />
                     <Button
                       type="button"
+                      variant="secondary"
                       disabled={!reopenReason.trim()}
                       isLoading={reopen.isPending}
                       onClick={() => reopen.mutate()}
@@ -283,7 +294,7 @@ export default function DayClosePage() {
 
             {(day.isClosed || isOwner) && <Figures day={day} />}
             <section>
-              <h2 className="mb-2 text-[12px] font-medium uppercase tracking-[0.06em] text-steel">Checks</h2>
+              <h2 className="type-heading mb-2">Checks</h2>
               <Checks checks={day.checks} />
             </section>
           </>

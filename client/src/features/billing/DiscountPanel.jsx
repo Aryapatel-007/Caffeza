@@ -1,11 +1,12 @@
 import { useState } from 'react';
 
 import NumericKeypad from '../../components/ui/NumericKeypad.jsx';
-import { formatPaise, parseRupeesToPaise } from '../../utils/formatMoney.js';
-import ReasonPicker, { isReasonComplete, reasonBody } from '../orders/ReasonPicker.jsx';
+import { parseRupeesToPaise } from '../../utils/formatMoney.js';
+import ReasonPicker, { isReasonComplete, reasonBody } from '../../components/ui/ReasonPicker.jsx';
 import { DISCOUNT_REASONS, PLATFORM_DISCOUNT_REASONS } from './discountReasons.js';
-import { BILL_LABELS } from './labels.js';
-import PanelShell from './PanelShell.jsx';
+import { LABELS } from '../i18n/labels.js';
+import Sheet from '../../components/ui/Sheet.jsx';
+import Money, { moneyText } from '../../components/ui/Money.jsx';
 
 const PERCENT_PRESETS = [5, 10, 20, 50];
 
@@ -80,15 +81,31 @@ export default function DiscountPanel({
   };
 
   return (
-    <PanelShell
+    <Sheet
       wide
-      title={BILL_LABELS.applyDiscount.en}
-      subtitle={`${billNumber ? `Bill ${billNumber} · ` : ''}Item total ${formatPaise(subtotalInPaise)}`}
+      title={LABELS.applyDiscount}
+      subtitle={`${billNumber ? `Bill ${billNumber} · ` : ''}Item total ${moneyText(subtotalInPaise)}`}
       onCancel={onCancel}
+      footer={
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!ready || isBusy}
+            className="flex min-h-14 w-full items-center justify-between gap-3 rounded-lg bg-accent px-4 text-on-accent hover:brightness-110 disabled:opacity-50"
+          >
+            <span className="type-button">{isBusy ? 'Applying…' : LABELS.applyDiscount}</span>
+            {previewInPaise !== null && <span className="type-num">− {moneyText(previewInPaise)}</span>}
+          </button>
+          <button type="button" onClick={onCancel} className="type-label min-h-12 w-full rounded-lg text-ink hover:bg-sunken">
+            Discard and return to the bill
+          </button>
+        </div>
+      }
     >
       <div className="flex flex-col gap-5">
-        <section className="flex flex-col gap-4 rounded-2xl bg-linen p-4">
-          <div className="grid grid-cols-2 rounded-full bg-linen-3 p-1">
+        <section className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-2">
             {[
               { value: 'PERCENT', label: 'Percent off (%)' },
               { value: 'FLAT', label: 'Amount off (₹)' },
@@ -99,9 +116,8 @@ export default function DiscountPanel({
                 aria-pressed={kind === option.value}
                 onClick={() => chooseKind(option.value)}
                 className={[
-                  'h-10 rounded-full text-[14px] font-semibold transition-colors',
-                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                  kind === option.value ? 'bg-white text-ink shadow-card' : 'text-steel hover:text-ink',
+                  'type-label min-h-12 rounded-lg transition-colors',
+                  kind === option.value ? 'border-2 border-ink bg-sunken text-ink' : 'border border-line bg-surface text-muted hover:text-ink',
                 ].join(' ')}
               >
                 {option.label}
@@ -119,15 +135,12 @@ export default function DiscountPanel({
                   aria-pressed={active}
                   onClick={() => choosePreset(percent)}
                   className={[
-                    'flex h-14 flex-col items-center justify-center rounded-xl font-mono shadow-card transition-transform active:scale-95',
-                    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                    active ? 'bg-ink text-white' : 'bg-white text-ink hover:bg-linen-2',
+                    'flex min-h-14 flex-col items-center justify-center rounded-lg',
+                    active ? 'border-2 border-ink bg-sunken text-ink' : 'border border-line bg-surface text-ink hover:bg-sunken',
                   ].join(' ')}
                 >
-                  <span className="text-[14px] font-bold">{percent}%</span>
-                  <span className={['text-[10px]', active ? 'text-white/70' : 'text-steel'].join(' ')}>
-                    {formatPaise(Math.round((subtotalInPaise * percent) / 100))}
-                  </span>
+                  <span className="type-num">{percent}%</span>
+                  <Money paise={Math.round((subtotalInPaise * percent) / 100)} size="meta" className="text-muted" />
                 </button>
               );
             })}
@@ -155,10 +168,10 @@ export default function DiscountPanel({
 
         {isPlatformReason && (
           <fieldset>
-            <legend className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-steel">
+            <legend className="mb-2 type-label text-muted">
               Paid for by
             </legend>
-            <div className="inline-flex rounded-full bg-linen-2 p-1">
+            <div className="inline-flex gap-2">
               {[
                 { value: 'RESTAURANT', label: 'Restaurant' },
                 { value: 'PLATFORM', label: 'Platform' },
@@ -169,9 +182,8 @@ export default function DiscountPanel({
                   aria-pressed={fundedBy === option.value}
                   onClick={() => setFundedBy(option.value)}
                   className={[
-                    'h-10 rounded-full px-5 text-[13px] font-semibold',
-                    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                    fundedBy === option.value ? 'bg-chana text-ink shadow-card' : 'text-steel',
+                    'type-label min-h-12 rounded-lg px-5',
+                    fundedBy === option.value ? 'border-2 border-ink bg-sunken text-ink' : 'border border-line bg-surface text-muted',
                   ].join(' ')}
                 >
                   {option.label}
@@ -181,53 +193,26 @@ export default function DiscountPanel({
           </fieldset>
         )}
 
-        <section className="rounded-2xl bg-linen p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-steel">Preview</span>
-            {previewInPaise !== null && (
-              <span className="rounded-full bg-patta-tint px-2.5 py-0.5 text-[12px] font-semibold">
-                Guest saves {formatPaise(previewInPaise)}
-              </span>
-            )}
-          </div>
-          <dl className="mt-3 space-y-1.5 font-mono text-[13px]">
+        <section className="rounded-[10px] bg-sunken p-4">
+          <p className="type-label">Preview</p>
+          <dl className="mt-2 flex flex-col gap-1">
             <div className="flex justify-between">
-              <dt className="text-steel">Item total</dt>
-              <dd>{formatPaise(subtotalInPaise)}</dd>
+              <dt className="type-body text-muted">Item total</dt>
+              <dd className="type-num"><Money paise={subtotalInPaise} /></dd>
             </div>
-            <div className="flex justify-between text-patta">
-              <dt>Discount</dt>
-              <dd>{previewInPaise === null ? '—' : `− ${formatPaise(previewInPaise)}`}</dd>
+            <div className="flex justify-between">
+              <dt className="type-body text-muted">Discount</dt>
+              <dd className="type-num">{previewInPaise === null ? '—' : `− ${moneyText(previewInPaise)}`}</dd>
             </div>
           </dl>
-          <p className="mt-3 text-[12px] leading-4 text-steel">
+          <p className="mt-3 type-caption text-muted">
             GST and the new bill total are worked out when the discount is applied.
           </p>
         </section>
 
-        {error && <p className="text-[13px] leading-[18px] text-mirch">{error}</p>}
+        {error && <p className="type-caption text-alert">{error}</p>}
 
-        <div className="sticky bottom-0 -mx-5 flex flex-col gap-1 bg-white px-5 pb-1 pt-3 shadow-[0_-4px_20px_rgba(28,27,25,0.06)] sm:-mx-8 sm:px-8">
-          <button
-            type="button"
-            onClick={submit}
-            disabled={!ready || isBusy}
-            className="flex h-14 w-full items-center justify-between rounded-full bg-chana px-6 text-[15px] font-bold text-ink shadow-card transition-transform active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
-          >
-            <span>{isBusy ? 'Applying…' : BILL_LABELS.applyDiscount.en}</span>
-            {previewInPaise !== null && (
-              <span className="font-mono">− {formatPaise(previewInPaise)} →</span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="h-11 w-full rounded-full text-[13px] font-medium text-steel hover:bg-linen focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-          >
-            Discard and return to the bill
-          </button>
-        </div>
       </div>
-    </PanelShell>
+    </Sheet>
   );
 }

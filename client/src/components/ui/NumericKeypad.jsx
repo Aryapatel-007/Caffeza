@@ -1,20 +1,22 @@
 import { useState } from 'react';
 
+import { BackIcon } from './icons/index.jsx';
+
 /**
  * A large on-screen numeric keypad, for every money and quantity entry on a
- * service screen.
+ * service screen. DESIGN-SYSTEM-V2 section 9: kept from version 1, restyled,
+ * with the display in `num-hero` on `sunken`.
  *
- * Not a text input with a system keyboard. The operator here may be standing,
- * in a hurry, and the system keyboard's tiny number row is the wrong tool for
- * a cashier entering a payment or a storekeeper entering a stock count.
+ * Not a text input with a system keyboard. The operator may be standing, in a
+ * hurry, and the phone keyboard's tiny number row is the wrong tool for money.
  *
- * Generic on purpose: M3 uses it for a payment amount and a discount, M4 uses
- * it for a stock quantity. The caller supplies the prefix or suffix ("₹", "%",
- * "g") and does the unit conversion; this component only ever produces the
- * plain string the person typed, entered digit by digit, in Plex Mono.
+ * Generic on purpose: M3 uses it for a payment and a discount, M4 for a stock
+ * quantity. The caller supplies the prefix or suffix ("₹", "%", "g") and does
+ * the unit conversion; this component only produces the plain string typed.
  *
- * `onChange` fires on every keystroke so a caller can show live, derived text
- * underneath the display — M4's "2 kg = 2000 g" working, for one.
+ * `onChange` fires on every keystroke so a caller can show live derived text
+ * underneath the display. A physical keyboard works too: digits, the point,
+ * Backspace, and Enter to confirm, while the keypad has focus.
  */
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
@@ -35,11 +37,9 @@ export default function NumericKeypad({
   disabled = false,
   error = null,
   /**
-   * Hides the built-in Cancel/Confirm row. For a caller embedding the keypad
-   * inside its own panel that needs one shared confirm button covering more
-   * than just this value — DiscountPanel also needs a kind toggle and a
-   * reason before anything can be submitted, so it supplies its own footer
-   * and reads the typed value back through `onChange`.
+   * Hides the built-in Cancel/Confirm row, for a caller whose own footer
+   * confirms more than this value (DiscountPanel also needs a kind and a
+   * reason), reading the typed value back through `onChange`.
    */
   hideActions = false,
 }) {
@@ -78,59 +78,46 @@ export default function NumericKeypad({
 
   const canConfirm = value !== '' && value !== '.' && !busy && !disabled;
 
+  const onKeyDown = (event) => {
+    if (/^[0-9]$/.test(event.key)) press(event.key);
+    else if (event.key === '.') press('.');
+    else if (event.key === 'Backspace') backspace();
+    else if (event.key === 'Enter' && canConfirm && !hideActions) onConfirm?.(value);
+    else return;
+    event.preventDefault();
+  };
+
   const displayValue = value === '' ? '0' + (allowDecimal ? '.00' : '') : value;
 
   const keyBase =
-    'flex min-h-[64px] items-center justify-center rounded-xl border border-black/5 shadow-card bg-white ' +
-    'font-mono text-2xl font-medium text-ink transition-transform duration-100 active:translate-y-0.5 ' +
-    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ' +
+    'flex min-h-16 items-center justify-center rounded-lg border border-line bg-surface ' +
+    'type-num-tile text-ink transition-colors hover:bg-sunken active:bg-sunken ' +
     'disabled:opacity-40';
 
   return (
-    <div className="flex w-full flex-col gap-4">
-      {title && (
-        <p className="text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
-          {title}
-        </p>
-      )}
+    <div className="flex w-full flex-col gap-4" onKeyDown={onKeyDown}>
+      {title && <p className="type-label text-muted">{title}</p>}
 
-      {/*
-        The value being typed. This is what "numbers carry the meaning" means
-        in practice: it is the largest, plainest thing in this component.
-      */}
-      <div className="flex items-baseline justify-center gap-1 rounded-xl border border-black/5 shadow-card bg-white px-4 py-5">
-        {prefix && <span className="font-mono text-2xl text-steel">{prefix}</span>}
-        <span className="font-mono text-[40px] font-semibold leading-none text-ink" aria-live="polite">
+      <div className="flex items-baseline justify-center gap-1 rounded-lg bg-sunken px-4 py-4">
+        {prefix && <span className="type-num-tile text-muted">{prefix}</span>}
+        <span className="type-num-hero text-ink" aria-live="polite">
           {displayValue}
         </span>
-        {suffix && <span className="font-mono text-2xl text-steel">{suffix}</span>}
+        {suffix && <span className="type-num-tile text-muted">{suffix}</span>}
       </div>
 
-      {helperText && (
-        <p className="text-center text-[13px] leading-[18px] text-steel">{helperText}</p>
-      )}
-      {error && <p className="text-center text-[13px] leading-[18px] text-mirch">{error}</p>}
+      {helperText && <p className="type-caption text-center text-muted">{helperText}</p>}
+      {error && <p className="type-caption text-center text-alert">{error}</p>}
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         {DIGITS.map((digit) => (
-          <button
-            key={digit}
-            type="button"
-            className={keyBase}
-            onClick={() => press(digit)}
-            disabled={busy || disabled}
-          >
+          <button key={digit} type="button" className={keyBase} onClick={() => press(digit)} disabled={busy || disabled}>
             {digit}
           </button>
         ))}
 
-        <button
-          type="button"
-          className={keyBase}
-          onClick={backspace}
-          disabled={busy || disabled || value === ''}
-        >
-          <span aria-hidden="true">⌫</span>
+        <button type="button" className={keyBase} onClick={backspace} disabled={busy || disabled || value === ''}>
+          <BackIcon />
           <span className="sr-only">Backspace</span>
         </button>
 
@@ -139,22 +126,12 @@ export default function NumericKeypad({
         </button>
 
         {allowDecimal ? (
-          <button
-            type="button"
-            className={keyBase}
-            onClick={() => press('.')}
-            disabled={busy || disabled || value.includes('.')}
-          >
+          <button type="button" className={keyBase} onClick={() => press('.')} disabled={busy || disabled || value.includes('.')}>
             .
           </button>
         ) : (
-          <button
-            type="button"
-            className={keyBase}
-            onClick={clear}
-            disabled={busy || disabled || value === ''}
-          >
-            <span className="text-sm font-semibold">Clear</span>
+          <button type="button" className={keyBase} onClick={clear} disabled={busy || disabled || value === ''}>
+            <span className="type-label">Clear</span>
           </button>
         )}
       </div>
@@ -166,7 +143,7 @@ export default function NumericKeypad({
               type="button"
               onClick={onCancel}
               disabled={busy}
-              className="h-14 flex-1 rounded-xl border-2 border-steel/40 text-[15px] font-semibold text-steel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel disabled:opacity-50"
+              className="type-button min-h-14 flex-1 rounded-lg border border-ink bg-surface text-ink hover:bg-sunken disabled:opacity-50"
             >
               {cancelLabel}
             </button>
@@ -175,7 +152,7 @@ export default function NumericKeypad({
             type="button"
             onClick={() => canConfirm && onConfirm(value)}
             disabled={!canConfirm}
-            className="h-14 flex-[2] rounded-xl bg-chana text-[15px] font-semibold text-ink transition-transform duration-100 active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+            className="type-button min-h-14 flex-[2] rounded-lg bg-accent text-on-accent hover:brightness-110 disabled:opacity-50"
           >
             {busy ? 'Working…' : confirmLabel}
           </button>

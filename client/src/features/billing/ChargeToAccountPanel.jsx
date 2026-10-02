@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { listAccounts } from '../../api/accounts.js';
-import { formatPaise } from '../../utils/formatMoney.js';
+
 import { errorMessage } from './errorCopy.js';
-import { BILL_LABELS } from './labels.js';
-import PanelShell from './PanelShell.jsx';
+import { LABELS } from '../i18n/labels.js';
+import Sheet from '../../components/ui/Sheet.jsx';
+import Money from '../../components/ui/Money.jsx';
 
 /**
  * Charging a bill to an On Hold account. P09. OWNER and MANAGER.
@@ -25,14 +26,14 @@ export default function ChargeToAccountPanel({ owedInPaise, isBusy, error, onCan
   const accounts = (query.data ?? []).filter((account) => account.name.toLowerCase().includes(term));
 
   return (
-    <PanelShell title="Charge to account" onCancel={onCancel}>
-      <p className="mb-4 text-[13px] leading-[18px] text-steel">
-        On Hold: <span className="font-mono text-ink">{formatPaise(owedInPaise)}</span> goes on the
+    <Sheet title="Charge to account" onCancel={onCancel}>
+      <p className="mb-4 type-caption text-muted">
+        On Hold: <span className="font-mono text-ink"><Money paise={owedInPaise} /></span> goes on the
         account and is collected later.
       </p>
 
       <label className="mb-3 block">
-        <span className="mb-1 block text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
+        <span className="mb-1 block type-label text-muted">
           Find an account
         </span>
         <input
@@ -40,14 +41,14 @@ export default function ChargeToAccountPanel({ owedInPaise, isBusy, error, onCan
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="W-330 Office"
-          className="w-full rounded-xl border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
+          className="w-full rounded-lg min-h-12 border border-muted bg-surface px-3 py-2 type-body placeholder:text-muted"
         />
       </label>
 
-      {query.isPending && <p className="text-[13px] text-steel">Loading accounts…</p>}
-      {query.isError && <p className="text-[13px] text-mirch">{errorMessage(query.error)}</p>}
+      {query.isPending && <p className="type-caption text-muted">Loading accounts…</p>}
+      {query.isError && <p className="type-caption text-alert">{errorMessage(query.error)}</p>}
 
-      <ul className="mb-4 divide-y divide-steel/15">
+      <ul className="mb-4 divide-y divide-line">
         {accounts.map((account) => (
           <li key={account.id}>
             <button
@@ -56,17 +57,17 @@ export default function ChargeToAccountPanel({ owedInPaise, isBusy, error, onCan
               onClick={() => setChosen(account)}
               className={[
                 'flex min-h-[52px] w-full items-center justify-between gap-3 px-2 text-left',
-                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                chosen?.id === account.id ? 'bg-chana/20' : '',
+                '',
+                chosen?.id === account.id ? 'bg-sunken font-semibold' : 'hover:bg-sunken',
               ].join(' ')}
             >
-              <span className="text-[15px] leading-[22px]">{account.name}</span>
-              <span className="font-mono text-[13px] text-steel">{formatPaise(account.outstandingInPaise)}</span>
+              <span className="type-body">{account.name}</span>
+              <span className="type-num-meta text-muted"><Money paise={account.outstandingInPaise} /></span>
             </button>
           </li>
         ))}
         {query.isSuccess && accounts.length === 0 && (
-          <li className="py-3 text-[13px] text-steel">No account matches.</li>
+          <li className="py-3 type-caption text-muted">No account matches.</li>
         )}
       </ul>
 
@@ -78,7 +79,7 @@ export default function ChargeToAccountPanel({ owedInPaise, isBusy, error, onCan
             maxLength={40}
             onChange={(event) => setNewName(event.target.value)}
             placeholder="New account name"
-            className="min-w-0 flex-1 rounded-xl border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] focus:border-ink focus:outline-none"
+            className="min-w-0 flex-1 rounded-lg min-h-12 border border-muted bg-surface px-3 py-2 type-body"
           />
           <button
             type="button"
@@ -92,7 +93,7 @@ export default function ChargeToAccountPanel({ owedInPaise, isBusy, error, onCan
                 query.refetch();
               }
             }}
-            className="min-h-[48px] rounded-xl border border-black/5 shadow-card px-3 text-[13px] font-semibold disabled:opacity-50"
+            className="min-h-12 rounded-lg border border-line px-3 type-caption disabled:opacity-50"
           >
             Add
           </button>
@@ -101,31 +102,31 @@ export default function ChargeToAccountPanel({ owedInPaise, isBusy, error, onCan
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="mb-4 min-h-[44px] text-[13px] font-medium text-steel underline"
+          className="mb-4 min-h-12 type-caption text-accent underline-offset-4 underline"
         >
           Add account
         </button>
       )}
 
-      {error && <p className="mb-3 text-[13px] leading-[18px] text-mirch">{error}</p>}
+      {error && <p className="mb-3 type-caption text-alert">{error}</p>}
 
       <div className="flex gap-2">
         <button
           type="button"
           onClick={onCancel}
-          className="h-14 flex-1 rounded-xl border-2 border-steel/40 text-[15px] font-semibold text-steel"
+          className="min-h-14 flex-1 rounded-lg border border-ink bg-surface type-button text-ink hover:bg-sunken"
         >
-          {BILL_LABELS.cancel.en}
+          {LABELS.cancel}
         </button>
         <button
           type="button"
           disabled={!chosen || isBusy}
           onClick={() => onConfirm(chosen.id)}
-          className="h-14 flex-[2] rounded-xl bg-chana text-[15px] font-semibold text-ink transition-transform duration-100 active:translate-y-0.5 disabled:opacity-50"
+          className="min-h-14 flex-[2] rounded-lg bg-accent type-button text-on-accent disabled:opacity-50"
         >
           {isBusy ? 'Charging…' : chosen ? `Charge to ${chosen.name}` : 'Choose an account'}
         </button>
       </div>
-    </PanelShell>
+    </Sheet>
   );
 }

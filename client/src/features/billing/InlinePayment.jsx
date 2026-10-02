@@ -1,8 +1,10 @@
 import { useState } from 'react';
 
+import Money from '../../components/ui/Money.jsx';
 import NumericKeypad from '../../components/ui/NumericKeypad.jsx';
-import { formatPaise, paiseToInput, parseRupeesToPaise } from '../../utils/formatMoney.js';
-import { BILL_LABELS } from './labels.js';
+import { paiseToInput, parseRupeesToPaise } from '../../utils/formatMoney.js';
+import Bilingual from '../i18n/Bilingual.jsx';
+import { LABELS } from '../i18n/labels.js';
 import MethodButtons from './MethodButtons.jsx';
 
 /**
@@ -21,22 +23,21 @@ export default function InlinePayment({ methods, outstandingInPaise, isBusy, err
 
   return (
     <section aria-label="Take payment" className="flex flex-col gap-4">
-      <div className="rounded-2xl bg-white p-4 shadow-card">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[16px] font-semibold leading-6">Select payment method</h2>
-          <span className="text-[12px] text-steel">
-            Outstanding{' '}
-            <span className="font-mono font-semibold text-ink">{formatPaise(outstandingInPaise)}</span>
+      <div className="rounded-[10px] border border-line bg-surface p-4">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="type-heading">Payment method</h2>
+          <span className="type-label text-muted">
+            {LABELS.outstanding} <Money paise={outstandingInPaise} size="num" className="text-ink" />
           </span>
         </div>
         <MethodButtons methods={methods} selected={method?.code} onPick={setMethod} />
       </div>
 
       {method && (
-        <div className="rounded-2xl bg-white p-4 shadow-card">
+        <div className="rounded-[10px] border border-line bg-surface p-4">
           {method.code !== 'CASH' && (
             <label className="mb-4 block">
-              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.06em] text-steel">
+              <span className="mb-1 block type-label text-muted">
                 Reference (optional)
               </span>
               <input
@@ -51,18 +52,18 @@ export default function InlinePayment({ methods, outstandingInPaise, isBusy, err
                       ? 'Order or booking number'
                       : 'Last 4 digits'
                 }
-                className="h-12 w-full rounded-xl bg-linen px-4 text-[15px] placeholder:text-steel focus:bg-white focus:outline-none focus:ring-2 focus:ring-chana"
+                className="min-h-12 w-full rounded-lg border border-muted bg-surface px-4 type-body placeholder:text-muted"
               />
             </label>
           )}
 
           <NumericKeypad
             key={`${method.code}-${outstandingInPaise}`}
-            title={`${BILL_LABELS.amountReceived.en} · ${method.name}`}
+            title={`${LABELS.amountReceived} · ${method.name}`}
             prefix="₹"
             allowDecimal
             initialValue={paiseToInput(outstandingInPaise)}
-            confirmLabel={`${BILL_LABELS.recordPayment.en}`}
+            confirmLabel={<Bilingual k="recordPayment" align="center" />}
             cancelLabel="Reset"
             busy={isBusy}
             error={error}

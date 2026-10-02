@@ -1,11 +1,14 @@
 import { useState } from 'react';
 
-import { formatPaise } from '../../utils/formatMoney.js';
+import { MinusIcon, PlusIcon } from '../../components/ui/icons/index.jsx';
+import Money, { moneyText } from '../../components/ui/Money.jsx';
+import Sheet from '../../components/ui/Sheet.jsx';
+import StateChip from '../../components/ui/StateChip.jsx';
 
 /**
  * Choosing a size, extras, a quantity and a note before a line goes on.
  *
- * A slide-over from the right, not a modal. DESIGN-SYSTEM.md section 6: the
+ * A sheet, not a modal. DESIGN-SYSTEM-V2 section 9: the
  * waiter needs to keep seeing the order they are adding to while they pick.
  *
  * Nothing here sends a price. The panel shows prices so the waiter can read
@@ -39,208 +42,147 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
       current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
     );
 
+  const pick = () =>
+    onConfirm({
+      menuItemId: item.id,
+      ...(variantId ? { variantId } : {}),
+      quantity,
+      ...(addOnIds.length > 0 ? { addOnIds } : {}),
+      ...(notes.trim() ? { notes: notes.trim() } : {}),
+    });
+
+  const choice = (selected, out) =>
+    [
+      'flex items-center justify-between gap-3 rounded-lg border px-3 transition-colors',
+      out ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+      selected ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
+    ].join(' ');
+
   return (
-    <div className="fixed inset-0 z-30 flex">
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onCancel}
-        className="flex-1 bg-ink/30"
-      />
-
-      <aside
-        role="dialog"
-        aria-label={`Add ${item.name}`}
-        className="flex w-full max-w-md flex-col bg-white shadow-[-8px_0_30px_rgba(28,27,25,0.18)]"
-      >
-        <header className="flex items-start justify-between gap-3 px-5 pb-2 pt-5">
-          <div>
-            <h2 className="text-[24px] font-semibold leading-8 tracking-[-0.015em]">{item.name}</h2>
-            {item.description && (
-              <p className="mt-1 text-[14px] leading-5 text-steel">{item.description}</p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            aria-label="Close"
-            className="flex size-12 flex-none items-center justify-center rounded-full bg-linen-2 text-steel hover:bg-linen-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-          >
-            ✕
-          </button>
-        </header>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {item.variants.length > 0 && (
-            <fieldset className="mb-6 border-t border-black/5 pt-3">
-              <legend className="sr-only">Size</legend>
-              <div className="mb-2.5 flex items-center justify-between">
-                <span className="text-[12px] font-semibold uppercase tracking-wide">Choose size</span>
-                <span className="text-[11px] font-semibold text-steel">Required · choose 1</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {item.variants.map((variant) => {
-                  // P04. An unavailable size is shown, greyed, and cannot be picked.
-                  const out = variant.isAvailable === false;
-                  return (
-                    <label
-                      key={variant.id}
-                      className={[
-                        'flex min-h-[96px] flex-col justify-between rounded-xl border-2 p-3.5 transition-colors',
-                        out ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
-                        variantId === variant.id
-                          ? 'border-chana bg-chana-soft'
-                          : 'border-transparent bg-linen hover:bg-linen-2',
-                      ].join(' ')}
-                    >
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="text-[13px] font-semibold">{variant.name}</span>
-                        <input
-                          type="radio"
-                          name="variant"
-                          checked={variantId === variant.id}
-                          disabled={out}
-                          onChange={() => setVariantId(variant.id)}
-                          className="size-4 accent-[var(--color-chana)]"
-                        />
-                      </span>
-                      <span className="mt-2 font-mono text-[16px] font-bold leading-[22px]">
-                        {out ? (
-                          <span className="font-sans text-[13px] font-medium text-mirch">Out of stock</span>
-                        ) : (
-                          formatPaise(variant.priceInPaise)
-                        )}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
-          )}
-
-          {item.addOns.length > 0 && (
-            <fieldset className="mb-6 border-t border-black/5 pt-3">
-              <legend className="sr-only">Extras</legend>
-              <div className="mb-2.5 flex items-center justify-between">
-                <span className="text-[12px] font-semibold uppercase tracking-wide">Extras</span>
-                <span className="text-[11px] font-semibold text-steel">Optional</span>
-              </div>
-              <div className="space-y-2">
-                {item.addOns.map((addOn) => {
-                  // P04. An unavailable extra is shown, greyed, and cannot be picked.
-                  const out = addOn.isAvailable === false;
-                  return (
-                    <label
-                      key={addOn.id}
-                      className={[
-                        'flex min-h-[52px] items-center justify-between gap-3 rounded-xl border-2 px-3 transition-colors',
-                        out ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
-                        addOnIds.includes(addOn.id)
-                          ? 'border-chana bg-chana-soft'
-                          : 'border-transparent bg-linen hover:bg-linen-2',
-                      ].join(' ')}
-                    >
-                      <span className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={addOnIds.includes(addOn.id)}
-                          disabled={out}
-                          onChange={() => toggleAddOn(addOn.id)}
-                          className="size-5 accent-[var(--color-chana)]"
-                        />
-                        <span className="text-[14px] leading-5">{addOn.name}</span>
-                      </span>
-                      <span className="font-mono text-[14px] leading-5 text-steel">
-                        {out ? (
-                          <span className="font-sans text-[13px] text-mirch">Out of stock</span>
-                        ) : (
-                          `+${formatPaise(addOn.priceInPaise)}`
-                        )}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
-          )}
-
-          <label className="block border-t border-black/5 pt-3">
-            <span className="mb-2 block text-[12px] font-semibold uppercase tracking-wide">
-              Note for the kitchen
-            </span>
-            <textarea
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              rows={2}
-              maxLength={200}
-              placeholder="less spicy, no onion"
-              className="w-full rounded-xl bg-linen px-4 py-3 text-[14px] leading-5 placeholder:text-steel focus:bg-white focus:outline-none focus:ring-2 focus:ring-chana"
-            />
-          </label>
-        </div>
-
-        <footer className="flex items-center gap-3 border-t border-black/5 px-4 py-3">
+    <Sheet
+      title={item.name}
+      onClose={onCancel}
+      footer={
+        <div className="flex items-center gap-3">
           <QuantityStepper value={quantity} onChange={setQuantity} />
           <button
             type="button"
             // Every size out of stock means nothing here can be ordered.
             disabled={isBusy || (item.variants.length > 0 && !variantId)}
-            onClick={() =>
-              onConfirm({
-                menuItemId: item.id,
-                ...(variantId ? { variantId } : {}),
-                quantity,
-                ...(addOnIds.length > 0 ? { addOnIds } : {}),
-                ...(notes.trim() ? { notes: notes.trim() } : {}),
-              })
-            }
-            className="flex h-14 flex-1 items-center justify-between rounded-full bg-chana px-5 text-[15px] font-semibold text-ink shadow-card transition-transform active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
+            onClick={pick}
+            className="flex min-h-14 flex-1 items-center justify-between gap-2 rounded-lg bg-accent px-4 text-on-accent hover:brightness-110 disabled:opacity-60"
           >
-            <span>{isBusy ? 'Adding…' : 'Add to order'}</span>
-            <span className="font-mono font-bold">{formatPaise(previewTotal)} →</span>
+            <span className="type-button">{isBusy ? 'Adding…' : 'Add to order'}</span>
+            <Money paise={previewTotal} size="num" />
           </button>
-        </footer>
-      </aside>
-    </div>
+        </div>
+      }
+    >
+      {item.description && <p className="type-body mb-4 text-muted">{item.description}</p>}
+
+      {item.variants.length > 0 && (
+        <fieldset className="mb-6">
+          <legend className="type-label mb-2 flex w-full justify-between">
+            <span>Size</span>
+            <span className="text-muted">Choose one</span>
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            {item.variants.map((variant) => {
+              // P04. An unavailable size is shown, greyed, and cannot be picked.
+              const out = variant.isAvailable === false;
+              return (
+                <label key={variant.id} className={`${choice(variantId === variant.id, out)} min-h-20 flex-col !items-start !justify-between py-3`}>
+                  <span className="flex w-full items-center justify-between gap-2">
+                    <span className="type-body font-semibold">{variant.name}</span>
+                    <input
+                      type="radio"
+                      name="variant"
+                      checked={variantId === variant.id}
+                      disabled={out}
+                      onChange={() => setVariantId(variant.id)}
+                      className="size-5 accent-[var(--color-accent)]"
+                    />
+                  </span>
+                  {out ? <StateChip state="alert" word="Out of stock" size="sm" /> : <Money paise={variant.priceInPaise} size="num" />}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      )}
+
+      {item.addOns.length > 0 && (
+        <fieldset className="mb-6">
+          <legend className="type-label mb-2 flex w-full justify-between">
+            <span>Extras</span>
+            <span className="text-muted">Optional</span>
+          </legend>
+          <div className="flex flex-col gap-2">
+            {item.addOns.map((addOn) => {
+              // P04. An unavailable extra is shown, greyed, and cannot be picked.
+              const out = addOn.isAvailable === false;
+              return (
+                <label key={addOn.id} className={`${choice(addOnIds.includes(addOn.id), out)} min-h-12`}>
+                  <span className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={addOnIds.includes(addOn.id)}
+                      disabled={out}
+                      onChange={() => toggleAddOn(addOn.id)}
+                      className="size-5 accent-[var(--color-accent)]"
+                    />
+                    <span className="type-body">{addOn.name}</span>
+                  </span>
+                  {out ? (
+                    <StateChip state="alert" word="Out of stock" size="sm" />
+                  ) : (
+                    <span className="type-num text-muted">+{moneyText(addOn.priceInPaise)}</span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      )}
+
+      <label className="block">
+        <span className="type-label mb-2 block">Note for the kitchen</span>
+        <textarea
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          rows={2}
+          maxLength={200}
+          placeholder="less spicy, no onion"
+          className="type-body w-full rounded-lg min-h-12 border border-muted bg-surface px-3 py-2 text-ink placeholder:text-muted"
+        />
+      </label>
+    </Sheet>
   );
 }
 
 /** A stepper, because a number input on a tablet raises the wrong keyboard. */
 export function QuantityStepper({ value, onChange, min = 1, max = 999, disabled }) {
   return (
-    <div className="inline-flex items-center gap-1 rounded-full bg-linen p-1">
-      <StepperButton
-        label="One fewer"
-        symbol="−"
-        disabled={disabled || value <= min}
-        onClick={() => onChange(Math.max(min, value - 1))}
-      />
-      <span
-        aria-live="polite"
-        className="w-10 text-center font-mono text-[18px] font-semibold leading-6"
-      >
+    <div className="inline-flex items-center rounded-lg border border-ink bg-surface">
+      <StepperButton label="One fewer" icon={<MinusIcon />} disabled={disabled || value <= min} onClick={() => onChange(Math.max(min, value - 1))} />
+      <span aria-live="polite" className="type-num-tile w-10 text-center">
         {value}
       </span>
-      <StepperButton
-        label="One more"
-        symbol="+"
-        disabled={disabled || value >= max}
-        onClick={() => onChange(Math.min(max, value + 1))}
-      />
+      <StepperButton label="One more" icon={<PlusIcon />} disabled={disabled || value >= max} onClick={() => onChange(Math.min(max, value + 1))} />
     </div>
   );
 }
 
-function StepperButton({ label, symbol, onClick, disabled }) {
+function StepperButton({ label, icon, onClick, disabled }) {
   return (
     <button
       type="button"
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className="flex size-10 items-center justify-center rounded-full bg-white text-[20px] leading-none shadow-card transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
+      className="flex size-12 items-center justify-center rounded-lg hover:bg-sunken disabled:opacity-40"
     >
-      {symbol}
+      {icon}
     </button>
   );
 }

@@ -53,7 +53,7 @@ export function printText(text, paperMm = 80) {
       doc.write(`<!doctype html><html><head><meta charset="utf-8" /><title>Print</title>
 <style>
   @page { size: ${paper.widthMm}mm auto; margin: 0; }
-  html, body { margin: 0; padding: 0; background: #fff; }
+  html, body { margin: 0; padding: 0; background: white; }
   pre {
     margin: 0;
     padding: 2mm;
@@ -61,7 +61,7 @@ export function printText(text, paperMm = 80) {
     font-size: ${fontMm.toFixed(2)}mm;
     line-height: 1.25;
     white-space: pre;
-    color: #000;
+    color: black;
   }
 </style></head><body><pre>${escapeHtml(text)}</pre></body></html>`);
       doc.close();

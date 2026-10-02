@@ -2,6 +2,10 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 
+import { BackIcon } from '../../components/ui/icons/index.jsx';
+import Money from '../../components/ui/Money.jsx';
+import Sheet from '../../components/ui/Sheet.jsx';
+import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { getMenuTree } from '../../api/menu.js';
 import {
@@ -16,9 +20,9 @@ import {
   moveOrderToTable,
 } from '../../api/orders.js';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { formatPaise } from '../../utils/formatMoney.js';
 import { formatTimeIst } from '../../utils/formatDate.js';
 import BillOrderButton from '../billing/BillOrderButton.jsx';
+import Bilingual from '../i18n/Bilingual.jsx';
 import CancelPanel from './CancelPanel.jsx';
 import { LINE_CANCEL_REASONS, ORDER_CANCEL_REASONS } from './cancelReasons.js';
 import LineOptionsPanel from './LineOptionsPanel.jsx';
@@ -36,6 +40,22 @@ const CAN_CANCEL_ORDER = ['OWNER', 'MANAGER'];
 const REACHED_KITCHEN = ['FIRED', 'READY', 'SERVED'];
 
 const ORDER_TYPE_LABELS = { DINE_IN: 'Dine-in', TAKEAWAY: 'Takeaway', DELIVERY: 'Delivery' };
+
+/** The order's state as a chip, in the floor's words. */
+function orderChip(order) {
+  switch (order.status) {
+    case 'READY_TO_BILL':
+      return { state: 'served', word: 'Served, waiting for the cashier' };
+    case 'BILLED':
+      return { state: 'ok', word: 'Billed' };
+    case 'CANCELLED':
+      return { state: 'alert', word: 'Cancelled' };
+    case 'NO_CHARGE':
+      return { state: 'ok', word: 'No Charge, no bill' };
+    default:
+      return { state: 'open', word: 'Open' };
+  }
+}
 
 /**
  * One order.
@@ -125,14 +145,14 @@ export default function OrderScreenPage() {
   }, [order]);
 
   if (orderQuery.isPending) {
-    return <Shell><p className="text-[15px] text-steel">Loading the order…</p></Shell>;
+    return <Shell><p className="type-body text-muted">Loading the order…</p></Shell>;
   }
 
   if (orderQuery.isError) {
     return (
       <Shell>
-        <p className="text-[15px] text-mirch">{errorMessage(orderQuery.error)}</p>
-        <Link to="/floor" className="mt-3 inline-block text-[13px] font-medium underline">
+        <p className="type-body text-alert">{errorMessage(orderQuery.error)}</p>
+        <Link to="/floor" className="mt-3 inline-block type-caption underline">
           Back to the tables
         </Link>
       </Shell>
@@ -184,41 +204,33 @@ export default function OrderScreenPage() {
 
   return (
     <Shell>
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-4 shadow-card">
-        <div className="flex min-w-0 items-center gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <Link
             to="/floor"
-            aria-label="Back to the tables"
-            className="flex size-14 flex-none items-center justify-center rounded-xl bg-linen text-[22px] shadow-card transition-transform hover:bg-linen-2 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            aria-label="Back to the floor"
+            className="flex size-12 flex-none items-center justify-center rounded-lg border border-line bg-surface hover:bg-sunken"
           >
-            ←
+            <BackIcon />
           </Link>
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="rounded-full bg-chana px-3 py-1 font-mono text-[13px] font-bold uppercase tracking-wider text-ink">
-                {placeLabel(order)}
-              </h1>
-              <span className="flex items-center gap-1.5 rounded-full bg-patta-tint px-3 py-1 text-[12px] font-medium">
-                {order.guestCount != null &&
-                  `${order.guestCount} ${order.guestCount === 1 ? 'guest' : 'guests'} · `}
-                {ORDER_TYPE_LABELS[order.orderType]}
-              </span>
-              <span className="rounded-lg bg-linen px-2.5 py-1 font-mono text-[12px] text-steel">
-                #{order.orderNumber}
-                {order.openedAt && ` · opened ${formatTimeIst(order.openedAt)}`}
-              </span>
+              <h1 className="type-title">{placeLabel(order)}</h1>
+              <StateChip {...orderChip(order)} size="sm" />
             </div>
-            <p className="mt-1 text-[12px] leading-4 text-steel">
-              {order.status === 'READY_TO_BILL'
-                ? 'Everything served. Waiting for the cashier.'
-                : order.status === 'CANCELLED'
-                  ? 'This order was cancelled.'
-                  : order.status === 'NO_CHARGE'
-                    ? 'Given No Charge. No bill.'
-                    : order.status === 'BILLED'
-                      ? 'Billed.'
-                      : order.customerName || 'Open'}
+            <p className="type-caption text-muted">
+              {ORDER_TYPE_LABELS[order.orderType]}
+              {order.guestCount != null && ` · ${order.guestCount} ${order.guestCount === 1 ? 'guest' : 'guests'}`}
+              {' · '}
+              <span className="type-num-meta">#{order.orderNumber}</span>
+              {order.openedAt && (
+                <>
+                  {' · opened '}
+                  <span className="type-num-meta">{formatTimeIst(order.openedAt)}</span>
+                </>
+              )}
+              {order.customerName && ` · ${order.customerName}`}
             </p>
           </div>
         </div>
@@ -232,7 +244,7 @@ export default function OrderScreenPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search dishes"
-                className="h-14 w-full rounded-xl bg-linen px-4 text-[15px] placeholder:text-steel focus:bg-white focus:outline-none focus:ring-2 focus:ring-chana"
+                className="type-body min-h-12 w-full rounded-lg border border-muted bg-surface px-4 text-ink placeholder:text-muted"
               />
             </label>
           )}
@@ -241,7 +253,7 @@ export default function OrderScreenPage() {
               type="button"
               disabled={write.isPending}
               onClick={() => setIsMoving(true)}
-              className="h-14 whitespace-nowrap rounded-xl bg-linen px-4 text-[13px] font-medium hover:bg-linen-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+              className="type-button min-h-12 whitespace-nowrap rounded-lg border border-ink bg-surface px-4 hover:bg-sunken disabled:opacity-50"
             >
               Switch table
             </button>
@@ -291,29 +303,21 @@ export default function OrderScreenPage() {
               isCounter ? 'lg:hidden' : '',
             ].join(' ')}
           >
-            <div className="flex items-center justify-between gap-3 rounded-2xl bg-ink p-2 pl-4 text-white shadow-[0_8px_30px_rgba(28,27,25,0.25)]">
+            <div className="flex items-center justify-between gap-3 rounded-[10px] border border-line bg-surface p-2 pl-4 shadow-float">
               <button
                 type="button"
                 onClick={() => setIsReviewing(true)}
-                className="flex min-w-0 items-center gap-3 rounded-xl text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                className="flex min-h-12 min-w-0 flex-col items-start rounded-lg text-left"
               >
-                <span className="hidden max-w-[7rem] truncate rounded-xl bg-chana px-3 py-3 font-mono text-[12px] font-bold text-ink sm:block">
-                  {placeLabel(order)}
+                <span className="flex items-baseline gap-2">
+                  <span className="type-label">
+                    <span className="type-num">{itemCount}</span> {itemCount === 1 ? 'item' : 'items'}
+                  </span>
+                  <Money paise={order.totals.subtotalInPaise} size="num" />
                 </span>
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2">
-                    <span className="text-[14px] font-bold">
-                      <span className="font-mono">{itemCount}</span> {itemCount === 1 ? 'item' : 'items'}
-                    </span>
-                    <span className="text-white/40">·</span>
-                    <span className="font-mono text-[16px] font-bold text-chana">
-                      {formatPaise(order.totals.subtotalInPaise)}
-                    </span>
-                  </span>
-                  <span className="block text-[12px] text-white/70">
-                    Item total, before GST
-                    {pendingCount > 0 && ` · ${pendingCount} not sent`}
-                  </span>
+                <span className="type-caption text-muted">
+                  Item total, before GST
+                  {pendingCount > 0 && ` · ${pendingCount} not sent`}
                 </span>
               </button>
 
@@ -321,7 +325,7 @@ export default function OrderScreenPage() {
                 <button
                   type="button"
                   onClick={() => setIsReviewing(true)}
-                  className="hidden h-11 items-center rounded-xl bg-white/10 px-4 text-[13px] font-medium hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:flex"
+                  className="type-button hidden min-h-12 items-center rounded-lg px-4 hover:bg-sunken md:flex"
                 >
                   Review order
                 </button>
@@ -329,9 +333,13 @@ export default function OrderScreenPage() {
                   type="button"
                   disabled={pendingCount === 0 || write.isPending}
                   onClick={fire}
-                  className="h-14 rounded-full bg-chana px-5 text-[15px] font-bold text-ink shadow-card transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-50 sm:px-7"
+                  className="min-h-14 rounded-lg bg-accent px-5 text-on-accent hover:brightness-110 disabled:opacity-50 sm:px-7"
                 >
-                  {pendingCount === 0 ? 'Nothing to send' : `Send ${pendingCount} to kitchen →`}
+                  {pendingCount === 0 ? (
+                    <span className="type-button">Nothing to send</span>
+                  ) : (
+                    <Bilingual k="sendToKitchen" en={`Send ${pendingCount} to kitchen`} keep align="center" />
+                  )}
                 </button>
               </div>
             </div>
@@ -341,58 +349,33 @@ export default function OrderScreenPage() {
           {isCounter && (
             <aside
               aria-label="This order"
-              className="sticky top-4 hidden max-h-[calc(100vh-2rem)] w-[360px] flex-none flex-col overflow-hidden rounded-2xl bg-white shadow-lift lg:flex xl:w-[420px]"
+              className="sticky top-4 hidden max-h-[calc(100vh-2rem)] w-[360px] flex-none flex-col overflow-hidden rounded-[10px] border border-line bg-surface lg:flex xl:w-[420px]"
             >
-              <div className="flex items-center justify-between bg-linen/60 px-5 py-4">
+              <div className="flex items-center justify-between border-b border-line px-4 py-3">
                 <div>
-                  <h2 className="text-[20px] font-semibold leading-7">Current order</h2>
-                  <p className="text-[12px] text-steel">
+                  <h2 className="type-heading">Current order</h2>
+                  <p className="type-caption text-muted">
                     {placeLabel(order)}
                     {order.customerName && ` · ${order.customerName}`}
                     {order.customerPhone && ` · ${order.customerPhone}`}
                   </p>
                 </div>
-                <span className="rounded bg-ink px-2 py-0.5 font-mono text-[11px] font-bold text-white">
-                  #{order.orderNumber}
-                </span>
+                <span className="type-num-meta text-muted">#{order.orderNumber}</span>
               </div>
               {details}
             </aside>
           )}
         </div>
       ) : (
-        <section aria-label="This order" className="mx-auto w-full max-w-3xl rounded-2xl bg-white shadow-card">
+        <section aria-label="This order" className="mx-auto w-full max-w-3xl rounded-[10px] bg-surface border border-line">
           {details}
         </section>
       )}
 
       {isOpen && isReviewing && (
-        <div className="fixed inset-0 z-30 flex">
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={() => setIsReviewing(false)}
-            className="flex-1 bg-ink/30"
-          />
-          <aside
-            role="dialog"
-            aria-label="This order"
-            className="flex w-full max-w-md flex-col bg-white shadow-[-8px_0_30px_rgba(28,27,25,0.18)]"
-          >
-            <header className="flex items-center justify-between px-5 py-4">
-              <h2 className="text-[20px] font-semibold leading-7">{placeLabel(order)}</h2>
-              <button
-                type="button"
-                onClick={() => setIsReviewing(false)}
-                aria-label="Close"
-                className="flex size-10 items-center justify-center rounded-full bg-linen-2 text-steel hover:bg-linen-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-              >
-                ✕
-              </button>
-            </header>
-            {details}
-          </aside>
-        </div>
+        <Sheet title={placeLabel(order)} subtitle={`#${order.orderNumber}`} onClose={() => setIsReviewing(false)}>
+          {details}
+        </Sheet>
       )}
 
       {pickingItem && (
@@ -519,12 +502,10 @@ function OrderDetails({
         />
       </div>
 
-      <footer className="flex flex-col gap-2 border-t border-black/5 px-5 py-4">
+      <footer className="flex flex-col gap-2 border-t border-line px-5 py-4">
         <div className="flex items-baseline justify-between">
-          <span className="text-[13px] text-steel">Item total</span>
-          <span className="font-mono text-[18px] font-semibold">
-            {formatPaise(order.totals.subtotalInPaise)}
-          </span>
+          <span className="type-label text-muted">Item total</span>
+          <Money paise={order.totals.subtotalInPaise} size="tile" />
         </div>
 
         {isOpen && (
@@ -532,7 +513,7 @@ function OrderDetails({
             type="button"
             disabled={pendingCount === 0 || isBusy}
             onClick={onFire}
-            className="h-14 w-full rounded-full bg-chana text-[15px] font-semibold text-ink transition-transform active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+            className="type-button min-h-14 w-full rounded-lg bg-accent text-on-accent hover:brightness-110 disabled:opacity-50"
           >
             {pendingCount === 0 ? 'Nothing new to send' : `Send ${pendingCount} to the kitchen`}
           </button>
@@ -544,7 +525,7 @@ function OrderDetails({
             type="button"
             disabled={isBusy}
             onClick={onNoCharge}
-            className="h-12 w-full rounded-full bg-linen-2 text-[13px] font-medium hover:bg-linen-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+            className="type-button min-h-12 w-full rounded-lg border border-ink bg-surface hover:bg-sunken disabled:opacity-50"
           >
             No Charge
           </button>
@@ -555,7 +536,7 @@ function OrderDetails({
             type="button"
             disabled={isBusy}
             onClick={onCancelOrder}
-            className="h-12 w-full rounded-full text-[13px] font-medium text-mirch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch"
+            className="type-button min-h-12 w-full rounded-lg text-alert hover:bg-alert-tint"
           >
             Cancel the whole order
           </button>
@@ -567,6 +548,6 @@ function OrderDetails({
 
 function Shell({ children }) {
   return (
-    <main className="flex min-h-full flex-col gap-4 bg-paper px-4 pb-4 pt-4 lg:px-6">{children}</main>
+    <main className="v2 flex min-h-full flex-col gap-4 bg-ground px-4 pb-4 pt-4 text-ink lg:px-6">{children}</main>
   );
 }

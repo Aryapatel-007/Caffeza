@@ -6,9 +6,9 @@ import Spinner from '../../components/ui/Spinner.jsx';
 import * as attendanceApi from '../../api/attendance.js';
 import { listUsers } from '../../api/users.js';
 import { formatTimeIst } from '../../utils/formatDate.js';
-import Bilingual from './Bilingual.jsx';
+import Bilingual from '../i18n/Bilingual.jsx';
 import ClockConfirmation from './ClockConfirmation.jsx';
-import { CLOCK_LABELS } from './labels.js';
+import { LABELS } from '../i18n/labels.js';
 import PinPad from './PinPad.jsx';
 
 const ROSTER_KEY = ['clock-roster'];
@@ -86,8 +86,8 @@ export default function ClockScreen() {
       setMode('confirm');
     },
     onError: (error) => {
-      if (error?.code === 'PIN_LOCKED') setPinError(CLOCK_LABELS.pinLocked);
-      else if (error?.code === 'INVALID_PIN') setPinError(CLOCK_LABELS.wrongPin);
+      if (error?.code === 'PIN_LOCKED') setPinError('clockPinLocked');
+      else if (error?.code === 'INVALID_PIN') setPinError('clockWrongPin');
       else setPinError({ en: 'Could not reach the server. Try again.', hi: 'सर्वर नहीं मिला। फिर कोशिश करें।' });
     },
   });
@@ -149,7 +149,7 @@ export default function ClockScreen() {
     <main className="flex min-h-full flex-col bg-paper">
       <header className="flex items-center justify-between border-b border-black/5 px-5 py-4">
         <h1>
-          <Bilingual label={CLOCK_LABELS.title} size="lg" />
+          <Bilingual k="clockTitle" size="lg" />
         </h1>
         <span className="font-mono text-2xl font-semibold tabular-nums text-ink">
           {formatTimeIst(now)}
@@ -174,7 +174,7 @@ export default function ClockScreen() {
 
         {!managerNeeded && roster.length > 0 && (
           <>
-            <Bilingual label={CLOCK_LABELS.pickName} size="md" />
+            <Bilingual k="clockPickName" size="md" />
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {roster.map((person) => {
                 const open = openByUser.get(person.id);
@@ -205,7 +205,7 @@ export default function ClockScreen() {
                       />
                       {isIn && (
                         <span className="font-mono text-xs text-steel">
-                          {CLOCK_LABELS.since.en} {formatTimeIst(open.clockInAt)}
+                          {LABELS.clockSince} {formatTimeIst(open.clockInAt)}
                         </span>
                       )}
                     </div>

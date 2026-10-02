@@ -18,9 +18,9 @@ export default function HeatGrid({ rows, rowKey, buckets, formatValue, caption }
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
           <tr>
-            <th scope="col" className="sticky left-0 bg-white" />
+            <th scope="col" className="sticky left-0 bg-surface" />
             {buckets.map((bucket) => (
-              <th key={bucket.key} scope="col" className="px-0.5 text-center font-mono font-normal text-steel">
+              <th key={bucket.key} scope="col" className="px-0.5 text-center font-mono font-normal text-muted">
                 {bucket.label}
               </th>
             ))}
@@ -29,7 +29,7 @@ export default function HeatGrid({ rows, rowKey, buckets, formatValue, caption }
         <tbody>
           {rows.map((row) => (
             <tr key={row[rowKey]}>
-              <th scope="row" className="sticky left-0 bg-white pr-2 text-left font-medium">
+              <th scope="row" className="sticky left-0 bg-surface pr-2 text-left font-medium">
                 {row[rowKey].slice(0, 3)}
               </th>
               {buckets.map((bucket) => {

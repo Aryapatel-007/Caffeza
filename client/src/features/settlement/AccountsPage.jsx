@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 
 import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
@@ -16,9 +15,10 @@ import {
 import { listPaymentMethods } from '../../api/paymentMethods.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { formatBusinessDate } from '../../utils/formatDate.js';
-import { formatPaise, parseRupeesToPaise } from '../../utils/formatMoney.js';
+import { parseRupeesToPaise } from '../../utils/formatMoney.js';
 import { errorMessage } from '../billing/errorCopy.js';
 import { ROLES } from '../users/roles.js';
+import Money, { moneyText } from '../../components/ui/Money.jsx';
 
 /**
  * On Hold accounts. P09.
@@ -63,8 +63,8 @@ function CollectionForm({ account, onDone, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
-      <p className="text-[15px] font-semibold leading-6">Record collection</p>
+    <div className="grid gap-3 rounded-lg border border-line p-3">
+      <p className="type-body font-semibold">Record collection</p>
       <div className="flex flex-wrap gap-2">
         {inHand.map((entry) => (
           <button
@@ -73,15 +73,15 @@ function CollectionForm({ account, onDone, onError }) {
             aria-pressed={method === entry.code}
             onClick={() => setMethod(entry.code)}
             className={[
-              'min-h-12 rounded-xl border-2 px-4 text-[15px] font-semibold',
-              method === entry.code ? 'border-ink bg-chana/20' : 'border-steel/40 text-steel',
+              'min-h-12 rounded-lg border-2 px-4 type-body font-semibold',
+              method === entry.code ? 'border-ink bg-sunken' : 'border-muted text-muted',
             ].join(' ')}
           >
             {entry.name}
           </button>
         ))}
       </div>
-      <MoneyField label={`Amount, up to ${formatPaise(account.outstandingInPaise)}`} value={amount} onChange={setAmount} />
+      <MoneyField label={`Amount, up to ${moneyText(account.outstandingInPaise)}`} value={amount} onChange={setAmount} />
       <Input label="Reference, optional" maxLength={100} value={reference} onChange={(e) => setReference(e.target.value)} />
       <div>
         <Button
@@ -110,8 +110,8 @@ function AdjustForm({ account, onDone, onError }) {
   });
 
   return (
-    <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
-      <p className="text-[15px] font-semibold leading-6">Adjust balance</p>
+    <div className="grid gap-3 rounded-lg border border-line p-3">
+      <p className="type-body font-semibold">Adjust balance</p>
       <div className="grid grid-cols-2 gap-2">
         {[
           { value: 'DOWN', label: 'Owes less' },
@@ -123,8 +123,8 @@ function AdjustForm({ account, onDone, onError }) {
             aria-pressed={direction === option.value}
             onClick={() => setDirection(option.value)}
             className={[
-              'min-h-12 rounded-xl border-2 text-[15px] font-semibold',
-              direction === option.value ? 'border-ink bg-chana/20' : 'border-steel/40 text-steel',
+              'min-h-12 rounded-lg border-2 type-body font-semibold',
+              direction === option.value ? 'border-ink bg-sunken' : 'border-muted text-muted',
             ].join(' ')}
           >
             {option.label}
@@ -153,20 +153,20 @@ function Statement({ account }) {
     queryFn: () => getStatement(account.id),
   });
   if (query.isPending) return <Spinner label="Loading the statement" />;
-  if (query.isError) return <p className="text-[13px] text-mirch">{errorMessage(query.error)}</p>;
+  if (query.isError) return <p className="type-caption text-alert">{errorMessage(query.error)}</p>;
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-[13px] leading-[18px]">
+      <table className="w-full type-caption">
         <thead>
-          <tr className="border-b border-black/5 text-left text-[12px] uppercase tracking-[0.06em] text-steel">
+          <tr className="border-b border-line text-left type-caption text-muted">
             <th className="py-2 pr-3 font-medium">Business date</th>
             <th className="py-2 pr-3 font-medium">Entry</th>
             <th className="py-2 pr-3 text-right font-medium">Amount</th>
             <th className="py-2 text-right font-medium">Balance</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-steel/15">
+        <tbody className="divide-y divide-line">
           {query.data.entries.map((entry) => (
             <tr key={entry.id}>
               <td className="py-2 pr-3 font-mono">{entry.businessDate}</td>
@@ -178,14 +178,14 @@ function Statement({ account }) {
               </td>
               <td className="py-2 pr-3 text-right font-mono">
                 {entry.direction === 'DOWN' ? '− ' : ''}
-                {formatPaise(entry.amountInPaise)}
+                <Money paise={entry.amountInPaise} />
               </td>
-              <td className="py-2 text-right font-mono">{formatPaise(entry.balanceInPaise)}</td>
+              <td className="py-2 text-right font-mono"><Money paise={entry.balanceInPaise} /></td>
             </tr>
           ))}
         </tbody>
       </table>
-      {query.data.entries.length === 0 && <p className="py-3 text-[13px] text-steel">Nothing recorded yet.</p>}
+      {query.data.entries.length === 0 && <p className="py-3 type-caption text-muted">Nothing recorded yet.</p>}
     </div>
   );
 }
@@ -226,24 +226,21 @@ export default function AccountsPage() {
   const accounts = [...(query.data ?? [])].sort((a, b) => b.outstandingInPaise - a.outstandingInPaise);
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="border-b border-black/5 px-4 py-3">
+    <main className="v2 text-ink min-h-full bg-ground">
+      <header className="px-4 pt-4">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-semibold leading-7">On Hold accounts</h1>
-            <p className="text-[13px] leading-[18px] text-steel">Bills charged to a name, collected later.</p>
+            <h1 className="type-title">On Hold accounts</h1>
+            <p className="type-caption text-muted">Bills charged to a name, collected later.</p>
           </div>
-          <Link to="/dashboard" className="text-[13px] font-medium text-steel underline">
-            Dashboard
-          </Link>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-2xl gap-6 px-4 py-6">
         {query.isPending && <Spinner label="Loading accounts" />}
-        {query.isError && <p className="text-[15px] text-mirch">{errorMessage(query.error)}</p>}
+        {query.isError && <p className="type-body text-alert">{errorMessage(query.error)}</p>}
 
-        <ul className="divide-y divide-steel/15 border-y border-black/10">
+        <ul className="divide-y divide-line border-y border-line">
           {accounts.map((account) => {
             const open = openId === account.id;
             return (
@@ -252,17 +249,17 @@ export default function AccountsPage() {
                   type="button"
                   aria-expanded={open}
                   onClick={() => setOpenId(open ? null : account.id)}
-                  className="flex min-h-12 w-full items-center justify-between gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="flex min-h-12 w-full items-center justify-between gap-3 text-left"
                 >
                   <span>
-                    <span className="block text-[15px] font-semibold leading-[22px]">{account.name}</span>
-                    <span className="block text-[12px] leading-4 text-steel">
+                    <span className="block type-body font-semibold">{account.name}</span>
+                    <span className="block type-caption text-muted">
                       {account.oldestUncollectedDate
                         ? `Owed since ${formatBusinessDate(account.oldestUncollectedDate)}`
                         : 'Nothing owed'}
                     </span>
                   </span>
-                  <span className="font-mono text-[18px] font-semibold">{formatPaise(account.outstandingInPaise)}</span>
+                  <span className="type-num-tile"><Money paise={account.outstandingInPaise} /></span>
                 </button>
 
                 {open && (
@@ -284,13 +281,13 @@ export default function AccountsPage() {
             );
           })}
           {query.isSuccess && accounts.length === 0 && (
-            <li className="py-4 text-[15px] text-steel">No accounts yet.</li>
+            <li className="py-4 type-body text-muted">No accounts yet.</li>
           )}
         </ul>
 
         {isManager && (
-          <div className="grid gap-3 rounded-xl border border-black/5 shadow-card p-3">
-            <p className="text-[15px] font-semibold leading-6">Add account</p>
+          <div className="grid gap-3 rounded-lg border border-line p-3">
+            <p className="type-body font-semibold">Add account</p>
             <Input label="Name" maxLength={40} value={newName} onChange={(e) => setNewName(e.target.value)} />
             <MoneyField label="Opening balance, optional" value={newOpening} onChange={setNewOpening} />
             <div>

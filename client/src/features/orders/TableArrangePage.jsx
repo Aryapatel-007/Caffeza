@@ -61,28 +61,28 @@ export default function TableArrangePage() {
   const active = section ?? sectionNames[0] ?? null;
 
   return (
-    <main className="min-h-full bg-paper px-4 py-6 sm:px-6">
+    <main className="v2 text-ink min-h-full bg-ground px-4 py-6 sm:px-6">
       <div className="mx-auto flex max-w-7xl flex-col gap-5">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[12px] font-medium text-steel">
+            <p className="type-label text-muted">
               <Link to="/tables" className="hover:underline">
                 Table setup
               </Link>{' '}
               › Arrange tables
             </p>
-            <h1 className="text-[24px] font-semibold leading-8 tracking-[-0.015em]">Arrange tables</h1>
-            <p className="text-[13px] text-steel">Place each section&apos;s tables where they stand in the room.</p>
+            <h1 className="type-title">Arrange tables</h1>
+            <p className="type-caption text-muted">Place each section&apos;s tables where they stand in the room.</p>
           </div>
-          <Link to="/floor" className="flex h-11 items-center rounded-full bg-white px-4 text-[13px] font-semibold shadow-card hover:bg-linen">
+          <Link to="/floor" className="flex min-h-12 items-center rounded-lg bg-surface px-4 type-caption border border-line hover:bg-sunken">
             Open the floor
           </Link>
         </header>
 
-        {tables.isPending && <p className="text-[15px] text-steel">Loading tables…</p>}
-        {tables.isError && <p className="text-[15px] text-mirch">{errorMessage(tables.error)}</p>}
+        {tables.isPending && <p className="type-body text-muted">Loading tables…</p>}
+        {tables.isError && <p className="type-body text-alert">{errorMessage(tables.error)}</p>}
         {tables.isSuccess && sectionNames.length === 0 && (
-          <p className="rounded-2xl bg-white p-6 text-[14px] shadow-card">
+          <p className="rounded-[10px] bg-surface p-6 type-label border border-line">
             Give tables a section on the Table setup screen first. A plan is drawn per section.
           </p>
         )}
@@ -95,7 +95,7 @@ export default function TableArrangePage() {
                 type="button"
                 aria-pressed={active === name}
                 onClick={() => setSection(name)}
-                className={['h-11 rounded-full px-5 text-[14px] font-semibold shadow-card', active === name ? 'bg-ink text-white' : 'bg-white text-steel'].join(' ')}
+                className={['min-h-12 rounded-lg px-5 type-label border border-line', active === name ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-surface text-muted'].join(' ')}
               >
                 {name}
               </button>
@@ -247,11 +247,11 @@ function SectionEditor({ section, tables, onSaved, onError }) {
       <div className="flex flex-col gap-3">
         <div
           ref={gridRef}
-          className="relative w-full touch-none select-none overflow-hidden rounded-2xl bg-white shadow-card"
+          className="relative w-full touch-none select-none overflow-hidden rounded-[10px] bg-surface border border-line"
           style={{
             aspectRatio: `${COLUMNS} / ${ROWS}`,
             backgroundImage:
-              'linear-gradient(to right, color-mix(in srgb, var(--color-steel) 18%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--color-steel) 18%, transparent) 1px, transparent 1px)',
+              'linear-gradient(to right, color-mix(in srgb, var(--color-line) 100%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--color-line) 100%, transparent) 1px, transparent 1px)',
             backgroundSize: `${100 / COLUMNS}% ${100 / ROWS}%`,
           }}
           aria-label={`${section} floor plan, ${COLUMNS} by ${ROWS} cells`}
@@ -269,7 +269,7 @@ function SectionEditor({ section, tables, onSaved, onError }) {
                 aria-label={`${nameOf[id]}, column ${layout.x + 1}, row ${layout.y + 1}`}
                 className={[
                   'absolute flex touch-none items-center justify-center p-0.5 font-mono text-[clamp(9px,1.4vw,15px)] font-bold',
-                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink',
+                  'focus-visible:outline-2 focus-visible:outline-accent',
                 ].join(' ')}
                 style={{
                   left: `${(layout.x / COLUMNS) * 100}%`,
@@ -281,9 +281,9 @@ function SectionEditor({ section, tables, onSaved, onError }) {
               >
                 <span
                   className={[
-                    'flex h-full w-full items-center justify-center shadow-card',
+                    'flex h-full w-full items-center justify-center border border-line',
                     layout.shape === 'ROUND' ? 'rounded-full' : 'rounded-lg',
-                    bad ? 'bg-mirch text-white' : selectedId === id ? 'bg-chana text-ink' : 'bg-linen-3 text-ink',
+                    bad ? 'border-[3px] border-alert bg-alert-tint text-alert' : selectedId === id ? 'border-2 border-ink bg-surface text-ink' : 'border border-line bg-surface text-ink',
                   ].join(' ')}
                 >
                   {nameOf[id]}
@@ -298,20 +298,20 @@ function SectionEditor({ section, tables, onSaved, onError }) {
             type="button"
             disabled={clashing.size > 0 || save.isPending || !changed}
             onClick={() => save.mutate()}
-            className="h-12 rounded-full bg-chana px-6 text-[15px] font-semibold text-ink shadow-card disabled:opacity-50"
+            className="min-h-12 rounded-lg bg-accent px-6 type-button text-on-accent disabled:opacity-50"
           >
             {save.isPending ? 'Saving…' : 'Save'}
           </button>
-          {clashing.size > 0 && <span className="text-[13px] font-medium text-mirch">Two tables overlap. Move one before saving.</span>}
-          {!changed && clashing.size === 0 && <span className="text-[13px] text-steel">Saved as shown.</span>}
+          {clashing.size > 0 && <span className="type-caption text-alert">Two tables overlap. Move one before saving.</span>}
+          {!changed && clashing.size === 0 && <span className="type-caption text-muted">Saved as shown.</span>}
         </div>
       </div>
 
       <aside className="flex flex-col gap-4">
-        <div className="rounded-2xl bg-white p-4 shadow-card">
-          <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-steel">Not on the plan</h2>
+        <div className="rounded-[10px] bg-surface p-4 border border-line">
+          <h2 className="mb-2 type-label text-muted">Not on the plan</h2>
           {tray.length === 0 ? (
-            <p className="text-[13px] text-steel">Every table in {section} is on the plan.</p>
+            <p className="type-caption text-muted">Every table in {section} is on the plan.</p>
           ) : (
             <ul className="flex flex-wrap gap-2">
               {tray.map((table) => (
@@ -319,7 +319,7 @@ function SectionEditor({ section, tables, onSaved, onError }) {
                   <button
                     type="button"
                     onPointerDown={(event) => startFromTray(event, table)}
-                    className="flex h-12 min-w-12 touch-none items-center justify-center rounded-lg bg-linen-2 px-3 font-mono text-[14px] font-bold shadow-card"
+                    className="flex min-h-12 min-w-12 touch-none items-center justify-center rounded-lg bg-sunken px-3 type-num border border-line"
                     style={{ cursor: 'grab' }}
                   >
                     {table.name}
@@ -328,13 +328,13 @@ function SectionEditor({ section, tables, onSaved, onError }) {
               ))}
             </ul>
           )}
-          <p className="mt-2 text-[12px] text-steel">Drag a table onto the grid.</p>
+          <p className="mt-2 type-caption text-muted">Drag a table onto the grid.</p>
         </div>
 
         {selected && (
-          <div className="rounded-2xl bg-white p-4 shadow-card">
-            <h2 className="mb-3 text-[16px] font-semibold">{nameOf[selectedId]}</h2>
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-steel">Size</p>
+          <div className="rounded-[10px] bg-surface p-4 border border-line">
+            <h2 className="mb-3 type-body font-semibold">{nameOf[selectedId]}</h2>
+            <p className="mb-1 type-label text-muted">Size</p>
             <div className="mb-3 grid grid-cols-3 gap-2">
               {SIZES.map((size) => (
                 <button
@@ -342,13 +342,13 @@ function SectionEditor({ section, tables, onSaved, onError }) {
                   type="button"
                   aria-pressed={selected.w === size.w && selected.h === size.h}
                   onClick={() => update(selectedId, { w: size.w, h: size.h })}
-                  className={['h-11 rounded-lg font-mono text-[13px] font-semibold', selected.w === size.w && selected.h === size.h ? 'bg-ink text-white' : 'bg-linen-2'].join(' ')}
+                  className={['min-h-12 rounded-lg type-num-meta', selected.w === size.w && selected.h === size.h ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-sunken'].join(' ')}
                 >
                   {size.label}
                 </button>
               ))}
             </div>
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-steel">Shape</p>
+            <p className="mb-1 type-label text-muted">Shape</p>
             <div className="mb-4 grid grid-cols-3 gap-2">
               {SHAPES.map((shape) => {
                 const disabled = shape.value === 'LONG' && selected.w === selected.h;
@@ -360,7 +360,7 @@ function SectionEditor({ section, tables, onSaved, onError }) {
                     aria-pressed={selected.shape === shape.value}
                     onClick={() => update(selectedId, { shape: shape.value })}
                     title={disabled ? 'A long table has a different width and height.' : undefined}
-                    className={['h-11 rounded-lg text-[13px] font-semibold disabled:opacity-40', selected.shape === shape.value ? 'bg-ink text-white' : 'bg-linen-2'].join(' ')}
+                    className={['min-h-12 rounded-lg type-caption disabled:opacity-40', selected.shape === shape.value ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'bg-sunken'].join(' ')}
                   >
                     {shape.label}
                   </button>
@@ -373,7 +373,7 @@ function SectionEditor({ section, tables, onSaved, onError }) {
                 setDraft((current) => ({ ...current, [selectedId]: null }));
                 setSelectedId(null);
               }}
-              className="h-11 w-full rounded-full bg-mirch-soft text-[13px] font-semibold text-mirch"
+              className="min-h-12 w-full rounded-lg bg-alert-tint type-caption text-alert"
             >
               Remove from plan
             </button>
@@ -404,22 +404,22 @@ function SectionOrder({ names, canSave, onSaved, onError }) {
     });
 
   return (
-    <section className="rounded-2xl bg-white p-4 shadow-card">
-      <h2 className="mb-1 text-[16px] font-semibold">Section order</h2>
-      <p className="mb-3 text-[13px] text-steel">The order the floor shows its sections in.</p>
+    <section className="rounded-[10px] bg-surface p-4 border border-line">
+      <h2 className="mb-1 type-body font-semibold">Section order</h2>
+      <p className="mb-3 type-caption text-muted">The order the floor shows its sections in.</p>
       <ol className="flex flex-col gap-2">
         {order.map((name, index) => (
-          <li key={name} className="flex items-center justify-between gap-3 rounded-xl bg-linen px-3 py-2">
-            <span className="text-[14px] font-medium">
-              <span className="mr-2 font-mono text-steel">{index + 1}</span>
+          <li key={name} className="flex items-center justify-between gap-3 rounded-lg bg-sunken px-3 py-2">
+            <span className="type-label">
+              <span className="mr-2 font-mono text-muted">{index + 1}</span>
               {name}
             </span>
             {canSave && (
               <span className="flex gap-1">
-                <button type="button" aria-label={`Move ${name} up`} disabled={index === 0} onClick={() => swap(index, -1)} className="size-11 rounded-lg bg-white text-[16px] shadow-card disabled:opacity-40">
+                <button type="button" aria-label={`Move ${name} up`} disabled={index === 0} onClick={() => swap(index, -1)} className="size-11 rounded-lg bg-surface type-body border border-line disabled:opacity-40">
                   ↑
                 </button>
-                <button type="button" aria-label={`Move ${name} down`} disabled={index === order.length - 1} onClick={() => swap(index, 1)} className="size-11 rounded-lg bg-white text-[16px] shadow-card disabled:opacity-40">
+                <button type="button" aria-label={`Move ${name} down`} disabled={index === order.length - 1} onClick={() => swap(index, 1)} className="size-11 rounded-lg bg-surface type-body border border-line disabled:opacity-40">
                   ↓
                 </button>
               </span>
@@ -432,12 +432,12 @@ function SectionOrder({ names, canSave, onSaved, onError }) {
           type="button"
           disabled={!moved || save.isPending}
           onClick={() => save.mutate()}
-          className="mt-3 h-11 rounded-full bg-chana px-5 text-[13px] font-semibold text-ink shadow-card disabled:opacity-50"
+          className="type-label mt-3 min-h-12 rounded-lg border border-ink bg-surface text-ink hover:bg-sunken px-5 disabled:opacity-50"
         >
           {save.isPending ? 'Saving…' : 'Save section order'}
         </button>
       ) : (
-        <p className="mt-3 text-[12px] text-steel">Only the owner changes the section order, because it is a setting.</p>
+        <p className="mt-3 type-caption text-muted">Only the owner changes the section order, because it is a setting.</p>
       )}
     </section>
   );

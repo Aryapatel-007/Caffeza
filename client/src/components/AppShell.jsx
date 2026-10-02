@@ -2,19 +2,62 @@ import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext.jsx';
-import { formatDateIst, formatTimeIst } from '../utils/formatDate.js';
+import {
+  BagIcon,
+  CashIcon,
+  ChartIcon,
+  DeviceIcon,
+  FloorIcon,
+  HomeIcon,
+  KitchenIcon,
+  LockIcon,
+  MenuBookIcon,
+  MoreIcon,
+  ReceiptIcon,
+  ScooterIcon,
+  SignOutIcon,
+} from './ui/icons/index.jsx';
+import Sheet from './ui/Sheet.jsx';
 
 /**
- * The frame around every signed-in screen: a sidebar of places to go, and a
- * thin top bar with the date, the time and who is signed in.
+ * The frame around every signed-in screen. DESIGN-SYSTEM-V2 sections 8a and 9.
+ *
+ * Under 600px: a top bar with the wordmark, and a bottom bar with the role's
+ * main places and More. From 600px: a 76px rail on the left with the same
+ * places. Chosen by width, never by device type. More opens a sheet with every
+ * other place this person may go, and sign out.
  *
  * Links are conveniences, not permissions. The server refuses each endpoint to
  * the wrong role whether or not a link is drawn, and a switched-off feature is
- * hidden here the same way the dashboard used to hide it.
+ * hidden here the same way.
  */
 const FULL_SCREEN_PATHS = ['/attendance'];
 
-function useNavItems() {
+const PLACES = {
+  home: { to: '/dashboard', label: 'Home', Icon: HomeIcon },
+  floor: { to: '/floor', label: 'Floor', Icon: FloorIcon },
+  takeaway: { to: '/orders/takeaway', label: 'Takeaway', Icon: BagIcon },
+  delivery: { to: '/orders/delivery', label: 'Delivery', Icon: ScooterIcon },
+  kitchen: { to: '/kitchen', label: 'Kitchen', Icon: KitchenIcon },
+  bills: { to: '/bills', label: 'Bills', Icon: ReceiptIcon },
+  cash: { to: '/cash', label: 'Cash', Icon: CashIcon },
+  dayClose: { to: '/day-close', label: 'Day Close', Icon: LockIcon },
+  reports: { to: '/reports', label: 'Reports', Icon: ChartIcon },
+  availability: { to: '/menu/availability', label: 'Availability', Icon: MenuBookIcon },
+  stock: { to: '/inventory', label: 'Stock', Icon: MenuBookIcon },
+};
+
+/** Each role's four main places, in the order they are used. */
+const MAIN_BY_ROLE = {
+  OWNER: ['floor', 'bills', 'kitchen', 'reports'],
+  MANAGER: ['floor', 'bills', 'kitchen', 'dayClose'],
+  CASHIER: ['floor', 'bills', 'takeaway', 'cash'],
+  WAITER: ['floor', 'takeaway', 'delivery', 'kitchen'],
+  KITCHEN: ['kitchen', 'availability'],
+  STOREKEEPER: ['stock', 'availability'],
+};
+
+function useMoreGroups() {
   const { user, features } = useAuth();
   const role = user?.role;
   const manager = role === 'OWNER' || role === 'MANAGER';
@@ -28,7 +71,7 @@ function useNavItems() {
       title: 'Service',
       items: [
         { to: '/dashboard', label: 'Home', show: true },
-        { to: '/floor', label: 'Tables', show: floor },
+        { to: '/floor', label: 'Floor', show: floor },
         { to: '/orders/takeaway', label: 'Takeaway', show: floor },
         { to: '/orders/delivery', label: 'Delivery', show: floor },
         { to: '/kitchen', label: 'Kitchen', show: true },
@@ -66,135 +109,135 @@ function useNavItems() {
     .filter((group) => group.items.length > 0);
 }
 
-function NavItem({ to, label }) {
+function useMainPlaces() {
+  const { user, features } = useAuth();
+  const keys = MAIN_BY_ROLE[user?.role] ?? ['home'];
+  return keys
+    .filter((key) => key !== 'stock' || features.inventory !== false)
+    .map((key) => PLACES[key]);
+}
+
+const isCurrent = (pathname, to) => pathname === to || (to !== '/dashboard' && pathname.startsWith(`${to}/`) && !(to === '/menu' && pathname.startsWith('/menu/availability')));
+
+function PlaceLink({ place, layout }) {
+  const { pathname } = useLocation();
+  const active = isCurrent(pathname, place.to) || (place.to === '/floor' && pathname.startsWith('/orders/') && !pathname.startsWith('/orders/takeaway') && !pathname.startsWith('/orders/delivery'));
+  const Icon = place.Icon;
   return (
     <NavLink
-      to={to}
-      end={to === '/dashboard' || to === '/bills' || to === '/menu'}
-      className={({ isActive }) =>
-        [
-          'flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold transition-colors',
-          isActive
-            ? 'bg-chana text-ink shadow-card'
-            : 'text-steel hover:bg-linen-3 hover:text-ink',
-        ].join(' ')
-      }
+      to={place.to}
+      aria-current={active ? 'page' : undefined}
+      className={[
+        'flex flex-col items-center justify-center gap-0.5 rounded-lg transition-colors',
+        layout === 'rail' ? 'min-h-14 w-16' : 'min-h-14 flex-1',
+        active ? 'bg-sunken text-ink' : 'text-muted hover:bg-sunken hover:text-ink',
+      ].join(' ')}
     >
-      {label}
+      <span className={active ? 'text-accent' : ''}>
+        <Icon size={22} />
+      </span>
+      <span className="text-[11px] font-semibold leading-4">{place.label}</span>
     </NavLink>
   );
 }
 
-function Clock() {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(timer);
-  }, []);
-  return <span className="font-mono text-sm font-semibold">{formatDateIst(now)} · {formatTimeIst(now)}</span>;
+function MoreButton({ onClick, layout }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'flex flex-col items-center justify-center gap-0.5 rounded-lg text-muted transition-colors hover:bg-sunken hover:text-ink',
+        layout === 'rail' ? 'min-h-14 w-16' : 'min-h-14 flex-1',
+      ].join(' ')}
+    >
+      <MoreIcon size={22} />
+      <span className="text-[11px] font-semibold leading-4">More</span>
+    </button>
+  );
+}
+
+function MoreSheet({ onClose }) {
+  const { user, logout } = useAuth();
+  const groups = useMoreGroups();
+  return (
+    <Sheet title="All places" subtitle={user ? `${user.name}` : null} onClose={onClose}>
+      <nav aria-label="All places" className="flex flex-col gap-5">
+        {groups.map((group) => (
+          <div key={group.title}>
+            <p className="type-label mb-1 text-muted">{group.title}</p>
+            <ul className="flex flex-col">
+              {group.items.map((item) => (
+                <li key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    onClick={onClose}
+                    end={item.to === '/menu' || item.to === '/bills'}
+                    className={({ isActive }) =>
+                      ['type-body flex min-h-12 items-center rounded-lg px-3', isActive ? 'bg-sunken font-semibold' : 'hover:bg-sunken'].join(' ')
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        <button type="button" onClick={logout} className="type-button flex min-h-12 items-center gap-2 rounded-lg border border-ink px-4">
+          <SignOutIcon />
+          Sign out
+        </button>
+      </nav>
+    </Sheet>
+  );
+}
+
+function Wordmark() {
+  const { features } = useAuth();
+  const name = features.appearance?.wordmark || features.restaurantName || 'Caffeza';
+  return <span className="type-heading truncate">{name}</span>;
 }
 
 export default function AppShell({ children }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { pathname } = useLocation();
-  const groups = useNavItems();
+  const places = useMainPlaces();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  useEffect(() => setMoreOpen(false), [pathname]);
 
   if (FULL_SCREEN_PATHS.includes(pathname)) return children;
 
   return (
-    <div className="flex h-full bg-paper">
-      <aside className="hidden w-64 shrink-0 flex-col justify-between overflow-y-auto bg-linen px-3 py-5 lg:flex print:!hidden">
-        <div>
-          <div className="mb-6 flex items-center gap-3 px-2">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-chana text-lg font-bold text-ink shadow-card">
-              C
-            </div>
-            <div className="leading-tight">
-              <p className="text-xl font-semibold tracking-tight">Caffeza</p>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-steel">
-                Point of sale
-              </p>
-            </div>
-          </div>
-          <nav aria-label="Main" className="space-y-5">
-            {groups.map((group) => (
-              <div key={group.title}>
-                <p className="mb-1 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-steel">
-                  {group.title}
-                </p>
-                <div className="space-y-1">
-                  {group.items.map((item) => (
-                    <NavItem key={item.to} {...item} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </nav>
-        </div>
-        <div className="mt-6 rounded-xl bg-white p-3 shadow-card">
-          <p className="truncate text-sm font-semibold">{user?.name}</p>
-          <p className="text-xs text-steel">{user?.role}</p>
-          <button
-            type="button"
-            onClick={logout}
-            className="mt-2 h-10 w-full rounded-full bg-linen-2 text-sm font-semibold hover:bg-linen-3"
-          >
-            Sign out
-          </button>
-        </div>
-      </aside>
+    <div className="v2 flex h-full bg-ground text-ink">
+      <nav aria-label="Main" className="hidden w-[76px] flex-none flex-col items-center gap-1 overflow-y-auto border-r border-line bg-surface py-3 min-[600px]:flex print:!hidden">
+        {places.map((place) => (
+          <PlaceLink key={place.to} place={place} layout="rail" />
+        ))}
+        <MoreButton layout="rail" onClick={() => setMoreOpen(true)} />
+        <NavLink to="/device" className="mt-auto flex min-h-12 w-16 items-center justify-center rounded-lg text-muted hover:bg-sunken hover:text-ink" aria-label="This device">
+          <DeviceIcon />
+        </NavLink>
+      </nav>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto print:overflow-visible">
-        <header className="flex items-center justify-between gap-3 bg-paper/90 px-4 py-3 shadow-[0_1px_8px_rgba(28,27,25,0.04)] lg:px-8 print:hidden">
-          <div className="flex min-w-0 items-center gap-2 lg:hidden">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-chana text-sm font-bold">
-              C
-            </span>
-            <span className="truncate font-semibold">Caffeza</span>
-          </div>
-          <div className="hidden items-center gap-2 rounded-full bg-linen-2 px-3 py-1.5 lg:flex">
-            <span className="size-2 rounded-full bg-patta" aria-hidden="true" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-patta">
-              Signed in
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-linen px-3 py-1.5">
-              <Clock />
-            </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="h-9 rounded-full bg-linen-2 px-4 text-sm font-semibold hover:bg-linen-3 lg:hidden"
-            >
-              Sign out
-            </button>
-          </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex min-h-12 flex-none items-center justify-between gap-3 border-b border-line bg-surface px-4 print:hidden">
+          <Wordmark />
+          <span className="type-caption truncate text-muted">{user?.name}</span>
         </header>
 
-        {/* Narrow screens have no sidebar, so the places to go scroll along the top. */}
-        <nav
-          aria-label="Main"
-          className="flex gap-2 overflow-x-auto px-4 pb-2 pt-1 lg:hidden print:hidden"
-        >
-          {groups.flatMap((group) => group.items).map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                [
-                  'flex h-10 shrink-0 items-center rounded-full px-4 text-sm font-semibold',
-                  isActive ? 'bg-chana text-ink' : 'bg-linen-2 text-steel',
-                ].join(' ')
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        <div className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</div>
 
-        <div className="min-h-0 flex-1">{children}</div>
+        <nav aria-label="Main" className="flex flex-none items-stretch gap-1 border-t border-line bg-surface px-2 py-1 min-[600px]:hidden print:hidden">
+          {places.map((place) => (
+            <PlaceLink key={place.to} place={place} layout="bar" />
+          ))}
+          <MoreButton layout="bar" onClick={() => setMoreOpen(true)} />
+        </nav>
       </div>
+
+      {moreOpen && <MoreSheet onClose={() => setMoreOpen(false)} />}
     </div>
   );
 }

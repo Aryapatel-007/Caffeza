@@ -14,9 +14,9 @@ import NewIngredientPanel from './NewIngredientPanel.jsx';
 
 /** IN_STOCK/LOW/OUT, one shared badge component with M3's bill status. */
 const STOCK_FACES = {
-  IN_STOCK: { icon: '✓', label: 'IN STOCK', classes: 'border-patta bg-patta-tint text-ink' },
-  LOW: { icon: '!', label: 'LOW', classes: 'border-chana bg-chana/15 text-ink' },
-  OUT: { icon: '✕', label: 'OUT', classes: 'border-mirch text-mirch' },
+  IN_STOCK: { state: 'ok', label: 'In stock' },
+  LOW: { state: 'open', label: 'Low' },
+  OUT: { state: 'alert', label: 'Out' },
 };
 
 const CAN_WRITE = [ROLES.OWNER, ROLES.MANAGER, ROLES.STOREKEEPER];

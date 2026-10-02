@@ -71,21 +71,21 @@ export default function TableManagementPage() {
   const isBusy = add.isPending || rename.isPending || toggle.isPending;
 
   return (
-    <main className="min-h-full bg-paper">
-      <header className="border-b border-black/5 px-4 py-3 sm:px-6">
+    <main className="v2 text-ink min-h-full bg-ground">
+      <header className="px-4 pt-4 sm:px-6">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-          <h1 className="text-[20px] font-semibold leading-7">Tables</h1>
+          <h1 className="type-title">Tables</h1>
           <span className="flex items-center gap-2">
           {/* P19. The floor plan editor. */}
           <Link
             to="/tables/arrange"
-            className="flex h-12 items-center rounded-full bg-chana px-4 text-[13px] font-semibold text-ink shadow-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="type-label flex min-h-12 items-center rounded-lg border border-ink bg-surface text-ink hover:bg-sunken px-4"
           >
             Arrange tables
           </Link>
           <Link
             to="/floor"
-            className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+            className="flex min-h-12 items-center rounded-lg px-3 type-caption text-muted hover:bg-sunken"
           >
             Floor
           </Link>
@@ -95,14 +95,14 @@ export default function TableManagementPage() {
 
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
         <form
-          className="mb-8 flex flex-wrap items-end gap-3 border-b border-black/10 pb-6"
+          className="mb-8 flex flex-wrap items-end gap-3 border-b border-line pb-6"
           onSubmit={(event) => {
             event.preventDefault();
             if (draft.name.trim()) add.mutate();
           }}
         >
           <label className="flex-1 basis-32">
-            <span className="mb-2 block text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
+            <span className="mb-2 block type-label text-muted">
               Name
             </span>
             <input
@@ -110,12 +110,12 @@ export default function TableManagementPage() {
               maxLength={20}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
               placeholder="T1"
-              className="h-12 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
+              className="min-h-12 w-full rounded-lg border border-muted bg-surface px-3 type-body placeholder:text-muted"
             />
           </label>
 
           <label className="flex-1 basis-40">
-            <span className="mb-2 block text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
+            <span className="mb-2 block type-label text-muted">
               Section
             </span>
             <input
@@ -123,41 +123,41 @@ export default function TableManagementPage() {
               maxLength={40}
               onChange={(event) => setDraft({ ...draft, section: event.target.value })}
               placeholder="Ground Floor"
-              className="h-12 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 text-[15px] placeholder:text-steel focus:border-ink focus:outline-none"
+              className="min-h-12 w-full rounded-lg border border-muted bg-surface px-3 type-body placeholder:text-muted"
             />
           </label>
 
           <label className="basis-24">
-            <span className="mb-2 block text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
+            <span className="mb-2 block type-label text-muted">
               Seats
             </span>
             <input
               value={draft.seats}
               inputMode="numeric"
               onChange={(event) => setDraft({ ...draft, seats: event.target.value })}
-              className="h-12 w-full rounded-xl border-2 border-steel/40 bg-paper px-3 font-mono text-[15px] focus:border-ink focus:outline-none"
+              className="min-h-12 w-full rounded-lg border border-muted bg-surface px-3 type-num"
             />
           </label>
 
           <button
             type="submit"
             disabled={!draft.name.trim() || isBusy}
-            className="h-12 rounded-xl bg-chana px-5 text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+            className="min-h-12 rounded-lg bg-accent px-5 type-button text-on-accent disabled:opacity-50"
           >
             Add table
           </button>
         </form>
 
-        {tables.isPending && <p className="text-[15px] text-steel">Loading tables…</p>}
-        {tables.isError && <p className="text-[15px] text-mirch">{errorMessage(tables.error)}</p>}
+        {tables.isPending && <p className="type-body text-muted">Loading tables…</p>}
+        {tables.isError && <p className="type-body text-alert">{errorMessage(tables.error)}</p>}
 
         {tables.isSuccess && tables.data.length === 0 && (
-          <p className="text-[15px] leading-[22px] text-steel">
+          <p className="type-body text-muted">
             No tables yet. Add the first one above.
           </p>
         )}
 
-        <ul className="divide-y divide-steel/20">
+        <ul className="divide-y divide-line">
           {(tables.data ?? []).map((table) => (
             <TableRow
               key={table.id}
@@ -186,10 +186,10 @@ function TableRow({ table, isBusy, onRename, onToggle }) {
         maxLength={20}
         onChange={(event) => setName(event.target.value)}
         aria-label={`Name of table ${table.name}`}
-        className="h-12 w-24 rounded-xl border-2 border-transparent bg-transparent px-2 text-[15px] leading-[22px] hover:border-steel/30 focus:border-ink focus:outline-none"
+        className="min-h-12 w-24 rounded-lg border-2 border-transparent bg-transparent px-2 type-body hover:border-muted"
       />
 
-      <span className="flex-1 text-[13px] leading-[18px] text-steel">
+      <span className="flex-1 type-caption text-muted">
         {table.section ?? 'No section'}
         {table.seats != null && <span className="font-mono"> · {table.seats} seats</span>}
         {table.occupancy.isOccupied && (
@@ -202,7 +202,7 @@ function TableRow({ table, isBusy, onRename, onToggle }) {
           type="button"
           disabled={isBusy}
           onClick={() => onRename(name.trim())}
-          className="h-12 rounded-xl bg-chana px-4 text-[13px] font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className="type-label min-h-12 rounded-lg border border-ink bg-surface text-ink hover:bg-sunken px-4 disabled:opacity-50"
         >
           Save name
         </button>
@@ -213,12 +213,12 @@ function TableRow({ table, isBusy, onRename, onToggle }) {
         disabled={isBusy}
         onClick={onToggle}
         className={[
-          'h-12 rounded-xl border-2 px-4 text-[13px] font-medium',
-          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
+          'min-h-12 rounded-lg border-2 px-4 type-caption',
+          'focus-visible:outline-2 focus-visible:outline-offset-2',
           'disabled:opacity-50',
           table.isActive
-            ? 'border-steel/40 text-steel focus-visible:outline-steel'
-            : 'border-ink text-ink focus-visible:outline-ink',
+            ? 'border-muted text-muted focus-visible:outline-accent'
+            : 'border-ink text-ink focus-visible:outline-accent',
         ].join(' ')}
       >
         {table.isActive ? 'Turn off' : 'Turn on'}

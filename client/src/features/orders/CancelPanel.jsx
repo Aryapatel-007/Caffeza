@@ -1,6 +1,9 @@
 import { useState } from 'react';
 
-import ReasonPicker, { isReasonComplete, reasonBody } from './ReasonPicker.jsx';
+import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
+import ReasonPicker, { isReasonComplete, reasonBody } from '../../components/ui/ReasonPicker.jsx';
+import Bilingual from '../i18n/Bilingual.jsx';
+import { LABELS } from '../i18n/labels.js';
 
 /**
  * Cancelling a line, or a whole order. One panel, because the two ask the same
@@ -34,85 +37,58 @@ export default function CancelPanel({
     isReasonComplete(reason) && (!needsWasPrepared || wasPrepared !== null) && !isBusy;
 
   return (
-    <div className="fixed inset-0 z-30 flex">
-      <button type="button" aria-label="Close" onClick={onCancel} className="flex-1 bg-ink/30" />
+    <Sheet
+      title={title}
+      subtitle={null}
+      onClose={onCancel}
+      footer={
+        <SheetActions
+          cancelLabel={LABELS.keepIt}
+          onCancel={onCancel}
+          danger
+          disabled={!canConfirm}
+          onConfirm={() => onConfirm({ ...reasonBody(reason), ...(needsWasPrepared ? { wasPrepared } : {}) })}
+        >
+          {isBusy ? 'Cancelling…' : <Bilingual k="cancel" en="Cancel it" keep align="center" />}
+        </SheetActions>
+      }
+    >
+      {description && <p className="type-body mb-4 text-muted">{description}</p>}
 
-      <aside
-        role="dialog"
-        aria-label={title}
-        className="flex w-full max-w-md flex-col border-l border-black/5 bg-paper shadow-[-8px_0_24px_rgba(28,27,25,0.18)]"
-      >
-        <header className="border-b border-black/5 px-4 py-3">
-          <h2 className="text-[20px] font-semibold leading-7">{title}</h2>
-          {description && (
-            <p className="mt-0.5 text-[13px] leading-[18px] text-steel">{description}</p>
-          )}
-        </header>
+      <ReasonPicker reasons={reasons} value={reason} onChange={setReason} />
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <ReasonPicker reasons={reasons} value={reason} onChange={setReason} />
+      {needsWasPrepared && (
+        <fieldset>
+          <legend className="type-label mb-1">Did the kitchen make it?</legend>
+          <p className="type-caption mb-2 text-muted">If it was cooked, the ingredients are gone and stock has to count them.</p>
 
-          {needsWasPrepared && (
-            <fieldset>
-              <legend className="mb-1 text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
-                Did the kitchen make it?
-              </legend>
-              <p className="mb-2 text-[13px] leading-[18px] text-steel">
-                If it was cooked, the ingredients are gone and stock has to count them.
-              </p>
+          <div className="flex flex-col gap-2">
+            {[
+              { value: true, label: 'Yes, it was made' },
+              { value: false, label: 'No, it was not started' },
+            ].map((option) => (
+              <label
+                key={String(option.value)}
+                className={[
+                  'flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border px-3',
+                  wasPrepared === option.value ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
+                ].join(' ')}
+              >
+                <input
+                  type="radio"
+                  name="wasPrepared"
+                  checked={wasPrepared === option.value}
+                  onChange={() => setWasPrepared(option.value)}
+                  className="size-5 accent-[var(--color-accent)]"
+                />
+                <span className="type-body">{option.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
-              <div className="space-y-2">
-                {[
-                  { value: true, label: 'Yes, it was made' },
-                  { value: false, label: 'No, it was not started' },
-                ].map((option) => (
-                  <label
-                    key={String(option.value)}
-                    className={[
-                      'flex min-h-[48px] cursor-pointer items-center gap-3 rounded-xl border-2 px-3',
-                      wasPrepared === option.value ? 'border-ink' : 'border-steel/40',
-                    ].join(' ')}
-                  >
-                    <input
-                      type="radio"
-                      name="wasPrepared"
-                      checked={wasPrepared === option.value}
-                      onChange={() => setWasPrepared(option.value)}
-                      className="size-4 accent-[var(--color-ink)]"
-                    />
-                    <span className="text-[15px] leading-[22px]">{option.label}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          )}
-
-          {error && <p className="mt-4 text-[13px] leading-[18px] text-mirch">{error}</p>}
-        </div>
-
-        <footer className="flex gap-2 border-t border-black/5 px-4 py-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="h-12 flex-1 rounded-xl border-2 border-steel/40 text-[15px] font-semibold text-steel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
-          >
-            Keep it
-          </button>
-          <button
-            type="button"
-            disabled={!canConfirm}
-            onClick={() =>
-              onConfirm({
-                ...reasonBody(reason),
-                ...(needsWasPrepared ? { wasPrepared } : {}),
-              })
-            }
-            className="h-12 flex-[2] rounded-xl bg-mirch text-[15px] font-semibold text-paper transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-50"
-          >
-            {isBusy ? 'Cancelling…' : 'Cancel it'}
-          </button>
-        </footer>
-      </aside>
-    </div>
+      {error && <p className="type-body mt-4 text-alert">{error}</p>}
+    </Sheet>
   );
 }

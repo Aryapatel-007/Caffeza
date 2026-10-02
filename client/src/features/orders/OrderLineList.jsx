@@ -1,27 +1,19 @@
-import { formatPaise } from '../../utils/formatMoney.js';
+import Money from '../../components/ui/Money.jsx';
+import StateChip from '../../components/ui/StateChip.jsx';
+
 import { QuantityStepper } from './LineOptionsPanel.jsx';
 import { describeReason, LINE_CANCEL_REASONS } from './cancelReasons.js';
 
 /**
- * How far along one line is.
- *
- * Text first, colour second. `patta` marks READY because that is its meaning,
- * available or succeeded, and a cancelled line is `mirch` for the same reason.
- * PENDING and FIRED get no colour at all: "waiting" is not one of the three
- * functional meanings, and painting it would make the two that matter harder
- * to pick out.
+ * How far along one line is, through `StateChip`: word, icon and colour
+ * together. Not sent has no state colour, the way a free table has none.
  */
-const STATUS_LABELS = {
-  PENDING: 'Not sent',
-  FIRED: 'With the kitchen',
-  READY: 'Ready',
-  SERVED: 'Served',
-  CANCELLED: 'Cancelled',
-};
-
-const STATUS_TONE = {
-  READY: 'text-patta',
-  CANCELLED: 'text-mirch',
+const LINE_STATES = {
+  PENDING: { state: 'free', word: 'Not sent' },
+  FIRED: { state: 'open', word: 'With the kitchen' },
+  READY: { state: 'ok', word: 'Ready' },
+  SERVED: { state: 'served', word: 'Served' },
+  CANCELLED: { state: 'alert', word: 'Cancelled' },
 };
 
 /**
@@ -40,14 +32,14 @@ export default function OrderLineList({
 }) {
   if (lines.length === 0) {
     return (
-      <p className="px-4 py-8 text-center text-[15px] leading-[22px] text-steel">
+      <p className="type-body px-4 py-8 text-muted">
         Nothing on this order yet. Pick something from the menu.
       </p>
     );
   }
 
   return (
-    <ul className="divide-y divide-steel/20">
+    <ul className="divide-y divide-line">
       {lines.map((line) => {
         const isCancelled = line.status === 'CANCELLED';
         const isPending = line.status === 'PENDING';
@@ -58,53 +50,46 @@ export default function OrderLineList({
               <div className="min-w-0">
                 <p
                   className={[
-                    'text-[15px] leading-[22px]',
+                    'type-body',
                     isCancelled ? 'line-through' : '',
                   ].join(' ')}
                 >
                   {line.itemName}
                   {line.variantName && (
-                    <span className="text-steel"> · {line.variantName}</span>
+                    <span className="text-muted"> · {line.variantName}</span>
                   )}
                 </p>
 
                 {line.addOns.length > 0 && (
-                  <p className="text-[13px] leading-[18px] text-steel">
+                  <p className="type-caption text-muted">
                     {line.addOns.map((addOn) => addOn.name).join(', ')}
                   </p>
                 )}
 
                 {line.notes && (
-                  <p className="text-[13px] leading-[18px] text-steel">“{line.notes}”</p>
+                  <p className="type-caption text-muted">“{line.notes}”</p>
                 )}
 
-                <p
-                  className={[
-                    'mt-0.5 text-[13px] leading-[18px]',
-                    STATUS_TONE[line.status] ?? 'text-steel',
-                  ].join(' ')}
-                >
-                  {STATUS_LABELS[line.status]}
-                  {isCancelled && line.wasPrepared === true && ' · was made'}
-                  {isCancelled && line.wasPrepared === false && ' · not made'}
+                <p className="mt-1 flex flex-wrap items-center gap-2">
+                  <StateChip {...(LINE_STATES[line.status] ?? LINE_STATES.PENDING)} size="sm" />
+                  {isCancelled && line.wasPrepared === true && <span className="type-caption text-muted">was made</span>}
+                  {isCancelled && line.wasPrepared === false && <span className="type-caption text-muted">not made</span>}
                 </p>
 
                 {/* P04. The fixed reason's label and the note. A line cancelled
                     with the whole order carries only the note. */}
                 {isCancelled && describeReason(LINE_CANCEL_REASONS, line.cancelReasonCode, line.cancelReason) && (
-                  <p className="text-[13px] leading-[18px] text-steel">
+                  <p className="type-caption text-muted">
                     {describeReason(LINE_CANCEL_REASONS, line.cancelReasonCode, line.cancelReason)}
                   </p>
                 )}
               </div>
 
               <div className="flex-none text-right">
-                <p className="font-mono text-[15px] font-medium leading-5">
-                  {formatPaise(line.lineTotalInPaise)}
-                </p>
-                <p className="font-mono text-[12px] leading-4 text-steel">
-                  {line.quantity} × {formatPaise(line.unitPriceInPaise)}
-                </p>
+                <Money paise={line.lineTotalInPaise} size="num" tabular className="block" />
+                <span className="type-num-meta block text-muted">
+                  {line.quantity} × <Money paise={line.unitPriceInPaise} />
+                </span>
               </div>
             </div>
 
@@ -123,7 +108,7 @@ export default function OrderLineList({
                     type="button"
                     disabled={isBusy}
                     onClick={() => onServeLine(line)}
-                    className="h-12 rounded-full bg-chana px-4 text-[15px] font-semibold text-ink transition-transform active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
+                    className="type-button min-h-12 rounded-lg border border-ink bg-surface px-4 hover:bg-sunken disabled:opacity-60"
                   >
                     Mark served
                   </button>
@@ -134,7 +119,7 @@ export default function OrderLineList({
                     type="button"
                     disabled={isBusy}
                     onClick={() => onCancelLine(line)}
-                    className="h-12 rounded-full px-3 text-[13px] font-medium text-mirch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-60"
+                    className="type-label min-h-12 rounded-lg px-3 text-alert hover:bg-alert-tint disabled:opacity-60"
                   >
                     Cancel line
                   </button>

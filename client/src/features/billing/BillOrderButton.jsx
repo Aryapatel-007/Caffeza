@@ -6,7 +6,7 @@ import { createBill } from '../../api/bills.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { ROLES } from '../users/roles.js';
 import { errorMessage, existingBillId } from './errorCopy.js';
-import { BILL_LABELS } from './labels.js';
+import { LABELS } from '../i18n/labels.js';
 
 const CAN_BILL = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER];
 
@@ -46,9 +46,9 @@ export default function BillOrderButton({ order }) {
       <button
         type="button"
         onClick={() => navigate(`/bills/${order.billId}`)}
-        className="flex h-12 items-center rounded-xl border border-black/5 shadow-card bg-chana px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="flex min-h-12 items-center rounded-lg bg-accent px-4 type-button text-on-accent"
       >
-        {BILL_LABELS.openBill.en}
+        {LABELS.openBill}
       </button>
     );
   }
@@ -61,11 +61,11 @@ export default function BillOrderButton({ order }) {
         type="button"
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending}
-        className="flex h-12 items-center rounded-xl border border-black/5 shadow-card bg-chana px-4 text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+        className="flex min-h-12 items-center rounded-lg bg-accent px-4 type-button disabled:opacity-50 text-on-accent"
       >
-        {mutation.isPending ? 'Billing…' : BILL_LABELS.billThisOrder.en}
+        {mutation.isPending ? 'Billing…' : LABELS.billThisOrder}
       </button>
-      {error && <p className="text-[12px] text-mirch">{error}</p>}
+      {error && <p className="type-caption text-alert">{error}</p>}
     </div>
   );
 }

@@ -2,10 +2,13 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { TickIcon } from '../../components/ui/icons/index.jsx';
+import Money from '../../components/ui/Money.jsx';
+import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { getMenuTree } from '../../api/menu.js';
 import { createOrder, fireOrder } from '../../api/orders.js';
-import { formatPaise } from '../../utils/formatMoney.js';
+import Bilingual from '../i18n/Bilingual.jsx';
 import { errorMessage } from './errorCopy.js';
 import LineOptionsPanel from './LineOptionsPanel.jsx';
 import MenuPicker from './MenuPicker.jsx';
@@ -155,26 +158,24 @@ export default function DeliveryOrderPage() {
   };
 
   return (
-    <main className="min-h-full bg-paper px-4 py-6 lg:px-6">
+    <main className="v2 min-h-full bg-ground px-4 py-4 text-ink lg:px-6">
       <div className="mx-auto flex max-w-[1720px] flex-col gap-6 lg:flex-row lg:items-start">
         {/* Left: platform, number, menu. */}
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
             <div>
-              <p className="text-[11px] font-semibold text-steel">
+              <p className="type-label text-muted">
                 <Link to="/floor" className="hover:text-ink">Orders</Link> ›{' '}
                 <span className="text-ink">New delivery order</span>
               </p>
-              <h1 className="mt-0.5 text-[24px] font-semibold leading-8 tracking-[-0.015em]">
+              <h1 className="mt-0.5 type-title">
                 New delivery order
               </h1>
             </div>
-            <span className="self-start rounded-full bg-linen-2 px-3 py-1 text-[12px] font-semibold text-steel sm:self-auto">
-              Entered by hand from the platform tablet
-            </span>
+            <span className="type-caption text-muted">Entered by hand from the platform tablet</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" role="group" aria-label="Platform">
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Platform">
             {PLATFORMS.map((entry) => {
               const chosen = platformCode === entry.code;
               return (
@@ -184,44 +185,23 @@ export default function DeliveryOrderPage() {
                   aria-pressed={chosen}
                   onClick={() => setPlatformCode(entry.code)}
                   className={[
-                    'relative flex min-h-[84px] flex-col justify-between overflow-hidden rounded-2xl p-4 text-left shadow-card transition-all active:scale-[0.99]',
-                    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                    chosen ? 'bg-chana-soft ring-2 ring-chana' : 'bg-white hover:bg-linen',
+                    'flex min-h-20 flex-col justify-between rounded-[10px] border p-3 text-left transition-colors',
+                    chosen ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
                   ].join(' ')}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span
-                        aria-hidden
-                        className={[
-                          'flex size-10 items-center justify-center rounded-xl font-mono text-[16px] font-bold',
-                          chosen ? 'bg-chana text-ink' : 'bg-linen-3 text-steel',
-                        ].join(' ')}
-                      >
-                        {entry.name.charAt(0)}
-                      </span>
-                      <span className="text-[16px] font-semibold">{entry.name}</span>
-                    </div>
-                    <span
-                      className={[
-                        'rounded-full px-2.5 py-1 text-[11px] font-semibold',
-                        chosen ? 'bg-ink text-white' : 'bg-linen-2 text-steel',
-                      ].join(' ')}
-                    >
-                      {chosen ? 'Selected' : 'Choose'}
-                    </span>
-                  </div>
-                  <span className="mt-2 text-[12px] text-steel">
-                    Paid by {entry.name}, settled in its payout
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="type-heading">{entry.name}</span>
+                    {chosen && <TickIcon />}
                   </span>
+                  <span className="type-caption text-muted">Paid by {entry.name}, settled in its payout</span>
                 </button>
               );
             })}
           </div>
 
-          <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-card md:flex-row md:items-end">
+          <div className="flex flex-col gap-4 rounded-[10px] bg-surface p-4 border border-line md:flex-row md:items-end">
             <label className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-steel">
+              <span className="type-label text-muted">
                 Platform order number
               </span>
               <span className="relative">
@@ -236,17 +216,13 @@ export default function DeliveryOrderPage() {
                     setExistingOrderId(null);
                   }}
                   placeholder="249377796192385"
-                  className="h-12 w-full rounded-xl bg-linen px-4 font-mono text-[15px] font-bold placeholder:font-normal placeholder:text-steel focus:bg-white focus:outline-none focus:ring-2 focus:ring-chana"
+                  className="type-num min-h-12 w-full rounded-lg border border-muted bg-surface px-4 pr-32 placeholder:text-muted"
                 />
-                {orderIdValid && (
-                  <span className="absolute right-3 top-3 rounded bg-patta-tint px-2 py-0.5 text-[10px] font-semibold">
-                    Looks right
-                  </span>
-                )}
+                {orderIdValid && <StateChip state="ok" word="Looks right" size="sm" className="absolute right-2 top-3" />}
               </span>
             </label>
             <label className="flex flex-col gap-1 md:w-64">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-steel">
+              <span className="type-label text-muted">
                 Customer name, optional
               </span>
               <input
@@ -254,15 +230,15 @@ export default function DeliveryOrderPage() {
                 value={customerName}
                 maxLength={100}
                 onChange={(event) => setCustomerName(event.target.value)}
-                className="h-12 w-full rounded-xl bg-linen px-4 text-[15px] focus:bg-white focus:outline-none focus:ring-2 focus:ring-chana"
+                className="type-body min-h-12 w-full rounded-lg border border-muted bg-surface px-4"
               />
             </label>
           </div>
 
           {existingOrderId && (
-            <p className="rounded-2xl bg-mirch-soft px-4 py-3 text-[13px]">
+            <p className="type-body rounded-[10px] border border-line border-l-[3px] border-l-alert bg-surface px-4 py-3">
               This platform order number is already on an open order.{' '}
-              <Link to={`/orders/${existingOrderId}`} className="font-semibold underline underline-offset-4">
+              <Link to={`/orders/${existingOrderId}`} className="font-semibold text-accent underline underline-offset-4">
                 Open that order
               </Link>
             </p>
@@ -275,7 +251,7 @@ export default function DeliveryOrderPage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search dishes"
-              className="h-11 w-full rounded-full bg-white px-4 text-[13px] shadow-card placeholder:text-steel focus:outline-none focus:ring-2 focus:ring-chana"
+              className="type-body min-h-12 w-full rounded-lg border border-muted bg-surface px-4 placeholder:text-muted"
             />
           </label>
 
@@ -304,27 +280,18 @@ export default function DeliveryOrderPage() {
 
         {/* Right: the order summary. */}
         <aside className="flex w-full flex-none flex-col lg:sticky lg:top-4 lg:w-[420px] xl:w-[460px]">
-          <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-lift lg:p-6">
+          <div className="flex flex-col gap-4 rounded-[10px] border border-line bg-surface p-4 lg:p-6">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-[20px] font-semibold leading-7 tracking-tight">Delivery order summary</h2>
-                <p className="mt-0.5 flex items-center gap-1.5 font-mono text-[12px] text-steel">
-                  <span
-                    aria-hidden
-                    className={['size-2 rounded-full', platform && orderIdValid ? 'bg-patta' : 'bg-linen-3'].join(' ')}
-                  />
+                <h2 className="type-heading">Delivery order summary</h2>
+                <p className="type-num-meta mt-0.5 text-muted">
                   {platform && orderIdValid ? `${platform.name} ${platformOrderId.trim()}` : 'Not saved yet'}
                 </p>
               </div>
-              {platform && (
-                <span className="rounded-lg bg-chana px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-wide">
-                  {platform.name}
-                </span>
-              )}
             </div>
 
             {draft.length === 0 ? (
-              <p className="rounded-xl bg-linen px-4 py-8 text-center text-[13px] text-steel">
+              <p className="type-body rounded-lg bg-sunken px-4 py-8 text-muted">
                 Tap a dish on the left to add it.
               </p>
             ) : (
@@ -332,32 +299,30 @@ export default function DeliveryOrderPage() {
                 {draft.map((line) => (
                   <li
                     key={line.id}
-                    className="flex items-center justify-between gap-2 rounded-xl bg-linen/60 p-2.5 transition-colors hover:bg-linen"
+                    className="flex items-center justify-between gap-2 border-b border-line py-2 last:border-b-0"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-[14px] font-semibold">{line.name}</p>
-                      {line.detail && <p className="truncate text-[12px] text-steel">{line.detail}</p>}
-                      <p className="mt-0.5 font-mono text-[13px] font-bold">
-                        {formatPaise(line.unitInPaise * line.quantity)}
-                      </p>
+                      <p className="type-body truncate font-semibold">{line.name}</p>
+                      {line.detail && <p className="type-caption truncate text-muted">{line.detail}</p>}
+                      <Money paise={line.unitInPaise * line.quantity} size="num" />
                     </div>
-                    <div className="flex flex-none items-center gap-1.5 rounded-lg bg-white px-2 py-1 shadow-card">
+                    <div className="flex flex-none items-center rounded-lg border border-ink">
                       <button
                         type="button"
                         aria-label={line.quantity === 1 ? `Remove ${line.name}` : 'One fewer'}
                         onClick={() => setQuantity(line, line.quantity - 1)}
-                        className="flex size-8 items-center justify-center rounded text-[15px] font-bold text-steel hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
+                        className="flex size-12 items-center justify-center rounded-lg hover:bg-sunken"
                       >
                         −
                       </button>
-                      <span aria-live="polite" className="w-5 text-center font-mono text-[13px] font-bold">
+                      <span aria-live="polite" className="type-num w-6 text-center">
                         {line.quantity}
                       </span>
                       <button
                         type="button"
                         aria-label="One more"
                         onClick={() => setQuantity(line, line.quantity + 1)}
-                        className="flex size-8 items-center justify-center rounded text-[15px] font-bold text-steel hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
+                        className="flex size-12 items-center justify-center rounded-lg hover:bg-sunken"
                       >
                         +
                       </button>
@@ -367,17 +332,7 @@ export default function DeliveryOrderPage() {
               </ul>
             )}
 
-            <div className="flex flex-col gap-2 rounded-xl bg-linen p-3.5">
-              <div className="flex items-center justify-between text-[14px]">
-                <span className="text-steel">
-                  Item total (<span className="font-mono">{itemCount}</span> {itemCount === 1 ? 'item' : 'items'})
-                </span>
-                <span className="font-mono font-bold">{formatPaise(itemTotal)}</span>
-              </div>
-            </div>
-
-            <p className="flex items-start gap-2 rounded-xl bg-linen-2 p-2.5 text-[12px] leading-4 text-steel">
-              <span aria-hidden className="font-bold">i</span>
+            <p className="type-caption text-muted">
               <span>
                 GST 0% when the platform pays the GST on this order under section 9(5), as set in
                 Settings. The bill works it out.
@@ -386,14 +341,12 @@ export default function DeliveryOrderPage() {
 
             <div className="flex items-end justify-between px-1">
               <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wider text-steel">
-                  Item total
+                <span className="type-label block">
+                  Item total, <span className="type-num">{itemCount}</span> {itemCount === 1 ? 'item' : 'items'}
                 </span>
-                <span className="text-[11px] text-steel">Before GST · the bill has the final total</span>
+                <span className="type-caption text-muted">Before GST · the bill has the final total</span>
               </div>
-              <span className="font-mono text-[28px] font-bold leading-9 tracking-tight">
-                {formatPaise(itemTotal)}
-              </span>
+              <Money paise={itemTotal} size="tile" />
             </div>
 
             <div className="flex flex-col gap-2.5">
@@ -401,16 +354,16 @@ export default function DeliveryOrderPage() {
                 type="button"
                 disabled={Boolean(missing) || save.isPending}
                 onClick={() => save.mutate({ fire: true })}
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-chana text-[15px] font-bold text-ink shadow-card transition-transform active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-lg bg-accent text-on-accent hover:brightness-110 disabled:opacity-50"
               >
-                {save.isPending ? 'Sending…' : missing ?? 'Send to kitchen →'}
+                {save.isPending ? 'Sending…' : missing ? <span className="type-button">{missing}</span> : <Bilingual k="sendToKitchen" align="center" />}
               </button>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   disabled={Boolean(missing) || save.isPending}
                   onClick={() => save.mutate({ fire: false })}
-                  className="h-10 rounded-full bg-linen-3 text-[12px] font-semibold hover:bg-linen-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+                  className="type-label min-h-12 rounded-lg border border-ink bg-surface hover:bg-sunken disabled:opacity-50"
                 >
                   Save without sending
                 </button>
@@ -418,7 +371,7 @@ export default function DeliveryOrderPage() {
                   type="button"
                   disabled={save.isPending || (draft.length === 0 && !platformOrderId)}
                   onClick={clear}
-                  className="h-10 rounded-full bg-mirch-soft text-[12px] font-semibold text-mirch hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mirch disabled:opacity-50"
+                  className="type-label min-h-12 rounded-lg text-alert hover:bg-alert-tint disabled:opacity-50"
                 >
                   Clear
                 </button>

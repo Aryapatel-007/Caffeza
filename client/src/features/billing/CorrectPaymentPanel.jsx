@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
-import { formatPaise } from '../../utils/formatMoney.js';
-import { BILL_LABELS } from './labels.js';
+import { LABELS } from '../i18n/labels.js';
 import MethodButtons from './MethodButtons.jsx';
-import PanelShell from './PanelShell.jsx';
+import Sheet from '../../components/ui/Sheet.jsx';
 import { paymentMethodName } from './paymentMethodsForBill.js';
+import Money from '../../components/ui/Money.jsx';
 
 /**
  * Changing how one payment was made. P08. OWNER and MANAGER.
@@ -20,10 +20,10 @@ export default function CorrectPaymentPanel({ payment, methods, isBusy, error, o
   const ready = method !== null && reason.trim().length > 0;
 
   return (
-    <PanelShell title="Change payment method" onCancel={onCancel}>
-      <p className="mb-4 text-[13px] leading-[18px] text-steel">
+    <Sheet title="Change payment method" onCancel={onCancel}>
+      <p className="mb-4 type-caption text-muted">
         {paymentMethodName(payment)}{' '}
-        <span className="font-mono text-ink">{formatPaise(payment.amountInPaise)}</span>. The amount
+        <span className="font-mono text-ink"><Money paise={payment.amountInPaise} /></span>. The amount
         stays the same.
       </p>
 
@@ -32,7 +32,7 @@ export default function CorrectPaymentPanel({ payment, methods, isBusy, error, o
       </div>
 
       <label className="mb-4 block">
-        <span className="mb-1 block text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel">
+        <span className="mb-1 block type-label text-muted">
           Reason, required
         </span>
         <textarea
@@ -41,29 +41,29 @@ export default function CorrectPaymentPanel({ payment, methods, isBusy, error, o
           rows={2}
           maxLength={200}
           placeholder="Guest paid by UPI, not cash"
-          className="w-full rounded-xl border-2 border-steel/40 bg-paper px-3 py-2 text-[15px] leading-[22px] placeholder:text-steel focus:border-ink focus:outline-none"
+          className="w-full rounded-lg min-h-12 border border-muted bg-surface px-3 py-2 type-body placeholder:text-muted"
         />
       </label>
 
-      {error && <p className="mb-3 text-[13px] leading-[18px] text-mirch">{error}</p>}
+      {error && <p className="mb-3 type-caption text-alert">{error}</p>}
 
       <div className="flex gap-2">
         <button
           type="button"
           onClick={onCancel}
-          className="h-14 flex-1 rounded-xl border-2 border-steel/40 text-[15px] font-semibold text-steel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+          className="min-h-14 flex-1 rounded-lg border border-ink bg-surface type-button text-ink hover:bg-sunken"
         >
-          {BILL_LABELS.cancel.en}
+          {LABELS.cancel}
         </button>
         <button
           type="button"
           disabled={!ready || isBusy}
           onClick={() => onConfirm({ method: method.code, reason: reason.trim() })}
-          className="h-14 flex-[2] rounded-xl bg-chana text-[15px] font-semibold text-ink transition-transform duration-100 active:translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className="min-h-14 flex-[2] rounded-lg bg-accent type-button text-on-accent disabled:opacity-50"
         >
           {isBusy ? 'Saving…' : method ? `Change to ${method.name}` : 'Choose a method'}
         </button>
       </div>
-    </PanelShell>
+    </Sheet>
   );
 }

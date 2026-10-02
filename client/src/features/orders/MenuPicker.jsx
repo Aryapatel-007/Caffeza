@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
-import { formatPaise } from '../../utils/formatMoney.js';
+import { MinusIcon, PlusIcon } from '../../components/ui/icons/index.jsx';
+import Money from '../../components/ui/Money.jsx';
 
 /**
  * The menu, for adding lines to an order.
@@ -74,14 +75,14 @@ export default function MenuPicker({
         </div>
       )}
 
-      {isPending && <p className="text-[15px] text-steel">Loading the menu…</p>}
+      {isPending && <p className="type-body text-muted">Loading the menu…</p>}
 
       {isError && (
-        <p className="text-[15px] text-mirch">The menu could not be loaded. Check your connection.</p>
+        <p className="type-body text-alert">The menu could not be loaded. Check your connection.</p>
       )}
 
       {!isPending && !isError && visible.length === 0 && (
-        <p className="text-[15px] leading-[22px] text-steel">
+        <p className="type-body text-muted">
           {needle
             ? `Nothing on the menu matches “${search.trim()}”.`
             : 'Nothing on the menu is available right now.'}
@@ -90,8 +91,8 @@ export default function MenuPicker({
 
       <ul
         className={[
-          'grid grid-cols-1 gap-4 sm:grid-cols-2',
-          compact ? 'xl:grid-cols-3' : 'lg:grid-cols-3 xl:grid-cols-4',
+          'grid grid-cols-2 gap-3',
+          compact ? 'xl:grid-cols-3' : 'md:grid-cols-3 xl:grid-cols-4',
         ].join(' ')}
       >
         {visible.map((item) => (
@@ -114,66 +115,47 @@ export default function MenuPicker({
 
 function DishCard({ item, line, pendingCount, disabled, onPick, onStep, onRemove }) {
   const hasChoices = item.variants.length > 0 || item.addOns.length > 0;
+  const onOrder = Boolean(line) || (hasChoices && pendingCount > 0);
 
   return (
     <div
       className={[
-        'flex h-full flex-col justify-between rounded-2xl bg-white p-4 shadow-card transition-shadow hover:shadow-lift',
-        line || (hasChoices && pendingCount > 0) ? 'ring-2 ring-chana/50' : '',
+        'flex h-full flex-col justify-between rounded-[10px] bg-surface p-3 transition-colors',
+        onOrder ? 'border-[3px] border-open' : 'border border-line',
       ].join(' ')}
     >
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onPick}
-        className="min-w-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
-      >
-        <h3 className="line-clamp-2 text-[16px] font-semibold leading-6">{item.name}</h3>
-        {/* An item description is prose, so it is Sans. */}
-        {item.description && (
-          <p className="mt-1 line-clamp-2 text-[12px] leading-4 text-steel">{item.description}</p>
-        )}
+      <button type="button" disabled={disabled} onClick={onPick} className="min-h-12 min-w-0 text-left disabled:opacity-60">
+        <h3 className="type-body line-clamp-2 font-semibold">{item.name}</h3>
+        {item.description && <p className="type-caption mt-1 line-clamp-2 text-muted">{item.description}</p>}
         {hasChoices && (
-          <span className="mt-2 inline-flex rounded bg-linen-2 px-2 py-0.5 text-[11px] font-semibold text-steel">
-            {item.variants.length > 0 ? `${item.variants.length} sizes` : 'Extras'}
-          </span>
+          <span className="type-caption mt-1 block text-muted">{item.variants.length > 0 ? `${item.variants.length} sizes` : 'Extras'}</span>
         )}
       </button>
 
-      <div className="mt-4 flex items-center justify-between gap-2 border-t border-black/5 pt-3">
-        {/* Every number is Mono. */}
-        <span className="font-mono text-[16px] font-bold leading-[22px]">
-          {formatPaise(item.priceInPaise)}
-        </span>
+      <div className="mt-3 flex flex-col gap-2 min-[600px]:flex-row min-[600px]:items-center min-[600px]:justify-between">
+        <Money paise={item.priceInPaise} size="num" />
 
         {line ? (
-          <div className="flex items-center rounded-full bg-chana p-1 shadow-card">
+          <div className="flex items-center justify-between rounded-lg border border-ink">
             <StepButton
               label={line.quantity === 1 ? `Remove ${item.name}` : 'One fewer'}
-              symbol="−"
+              icon={<MinusIcon />}
               disabled={disabled}
-              onClick={() =>
-                line.quantity === 1 ? onRemove(line) : onStep(line, line.quantity - 1)
-              }
+              onClick={() => (line.quantity === 1 ? onRemove(line) : onStep(line, line.quantity - 1))}
             />
-            <span aria-live="polite" className="w-8 text-center font-mono text-[14px] font-bold">
+            <span aria-live="polite" className="type-num min-w-8 text-center">
               {line.quantity}
             </span>
-            <StepButton
-              label="One more"
-              symbol="+"
-              disabled={disabled}
-              onClick={() => onStep(line, line.quantity + 1)}
-            />
+            <StepButton label="One more" icon={<PlusIcon />} disabled={disabled} onClick={() => onStep(line, line.quantity + 1)} />
           </div>
         ) : hasChoices ? (
           <button
             type="button"
             disabled={disabled}
             onClick={onPick}
-            className="flex h-10 items-center gap-1 rounded-full bg-chana-soft px-3.5 text-[12px] font-semibold text-ink shadow-card transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
+            className="type-label flex min-h-12 items-center gap-1 rounded-lg border border-ink px-3 hover:bg-sunken disabled:opacity-60"
           >
-            {pendingCount > 0 ? `${pendingCount} added · Select` : '+ Select'}
+            {pendingCount > 0 ? `${pendingCount} added · Choose` : 'Choose'}
           </button>
         ) : (
           <button
@@ -181,9 +163,9 @@ function DishCard({ item, line, pendingCount, disabled, onPick, onStep, onRemove
             aria-label={`Add ${item.name}`}
             disabled={disabled}
             onClick={onPick}
-            className="flex size-10 items-center justify-center rounded-full bg-chana text-[20px] text-ink shadow-card transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
+            className="flex size-12 items-center justify-center self-end rounded-lg border border-ink hover:bg-sunken disabled:opacity-60 min-[600px]:self-auto"
           >
-            +
+            <PlusIcon />
           </button>
         )}
       </div>
@@ -191,16 +173,16 @@ function DishCard({ item, line, pendingCount, disabled, onPick, onStep, onRemove
   );
 }
 
-function StepButton({ label, symbol, onClick, disabled }) {
+function StepButton({ label, icon, onClick, disabled }) {
   return (
     <button
       type="button"
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className="flex size-8 items-center justify-center rounded-full bg-white text-[16px] font-bold transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+      className="flex size-12 items-center justify-center rounded-lg hover:bg-sunken disabled:opacity-50"
     >
-      {symbol}
+      {icon}
     </button>
   );
 }
@@ -212,20 +194,12 @@ function CategoryPill({ label, count, isActive, onClick }) {
       onClick={onClick}
       aria-pressed={isActive}
       className={[
-        'flex h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-5 text-[14px] font-semibold transition-colors',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-        isActive ? 'bg-ink text-white shadow-lift' : 'bg-white text-steel shadow-card hover:bg-linen-3',
+        'type-label flex min-h-12 flex-none items-center gap-2 whitespace-nowrap rounded-lg border px-4 transition-colors',
+        isActive ? 'border-ink bg-sunken text-ink' : 'border-line bg-surface text-muted hover:text-ink',
       ].join(' ')}
     >
       {label}
-      <span
-        className={[
-          'rounded-full px-2 py-0.5 font-mono text-[11px]',
-          isActive ? 'bg-white/20 text-white' : 'text-steel/70',
-        ].join(' ')}
-      >
-        {count}
-      </span>
+      <span className="type-num-meta">{count}</span>
     </button>
   );
 }

@@ -6,11 +6,12 @@ import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import { getBill, listBills } from '../../api/bills.js';
 import { businessDateToday, formatTimeIst } from '../../utils/formatDate.js';
-import { formatBasisPoints, formatPaise } from '../../utils/formatMoney.js';
+import { formatBasisPoints } from '../../utils/formatMoney.js';
 import BillStatusBadge from './BillStatusBadge.jsx';
 import { errorMessage } from './errorCopy.js';
 import { paymentMethodName } from './paymentMethodsForBill.js';
 import { placeLabel } from '../orders/orderLabel.js';
+import Money, { moneyText } from '../../components/ui/Money.jsx';
 
 const PAGE_SIZE = 50;
 
@@ -83,26 +84,26 @@ export default function BillsListPage() {
   };
 
   return (
-    <main className="min-h-full bg-paper px-4 py-6 lg:px-6">
+    <main className="v2 text-ink min-h-full bg-ground px-4 py-6 lg:px-6">
       <div className="mx-auto flex max-w-[1600px] flex-col gap-6">
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Stat label="Bill total" hint={`${rangeLabel} · voided left out`}>
-            <span className="font-mono text-[28px] font-bold leading-9">
-              {formatPaise(totals.grandTotalInPaise)}
+            <span className="type-num-hero">
+              <Money paise={totals.grandTotalInPaise} />
             </span>
           </Stat>
           <Stat label="Bills" hint="Issued and not voided">
-            <span className="font-mono text-[28px] font-bold leading-9">{totals.billCount}</span>
+            <span className="type-num-hero">{totals.billCount}</span>
           </Stat>
           <Stat label="Unpaid bills" hint="Waiting for payment">
-            <span className="font-mono text-[28px] font-bold leading-9 text-ink">
+            <span className="type-num-hero text-ink">
               {unpaidCount}
             </span>
             {unpaidCount > 0 && (
               <button
                 type="button"
                 onClick={() => resetPage(setStatus)('UNPAID')}
-                className="ml-3 rounded-full bg-chana-soft px-2.5 py-0.5 text-[12px] font-semibold hover:bg-chana/30"
+                className="ml-3 rounded-full bg-open-tint px-2.5 py-0.5 type-caption hover:bg-sunken"
               >
                 Show them
               </button>
@@ -111,8 +112,8 @@ export default function BillsListPage() {
           <Stat label="Voided" hint="Kept in the invoice register">
             <span
               className={[
-                'font-mono text-[28px] font-bold leading-9',
-                totals.voidedCount > 0 ? 'text-mirch' : '',
+                'type-num-hero',
+                totals.voidedCount > 0 ? 'text-alert' : '',
               ].join(' ')}
             >
               {totals.voidedCount}
@@ -122,12 +123,12 @@ export default function BillsListPage() {
 
         <div className="flex flex-col items-start gap-6 lg:flex-row">
           <div className="flex w-full min-w-0 flex-1 flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-3 shadow-card">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] bg-surface p-3 border border-line">
               <div className="flex flex-wrap items-center gap-2">
                 <DateField label="From" value={from} onChange={resetPage(setFrom)} />
                 <DateField label="To" value={to} onChange={resetPage(setTo)} />
 
-                <div className="flex items-center gap-1 rounded-full bg-linen-2 p-1" role="group" aria-label="Status">
+                <div className="flex items-center gap-1 rounded-full bg-sunken p-1" role="group" aria-label="Status">
                   {STATUS_FILTERS.map((option) => (
                     <button
                       key={option.value}
@@ -135,9 +136,9 @@ export default function BillsListPage() {
                       aria-pressed={status === option.value}
                       onClick={() => resetPage(setStatus)(option.value)}
                       className={[
-                        'h-9 rounded-full px-4 text-[12px] font-medium transition-colors',
-                        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
-                        status === option.value ? 'bg-ink text-white shadow-card' : 'text-steel hover:text-ink',
+                        'h-9 rounded-lg px-4 type-caption transition-colors',
+                        '',
+                        status === option.value ? 'bg-sunken text-ink ring-2 ring-inset ring-ink' : 'text-muted hover:text-ink',
                       ].join(' ')}
                     >
                       {option.label}
@@ -145,14 +146,14 @@ export default function BillsListPage() {
                   ))}
                 </div>
 
-                <label className="flex h-9 items-center gap-2 rounded-full bg-linen-2 px-3">
+                <label className="flex h-9 items-center gap-2 rounded-lg bg-sunken px-3">
                   <input
                     type="checkbox"
                     checked={includeVoided}
                     onChange={(event) => resetPage(setIncludeVoided)(event.target.checked)}
                     className="size-4 accent-[var(--color-ink)]"
                   />
-                  <span className="text-[12px] font-medium">Include voided</span>
+                  <span className="type-caption">Include voided</span>
                 </label>
               </div>
 
@@ -163,12 +164,12 @@ export default function BillsListPage() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search bill, table, captain"
-                  className="h-11 w-full rounded-full bg-linen px-4 text-[13px] placeholder:text-steel focus:bg-white focus:outline-none focus:ring-2 focus:ring-chana"
+                  className="min-h-12 w-full rounded-lg border border-muted bg-surface px-4 type-caption placeholder:text-muted"
                 />
               </label>
             </div>
 
-            <div className="overflow-hidden rounded-2xl bg-white shadow-card">
+            <div className="overflow-hidden rounded-[10px] bg-surface border border-line">
               {query.isPending && (
                 <div className="p-6">
                   <Spinner label="Loading bills" />
@@ -181,7 +182,7 @@ export default function BillsListPage() {
               )}
 
               {query.isSuccess && rows.length === 0 && (
-                <p className="px-4 py-10 text-center text-[15px] text-steel">
+                <p className="px-4 py-10 text-center type-body text-muted">
                   {needle ? `No bill on this page matches “${search.trim()}”.` : 'No bills in this range.'}
                 </p>
               )}
@@ -190,7 +191,7 @@ export default function BillsListPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-left">
                     <thead>
-                      <tr className="bg-linen/70 font-mono text-[11px] uppercase tracking-wider text-steel">
+                      <tr className="bg-sunken/70 type-num-metar text-muted">
                         <th className="px-4 py-3.5 font-semibold">Invoice number</th>
                         <th className="px-2 py-3.5 font-semibold">Time issued</th>
                         <th className="px-4 py-3.5 font-semibold">Table</th>
@@ -200,17 +201,17 @@ export default function BillsListPage() {
                         <th className="whitespace-nowrap px-4 py-3.5 text-right font-semibold">Bill total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-linen-3">
+                    <tbody className="divide-y divide-line">
                       {rows.map((bill) => {
                         const isSelected = selected?.id === bill.id;
-                        const struck = bill.isVoided ? 'line-through text-steel' : '';
+                        const struck = bill.isVoided ? 'line-through text-muted' : '';
                         return (
                           <tr
                             key={bill.id}
                             onClick={() => setSelectedId(bill.id)}
                             className={[
                               'cursor-pointer transition-colors',
-                              isSelected ? 'bg-chana-soft' : 'hover:bg-linen',
+                              isSelected ? 'bg-open-tint' : 'hover:bg-sunken',
                               bill.isVoided ? 'opacity-70' : '',
                             ].join(' ')}
                           >
@@ -220,34 +221,34 @@ export default function BillsListPage() {
                                 onClick={() => setSelectedId(bill.id)}
                                 aria-pressed={isSelected}
                                 className={[
-                                  'flex items-center gap-2 whitespace-nowrap font-mono text-[13px] font-bold',
-                                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
+                                  'flex items-center gap-2 whitespace-nowrap type-num-meta',
+                                  '',
                                   struck,
                                 ].join(' ')}
                               >
-                                {isSelected && <span aria-hidden className="h-6 w-1.5 rounded-full bg-chana" />}
+                                {isSelected && <span aria-hidden className="h-6 w-1 rounded-full bg-ink" />}
                                 {bill.billNumber}
                               </button>
                             </td>
-                            <td className={`whitespace-nowrap px-2 py-3.5 font-mono text-[12px] text-steel ${struck}`}>
+                            <td className={`whitespace-nowrap px-2 py-3.5 type-num-meta text-muted ${struck}`}>
                               {bill.billedAt ? formatTimeIst(bill.billedAt) : ''}
                             </td>
                             <td className="px-4 py-3.5">
-                              <span className={`inline-flex rounded-full bg-linen-2 px-2.5 py-1 text-[12px] font-medium ${struck}`}>
+                              <span className={`inline-flex rounded-full bg-sunken px-2.5 py-1 type-caption ${struck}`}>
                                 {placeLabel(bill)}
                               </span>
                             </td>
-                            <td className={`hidden px-4 py-3.5 text-[13px] xl:table-cell ${struck}`}>
+                            <td className={`hidden px-4 py-3.5 type-caption xl:table-cell ${struck}`}>
                               {bill.captainName ?? '—'}
                             </td>
-                            <td className={`hidden px-4 py-3.5 text-[13px] text-steel xl:table-cell ${struck}`}>
+                            <td className={`hidden px-4 py-3.5 type-caption text-muted xl:table-cell ${struck}`}>
                               {(bill.payments ?? []).map(paymentMethodName).join(', ') || '—'}
                             </td>
                             <td className="px-2 py-3.5">
                               <BillStatusBadge bill={bill} />
                             </td>
-                            <td className={`whitespace-nowrap px-4 py-3.5 text-right font-mono text-[15px] font-bold ${struck}`}>
-                              {formatPaise(bill.grandTotalInPaise)}
+                            <td className={`whitespace-nowrap px-4 py-3.5 text-right type-num ${struck}`}>
+                              <Money paise={bill.grandTotalInPaise} />
                             </td>
                           </tr>
                         );
@@ -257,16 +258,16 @@ export default function BillsListPage() {
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-linen/90 px-4 py-3">
-                <p className="font-mono text-[13px]">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-sunken/90 px-4 py-3">
+                <p className="type-num-meta">
                   <span className="font-bold">
-                    {totals.billCount} bills · {formatPaise(totals.grandTotalInPaise)}
+                    {totals.billCount} bills · <Money paise={totals.grandTotalInPaise} />
                   </span>
-                  <span className="mx-2 text-steel">·</span>
-                  <span className="text-steel">Money received {formatPaise(totals.amountPaidInPaise)}</span>
+                  <span className="mx-2 text-muted">·</span>
+                  <span className="text-muted">Money received <Money paise={totals.amountPaidInPaise} /></span>
                 </p>
                 <div className="flex items-center gap-2">
-                  <span className="text-[12px] text-steel">
+                  <span className="type-caption text-muted">
                     Page <span className="font-mono">{page}</span> of <span className="font-mono">{lastPage}</span>
                   </span>
                   <PageButton label="Previous page" disabled={page <= 1} onClick={() => setPage(page - 1)}>
@@ -292,13 +293,13 @@ function BillPreview({ billId }) {
   const bill = useQuery({ queryKey: ['bill', billId], queryFn: () => getBill(billId) });
 
   return (
-    <aside className="sticky top-4 hidden w-[420px] flex-none flex-col overflow-hidden rounded-2xl bg-white shadow-lift lg:flex">
+    <aside className="sticky top-4 hidden w-[420px] flex-none flex-col overflow-hidden rounded-[10px] bg-surface shadow-float lg:flex">
       {bill.isPending && (
         <div className="p-6">
           <Spinner label="Loading the bill" />
         </div>
       )}
-      {bill.isError && <p className="p-6 text-[13px] text-mirch">{errorMessage(bill.error)}</p>}
+      {bill.isError && <p className="p-6 type-caption text-alert">{errorMessage(bill.error)}</p>}
       {bill.data && <PreviewBody bill={bill.data} />}
     </aside>
   );
@@ -310,13 +311,13 @@ function PreviewBody({ bill }) {
 
   return (
     <>
-      <header className="flex items-start justify-between gap-2 bg-linen p-4">
+      <header className="flex items-start justify-between gap-2 bg-sunken p-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-[16px] font-semibold">Bill details</h2>
+            <h2 className="type-body font-semibold">Bill details</h2>
             <BillStatusBadge bill={bill} />
           </div>
-          <p className="mt-1 font-mono text-[12px] text-steel">
+          <p className="mt-1 type-num-meta text-muted">
             <span className="font-bold text-ink">{bill.billNumber}</span>
             {bill.billedAt && ` · ${formatTimeIst(bill.billedAt)}`} · {placeLabel(bill)}
           </p>
@@ -324,8 +325,8 @@ function PreviewBody({ bill }) {
       </header>
 
       {isUnpaid && (
-        <p className="bg-chana-soft px-4 py-2.5 text-[12px] font-medium">
-          Waiting for payment · <span className="font-mono">{formatPaise(outstanding)}</span> outstanding
+        <p className="bg-open-tint px-4 py-2.5 type-caption">
+          Waiting for payment · <span className="font-mono"><Money paise={outstanding} /></span> outstanding
         </p>
       )}
 
@@ -333,41 +334,41 @@ function PreviewBody({ bill }) {
         {bill.lines.map((line) => (
           <li key={line.orderLineId} className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[14px] font-medium leading-5">
+              <p className="type-label">
                 {line.itemName}
                 {line.variantName ? ` (${line.variantName})` : ''}
               </p>
-              <p className="font-mono text-[12px] text-steel">
-                {line.quantity} × {formatPaise(line.unitPriceInPaise)}
+              <p className="type-num-meta text-muted">
+                {line.quantity} × <Money paise={line.unitPriceInPaise} />
                 {line.addOnNames.length > 0 && ` · + ${line.addOnNames.join(', ')}`}
               </p>
             </div>
-            <span className="font-mono text-[14px] font-bold">{formatPaise(line.lineTotalInPaise)}</span>
+            <span className="type-num"><Money paise={line.lineTotalInPaise} /></span>
           </li>
         ))}
       </ul>
 
-      <dl className="flex flex-col gap-1.5 bg-linen p-4 text-[12px]">
-        <PreviewRow label="Item total" value={formatPaise(bill.subtotalInPaise)} />
+      <dl className="flex flex-col gap-1.5 bg-sunken p-4 type-caption">
+        <PreviewRow label="Item total" value={<Money paise={bill.subtotalInPaise} />} />
         {bill.discount && (
-          <PreviewRow tone="text-patta" label="Discount" value={`− ${formatPaise(bill.discount.amountInPaise)}`} />
+          <PreviewRow tone="text-ok" label="Discount" value={`− ${moneyText(bill.discount.amountInPaise)}`} />
         )}
         {bill.taxBreakdown.map((slab) => (
           <PreviewRow
             key={slab.taxRateBps}
             label={`GST @ ${formatBasisPoints(slab.taxRateBps)}`}
-            value={formatPaise(slab.cgstInPaise + slab.sgstInPaise)}
+            value={<Money paise={slab.cgstInPaise + slab.sgstInPaise} />}
           />
         ))}
-        {bill.roundOffInPaise !== 0 && <PreviewRow label="Round-off" value={formatPaise(bill.roundOffInPaise)} />}
+        {bill.roundOffInPaise !== 0 && <PreviewRow label="Round-off" value={<Money paise={bill.roundOffInPaise} />} />}
         <div className="mt-1 flex items-baseline justify-between">
-          <dt className="text-[16px] font-semibold">Bill total</dt>
-          <dd className="font-mono text-[28px] font-bold">{formatPaise(bill.grandTotalInPaise)}</dd>
+          <dt className="type-body font-semibold">Bill total</dt>
+          <dd className="type-num-hero"><Money paise={bill.grandTotalInPaise} /></dd>
         </div>
       </dl>
 
       {bill.captainName && (
-        <p className="bg-linen-3/60 px-4 py-2.5 text-[12px] text-steel">
+        <p className="bg-sunken/60 px-4 py-2.5 type-caption text-muted">
           Captain: <span className="font-semibold text-ink">{bill.captainName}</span>
           {bill.guestCount != null && ` · ${bill.guestCount} covers`}
         </p>
@@ -376,14 +377,14 @@ function PreviewBody({ bill }) {
       <div className="flex flex-col gap-2 p-4">
         <Link
           to={`/bills/${bill.id}`}
-          className="flex h-14 items-center justify-between rounded-full bg-chana px-6 text-[15px] font-bold text-ink shadow-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="flex min-h-14 items-center justify-between rounded-lg bg-accent px-6 type-button text-on-accent"
         >
           <span>{isUnpaid ? 'Take payment' : 'Open bill'}</span>
-          <span className="font-mono">{isUnpaid ? `${formatPaise(outstanding)} →` : '→'}</span>
+          <span className="font-mono">{isUnpaid ? `${moneyText(outstanding)} →` : '→'}</span>
         </Link>
         <Link
           to={`/bills/${bill.id}/receipt`}
-          className="flex h-11 items-center justify-center rounded-full text-[13px] font-semibold hover:bg-linen focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="flex min-h-12 items-center justify-center rounded-lg type-caption hover:bg-sunken"
         >
           Receipt preview and print
         </Link>
@@ -392,7 +393,7 @@ function PreviewBody({ bill }) {
   );
 }
 
-function PreviewRow({ label, value, tone = 'text-steel' }) {
+function PreviewRow({ label, value, tone = 'text-muted' }) {
   return (
     <div className={`flex justify-between ${tone}`}>
       <dt>{label}</dt>
@@ -403,23 +404,23 @@ function PreviewRow({ label, value, tone = 'text-steel' }) {
 
 function Stat({ label, hint, children }) {
   return (
-    <div className="flex flex-col gap-2 rounded-2xl bg-white p-4 shadow-card">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-steel">{label}</span>
+    <div className="flex flex-col gap-2 rounded-[10px] bg-surface p-4 border border-line">
+      <span className="type-caption text-muted">{label}</span>
       <div className="flex items-baseline">{children}</div>
-      <span className="text-[12px] text-steel">{hint}</span>
+      <span className="type-caption text-muted">{hint}</span>
     </div>
   );
 }
 
 function DateField({ label, value, onChange }) {
   return (
-    <label className="flex h-11 items-center gap-2 rounded-full bg-linen px-4">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-steel">{label}</span>
+    <label className="flex min-h-12 items-center gap-2 rounded-lg bg-sunken px-4">
+      <span className="type-caption text-muted">{label}</span>
       <input
         type="date"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="bg-transparent font-mono text-[13px] focus:outline-none"
+        className="bg-transparent type-num-meta"
       />
     </label>
   );
@@ -432,7 +433,7 @@ function PageButton({ label, disabled, onClick, children }) {
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-9 items-center justify-center rounded-lg bg-linen-2 text-[18px] hover:bg-linen-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
+      className="flex size-9 items-center justify-center rounded-lg bg-sunken type-heading hover:bg-sunken disabled:opacity-40"
     >
       {children}
     </button>

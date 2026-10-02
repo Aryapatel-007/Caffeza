@@ -13,7 +13,7 @@ export default function InlineVoid({ isBusy, onConfirm }) {
       <button
         type="button"
         onClick={() => setAsking(true)}
-        className="min-h-10 text-[12px] font-medium text-mirch underline"
+        className="min-h-10 type-caption text-alert underline"
       >
         Void
       </button>
@@ -28,13 +28,13 @@ export default function InlineVoid({ isBusy, onConfirm }) {
         onChange={(event) => setReason(event.target.value)}
         placeholder="Why?"
         aria-label="Why is this being voided?"
-        className="w-32 rounded-lg border-2 border-steel/40 px-2 py-1 text-[13px] focus:border-ink focus:outline-none"
+        className="w-32 rounded-lg border-2 border-muted px-2 py-1 type-caption"
       />
       <button
         type="button"
         disabled={!reason.trim() || isBusy}
         onClick={() => onConfirm(reason.trim())}
-        className="min-h-10 text-[12px] font-semibold text-mirch underline disabled:opacity-50"
+        className="min-h-10 type-caption text-alert underline disabled:opacity-50"
       >
         Void it
       </button>

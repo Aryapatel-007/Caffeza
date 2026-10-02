@@ -1,24 +1,14 @@
 import { useId } from 'react';
 
 /**
- * A labelled text input.
+ * A labelled text input. DESIGN-SYSTEM-V2: `surface` fill, a `muted` border
+ * (never `line`, which is for dividers only), 8px corners.
  *
- * The label is required, not optional. An input with only a placeholder loses
- * its label the moment someone starts typing, which is exactly when a tired
- * person needs it.
- *
- * `error` is the message for this one field, which is what the server sends
- * back in error.fields.
+ * The label is required. An input with only a placeholder loses its label the
+ * moment someone starts typing, which is exactly when a tired person needs it.
+ * `error` is the message for this one field, from the server's `error.fields`.
  */
-export default function Input({
-  label,
-  error,
-  hint,
-  id,
-  type = 'text',
-  className = '',
-  ...props
-}) {
+export default function Input({ label, error, hint, id, type = 'text', className = '', ...props }) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const errorId = `${inputId}-error`;
@@ -26,7 +16,7 @@ export default function Input({
 
   return (
     <div className={className}>
-      <label htmlFor={inputId} className="block text-sm font-medium text-ink">
+      <label htmlFor={inputId} className="type-label block text-ink">
         {label}
       </label>
 
@@ -36,22 +26,20 @@ export default function Input({
         aria-invalid={error ? true : undefined}
         aria-describedby={[error ? errorId : null, hint ? hintId : null].filter(Boolean).join(' ') || undefined}
         className={[
-          'mt-1 block h-11 w-full rounded-lg border-0 px-3 text-base text-ink',
-          'ring-1 ring-inset placeholder:text-steel',
-          'focus:ring-2 focus:ring-inset',
-          error ? 'ring-red-400 focus:ring-red-500' : 'ring-black/10 focus:ring-brand-600',
-          'disabled:cursor-not-allowed disabled:bg-linen disabled:text-steel',
+          'type-body mt-1 block min-h-12 w-full rounded-lg border bg-surface px-3 text-ink placeholder:text-muted',
+          error ? 'border-alert' : 'border-muted',
+          'disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted',
         ].join(' ')}
         {...props}
       />
 
       {hint && !error && (
-        <p id={hintId} className="mt-1 text-sm text-steel">
+        <p id={hintId} className="type-caption mt-1 text-muted">
           {hint}
         </p>
       )}
       {error && (
-        <p id={errorId} className="mt-1 text-sm text-mirch">
+        <p id={errorId} className="type-caption mt-1 text-alert">
           {error}
         </p>
       )}

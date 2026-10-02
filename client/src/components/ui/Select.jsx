@@ -1,11 +1,6 @@
 import { useId } from 'react';
 
-/**
- * A labelled dropdown.
- *
- * Added in M0-C because the staff screens need role and status pickers, and
- * without a shared one every module would grow its own.
- */
+/** A labelled dropdown, drawn like `Input`. */
 export default function Select({ label, error, options, id, className = '', ...props }) {
   const generatedId = useId();
   const selectId = id ?? generatedId;
@@ -13,7 +8,7 @@ export default function Select({ label, error, options, id, className = '', ...p
 
   return (
     <div className={className}>
-      <label htmlFor={selectId} className="block text-sm font-medium text-ink">
+      <label htmlFor={selectId} className="type-label block text-ink">
         {label}
       </label>
 
@@ -22,10 +17,9 @@ export default function Select({ label, error, options, id, className = '', ...p
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
         className={[
-          'mt-1 block h-11 w-full rounded-lg border-0 bg-white px-3 text-base text-ink',
-          'ring-1 ring-inset focus:ring-2 focus:ring-inset',
-          error ? 'ring-red-400 focus:ring-red-500' : 'ring-black/10 focus:ring-brand-600',
-          'disabled:cursor-not-allowed disabled:bg-linen disabled:text-steel',
+          'type-body mt-1 block min-h-12 w-full rounded-lg border bg-surface px-3 text-ink',
+          error ? 'border-alert' : 'border-muted',
+          'disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted',
         ].join(' ')}
         {...props}
       >
@@ -37,7 +31,7 @@ export default function Select({ label, error, options, id, className = '', ...p
       </select>
 
       {error && (
-        <p id={errorId} className="mt-1 text-sm text-red-600">
+        <p id={errorId} className="type-caption mt-1 text-alert">
           {error}
         </p>
       )}

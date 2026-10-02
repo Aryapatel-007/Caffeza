@@ -24,10 +24,10 @@ export default function DataTable({
   totals = null,
   stickyFirstColumn = false,
 }) {
-  const sticky = (index) => (stickyFirstColumn && index === 0 ? 'sticky left-0 z-[1] bg-white' : '');
+  const sticky = (index) => (stickyFirstColumn && index === 0 ? 'sticky left-0 z-[1] bg-surface' : '');
   if (!rows || rows.length === 0) {
     return (
-      <p className="rounded-xl border-2 border-dashed border-steel/40 px-4 py-8 text-center text-[13px] text-steel">
+      <p className="rounded-lg border-2 border-dashed border-muted px-4 py-8 text-center text-[13px] text-muted">
         {emptyMessage}
       </p>
     );
@@ -40,14 +40,14 @@ export default function DataTable({
       <table className="w-full border-collapse text-[13px]">
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
-          <tr className="border-b border-black/5">
+          <tr className="border-b border-line">
             {columns.map((column, index) => (
               <th
                 key={column.key}
                 scope="col"
-                className={`whitespace-nowrap px-2 py-2 text-[12px] font-medium uppercase leading-4 tracking-[0.06em] text-steel ${
-                  column.numeric ? 'text-right' : 'text-left'
-                } ${sticky(index)}`}
+                className={`whitespace-nowrap px-2 py-2 text-[12px] font-medium leading-4 text-muted ${
+ column.numeric ? 'text-right' : 'text-left'
+ } ${sticky(index)}`}
               >
                 {column.header}
               </th>
@@ -56,13 +56,13 @@ export default function DataTable({
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={row.key ?? index} className="border-b border-steel/15 last:border-b-0">
+            <tr key={row.key ?? index} className="border-b border-line last:border-b-0">
               {columns.map((column, columnIndex) => (
                 <td
                   key={column.key}
                   className={`px-2 py-2 leading-[18px] ${
-                    column.numeric ? 'text-right font-mono tabular-nums' : 'text-left'
-                  } ${sticky(columnIndex)}`}
+ column.numeric ? 'text-right font-mono tabular-nums' : 'text-left'
+ } ${sticky(columnIndex)}`}
                 >
                   {column.render ? column.render(row) : row[column.key]}
                 </td>
@@ -72,13 +72,13 @@ export default function DataTable({
         </tbody>
         {totals && (
           <tfoot>
-            <tr className="border-t-2 border-ink/30 font-semibold">
+            <tr className="border-t-2 border-ink font-semibold">
               {columns.map((column, columnIndex) => (
                 <td
                   key={column.key}
                   className={`px-2 py-2 leading-[18px] ${
-                    column.numeric ? 'text-right font-mono tabular-nums' : 'text-left'
-                  } ${sticky(columnIndex)}`}
+ column.numeric ? 'text-right font-mono tabular-nums' : 'text-left'
+ } ${sticky(columnIndex)}`}
                 >
                   {column.renderTotal ? column.renderTotal(totals) : null}
                 </td>
