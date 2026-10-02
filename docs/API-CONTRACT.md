@@ -1545,6 +1545,49 @@ it.
 `includeInactive` exists for the same reason M1's does: without it a deactivated
 table cannot be seen and so can never be switched back on.
 
+**P19, M20: the occupancy block, extended.** Each table also carries `layout`
+(see 11.5) and its `occupancy` block gains, additively:
+
+| Field | Meaning |
+|---|---|
+| `isOccupied`, `orderId`, `orderNumber`, `openedAt`, `runningTotalInPaise` | As before |
+| `state` | `FREE`; `OPEN`; `SERVED` when the order is `READY_TO_BILL`; `BILL_PRINTED` when the order has a live bill that is `UNPAID` |
+| `guestCount` | From the order, or null |
+| `isLong` | Open longer than `settings.floor.longOpenMinutes` |
+| `captainName` | The current name of whoever opened the order, `orders.openedBy`, read once for the whole floor |
+| `itemTotalInPaise` | The order's live line totals, from the values frozen on its lines, before GST. The same number as `runningTotalInPaise`. |
+| `billId`, `billNumber`, `billTotalInPaise` | When `BILL_PRINTED`, that bill's id, number and bill total. Otherwise null. |
+
+Free tables carry `state: "FREE"` and null in every other new field. The read
+is a fixed number of queries for the whole floor, whatever the number of
+tables: the tables, the occupying orders, their live unpaid bills, the names of
+the people who opened them, and the settings.
+
+### 11.5 Save a section's floor plan (P19)
+
+```
+PATCH /api/v1/tables/layout
+```
+
+Roles: `OWNER`, `MANAGER`.
+
+```json
+{ "section": "Cafe", "tables": [ { "tableId": "652f...", "x": 0, "y": 0, "w": 2, "h": 2, "shape": "SQUARE" }, { "tableId": "652g...", "layout": null } ] }
+```
+
+Each section is a grid of 24 columns by 16 rows. `x` 0 to 23, `y` 0 to 15, `w`
+and `h` 1 to 4, `x + w` at most 24 and `y + h` at most 16. `shape` is `SQUARE`,
+`ROUND` or `LONG`; a `LONG` table has `w` and `h` different. An entry with
+`layout: null` takes that table off the plan. A table of the section not in the
+request keeps its layout.
+
+400 when a table is not this restaurant's, is not in the named section, or a
+value is out of bounds. 422 `BUSINESS_RULE_VIOLATED` when two tables would
+overlap, against each other or against a table of the section that keeps its
+place, naming each overlapping pair. Every table is written inside one
+transaction, so a refused save changes nothing. Response 200: the section's
+tables as `GET /tables` returns them.
+
 ### 11.3 Update table
 
 ```
@@ -1594,6 +1637,12 @@ Dine-in:
 ```json
 { "orderType": "DINE_IN", "tableId": "652f...", "guestCount": 4, "lines": [] }
 ```
+
+P19: when `settings.floor.requireGuestCount` is true, a `DINE_IN` order without
+`guestCount` is 400 `VALIDATION_FAILED`, with `fields.guestCount` and the message
+"How many guests? Enter the number before opening the table." Takeaway and
+delivery orders never take one. No endpoint changes `guestCount` once the order
+is open.
 
 Takeaway:
 
@@ -3198,6 +3247,18 @@ Both default to `true`, so nothing changes for an existing restaurant. Switching
 |---|---|---|---|
 | `showCashDifferenceToManager` | Boolean | false | The blind count. When false, Day Close responses and prints to a MANAGER leave out expected cash and the difference. |
 
+### `settings.floor` (added by P19)
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `sectionOrder` | [String] | `[]` | Section names in the order the floor shows them. Sections not listed follow, by name. At most 40 names, each at most 40 characters. |
+| `longOpenMinutes` | Number | 90 | Integer 15 to 600. A table open longer is marked as running long. |
+| `requireGuestCount` | Boolean | false | When true, a dine-in order cannot be opened without a guest count. On for Caffeza. |
+
+`GET /auth/me` returns `floor` beside `features` and `discounts`, so every role's
+floor screen knows the section order, the long-open threshold and whether
+"Skip" may be offered. The server still decides.
+
 ### `settings.invoice` (added by P02)
 
 | Field | Type | Default | Notes |
@@ -3653,6 +3714,21 @@ There is no escape hatch. `tenantGuard` needed one because three legitimate look
 4. `GET /audit/entity/...` is 404 when this restaurant has no line for the record at all. A MANAGER asking for a record whose every line is outside their actions gets `[]`, not a 404: the record is theirs to know exists.
 5. An attendance correction keeps its own subdocument id as `id`. A MANAGER never sees one, in the feed or in an entity's history.
 6. The guard is `appendOnlyGuardPlugin` in `server/models/plugins/appendOnlyGuard.js`, and the error `AuditLogImmutableError`, a 500.
+
+---
+
+# M20 Floor Plan
+
+Owner: Arya. P19 builds the floor plan; P20 the look.
+
+Nothing of its own: M20's floor plan is three additions to M2 and M7.
+
+1. `layout` on each table and `PATCH /tables/layout`: M2 section 11.5.
+2. The extended occupancy block on `GET /tables`, with the four floor states
+   Free, Open, Served and Bill printed, and the long-running marker: M2 section
+   11.2.
+3. `settings.floor` (section order, long-open minutes, the guest count rule):
+   M7, and the rule itself in M2 section 12.1.
 
 ---
 

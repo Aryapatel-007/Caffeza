@@ -623,8 +623,8 @@ apply `baseSchemaPlugin` and then `tenantGuardPlugin` in full.
 
 ## 8. `tables`
 
-One table on the floor. Version 1 has no floor plan and no coordinates; a table
-is a name, a section and a seat count.
+One table on the floor: a name, a section and a seat count, and from P19 an
+optional place on its section's floor plan.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -637,6 +637,7 @@ is a name, a section and a seat count.
 | `seats` | Number | no | Integer 1 to 50. Null when unset. |
 | `displayOrder` | Number | yes | Integer, minimum 0, default 0 |
 | `isActive` | Boolean | yes | Default true. This is the delete. |
+| `layout` | Object | no | P19. Default null: no place on a floor plan yet. `{ x, y, w, h, shape }` on the section's 24 by 16 grid: `x` 0 to 23, `y` 0 to 15, `w` and `h` 1 to 4, `x + w` at most 24, `y + h` at most 16, `shape` `SQUARE`, `ROUND` or `LONG` (a `LONG` table has `w` and `h` different). Overlaps are refused by `PATCH /tables/layout`. |
 | `createdAt` | Date | auto | UTC |
 | `updatedAt` | Date | auto | UTC |
 
@@ -1820,6 +1821,16 @@ setup in P11 switches both off.
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
 | `cashierMayApplyPlatformDiscounts` | Boolean | yes | false | When true, a CASHIER may apply a discount whose reason is a platform reason, and no other. `TO CONFIRM` with Caffeza. |
+
+### `settings.floor` (added by P19)
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `sectionOrder` | [String] | `[]` | Section names in floor order. Others follow by name. |
+| `longOpenMinutes` | Number | 90 | Integer 15 to 600 |
+| `requireGuestCount` | Boolean | false | When true, `DINE_IN` orders need `guestCount` |
+
+Additive, every field defaulted: an existing document reads back complete.
 
 ### `settings.dayClose` (added by P07)
 
