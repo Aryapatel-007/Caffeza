@@ -75,12 +75,21 @@ export default function TableManagementPage() {
       <header className="border-b border-black/5 px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <h1 className="text-[20px] font-semibold leading-7">Tables</h1>
+          <span className="flex items-center gap-2">
+          {/* P19. The floor plan editor. */}
+          <Link
+            to="/tables/arrange"
+            className="flex h-12 items-center rounded-full bg-chana px-4 text-[13px] font-semibold text-ink shadow-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            Arrange tables
+          </Link>
           <Link
             to="/floor"
             className="flex h-12 items-center rounded-xl px-3 text-[13px] font-medium text-steel hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
           >
             Floor
           </Link>
+          </span>
         </div>
       </header>
 

@@ -34,10 +34,14 @@ const ALL_FEATURES_ON = Object.freeze({ inventory: true, attendance: true });
  * cashier platform-discount switch, off until the server says otherwise. Kept
  * in the same bag because both answer "what should this screen show".
  */
+const DEFAULT_FLOOR = Object.freeze({ sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false });
+
 const fromMe = (me) => ({
   ...ALL_FEATURES_ON,
   ...me.features,
   cashierMayApplyPlatformDiscounts: Boolean(me.discounts?.cashierMayApplyPlatformDiscounts),
+  // P19. Section order, the long-open threshold and whether the guest picker may offer Skip.
+  floor: { ...DEFAULT_FLOOR, ...(me.floor ?? {}) },
 });
 
 export function AuthProvider({ children }) {

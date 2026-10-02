@@ -10,13 +10,15 @@ const QUICK_COUNTS = [1, 2, 3, 4, 5, 6, 7];
  * How many guests, before a dine-in order opens.
  *
  * The count becomes `orders.guestCount`, which is frozen onto the bill as its
- * covers, and average per cover divides by it. Asking here, on the tap that
+ * covers, and average per cover divides by it. P19: "Skip" appears only when
+ * `settings.floor.requireGuestCount` is off; the server refuses a dine-in order
+ * without guests when it is on. Asking here, on the tap that
  * seats the table, is the one moment the waiter is looking at the guests.
  *
  * A bottom sheet on a phone, a card in the corner on a wider screen, so the
  * floor stays in view behind it.
  */
-export default function SeatTablePanel({ table, isBusy, onCancel, onConfirm }) {
+export default function SeatTablePanel({ table, isBusy, allowSkip = false, onCancel, onConfirm }) {
   const [guestCount, setGuestCount] = useState(null);
   const [isMore, setIsMore] = useState(false);
 
@@ -78,7 +80,7 @@ export default function SeatTablePanel({ table, isBusy, onCancel, onConfirm }) {
               />
             ))}
             <CountButton
-              label="8+"
+              label="More"
               isActive={isMore}
               onClick={() => {
                 setIsMore(true);
@@ -112,6 +114,17 @@ export default function SeatTablePanel({ table, isBusy, onCancel, onConfirm }) {
                   ? 'Choose the number of guests'
                   : `Start order (${guestCount} ${guestCount === 1 ? 'guest' : 'guests'}) →`}
             </button>
+            {/* P19. Only when the restaurant does not require covers; the server decides. */}
+            {allowSkip && (
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => onConfirm(undefined)}
+                className="h-11 w-full rounded-full bg-linen-2 text-[13px] font-medium hover:bg-linen-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+              >
+                Skip, open without a guest count
+              </button>
+            )}
             <button
               type="button"
               onClick={onCancel}

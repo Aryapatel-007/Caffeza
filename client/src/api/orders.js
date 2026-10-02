@@ -50,6 +50,14 @@ export function updateTable(tableId, body) {
 }
 
 /** This is the delete. There is no DELETE verb anywhere in M2. */
+/**
+ * P19. One section's floor plan, saved together. Each entry is a table's place
+ * `{ tableId, x, y, w, h, shape }`, or `{ tableId, layout: null }` to take it off.
+ */
+export function saveTableLayout({ section, tables }) {
+  return api.patch('/tables/layout', { section, tables });
+}
+
 export function setTableActive(tableId, isActive) {
   return api.patch(`/tables/${tableId}/status`, { isActive });
 }

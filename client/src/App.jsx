@@ -33,6 +33,7 @@ import AvailabilityBoardPage from './features/menu/AvailabilityBoardPage.jsx';
 import MenuBuilderPage from './features/menu/MenuBuilderPage.jsx';
 import FloorViewPage from './features/orders/FloorViewPage.jsx';
 import OrderScreenPage from './features/orders/OrderScreenPage.jsx';
+import TableArrangePage from './features/orders/TableArrangePage.jsx';
 import TableManagementPage from './features/orders/TableManagementPage.jsx';
 import TakeawayOrderPage from './features/orders/TakeawayOrderPage.jsx';
 import DeliveryOrderPage from './features/orders/DeliveryOrderPage.jsx';
@@ -261,6 +262,18 @@ export default function App() {
           <ProtectedRoute>
             <RequireRole roles={TABLE_ADMIN_ROLES}>
               <TableManagementPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P19. The floor plan editor, for whoever manages tables. */}
+      <Route
+        path="/tables/arrange"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={TABLE_ADMIN_ROLES}>
+              <TableArrangePage />
             </RequireRole>
           </ProtectedRoute>
         }
