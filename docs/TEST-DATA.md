@@ -79,7 +79,7 @@ Prompt P21 replays the whole day end to end.
 ## 2. The bills
 
 All times are India time on 26 September 2026, unless marked.
-Invoice numbers run from `CFA/C/22442` for B01 to `CFA/C/22457` for B16.
+Invoice numbers run from `CFA/C/22442` to `CFA/C/22457`, in the order bills are created. B16, billed at 8:40 PM, takes `CFA/C/22454`, before B15 and B13.
 
 | Bill | Invoice | Type | Table | Covers | Captain | Opened | Billed | Paid |
 |---|---|---|---|---|---|---|---|---|
@@ -95,13 +95,74 @@ Invoice numbers run from `CFA/C/22442` for B01 to `CFA/C/22457` for B16.
 | B10 | CFA/C/22451 | Dine-in | Table 30 | 2 | Ranjeet Paswan | 6:18 PM | 7:10 PM | On Hold |
 | B11 | CFA/C/22452 | Dine-in | Table 16 | 2 | Devendra Singh | 7:20 PM | 8:05 PM | Voided 8:09 PM |
 | B12 | CFA/C/22453 | Dine-in | Table 16 | 2 | Devendra Singh | 7:20 PM | 8:11 PM | 8:15 PM |
-| B13 | CFA/C/22454 | Dine-in | Table 11 | 3 | Khuman Singh | 8:30 PM | 9:40 PM | 9:44 PM |
-| B14 | CFA/C/22455 | Dine-in | Table 4 | 2 | Budha Singh | 10:51 PM | 11:55 PM | 12:02 AM, 27 Sep |
-| B15 | CFA/C/22456 | Takeaway | none | 0 | Counter | 9:10 PM | 9:12 PM | 9:13 PM |
-| B16 | CFA/C/22457 | Dine-in | Table 18 | 3 | Devendra Singh | 7:40 PM | 8:40 PM | 8:46 PM |
+| B13 | CFA/C/22456 | Dine-in | Table 11 | 3 | Khuman Singh | 8:30 PM | 9:40 PM | 9:44 PM |
+| B14 | CFA/C/22457 | Dine-in | Table 4 | 2 | Budha Singh | 10:51 PM | 11:55 PM | 12:02 AM, 27 Sep |
+| B15 | CFA/C/22455 | Takeaway | none | 0 | Counter | 9:10 PM | 9:12 PM | 9:13 PM |
+| B16 | CFA/C/22454 | Dine-in | Table 18 | 3 | Devendra Singh | 7:40 PM | 8:40 PM | 8:46 PM |
 
 B12 is the same order as B11, billed again after the void.
 B14 is paid after midnight, and still belongs to business date 26 September.
+
+## 2b. Timeline
+
+The whole day, in the order things happen. The fixture follows this exactly, and the clock never moves backwards.
+All times India time on 26 September 2026 unless marked.
+Where an order must be sent, made, marked ready or served before it can be billed, do those steps between its opening time and its billing time.
+
+| Time | Who | What happens |
+|---|---|---|
+| 11:00 AM | Manager | Opening float ₹2,000.00 |
+| 11:40 AM | Khuman Singh | Opens Table 5, 2 guests: Sev Poori, Tiramisu Brownie, Extra Charges. Sends. |
+| 12:30 PM | Counter, Manager | Bills B01. Manager applies 10%, Regular guest. |
+| 12:36 PM | Counter | Cash ₹501.00 |
+| 1:01 PM | Budha Singh | Opens Table 7, 3 guests: Indian Platters, Chilli Garlic Noodle Bowl, Mocha Flower, Roasted Papad, Laccha Tawa Paratha, Roasted Papad, Roasted Papad, as seven lines. Sends. |
+| 1:10 PM | Khuman Singh | Opens Table 12, 4 guests: Creamy Pesto Pasta, Cheesy Tornado, Caffe Latte. Sends. |
+| 1:52 PM | Counter, Manager | Bills B02. Manager applies flat ₹73.07, Zomato Gold. |
+| 1:58 PM | Counter | Zomato Gold ₹1,446.00 |
+| 2:02 PM | Counter | Bills B03 |
+| 2:09 PM | Counter | Card ₹1,061.00 |
+| 2:20 PM | Devendra Singh | Opens Table 2, 1 guest: Chole Kulcha Platter. Sends. |
+| 2:55 PM | Counter | Bills B04 |
+| 2:58 PM | Counter | UPI ₹368.00 |
+| 3:05 PM | Budha Singh | Opens Table 3, 2 guests: Half & Half Pizza, Ferrero Hazelnut Shake, Water Bottle. Sends. |
+| 3:50 PM | Counter | Bills B05 |
+| 3:54 PM | Counter | Cash ₹500.00 and UPI ₹295.00 |
+| 4:10 PM | Khuman Singh | Opens Table 14, 2 guests: Indian Platters, Caffe Latte, Water Bottle. Sends. |
+| 4:58 PM | Counter | Bills B06 |
+| 5:03 PM | Counter | Cash ₹753.00 |
+| 5:20 PM | Counter | Swiggy delivery 249377796192385: Half & Half Pizza, Ferrero Hazelnut Shake, Caffe Latte. Sends. |
+| 5:21 PM | Counter | Bills B07. Swiggy ₹930.00. |
+| 5:30 PM | Ranjeet Paswan | Opens Table 29, 1 guest: College Sandwich. Sends. |
+| 5:55 PM | Manager | No Charge on Table 29: Corporate office order. This is N01. |
+| 6:05 PM | Counter | Zomato delivery 8645938999: Ferrero Hazelnut Shake, Masala Pav Sandwich. Sends. |
+| 6:05 PM | Ranjeet Paswan | Opens Table 35, 1 guest: Masala Tea. Sends. |
+| 6:06 PM | Counter, Manager | Bills B08. Manager applies flat ₹200.00, Merchant promo, paid for by the restaurant. Zomato ₹305.00. |
+| 6:18 PM | Ranjeet Paswan | Opens Table 30, 2 guests: Mexican Bowl, Roasted Papad. Sends. |
+| 6:30 PM | Counter, Manager | Bills B09. Manager applies 50%, Staff or office, then charges it to E-210 Office. |
+| 7:10 PM | Counter, Manager | Bills B10. Manager charges it to W-330 Office. |
+| 7:20 PM | Devendra Singh | Opens Table 16, 2 guests: Piri Piri Paneer Pizza. Sends. |
+| 7:40 PM | Devendra Singh | Opens Table 18, 3 guests: Mumbaiya Pav Bhaji Platter, Ferrero Hazelnut Shake. Sends. |
+| 8:05 PM | Counter | Bills B11 for Table 16 |
+| 8:09 PM | Manager | Voids B11: Billed to the wrong table |
+| 8:11 PM | Counter | Bills the same order again: B12 |
+| 8:15 PM | Counter | UPI ₹347.00 |
+| 8:30 PM | Khuman Singh | Opens Table 11, 3 guests: Thecha Paneer Chilli, Mexican Bowl. Sends. |
+| 8:40 PM | Counter, Manager | Bills B16. Manager applies flat ₹39.00, Dineout. |
+| 8:46 PM | Counter | Dineout ₹778.00 |
+| 8:50 PM | Khuman Singh | Adds Cheesy Tornado to Table 11, then cancels it before sending: Wrong item entered |
+| 9:00 PM | Khuman Singh | Cancels Thecha Paneer Chilli after the kitchen made it: Guest changed the order, was prepared |
+| 9:10 PM | Counter | Takeaway: Caffe Latte × 2. Sends. |
+| 9:12 PM | Counter | Bills B15 |
+| 9:13 PM | Counter | UPI ₹462.00 |
+| 9:30 PM | Manager | Paid out ₹350.00: Milk from the dairy |
+| 9:40 PM | Counter | Bills B13 |
+| 9:44 PM | Counter | Card ₹420.00 |
+| 10:51 PM | Budha Singh | Opens Table 4, 2 guests: Cheesy Tornado, Sev Poori. Sends. |
+| 11:55 PM | Counter, Manager | Bills B14. Manager applies flat ₹13.83, Zomato Gold. |
+| 12:02 AM, 27 Sep | Counter | Zomato Gold ₹552.00 |
+| 12:30 AM, 27 Sep | Manager | Day Close for 26 September: counted ₹3,400.00, with a note |
+
+Bills take invoice numbers in the order they are created, so B16, billed at 8:40 PM, comes before B15 and B13.
 
 **What each bill contains, and its expected totals**
 
