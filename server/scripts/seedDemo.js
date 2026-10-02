@@ -31,9 +31,9 @@ import mongoose from 'mongoose';
 
 import { config } from '../config/env.js';
 import { connectDatabase, disconnectDatabase } from '../config/database.js';
-import { ALL_MODELS } from '../models/index.js';
 import { createApp } from '../server.js';
 import { runProvisioning } from './provisionRestaurant.js';
+import { assertSafeToSeed, wipeRestaurantNamed } from './lib/localSeed.js';
 
 const DEMO_A_NAME = 'Demo Restaurant A';
 const DEMO_B_NAME = 'Demo Restaurant B';
@@ -45,28 +45,7 @@ const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
  * Safety
  * ---------------------------------------------------------------------- */
 
-function assertSafeToSeed() {
-  if (config.NODE_ENV !== 'development' && config.NODE_ENV !== 'test') {
-    throw new Error(
-      `Refusing to run: NODE_ENV is "${config.NODE_ENV}". This script only runs in development or test.`,
-    );
-  }
-
-  const host = new URL(config.MONGO_URI.replace('mongodb+srv://', 'https://').replace('mongodb://', 'http://'))
-    .hostname;
-  const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-  const allowed = (process.env.SEED_DEMO_ALLOWED_HOSTS ?? '')
-    .split(',')
-    .map((h) => h.trim())
-    .filter(Boolean);
-
-  if (!isLocalhost && !allowed.includes(host)) {
-    throw new Error(
-      `Refusing to run: "${host}" is not localhost and is not in SEED_DEMO_ALLOWED_HOSTS. ` +
-        'Add it there explicitly if you really mean to seed demo data into this cluster.',
-    );
-  }
-}
+// assertSafeToSeed lives in scripts/lib/localSeed.js, shared with loadGoldenDay.js (P18).
 
 /* ---------------------------------------------------------------------- *
  * HTTP driver -- the same shape as tests/helpers/testServer.js
@@ -103,23 +82,8 @@ async function request(method, path, { body, token } = {}) {
  * added later is wiped too. The fixed list this replaced stopped at M4 and left
  * stations, payment methods, accounts and Day Close records behind (fixed in P11).
  */
-const SCOPED_COLLECTIONS = ALL_MODELS.map((model) => model.collection.collectionName).filter(
-  (name) => name !== 'restaurants' && name !== 'branches',
-);
-
 async function wipeExistingDemoRestaurant(name) {
-  const db = mongoose.connection.db;
-  const restaurant = await db.collection('restaurants').findOne({ name });
-  if (!restaurant) return;
-
-  const restaurantId = restaurant._id;
-  for (const collection of SCOPED_COLLECTIONS) {
-    await db.collection(collection).deleteMany({ restaurantId });
-  }
-  await db.collection('branches').deleteMany({ restaurantId });
-  await db.collection('restaurants').deleteOne({ _id: restaurantId });
-
-  console.log(`  Wiped previous "${name}" and every record scoped to it.`);
+  if (await wipeRestaurantNamed(name)) console.log(`  Wiped previous "${name}" and every record scoped to it.`);
 }
 
 /* ---------------------------------------------------------------------- *
