@@ -167,6 +167,7 @@ export default {
   async query(req, baseMatch, params) {
     const now = nowUtc();
     const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', { req });
+    const shownTiles = await getSetting(req.restaurantId, 'appearance.todayTiles', { req });
     const date = params.date;
     const tenant = { restaurantId: baseMatch.restaurantId, branchId: baseMatch.branchId };
 
@@ -198,6 +199,11 @@ export default {
       },
     };
 
+    // P20B: the owner's tiles, in the owner's order. Figures are untouched.
+    const columns = shownTiles.map((key) => tileColumns.find((column) => column.key === key)).filter(Boolean);
+    const tileRow = Object.fromEntries(columns.map(({ key }) => [key, tiles[key]]));
+    tileRow.drill = Object.fromEntries(Object.entries(tiles.drill).filter(([key]) => key in tileRow));
+
     const money = [
       ...figures.money.methods.map((method) => ({
         line: method.methodName,
@@ -216,7 +222,7 @@ export default {
 
     return {
       sections: [
-        { key: 'tiles', title: 'Today so far', columns: tileColumns, rows: [tiles], totals: {} },
+        { key: 'tiles', title: 'Today so far', columns, rows: [tileRow], totals: {} },
         {
           key: 'money',
           title: 'Money so far',

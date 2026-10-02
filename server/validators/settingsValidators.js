@@ -266,7 +266,9 @@ const appearance = z
       .optional(),
     secondLanguage: z.enum(SECOND_LANGUAGES, { error: `Must be one of ${SECOND_LANGUAGES.join(', ')}.` }).optional(),
     todayTiles: z
-      .array(z.enum(TODAY_TILE_KEYS, { error: 'Is not a Today tile.' }), { error: 'Must be a list of Today tiles.' })
+      .array(z.enum(TODAY_TILE_KEYS, { error: `Is not a Today tile. Use ${TODAY_TILE_KEYS.join(', ')}.` }), {
+        error: 'Must be a list of Today tiles.',
+      })
       .refine((keys) => new Set(keys).size === keys.length, 'Each tile appears once.')
       .optional(),
   })
