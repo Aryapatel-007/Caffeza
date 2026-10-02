@@ -393,6 +393,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-02 | The golden day is played through the real screens with Playwright, each role on its own device size, with the server and browser clocks moved together. A control listener inside the e2e script moves the clock, and the app has no test routes. | Staff use screens, not the API, and nothing that sets a clock may ever reach production. |
 | 2026-10-02 | TEST-DATA's invoice numbers for B13 to B16 now follow the order bills are created (B16 `CFA/C/22454`, B15 `22455`, B13 `22456`, B14 `22457`), and section 2b, the timeline P10 asked for, is in place. The API golden day plays that timeline in order. | The old numbers contradicted the bill times, and the screens can only issue numbers in time order. Agreed with the user in this session. Every total, payment and line share is unchanged; five tests that named B13 to B16 by number, and R1's alert tests (N01 is now at 5:55 PM), were updated to match. |
 | 2026-10-02 | The golden restaurant carries Caffeza's GSTIN. | A printed golden bill must read as a tax invoice, and P21 checks for it. |
+| 2026-10-02 | The kitchen screen opens in Day, like every other screen. Automatic now means Day everywhere; a station tablet can still choose Night on This device. | The owner asked for the kitchen page in the light theme. This reverses DESIGN-SYSTEM sections 8b and 11b's Night default, which are updated. |
 
 ---
 

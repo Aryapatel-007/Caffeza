@@ -25,7 +25,7 @@ const DEFAULTS = Object.freeze({
   autoPrintKots: false,
   kitchenStationId: null,
   printedKotIds: [],
-  // P20A. Automatic is Night on the kitchen screen and Day everywhere else.
+  // Automatic is Day everywhere, the kitchen included. Night is chosen per device.
   theme: 'AUTO',
   density: 'COMFORTABLE',
   textSize: 100,

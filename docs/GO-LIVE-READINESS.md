@@ -17,7 +17,7 @@ Nothing below is marked proven unless a test in this repository proves it.
 | `npm run build` | Builds |
 
 What `npm run e2e` proves, in `e2e/goldenDay.spec.js`:
-every row of `docs/TEST-DATA.md` section 2b is done on screen by the person it names, on their own device size (owner and captains on a 380 by 800 phone, manager and cashier on a 1280 by 800 computer, the two stations on a 768 by 1024 tablet in night mode), with the server's and every browser's clock at the row's time.
+every row of `docs/TEST-DATA.md` section 2b is done on screen by the person it names, on their own device size (owner and captains on a 380 by 800 phone, manager and cashier on a 1280 by 800 computer, the two stations on a 768 by 1024 tablet), with the server's and every browser's clock at the row's time.
 Along the way it checks:
 the bill for Table 5 prints with `CFA/C/22442`, `GSTIN` and `501.00`;
 each station sees only its own dishes at 1:12 PM;

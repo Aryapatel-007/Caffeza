@@ -303,7 +303,7 @@ Left-aligned throughout. Nothing centred except the keypad digits and the hero t
 
 ### 8b. Kitchen station
 
-Night theme by default.
+Day theme by default, like every screen. A station tablet on a dim counter can choose Night on This device. (Changed 2 October 2026 at the owner's request; the first draft opened the kitchen in Night.)
 Tickets in columns, oldest on the left, late ones moved to the front.
 Each ticket: station and KOT number, table or platform, time edge at the bottom, items in `ticket-item`, notes and add-ons indented.
 One tap on an item marks it ready. One tap on the ticket's footer marks the whole ticket ready.
@@ -413,7 +413,7 @@ Stored in the browser, beside the printing settings from P05:
 
 | Setting | Choices | Default |
 |---|---|---|
-| Theme | Automatic, Day, Night | Automatic: Night on kitchen screens, Day everywhere else |
+| Theme | Automatic, Day, Night | Automatic: Day everywhere, the kitchen included |
 | Density | Comfortable, Compact | Comfortable. Compact tightens spacing one step, never text size. |
 | Text size | 100%, 115%, 130% | 100% |
 | Second language | The restaurant's choice, or override | The restaurant's choice |

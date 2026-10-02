@@ -29,7 +29,7 @@ export default function DeviceSettingsPage() {
 
         <Choice
           legend="Theme"
-          hint="Automatic is Night on the kitchen screen and Day everywhere else."
+          hint="Automatic is Day on every screen, the kitchen included. Choose Night for a dim counter."
           options={THEMES.map((value) => ({ value, label: THEME_LABELS[value] }))}
           value={settings.theme}
           onChange={(theme) => update({ theme })}

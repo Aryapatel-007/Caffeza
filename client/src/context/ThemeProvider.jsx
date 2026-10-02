@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
 
 import { useDeviceSettings } from '../features/printing/useDeviceSettings.js';
 import { useAuth } from './AuthContext.jsx';
@@ -11,26 +10,23 @@ import { useAuth } from './AuthContext.jsx';
  * `data-theme` (day or night), `--accent` and `--accent-night` from the
  * restaurant's `settings.appearance`, `data-density` and `data-text-size`.
  *
- * Automatic is Night on the kitchen screen and Day everywhere else. Before
+ * Automatic is Day on every screen, the kitchen included (the owner's call,
+ * 2 October 2026). A device that wants Night chooses it on This device. Before
  * sign-in it is Ocean and Day.
- *
  */
 const ThemeContext = createContext({ theme: 'day', secondLanguage: 'NONE' });
 
-export function themeFor(setting, pathname) {
-  if (setting === 'DAY') return 'day';
-  if (setting === 'NIGHT') return 'night';
-  return pathname === '/kitchen' || pathname.startsWith('/kitchen/') ? 'night' : 'day';
+export function themeFor(setting) {
+  return setting === 'NIGHT' ? 'night' : 'day';
 }
 
 export function ThemeProvider({ children }) {
-  const { pathname } = useLocation();
   const { user, features } = useAuth();
   const [device] = useDeviceSettings();
 
   const appearance = user ? features.appearance : null;
   // Before sign-in: Ocean and Day, whatever this device is set to.
-  const theme = user ? themeFor(device.theme, pathname) : 'day';
+  const theme = user ? themeFor(device.theme) : 'day';
   const secondLanguage = device.secondLanguage ?? appearance?.secondLanguage ?? 'NONE';
 
   useEffect(() => {
