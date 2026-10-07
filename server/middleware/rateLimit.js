@@ -5,7 +5,7 @@
  * strict one protects login, because a shared restaurant tablet sitting on the
  * counter is a soft target for someone trying PINs one after another.
  *
- * Both skip entirely when NODE_ENV is 'test'. See skipInTest below.
+ * Every limiter skips entirely when NODE_ENV is 'test'. See skipInTest below.
  */
 import { createHash } from 'node:crypto';
 
@@ -26,12 +26,26 @@ const MINUTE_MS = 60_000;
  * developer in the same commit. If these ever need to differ per environment,
  * promote them to .env.example and config together.
  *
- * 600 in 15 minutes is generous. A busy tablet during a Friday rush polls
- * orders and fires KOTs, and a limiter that trips during service is worse than
- * no limiter at all.
+ * Two limits, 8 October 2026. The per-address one used to be 600 in 15
+ * minutes, and every device in a cafe shares one address: the floor, kitchen
+ * and dashboard polls alone came to about 555 at Caffeza's staff numbers,
+ * before anyone tapped anything, and the 600th request locked out every
+ * device in the building. The address ceiling is now a backstop against a
+ * flood, sized for a busy floor with headroom. The per-user limit, applied by
+ * `authenticate` once it knows who is asking, is what bounds one runaway
+ * session: a phone polling the floor every 15 seconds uses 60 of it.
  */
 const GENERAL_WINDOW_MINUTES = 15;
-const GENERAL_MAX_REQUESTS = 600;
+const GENERAL_MAX_REQUESTS = 5000;
+const USER_WINDOW_MINUTES = 15;
+const USER_MAX_REQUESTS = 1000;
+
+/**
+ * P23. The public page has its own limiters, in publicRoutes.js. A guest on a
+ * mobile network shares an address with strangers, and must never use up the
+ * cafe's own budget, nor the cafe a guest's.
+ */
+const PUBLIC_PATH = /^\/public(\/|$)/;
 
 /**
  * Session refreshes, 2 October 2026. A refresh is not a sign-in: it is every
@@ -79,6 +93,22 @@ export const generalLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   keyGenerator: (req) => normaliseIp(req.ip),
+  // Mounted on the API prefix only, so req.path is relative to it. Static
+  // files, the built client, are never counted.
+  skip: (req) => skipInTest() || PUBLIC_PATH.test(req.path),
+  handler: limitReached,
+});
+
+/**
+ * Per signed-in user. Called by `authenticate` after the token is verified,
+ * so the key is a user id we issued, never a value the client chose.
+ */
+export const userLimiter = rateLimit({
+  windowMs: USER_WINDOW_MINUTES * MINUTE_MS,
+  limit: USER_MAX_REQUESTS,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `user|${req.user.id}`,
   skip: skipInTest,
   handler: limitReached,
 });

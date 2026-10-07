@@ -120,8 +120,7 @@ export function createApp({ serveClient: shouldServeClient = config.isProduction
   const jsonBody = express.json({ limit: JSON_BODY_LIMIT });
   app.use((req, res, next) => (LOGO_UPLOAD_PATH.test(req.path) ? next() : jsonBody(req, res, next)));
   app.use(httpLogger);
-  app.use(generalLimiter);
-
+  app.use(API_PREFIX, generalLimiter);
   app.use(API_PREFIX, routes);
 
   if (shouldServeClient) serveClient(app, clientDist);

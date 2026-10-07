@@ -11,6 +11,7 @@
 import { isValidRole } from '../config/roles.js';
 import { Restaurant } from '../models/Restaurant.js';
 import { User } from '../models/User.js';
+import { userLimiter } from './rateLimit.js';
 import { verifyAccessToken } from '../services/tokenService.js';
 import { TokenExpiredError, UnauthenticatedError } from '../utils/errors.js';
 
@@ -136,5 +137,6 @@ export async function authenticate(req, res, next) {
   req.currentUser = user;
   req.currentRestaurant = restaurant;
 
-  return next();
+  // The per-user limit, now that we know who is asking. See rateLimit.js.
+  return userLimiter(req, res, next);
 }
