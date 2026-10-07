@@ -15,7 +15,7 @@
   "settings": {
     "businessDayStartsAtMinutes": 300,
     "features": {
-      "inventory": false,
+      "inventory": true,
       "attendance": false
     },
     "receipt": {
