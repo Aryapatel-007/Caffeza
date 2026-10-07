@@ -313,3 +313,32 @@ Added by P22 for the Appearance page, the activity log and the sign-in screen.
 | **Warm** | The linen and espresso neutral tone |
 | **Logo set** | The activity log line `BRAND_LOGO_SET` |
 | **Logo removed** | The activity log line `BRAND_LOGO_REMOVED` |
+
+---
+
+## 15. Online words
+
+Added by P23 for the public page, the staff inbox and the alert.
+
+| Term | Meaning |
+|---|---|
+| **Online order** | A takeaway request a guest placed on the restaurant's own page. It is not an order until a staff member accepts it. Reference like `W-42`. |
+| **Booking** | A table reservation, from the page or from a phone call. Reference like `R-17`. Use this word on screens. "Reservation" is the field and API name. |
+| **Waiting** | An online order or booking request nobody has answered yet |
+| **Accept** | Turn an online order into a takeaway order, and by default send it to the kitchen |
+| **Confirm** | Agree to a booking, optionally on a table |
+| **Decline** | Refuse a request, with a reason the guest sees |
+| **Expired** | Nobody answered in time. The guest is asked to call. |
+| **Seat** | Open the booking's table, which starts a dine-in order |
+| **No-show** | A confirmed booking whose guests did not come |
+| **Pickup time** | When the guest will collect a takeaway |
+| **As soon as possible** | Pickup at the earliest time the cafe allows: now plus the lead time |
+| **Answer within** | How long staff have to accept or decline before a request expires |
+| **Paused** | The page is not taking takeaway orders for a while. Bookings still come in. |
+| **Reserved** | On a floor tile: the table has a confirmed booking soon |
+| **Party size** | How many people a booking is for. Becomes the order's covers when seated. |
+| **Quote** | The prices and estimated bill total the guest saw before placing. The bill is worked out again when the order is accepted. |
+| **Estimated bill total** | The quote's bill total, item total plus GST, rounded. The words on the page are "Estimated bill total". |
+| **Page address** | The link to the restaurant's public page, like `/r/cafezza` |
+| **Online alerts** | The chime, the spoken line and the banner for waiting requests, per device |
+| **Offers consent** | The guest ticked the box agreeing to offers and news by SMS or WhatsApp |

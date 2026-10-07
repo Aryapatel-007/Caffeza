@@ -5569,3 +5569,321 @@ query.
 for sales, tax, discounts, payments and today are gone; `/reports/sales` and
 `/reports/tax` redirect to R3 and R8, and `/reports/discounts` and
 `/reports/payments` are R14 and R5. The M6 endpoints stay.
+
+---
+
+# M14 Online Ordering and Reservations
+
+Owner: Rishi. Specified 2026-10-08, before any code, for P23. The data is in
+DB-SCHEMA sections 26 to 28.
+
+A guest orders takeaway or requests a table from the restaurant's own public
+page. Every request waits for a staff member to accept it. Accepting a takeaway
+creates an ordinary `TAKEAWAY` order. Seating a reservation creates an ordinary
+`DINE_IN` order. Both go through the same `orderService.openOrder` that
+`POST /orders` uses, so nothing about numbering, snapshots, tax or tables is
+written twice.
+
+Not in M14 yet: the QR self-order at the table, delivery from the restaurant's
+own page, and taking payment online.
+
+## 1. Rules every M14 endpoint obeys
+
+1. **Public endpoints** live under `/api/v1/public/:slug`. They take no token
+   and set no cookie. They are mounted before the authenticated routes, and
+   never behind `authenticate`.
+2. The slug is resolved in exactly one place,
+   `publicSiteService.resolveSlug`. It sets `req.restaurantId`, `req.branchId`
+   and `req.publicSite`, and every later query is `scoped(req)` under the
+   tenant guard. It is the only new `skipTenantGuard` use.
+3. These all give the same 404 `NOT_FOUND` body: an unknown slug, an inactive
+   branch, an inactive restaurant, and `settings.features.online` switched off.
+   The body never tells an outsider which of them happened.
+4. A public response is a whitelist of the fields named below. It never
+   carries a user id, a staff name, a table, a staff note, or another guest's
+   request.
+5. Public routes are outside the general limiter. They have their own limits:
+   reads 300 per 5 minutes per address; writes 6 per 15 minutes per address,
+   and separately 6 per 15 minutes per phone (hashed).
+6. **Staff endpoints** live under `/api/v1/online`, behind the normal chain,
+   with `requireFeature('online')` after `tenant`.
+7. Money is in paise. Times are UTC ISO strings. The page shows them in India
+   time.
+
+## 2. Public endpoints
+
+### 2.1 `GET /api/v1/public/:slug`
+
+```json
+{
+  "success": true,
+  "data": {
+    "restaurantName": "Cafezza",
+    "wordmark": "Cafezza",
+    "address": { "line1": "...", "city": "Gandhinagar" },
+    "contactPhone": "9876543210",
+    "logo": { "darkGround": "/api/v1/public/cafezza/logo/DARK_GROUND", "lightGround": null },
+    "appearance": { "accentHex": "#49302D", "neutralTone": "WARM" },
+    "hours": { "opensAtMinutes": 600, "closesAtMinutes": 1380 },
+    "pageNote": "Pay at the counter when you collect.",
+    "takeaway": { "enabled": true, "openNow": true, "pausedUntil": null, "earliestPickupAt": "2026-10-08T13:50:00Z" },
+    "reservations": { "enabled": true, "maxPartySize": 10, "daysAhead": 14 }
+  }
+}
+```
+
+`GET /api/v1/public/:slug/logo/:slot` serves the logo bytes exactly like
+`GET /restaurant/logo/:slot` (P22), with the hash as the ETag.
+
+### 2.2 `GET /api/v1/public/:slug/menu`
+
+The same categories and order as `GET /menu`, active and available only, with
+each item reduced to:
+
+```json
+{ "id": "...", "name": "Masala Chai", "description": null, "priceInPaise": 9000,
+  "variants": [{ "id": "...", "name": "Large", "priceInPaise": 12000 }],
+  "addOns":   [{ "id": "...", "name": "Extra ginger", "priceInPaise": 1000 }] }
+```
+
+Unavailable variants and add-ons are left out. Prices are before GST, and the
+page says so. `Cache-Control: public, max-age=30`.
+
+### 2.3 `POST /api/v1/public/:slug/quote`
+
+Body: `{ "lines": [ { "menuItemId", "variantId"?, "addOnIds"?, "quantity", "notes"? } ] }`,
+1 to 30 lines, quantity 1 to 20.
+
+Response: the lines as `buildLineSnapshots` prices them (`itemName`,
+`variantName`, `unitPriceInPaise`, `addOns`, `quantity`, `lineTotalInPaise`),
+and `estimate: { itemTotalInPaise, gstInPaise, roundOffInPaise, billTotalInPaise }`
+from `computeBillTotals`. It writes nothing. 422 names any item that is
+inactive or unavailable.
+
+### 2.4 `POST /api/v1/public/:slug/orders`
+
+```json
+{
+  "idempotencyKey": "b3f1c2d4-...",
+  "customerName": "Rishi",
+  "customerPhone": "9876543210",
+  "pickup": "ASAP",
+  "lines": [{ "menuItemId": "...", "quantity": 2 }],
+  "note": "Less sugar please",
+  "marketingConsent": false,
+  "website": ""
+}
+```
+
+| Field | Rule |
+|---|---|
+| `idempotencyKey` | A UUID made by the page. Repeating it returns the existing request with 200. |
+| `customerName` | 1 to 60 characters, trimmed |
+| `customerPhone` | An Indian mobile number, normalised to 10 digits |
+| `pickup` | `"ASAP"`, or an ISO time on today's business date, at least `takeawayMinLeadMinutes` ahead and inside opening hours |
+| `lines` | As in 2.3 |
+| `note` | Up to 200 characters |
+| `marketingConsent` | Boolean, default false. See DB-SCHEMA section 26. |
+| `website` | The honeypot. Must be empty or absent, else 400. |
+
+201:
+
+```json
+{ "id": "...", "reference": "W-42", "status": "WAITING", "statusToken": "k3J...",
+  "pickupAt": "2026-10-08T14:00:00Z", "answerBy": "2026-10-08T13:45:00Z",
+  "lines": [ ], "estimate": { } }
+```
+
+`statusToken` is returned once, here, and never again.
+
+Errors: 400 `VALIDATION_FAILED`. 422 `ONLINE_CLOSED`, when takeaway is off,
+paused or outside hours; the message is the sentence the page shows. 422
+`TOO_MANY_OPEN_REQUESTS`, at 2 waiting orders for one phone. 422
+`BUSINESS_RULE_VIOLATED`, naming an unavailable item. 429 `RATE_LIMITED`.
+
+### 2.5 `GET /api/v1/public/:slug/orders/:id`
+
+Header `X-Status-Token`. A missing or wrong token is 404, the same as an
+unknown id.
+
+```json
+{ "reference": "W-42", "status": "ACCEPTED", "pickupAt": "...", "answerBy": "...",
+  "lines": [ ], "estimate": { }, "declineReason": null, "orderNumber": 318 }
+```
+
+`declineReason` is the reason's guest-facing label only, never the staff
+note. It does not return the phone number. `Cache-Control: no-store`.
+
+### 2.6 `POST /api/v1/public/:slug/orders/:id/cancel`
+
+Header `X-Status-Token`. Allowed only while `WAITING`, else 409
+`REQUEST_ALREADY_DECIDED`. Sets `CANCELLED`.
+
+### 2.7 `GET /api/v1/public/:slug/reservations/slots?date=YYYY-MM-DD&partySize=4`
+
+The times a guest may request on that business date: every
+`reservationSlotMinutes` step from opening until `reservationHoldMinutes`
+before closing, later than now plus `takeawayMinLeadMinutes`. The date must
+be within `reservationDaysAhead`. `partySize` is 1 to `reservationMaxPartySize`.
+
+```json
+{ "date": "2026-10-10", "slots": ["2026-10-10T13:30:00Z", "2026-10-10T14:00:00Z"] }
+```
+
+There is no automatic capacity in v1. Every request is confirmed by a person.
+
+### 2.8 `POST /api/v1/public/:slug/reservations`
+
+```json
+{ "idempotencyKey": "...", "guestName": "Rishi", "guestPhone": "9876543210",
+  "partySize": 4, "at": "2026-10-10T14:00:00Z", "note": "Birthday",
+  "marketingConsent": true, "website": "" }
+```
+
+`at` must be one of the slots 2.7 would return. 201:
+`{ id, reference: "R-17", status: "REQUESTED", statusToken, at, partySize, answerBy }`.
+Errors as in 2.4. The open-request limit is 3 per phone.
+
+### 2.9 `GET /api/v1/public/:slug/reservations/:id` and `POST .../:id/cancel`
+
+As 2.5 and 2.6. The guest may cancel while `REQUESTED` or `CONFIRMED`, up to
+`at`.
+
+## 3. Staff endpoints
+
+### 3.1 `GET /api/v1/online/inbox`
+
+The poll behind the alert. Cheap: two counts and two `findOne`s on indexed
+fields.
+
+```json
+{ "waitingOrders": 2, "waitingReservations": 1,
+  "oldestWaitingAt": "...", "oldestAnswerBy": "...", "latestRequestAt": "...",
+  "latest": { "kind": "ONLINE_ORDER", "reference": "W-42", "itemCount": 3,
+              "pickupAt": "...", "partySize": null, "at": null },
+  "pausedUntil": null }
+```
+
+Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
+
+### 3.2 Online orders
+
+| Endpoint | Body | Roles |
+|---|---|---|
+| `GET /online/orders?status=&date=&page=&limit=` | | OWNER, MANAGER, CASHIER, WAITER |
+| `GET /online/orders/:id` | | same |
+| `POST /online/orders/:id/accept` | `{ pickupAt?, fireNow = true, acceptChangedPrices = false }` | OWNER, MANAGER, CASHIER |
+| `POST /online/orders/:id/decline` | `{ reasonCode, note? }` | OWNER, MANAGER, CASHIER |
+
+The staff view of an online order carries every stored field except
+`statusTokenHash`, plus the derived `status` (with `EXPIRED`), and
+`decidedByName` resolved on read.
+
+Accept response 200: `{ onlineOrder, order, kots }`. Errors:
+
+- 409 `REQUEST_ALREADY_DECIDED`, with `currentStatus` beside the message.
+- 422 `ONLINE_ORDER_CHANGED`, with
+  `changes: [{ itemName, variantName, wasInPaise, nowInPaise }]` or
+  `[{ itemName, unavailable: true }]`. Prices only are overridable, with
+  `acceptChangedPrices`. Unavailability never is.
+- A moved `pickupAt` must be later than now and inside opening hours, else 400.
+
+Decline reason codes, from `server/config/onlineReasons.js`:
+
+| Code | Staff label | Guest label |
+|---|---|---|
+| `ITEM_UNAVAILABLE` | An item is not available | Something you ordered is not available right now |
+| `TOO_BUSY` | Too busy right now | The cafe is too busy to take this order right now |
+| `CLOSING_SOON` | Closing soon | The cafe is closing soon |
+| `SUSPECTED_FAKE` | Looks like a fake order | The cafe could not confirm this order |
+| `OTHER` | Other (note required) | The cafe could not take this order |
+
+### 3.3 Reservations
+
+| Endpoint | Body | Roles |
+|---|---|---|
+| `GET /online/reservations?date=&status=` | | OWNER, MANAGER, CASHIER, WAITER |
+| `GET /online/reservations/:id` | | same |
+| `POST /online/reservations` | `{ guestName, guestPhone, partySize, at, note?, tableId? }`, `source: PHONE`, created `CONFIRMED` | OWNER, MANAGER, CASHIER |
+| `POST /online/reservations/:id/confirm` | `{ at?, tableId? }` | OWNER, MANAGER, CASHIER |
+| `POST /online/reservations/:id/decline` | `{ reasonCode, note? }` | OWNER, MANAGER, CASHIER |
+| `POST /online/reservations/:id/seat` | `{ tableId, guestCount }` | OWNER, MANAGER, CASHIER, WAITER |
+| `POST /online/reservations/:id/no-show` | | OWNER, MANAGER, CASHIER |
+| `POST /online/reservations/:id/cancel` | `{ note }` | OWNER, MANAGER, CASHIER |
+
+- Confirm with a table: another `CONFIRMED` reservation on that table whose
+  time is within `reservationHoldMinutes` either side gives 409
+  `RESERVATION_CLASH`, with `clashes: [{ reference, at }]`.
+- Seat opens a `DINE_IN` order through `orderService.openOrder`, with
+  `origin: { kind: "RESERVATION", id, reference }`. Every rule of 12.1
+  applies, including `TABLE_OCCUPIED` with `existingOrderId`. Response:
+  `{ reservation, order }`.
+- No-show is allowed from 15 minutes after `at`. Before that it is 422.
+- Every transition out of a decided status is 409 `REQUEST_ALREADY_DECIDED`.
+
+### 3.4 Pausing takeaway
+
+| Endpoint | Body | Roles |
+|---|---|---|
+| `POST /online/pause` | `{ minutes: 15 \| 30 \| 60 \| 120 }` or `{ untilClose: true }` | OWNER, MANAGER, CASHIER |
+| `POST /online/resume` | | OWNER, MANAGER, CASHIER |
+
+Both write `branches.online.pausedUntil` and `pausedBy`. Reservations are never
+paused.
+
+### 3.5 The page address
+
+`PATCH /api/v1/online/site`, OWNER only: `{ publicSlug }`. 3 to 40 characters,
+lowercase letters, digits and single dashes, not starting or ending with a
+dash. These are reserved: `api`, `admin`, `login`, `r`, `static`, `assets`,
+`www`. 409 `DUPLICATE` if another branch anywhere has it. `null` takes the page
+down.
+
+### 3.6 Additions to existing endpoints
+
+- `GET /auth/me` gains `online: { enabled, takeawayEnabled,
+  reservationsEnabled, alertRoles, publicSlug, pausedUntil }`.
+- `GET /settings` and `PATCH /settings` gain the `online` group (DB-SCHEMA
+  section 17), and `features.online`. Owner only, as every setting is, and
+  audited as `SETTINGS_CHANGED`.
+- `GET /tables` occupancy gains `upcomingReservation`
+  (`{ id, reference, at, partySize, guestName }` or null). It is set for a table
+  with no occupying order and a `CONFIRMED` reservation on it starting within
+  the next `reservationHoldMinutes`.
+- Every order response gains `origin` (`{ kind, id, reference, pickupAt }` or
+  null), and every bill response the same `origin`, frozen at bill time.
+
+## Permission summary for M14
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| `/public/*` | no token | | | | | |
+| GET inbox, lists, one | yes | yes | yes | yes | no | no |
+| Accept, decline an order | yes | yes | yes | no | no | no |
+| Phone booking, confirm, decline, no-show, cancel | yes | yes | yes | no | no | no |
+| Seat a reservation | yes | yes | yes | yes | no | no |
+| Pause, resume | yes | yes | yes | no | no | no |
+| PATCH `/online/site`, settings `online` | yes | no | no | no | no | no |
+
+## Error codes added by M14
+
+```
+ONLINE_CLOSED             422  takeaway or reservations off, paused, or outside hours
+TOO_MANY_OPEN_REQUESTS    422  this phone already has the most open requests allowed
+REQUEST_ALREADY_DECIDED   409  the request is no longer waiting; currentStatus beside the message
+ONLINE_ORDER_CHANGED      422  a price or availability changed since the guest's quote; changes beside the message
+RESERVATION_CLASH         409  the table has another confirmed booking inside the hold window; clashes beside the message
+```
+
+## Decisions made for M14
+
+| Decision | Reason |
+|---|---|
+| Every request waits for a person to accept it | It is the protection against fake orders without an SMS provider, and a cafe already confirms phone orders this way. |
+| Accept creates the order, and snapshots prices then | CLAUDE.md copies prices when the order is created. The guest's quote is a display record, and a change between quote and accept is shown, never absorbed silently. |
+| One shared `orderService.openOrder` | A second way of creating an order would drift from the first. |
+| Expiry is derived on read | The server has no scheduler, and adding one for this would be the only one. |
+| The slug lives on the branch | An online page is one outlet's: its address, its hours, its pause. `branchId` is already on every record. |
+| No capacity engine in v1 | A person confirms every booking, and Caffeza's room is still TO CONFIRM. A rule that refused bookings automatically would be wrong more often than a manager. |
+| Public routes are outside the general limiter | Guests on mobile networks share addresses with strangers, and must never use up the cafe's own staff budget. |
+| No audit lines for accept and decline | They are not money events. The request records who decided and when. The order and bill that follow carry their usual audit trail. |

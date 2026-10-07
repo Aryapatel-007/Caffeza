@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-03 by Arya
+Last updated: 2026-10-08 by Rishi
 
 ---
 
@@ -37,12 +37,13 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M1 | Menu Management | Arya | DONE | Built by Rishi on 2026-08-29, not by the listed owner. See the decision log. Eleven endpoints with 42 tests, plus the builder and availability board screens. Arya still has to read it. |
 | M2 | Order Taking and KOT | Rishi | DONE | Eighteen endpoints, four collections, 84 tests, five screens. Verified end to end against the live Atlas cluster. |
 | M3 | Billing with GST | Rishi | IN PROGRESS | Feature-complete and verified end to end against the live Atlas cluster, including the GST arithmetic across all three slabs and the receipt wrap on a real long dish name. Not done under BUILD-PLAN section 9: the CA review of the GST output on a real printed bill and the real-thermal-printer test are pilot gates code cannot close. |
-| M4 | Inventory with recipe deduction | Arya | IN PROGRESS | Feature-complete on `feat/m4/inventory` and verified end to end against the live Atlas cluster. Eleven endpoints, three collections, 51 tests, three screens. Built by Rishi, off the listed owner, the same crossing as M1 and M5. Not done under BUILD-PLAN section 9: Arya has not read it. Switched off for the Caffeza go-live by P02. |
+| M4 | Inventory with recipe deduction | Arya | IN PROGRESS | Feature-complete on `feat/m4/inventory` and verified end to end against the live Atlas cluster. Eleven endpoints, three collections, 51 tests, three screens. Built by Rishi, off the listed owner, the same crossing as M1 and M5. Not done under BUILD-PLAN section 9: Arya has not read it. Switched off for the Caffeza go-live by P02. Switched back on in `setup/caffeza.json` on 2026-10-08 at Rishi's request; the owner can turn it off in Settings. |
 | M5 | Employee Attendance | Arya | DONE | Built by Rishi, not the listed owner, the same crossing as M1. Merged to `main` on 2026-08-30 via pull request #5. Eleven endpoints including `POST /attendance/station/clock` wired to `authService.verifyPin`, and three React screens (the clock, the register, my hours). Marked DONE on the code and the tests; Arya's read is still outstanding and is in the known problems table. Switched off for the Caffeza go-live by P02. |
 | M6 | Reports and Dashboard | Rishi | IN PROGRESS | Server and screens both built on `feat/m6/reports`: ten read-only endpoints, no collection, 34 tests, seven screens. Verified live against the seeded Atlas data, where its figures reconcile exactly with the independent Section 11 verification. Not done under BUILD-PLAN section 13: Arya has not read it. |
 | M7 | Restaurant Settings | Rishi | DONE | Phase 1B's first module. Two endpoints, no new collection: `restaurants.settings` gains `tax`, `receipt` and `inventory`, every field with a schema default so there is no migration. `settingsService` is now the only way any module reads configuration. 27 new tests. Verified live against the Atlas cluster, including a genuine pre-M7 document reading back complete. Not done under BUILD-PLAN section 13: Arya has not read it. P02 added `settings.features` (inventory and attendance switches, enforced by `requireFeature`) and `settings.invoice` (financial-year or prefix numbering). |
 | M8 | Audit Trail | Rishi | DONE | Built in P17, with the manager restriction extended to every new action. `GET /audit`, `/audit/entity/:entityType/:entityId`, `/audit/summary`; append-only by construction; attendance corrections merged at read time. Seven new actions written: user role, deactivate, reactivate, password and PIN resets, menu price changes, recipe changes. Arya's read outstanding. |
 | M10 | Payments | Rishi | IN PROGRESS | Specified in P07. Built in P08: configurable payment methods, frozen payment details, method corrections, discount reasons and funding. Arya's read outstanding. |
+| M14 | Online Ordering and Reservations | Rishi | NOT STARTED | Spec committed 2026-10-08: API-CONTRACT M14, DB-SCHEMA sections 26 to 28, GLOSSARY section 15, prompt P23. Takeaway and table bookings from the restaurant's own page, every request accepted by a person, with a spoken alert. The QR self-order and delivery from the page are still later M14 work. |
 | M16 | Settlement and Day Close | Rishi | DONE | Day Close proven against the golden day in `tests/goldenDay.test.js`. No Charge (P08), On Hold accounts (P09), cash drawer, day figures, checks C1 C3 C4 C6 C8 C9, Day Close with the blind count, and the day lock (P10). Built by Rishi. Arya's read outstanding. |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
@@ -59,7 +60,9 @@ Caffeza go-live work only: prompts P00 to P22, listed in
 That covers changes to M0, M1, M2, M3 and M7, building M8 and M10, the new
 modules M16 to M20, and the Phase 2 work from `docs/BUILD-PLAN.md` section 7.
 
-M4 Inventory and M5 Attendance stay built, and are switched off for go-live.
+M4 Inventory is switched on in Caffeza's setup file as of 2026-10-08. M5 Attendance stays built and switched off.
+
+P23, online takeaway and table bookings (M14), was added on 2026-10-08 at Rishi's request. Its spec is committed and its code is not written. It does not block go-live.
 
 M9, M11, M12, M13, M14 and M15 are deferred until after Caffeza is live.
 
@@ -415,6 +418,11 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-03 | Adding a dish always opens the options panel, from the dish or its +: quantity, a "Note to chef" box and one-tap requests (Less spicy, Extra spicy, No onion, Jain, Less sugar, No ice), and sizes and extras where there are any. Once a plain dish is on the order and not sent, its stepper still changes the quantity in one tap. This replaces the 2 October line above that + adds at once. | The owner asked for a note every time an item is added. The note is the line's existing `notes` field and prints on the kitchen ticket, so nothing on the server changed. |
 | 2026-10-03 | Big figures in stat boxes use `type-num-fit`, which shrinks with the box (`@container`, `min(2.75rem, 11cqi)`), instead of a fixed size. | Lakh-sized totals ran out of their boxes on the home screen and the bills ledger. |
 | 2026-10-03 | The shell's scrolling area is `relative`. | Absolutely placed pieces inside it were measured against the page, so the page grew a second scroll that slid the whole screen up and left it blank. |
+| 2026-10-08 | Inventory is switched on in `setup/caffeza.json`. This reverses the 30 September line for inventory only; attendance stays off. | Rishi asked for it. A dish with no recipe deducts nothing and never blocks a sale, so turning it on before recipes exist is harmless. CAFFEZA-PROFILE section 15 item 11 is still Caffeza's to answer, and the owner can switch it off in Settings. |
+| 2026-10-08 | Online takeaway and table bookings are M14, prompt P23, owned by Rishi, and come after the P00 to P22 plan. Customer messaging (CRM) and purchasing (M9) come after P23. | Rishi asked for all three and agreed to this order. Online ordering creates the customers and the consent that messaging needs, and it is the feature that saves Zomato commission. |
+| 2026-10-08 | Every online request waits for a person to accept it. Accepting creates an ordinary order through one shared `orderService.openOrder`, with prices copied at that moment. There is no OTP in v1. | Without an SMS provider, the only reliable protection against fake orders is that nothing reaches the kitchen without a staff member's tap. The quote the guest saw is a display record. |
+| 2026-10-08 | The page address lives on the branch (`branches.online.publicSlug`). The slug lookup is the one new `skipTenantGuard` use. Public routes sit outside the general limiter and have their own. | An online page is one outlet's. Guests on mobile networks must never use up the cafe's own request budget. |
+| 2026-10-08 | The online alert is a chime, a spoken line and a still banner, repeated every minute while anything is waiting. It never animates. | A request missed during a rush is a lost guest. The design system forbids looping animation, and sound carries better across a cafe than movement does. |
 
 ---
 
@@ -437,6 +445,24 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-08 Rishi, online orders and bookings spec, inventory on
+
+What was built or decided:
+Rishi asked for three things: inventory, customer messaging (CRM), and online takeaway and table bookings with a spoken alert. None of the three fitted P00 to P22. He agreed to this order: inventory now (a setting), online ordering next (M14, P23), then CRM, then purchasing (M9).
+1. Inventory: `setup/caffeza.json` now has `features.inventory: true`. No code changed. It takes effect on the next `setup:restaurant --apply`, or through the Settings switch.
+2. P23 spec, committed before any code: `docs/prompts/P23-online-orders-reservations.md`, API-CONTRACT M14, DB-SCHEMA sections 26 to 28 (`onlineorders`, `reservations`, additions to `branches`, `settings`, `orders`, `bills`, `counters`), GLOSSARY section 15, five error codes in CONVENTIONS, and the rows in the prompts README and CAFFEZA-BUILD-PLAN.
+
+Tests: `setupScripts.test.js` only, which reads `setup/caffeza.json`: 13 passing. Everything else changed is docs.
+
+Files or endpoints touched:
+Docs only, plus `setup/caffeza.json`. No endpoint exists yet.
+
+Anything the other developer needs to know:
+Arya: read the M14 spec before P23 starts, particularly the accept path (section 8d of the prompt) and the new tenant lookup. Also read the new known problems row about the rate limit. It affects go-live, not only P23.
+
+Anything now blocked or unblocked:
+P23 is ready to build once someone reviews the spec. Its alert poll waits on the rate limit decision.
 
 ### 2026-10-03 Arya, boxes, the second scroll, notes to chef and small fixes
 
@@ -762,4 +788,5 @@ Things that are broken or half done, so nobody rediscovers them.
 | `scripts/seedDemo.js` can run against a production database | Audit, 2026-09-29 | NOT A PROBLEM. `assertSafeToSeed` already refuses outside development and test, before connecting. Confirmed in P01. |
 | The database-backed tests were not run during the audit. Only the money, tax and unit tests were. | Audit, 2026-09-29 | DONE in P01: 578 passing, 0 failing. Before P01 changed anything: 551 passing, 0 failing. |
 | `npm run seed:golden` and the e2e config's webServer command started with `NODE_ENV=test`, which Windows `cmd` cannot run. | Arya, P22 | FIXED 2026-10-02: both use the `scripts/lib/asTest.js` preload. |
+| **The general rate limit will likely trip during a normal Caffeza service.** `generalLimiter` allows 600 requests per 15 minutes per address. Every device in the cafe shares one address. It runs before static files too. Polling alone, before anyone taps anything: five captain phones on the floor at 15 seconds is 300, two kitchen tablets at 10 seconds is 180, and the dashboard at 15 and 60 seconds is 75. That is about 555. Once the limit is reached, every device in the cafe gets 429 until the window passes. `npm run e2e:cloud` uses one device per role, so it cannot catch this. | Rishi, 2026-10-08, while specifying P23 | OPEN, and a go-live gate. Recommendation: raise the per-address ceiling well above the measured budget, for example 5,000; add a per-user limit after `authenticate`; and keep static files out of it. Needs a decision before go-live, and before P23 adds its 15-second poll. |
 | Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |

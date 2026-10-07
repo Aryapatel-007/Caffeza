@@ -222,6 +222,16 @@ Added by P13, built in P15:
 CHECK_FAILED                422  the Tally export would be built while an ERROR check fails
 ```
 
+Added by P23 (M14):
+
+```
+ONLINE_CLOSED               422  takeaway or bookings off, paused, or outside hours
+TOO_MANY_OPEN_REQUESTS      422  this phone already has the most open requests allowed
+REQUEST_ALREADY_DECIDED     409  the request is no longer waiting
+ONLINE_ORDER_CHANGED        422  a price or availability changed since the guest's quote
+RESERVATION_CLASH           409  the table has another confirmed booking inside the hold window
+```
+
 ### Paging
 
 Every list endpoint takes `?page=1&limit=50`.

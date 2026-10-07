@@ -126,6 +126,7 @@ One physical outlet. Version 1 creates exactly one per restaurant and never a se
 | `address.state` | String | no | | |
 | `address.pincode` | String | no | | |
 | `contactPhone` | String | no | | 10 digits |
+| `online` | Object | no | | Added by M14 (P23): `publicSlug`, `pausedUntil`, `pausedBy`. See section 28. |
 | `isActive` | Boolean | yes | | Default true |
 | `createdAt` | Date | auto | | UTC |
 | `updatedAt` | Date | auto | | UTC |
@@ -721,6 +722,7 @@ collection in the project after `menuitems`.
 | `cancelReason` | String | no | | Trimmed, max 200 characters. From P04 it holds the optional note. Older orders keep their free text here. |
 | `cancelReasonCode` | String | no | | Added by P04. Enum from `ORDER_CANCEL_REASONS` in `server/config/cancelReasons.js`. Null on orders cancelled before P04. |
 | `occupiesTable` | Boolean | yes | | Internal, never in a response. See below. |
+| `origin` | Object | no | | Added by M14 (P23). Null, or `{ kind, id, reference, pickupAt }` when the order came from an online request or a reservation. See section 28. |
 | `createdAt` | Date | auto | | UTC |
 | `updatedAt` | Date | auto | | UTC |
 
@@ -2145,3 +2147,145 @@ One document per business date, written by Day Close.
 | `history` | [Object] | yes | Every close and reopen: `{ action, by, at, note, countedCashInPaise, expectedCashInPaise, differenceInPaise }` |
 
 Index: `{ restaurantId: 1, branchId: 1, businessDate: 1 }` unique.
+
+---
+
+# M14 Online Ordering and Reservations
+
+Specified 2026-10-08 for P23, before any code. Two new collections, and
+additive fields on four existing ones. No migration: every new field has a
+default, and an older server ignores them.
+
+## 26. `onlineorders`
+
+One takeaway request from the public page. It becomes an `orders` document
+only when a staff member accepts it.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema`. Set from the slug, never from the body. |
+| `reference` | String | yes | `"W-42"`, from the `ONLINE_ORDER` counter. Gaps are fine. |
+| `idempotencyKey` | String | yes | UUID from the page |
+| `customerName` | String | yes | 1 to 60 characters |
+| `customerPhone` | String | yes | 10 digits, normalised |
+| `lines` | [Object] | yes | The quote: `{ menuItemId, variantId, addOnIds, itemName, variantName, unitPriceInPaise, addOns: [{ addOnId, name, priceInPaise }], quantity, notes, lineTotalInPaise }`. **A display record.** No report reads it. The order created at accept is snapshotted fresh. |
+| `estimate` | Object | yes | `{ itemTotalInPaise, gstInPaise, roundOffInPaise, billTotalInPaise }` from `computeBillTotals` at placing. Display only. |
+| `note` | String | no | Up to 200 characters |
+| `pickupAt` | Date | yes | UTC. Staff may move it at accept. |
+| `pickupWasAsap` | Boolean | yes | |
+| `businessDate` | String | yes | From `createdAt`, by `businessDateFor` |
+| `status` | String | yes | `WAITING`, `ACCEPTED`, `DECLINED`, `CANCELLED`, `EXPIRED`. `EXPIRED` is also derived on read for `WAITING` past `answerBy`. |
+| `answerBy` | Date | yes | Placing time plus `takeawayAnswerWithinMinutes` |
+| `statusTokenHash` | String | yes | SHA-256 hex of the guest's status token. **Never in any response.** |
+| `marketingConsent` | Object | yes | `{ given: Boolean, textVersion: String, at: Date }`. `given` defaults to false. `textVersion` names the exact sentence in `server/config/consentText.js`. |
+| `decidedBy`, `decidedAt` | ObjectId, Date | no | Who accepted or declined, and when |
+| `declineReasonCode`, `declineNote` | String | no | From `server/config/onlineReasons.js`. The note is staff-only. |
+| `acceptedChangedPrices` | Boolean | no | True when it was accepted with `acceptChangedPrices` |
+| `orderId` | ObjectId | no | `orders._id`, set at accept |
+| `cancelledAt` | Date | no | When the guest cancelled |
+
+Indexes:
+- `{ restaurantId: 1, branchId: 1, status: 1, createdAt: 1 }`, for the inbox
+  and the lists.
+- `{ restaurantId: 1, reference: 1 }`, unique.
+- `{ restaurantId: 1, branchId: 1, idempotencyKey: 1 }`, unique.
+- `{ restaurantId: 1, branchId: 1, customerPhone: 1, status: 1 }`, for the
+  open-request limit.
+
+Never deleted. A declined or expired request is kept, like a cancelled order.
+
+## 27. `reservations`
+
+One table booking, from the public page (`source: ONLINE`) or typed in by
+staff from a phone call (`source: PHONE`).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema` |
+| `reference` | String | yes | `"R-17"`, from the `RESERVATION` counter |
+| `source` | String | yes | `ONLINE` or `PHONE` |
+| `idempotencyKey` | String | no | Online only |
+| `guestName` | String | yes | 1 to 60 characters |
+| `guestPhone` | String | yes | 10 digits |
+| `partySize` | Number | yes | 1 to `reservationMaxPartySize` |
+| `at` | Date | yes | UTC, the booked time |
+| `businessDate` | String | yes | From `at`, by `businessDateFor` |
+| `note` | String | no | Up to 200 characters |
+| `status` | String | yes | `REQUESTED`, `CONFIRMED`, `DECLINED`, `CANCELLED`, `EXPIRED`, `SEATED`, `NO_SHOW`. `EXPIRED` is also derived on read for `REQUESTED` past `answerBy`. |
+| `answerBy` | Date | no | Online only: the later of `at` minus 30 minutes and placing time plus `takeawayAnswerWithinMinutes` |
+| `statusTokenHash` | String | no | Online only. Never in any response. |
+| `marketingConsent` | Object | yes | As in section 26. A phone booking stores `given: false`. |
+| `tableId`, `tableName` | ObjectId, String | no | Set at confirm or seat. The name is a snapshot. |
+| `decidedBy`, `decidedAt` | ObjectId, Date | no | Confirm or decline |
+| `declineReasonCode`, `declineNote` | String | no | |
+| `seatedBy`, `seatedAt`, `orderId` | ObjectId, Date, ObjectId | no | Set at seat |
+| `cancelledBy`, `cancelledAt`, `cancelNote` | ObjectId, Date, String | no | `cancelledBy` is null when the guest cancelled |
+| `noShowBy`, `noShowAt` | ObjectId, Date | no | |
+
+Indexes:
+- `{ restaurantId: 1, branchId: 1, businessDate: 1, at: 1 }`, for the day's
+  book.
+- `{ restaurantId: 1, branchId: 1, status: 1, createdAt: 1 }`, for the inbox.
+- `{ restaurantId: 1, reference: 1 }`, unique.
+- `{ restaurantId: 1, branchId: 1, idempotencyKey: 1 }`, unique, partial on
+  `{ idempotencyKey: { $type: 'string' } }`.
+- `{ restaurantId: 1, tableId: 1, status: 1, at: 1 }`, for clashes and the
+  floor.
+- `{ restaurantId: 1, branchId: 1, guestPhone: 1, status: 1 }`.
+
+Never deleted.
+
+## 28. Additions to existing collections
+
+### `branches.online`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `publicSlug` | String | null | Lowercase, 3 to 40 characters. Unique across the whole platform. |
+| `pausedUntil` | Date | null | Takeaway is paused until then |
+| `pausedBy` | ObjectId | null | |
+
+Index: `{ 'online.publicSlug': 1 }`, unique, partial on
+`{ 'online.publicSlug': { $type: 'string' } }`.
+
+`branches` is a tenancy root with the guard on `restaurantId`. **The lookup by
+slug is the one query across restaurants that M14 adds.** It lives in
+`publicSiteService.resolveSlug` and nowhere else, and the `skipTenantGuard`
+tripwire counts it.
+
+### `restaurants.settings.features.online`
+
+Boolean, default `false`. Off: every `/public` route is 404 and every
+`/online` route is 403 `FEATURE_DISABLED`.
+
+### `restaurants.settings.online`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `takeawayEnabled` | Boolean | false | |
+| `reservationsEnabled` | Boolean | false | |
+| `opensAtMinutes` | Number | 600 | 0 to 1439, minutes past midnight IST. Caffeza TO CONFIRM. |
+| `closesAtMinutes` | Number | 1380 | 0 to 1439. Smaller than `opensAtMinutes` means past midnight. |
+| `takeawayMinLeadMinutes` | Number | 20 | 0 to 240 |
+| `takeawayAnswerWithinMinutes` | Number | 10 | 3 to 60 |
+| `reservationMaxPartySize` | Number | 10 | 1 to 50 |
+| `reservationDaysAhead` | Number | 14 | 1 to 60 |
+| `reservationSlotMinutes` | Number | 30 | 15, 30 or 60 |
+| `reservationHoldMinutes` | Number | 90 | 30 to 240. How long a booking holds its table, for clashes and the floor. |
+| `pageNote` | String | `"Pay at the counter when you collect."` | Up to 200 characters. `""` is stored as null. |
+| `alertRoles` | [String] | `["OWNER", "MANAGER", "CASHIER"]` | Any of the six roles except `KITCHEN` |
+
+### `orders.origin` and `bills.origin`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `origin` | Object | null | `{ kind: 'ONLINE_ORDER' \| 'RESERVATION', id, reference, pickupAt }`. Set when the order is opened by M14 and never changed. `createBill` copies it onto the bill. |
+
+### `counters`
+
+Two new names, `ONLINE_ORDER` and `RESERVATION`, per restaurant and branch.
+Reserved before the document is written, so gaps are possible, as with order
+numbers.
+
+Rollback for all of section 28: none is needed to run an older server. To
+remove the data, `$unset` each field and drop the two collections.

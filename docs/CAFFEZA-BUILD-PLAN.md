@@ -89,6 +89,7 @@ Each prompt names its model at the top.
 | P20B | New look, part 2: back office and customisation | M20 | P20A | Arya | Opus, high |
 | P21 | Golden day, end to end | M19 proof | Everything | Arya | Opus, high |
 | P22 | Cafezza brand and professional finish | M20 | P20B, P21 | Arya | Opus, high |
+| P23 | Online takeaway orders and table reservations | M14 | P22 | Rishi | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.
@@ -165,11 +166,12 @@ Everything in `docs/BUILD-PLAN.md` section 13, plus:
 |---|---|
 | Live Zomato and Swiggy order import | Needs partner API approval. Orders are entered by hand for now. |
 | UPI QR on the bill | Caffeza already has its own QR standee |
-| Inventory and recipe costing | Built, switched off. Turn on after go-live if they ask. |
+| Recipe costing | Needs M9 purchase prices. Inventory itself is built and, from 2026-10-08, switched on in the setup file. |
 | Attendance | Built, switched off. Same. |
 | Payroll | M11, needs a CA and its own build |
 | Offline mode | The server is in the cloud. The cafe gets a backup internet line instead. |
-| Loyalty, WhatsApp, online ordering | Later modules |
+| Loyalty, WhatsApp | Later modules. They build on the customers and the offers consent P23 collects. |
+| Online ordering and bookings | P23, added 2026-10-08. It does not block go-live, and Caffeza goes live without it. |
 | More than one outlet | `branchId` is ready on every record. The screens come later. |
 
 If a request fits none of the prompts above, say so plainly, and do not build it.
