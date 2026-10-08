@@ -33,6 +33,7 @@ import {
   postWebhookKey,
   putIntegration,
 } from '../controllers/integrationController.js';
+import { getLedgerMastersFile, getTallyDays, getTallyExportFile, postTallyExports, postTallyRedo } from '../controllers/tallyController.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/permission.js';
 import { tenant } from '../middleware/tenant.js';
@@ -54,6 +55,11 @@ import {
   listIntegrationsSchema,
   providerActionSchema,
   saveIntegrationSchema,
+  createTallyExportsSchema,
+  redoTallyExportSchema,
+  tallyDaysSchema,
+  tallyExportIdSchema,
+  tallyLedgerMastersSchema,
 } from '../validators/integrationValidators.js';
 
 const router = Router();
@@ -63,6 +69,13 @@ const managers = [authenticate, tenant, requireRole(ROLES.OWNER, ROLES.MANAGER)]
 const till = [authenticate, tenant, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER)];
 
 router.get('/integrations', ...managers, validate(listIntegrationsSchema), getIntegrations);
+
+// P25 Part J. Tally exports: the owner and the manager; a redo and the ledger masters, the owner.
+router.get('/integrations/tally/days', ...managers, validate(tallyDaysSchema), getTallyDays);
+router.post('/integrations/tally/exports', ...managers, validate(createTallyExportsSchema), postTallyExports);
+router.get('/integrations/tally/exports/:id/file', ...managers, validate(tallyExportIdSchema), getTallyExportFile);
+router.post('/integrations/tally/exports/:id/redo', ...owner, validate(redoTallyExportSchema), postTallyRedo);
+router.get('/integrations/tally/ledger-masters/file', ...owner, validate(tallyLedgerMastersSchema), getLedgerMastersFile);
 router.put('/integrations/:provider', ...owner, validate(saveIntegrationSchema), putIntegration);
 router.post('/integrations/:provider/test', ...owner, validate(providerActionSchema), postTest);
 router.post('/integrations/:provider/pause', ...owner, validate(providerActionSchema), postPause);

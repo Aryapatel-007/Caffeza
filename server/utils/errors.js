@@ -132,6 +132,9 @@ export const ERROR_CODES = Object.freeze({
   INTEGRATION_TEST_FAILED: 'INTEGRATION_TEST_FAILED',
   PARTNER_CALL_FAILED: 'PARTNER_CALL_FAILED',
   TERMINAL_REQUIRED: 'TERMINAL_REQUIRED',
+  TALLY_MAPPING_INCOMPLETE: 'TALLY_MAPPING_INCOMPLETE',
+  TALLY_ALREADY_EXPORTED: 'TALLY_ALREADY_EXPORTED',
+  DAY_NOT_CLOSED: 'DAY_NOT_CLOSED',
 });
 
 /**
@@ -749,3 +752,31 @@ export class TerminalRequiredError extends AppError {
   }
 }
 
+/** P25 Part J. A head with an amount on the date has no Tally ledger; `missing` lists each. */
+export class TallyMappingIncompleteError extends AppError {
+  constructor(missing) {
+    super(`Choose a Tally ledger for: ${missing.join(', ')}.`, { statusCode: 422, code: ERROR_CODES.TALLY_MAPPING_INCOMPLETE, details: { missing } });
+  }
+}
+
+/** P25 Part J. The date may already be in Tally; a redo needs the owner's confirmation. */
+export class TallyAlreadyExportedError extends AppError {
+  constructor(businessDates) {
+    super(`Already sent to Tally or downloaded: ${businessDates.join(', ')}. An owner can redo a date after deleting its vouchers in Tally.`, {
+      statusCode: 409,
+      code: ERROR_CODES.TALLY_ALREADY_EXPORTED,
+      details: { businessDates },
+    });
+  }
+}
+
+/** P25 Part J. Only closed days are exported. */
+export class DayNotClosedError extends AppError {
+  constructor(businessDates) {
+    super(`Close the day first: ${businessDates.join(', ')}. Only closed days go to Tally.`, {
+      statusCode: 422,
+      code: ERROR_CODES.DAY_NOT_CLOSED,
+      details: { businessDates },
+    });
+  }
+}

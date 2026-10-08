@@ -289,6 +289,8 @@ export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}
           features: { inventory: false, attendance: false },
           // P19: Caffeza records guests on every table; every golden dine-in order already does.
           floor: { requireGuestCount: true, longOpenMinutes: 90 },
+          // P25 Part J: Caffeza's Tally code for On Hold, a setting since the constant P03 retired.
+          reports: { onHoldTallyCode: 'P03' },
         },
       }),
       'settings',

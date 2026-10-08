@@ -13,6 +13,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { PartnerCallFailedError } from '../../../utils/errors.js';
+import { nowUtc } from '../../../utils/time.js';
 import { logEvent } from '../eventLog.js';
 
 export const SIGNATURE_HEADER = 'x-sandbox-signature';
@@ -40,7 +41,7 @@ function normaliseOrder(raw) {
   if (items.length === 0) throw new Error('The order has no items.');
   return {
     platformOrderId: String(raw.platformOrderId),
-    placedAt: raw.placedAt ? new Date(raw.placedAt) : new Date(),
+    placedAt: raw.placedAt ? new Date(raw.placedAt) : nowUtc(),
     acceptBy: raw.acceptBy ? new Date(raw.acceptBy) : null,
     customerName: text(raw.customerName, 60),
     items: items.map((item) => {

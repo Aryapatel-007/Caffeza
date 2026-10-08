@@ -281,6 +281,17 @@ const payments = z
   .object({ requireTerminalForLinkedMethods: z.boolean({ error: 'Must be true or false.' }).optional() })
   .strict();
 
+/** Reports. P25 Part J. "" or null clears the On Hold Tally code. */
+const reports = z
+  .object({
+    onHoldTallyCode: z
+      .union([z.string(), z.null()])
+      .transform((value) => (value === null || value.trim() === '' ? null : value.trim()))
+      .refine((value) => value === null || value.length <= 20, 'Cannot be longer than 20 characters.')
+      .optional(),
+  })
+  .strict();
+
 /** Day Close. P10. */
 const dayClose = z
   .object({
@@ -421,6 +432,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'dayClose',
   'cash',
   'payments',
+  'reports',
   'floor',
   'appearance',
   'online',
@@ -469,6 +481,7 @@ export const updateSettingsSchema = z.object({
       dayClose: dayClose.optional(),
       cash: cash.optional(),
       payments: payments.optional(),
+      reports: reports.optional(),
       floor: floor.optional(),
       appearance: appearance.optional(),
       online: online.optional(),

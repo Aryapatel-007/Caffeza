@@ -32,6 +32,7 @@ import { todayBusinessDate } from './dayLockService.js';
 import { centre, row, rule, wrapName } from './receiptService.js';
 import { runDayChecks, SEVERITY } from './reconciliationService.js';
 import { getSetting } from './settingsService.js';
+import { markDayStale } from './integrations/tally/exportService.js';
 
 const opts = (session) => (session ? { session } : {});
 
@@ -319,6 +320,8 @@ export async function reopenDay(req, businessDate, { reason }) {
       },
       session,
     );
+    // P25 Part J. A reopened day's Tally exports no longer describe it.
+    await markDayStale(req, businessDate, session);
   });
 
   return presentClosure(closure);

@@ -10,7 +10,8 @@
  *   Sales by payment method: each bill's net sales, CGST and SGST divided
  *   across its payments, its account charge and any unpaid part by
  *   splitBillAcrossPayments in utils/tax.js, then added up by frozen method
- *   code with its frozen Tally code. On Hold uses the Tally code P03.
+ *   code with its frozen Tally code. On Hold uses the restaurant's
+ *   `reports.onHoldTallyCode`, or no code when it has none (P25 Part J).
  *
  * Both sheets always total the same net sales, CGST and SGST. The export
  * refuses to build while any ERROR check fails.
@@ -21,12 +22,11 @@ import { Bill } from '../../../models/Bill.js';
 import { sumPaise } from '../../../utils/money.js';
 import { splitBillAcrossPayments } from '../../../utils/tax.js';
 import { checkC5, runRangeChecks } from '../../reconciliationService.js';
+import { getSettings } from '../../settingsService.js';
 import { LABELS } from '../labels.js';
 import { MANAGERS } from './shared.js';
 import { businessDate } from '../../../validators/common.js';
 
-/** Caffeza's Tally code for On Hold, from docs/archive/caffeza/CAFFEZA-PROFILE.md section 10, fixed by the contract. */
-export const ON_HOLD_TALLY_CODE = 'P03';
 
 const rateColumns = [
   { key: 'taxRate', label: LABELS.TAX_RATE, type: 'text' },
@@ -65,6 +65,7 @@ export default {
 
   async query(req, baseMatch) {
     const bills = await Bill.find(baseMatch).lean();
+    const { reports } = await getSettings(req.restaurantId, { req });
 
     // Sales by rate.
     const rates = new Map();
@@ -97,7 +98,7 @@ export default {
       for (const part of splitBillAcrossPayments(bill)) {
         const key = part.kind === 'PAYMENT' ? part.method : part.kind;
         const row = methods.get(key) ?? {
-          tallyLedgerCode: part.kind === 'ON_HOLD' ? ON_HOLD_TALLY_CODE : part.tallyLedgerCode,
+          tallyLedgerCode: part.kind === 'ON_HOLD' ? (reports.onHoldTallyCode ?? null) : part.tallyLedgerCode,
           methodName: part.kind === 'ON_HOLD' ? 'On Hold' : part.kind === 'UNPAID' ? 'Unpaid' : part.methodName,
           netSalesInPaise: 0,
           cgstInPaise: 0,

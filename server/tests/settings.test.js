@@ -63,6 +63,8 @@ const DEFAULTS = {
   dayClose: { showCashDifferenceToManager: false },
   cash: { denominations: DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })) },
   payments: { requireTerminalForLinkedMethods: true },
+  // P25 Part J.
+  reports: { onHoldTallyCode: null },
   // P19.
   floor: { sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false },
   // P20A.

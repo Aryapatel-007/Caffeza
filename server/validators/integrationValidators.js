@@ -129,3 +129,23 @@ export const terminalPaymentIdSchema = z.object({
   params: z.object({ id: objectIdText }),
   body: z.object({}).strict('Is not a field you can set here.').optional(),
 });
+
+/* P25 Part J. Tally exports. ------------------------------------------- */
+
+const dateRange = z.object({ from: businessDate, to: businessDate }).strict('Is not a field you can set here.');
+
+export const tallyDaysSchema = z.object({ query: dateRange });
+
+export const createTallyExportsSchema = z.object({ body: dateRange });
+
+export const tallyExportIdSchema = z.object({
+  params: z.object({ id: objectIdText }),
+  body: z.object({}).strict('Is not a field you can set here.').optional(),
+});
+
+export const redoTallyExportSchema = z.object({
+  params: z.object({ id: objectIdText }),
+  body: z.object({ confirmation: z.string({ error: 'Type the sentence shown.' }).trim().min(1, 'Type the sentence shown.').max(200) }).strict('Is not a field you can set here.'),
+});
+
+export const tallyLedgerMastersSchema = z.object({ query: z.object({}).strict() });

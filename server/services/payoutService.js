@@ -40,7 +40,7 @@ const FULL_RATE_BPS = 10_000;
  * business date inside the period (a payment from before P08 has none and
  * reads as its bill's), on a bill that is not voided.
  */
-function coveredPayments(req, payout) {
+export function coveredPayments(req, payout) {
   return Bill.aggregate([
     { $match: { ...scopedForAggregate(req), isVoided: false, 'payments.method': payout.method } },
     { $unwind: '$payments' },

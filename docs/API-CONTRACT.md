@@ -5623,7 +5623,7 @@ then a Round-off row; then Total.
 **Sales by payment method**: columns Tally code
 (`bills.payments[].tallyLedgerCode`), Payment method (`methodName`), Net sales,
 CGST, SGST, Bill total; one row per method code, plus an On Hold row with the
-Tally code `P03`, plus Unpaid when any; then Total. Each bill's net sales, CGST
+Tally code from `settings.reports.onHoldTallyCode` (none when null), plus Unpaid when any; then Total. Each bill's net sales, CGST
 and SGST are divided across its payments, its account charge and any unpaid
 part with `splitBillAcrossPayments` in `server/utils/tax.js`, by the largest
 remainder method weighted by amount. Round-off stays on its own row. The two
@@ -5907,8 +5907,8 @@ split by the largest remainder method weighted by `amountInPaise`, and the
 function throws if any figure does not add back exactly. A bill with no money
 against it is one `UNPAID` part carrying all of it.
 
-R9's On Hold row takes the Tally code `P03`, a constant in
-`definitions/tallyExport.js`, until accounts carry their own code. `format=json`
+R9's On Hold row takes its Tally code from `settings.reports.onHoldTallyCode`
+(P25 Part J). It was the constant `P03` before P25. `format=json`
 or no format is a 400. The 422 `CHECK_FAILED` carries `checks`, the failed
 checks in the envelope's check shape, and its message names each one.
 
@@ -6958,6 +6958,32 @@ have a ledger: 422 `TALLY_MAPPING_INCOMPLETE` listing each missing head.
 
 Reopening a day marks every export of that date `STALE`. A posted export moving
 to `POSTED` writes `TALLY_EXPORT_POSTED`.
+
+Settled while building Part J:
+
+1. A date is held, and refused with 409, while its latest export is
+   `DOWNLOADED`, `QUEUED`, `POSTED`, `PARTIAL` or `UNKNOWN`. The contract named
+   two of these. The other three may also have put vouchers into Tally. A
+   `BUILT` or `FAILED` export never reached Tally, so a new export replaces it,
+   and the old one becomes `STALE`.
+2. `POST /exports` checks every date before writing anything: open days, held
+   dates, then the ledger mapping. `missing` lists every head missing on any
+   date.
+3. The daily summary has one round-off line, the net across its bills. The
+   golden day shows 0.11, not 1.87 credited and 1.76 debited.
+4. Voucher numbers: per bill, the invoice number. Otherwise `ERP-<date>-S` for
+   sales, `-R1`… for collections, `-P1`… for paid out and paid in, and `-T1`…
+   for payouts. A paid in uses the receipt voucher type.
+5. A payout credits the platform's receivable with the gross of the payments
+   it covers, because that is what the sales vouchers debited. It debits the
+   bank with the amount received, and commission with the difference. It is
+   exported on its `receivedOn` date.
+6. `GET /days` takes at most 92 dates.
+7. The ledger masters use Tally's own group names where the owner chose none:
+   Sales Accounts, Duties & Taxes, Current Assets, Sundry Debtors, Indirect
+   Expenses, Indirect Incomes, and Bank Accounts. Round-off sits under
+   Indirect Expenses.
+8. `send` is built with the bridge in Part K.
 
 ### 9.4 The bridge's own routes
 

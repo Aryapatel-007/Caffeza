@@ -236,3 +236,16 @@ export function sumCashCount(cashCount, denominations) {
   }
   return { totalInPaise, cashCount: rows };
 }
+
+/**
+ * Paise as Tally's plain decimal text: "1754.00", "-0.11". P25 Part J. Integer
+ * arithmetic only, never a float, no grouping and no symbol.
+ */
+export function paiseToDecimalText(paise) {
+  if (!Number.isSafeInteger(paise)) throw new TypeError('paiseToDecimalText takes whole paise.');
+  const sign = paise < 0 ? '-' : '';
+  const absolute = Math.abs(paise);
+  const rupees = Math.floor(absolute / PAISE_PER_RUPEE);
+  const rest = absolute % PAISE_PER_RUPEE;
+  return `${sign}${rupees}.${String(rest).padStart(2, '0')}`;
+}

@@ -291,6 +291,17 @@ const paymentSettingsSchema = new mongoose.Schema(
   { _id: false },
 );
 
+/**
+ * Reports. P25 Part J. The Tally code R9 prints on its On Hold row; null
+ * prints "On Hold" with no code. Was the constant P03 before P25.
+ */
+const reportSettingsSchema = new mongoose.Schema(
+  {
+    onHoldTallyCode: { type: String, default: null, maxlength: 20, trim: true },
+  },
+  { _id: false },
+);
+
 const cashSettingsSchema = new mongoose.Schema(
   {
     denominations: { type: [denominationSchema], default: () => DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })) },
@@ -468,6 +479,7 @@ const settingsSchema = new mongoose.Schema(
     dayClose: { type: dayCloseSettingsSchema, default: () => ({}) },
     cash: { type: cashSettingsSchema, default: () => ({}) },
     payments: { type: paymentSettingsSchema, default: () => ({}) },
+    reports: { type: reportSettingsSchema, default: () => ({}) },
     floor: { type: floorSettingsSchema, default: () => ({}) },
     appearance: { type: appearanceSettingsSchema, default: () => ({}) },
     online: { type: onlineSettingsSchema, default: () => ({}) },
