@@ -11,6 +11,7 @@ import {
   applyDiscount,
   correctPayment,
   getBill,
+  requestBillPrint,
   recordPayment,
   applyAdvance,
   voidBill,
@@ -164,6 +165,13 @@ export default function BillScreenPage() {
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
   });
 
+  // P25 Part D. A captain's phone has no printer: the counter prints it.
+  const printRequest = useMutation({
+    mutationFn: () => requestBillPrint(billId),
+    onSuccess: () => setToast({ tone: 'success', message: 'Sent to the counter. It prints there.' }),
+    onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
+  });
+
   // P05. The printer belongs to this device, not to whoever signs in.
   const [device] = useDeviceSettings();
   const { brand } = useTheme();
@@ -201,7 +209,12 @@ export default function BillScreenPage() {
 
   const outstandingInPaise = bill.grandTotalInPaise - bill.amountPaidInPaise;
   const canManage = CAN_DISCOUNT_OR_VOID.includes(user?.role);
-  const canTakePayment = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER].includes(user?.role);
+  const isTill = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER].includes(user?.role);
+  // P25 Part D. A captain takes payment only when the owner allows both billing settings.
+  const isCaptain = user?.role === ROLES.WAITER;
+  const captainMayTakePayment =
+    isCaptain && features?.billing?.captainsMayBill && features?.billing?.captainsMayTakePayment && bill.orderType !== 'DELIVERY';
+  const canTakePayment = isTill || Boolean(captainMayTakePayment);
   const isSettleable = !bill.isVoided && bill.status === 'UNPAID' && outstandingInPaise > 0;
   // P09. Managers can put what is still owed on an On Hold account.
   const canCharge = canManage && isSettleable;
@@ -247,9 +260,15 @@ export default function BillScreenPage() {
               </ActionButton>
             )}
             {canCharge && <ActionButton onClick={() => setPanel('charge')}>Charge to account</ActionButton>}
-            <ActionButton primary={printIsPrimary} onClick={() => print()} disabled={printing}>
+            {isCaptain && !bill.isVoided && (
+              <ActionButton primary onClick={() => printRequest.mutate()} disabled={printRequest.isPending}>
+                <PrintIcon />
+                Print at counter
+              </ActionButton>
+            )}
+            <ActionButton primary={printIsPrimary && !isCaptain} onClick={() => print()} disabled={printing}>
               <PrintIcon />
-              <Bilingual k="printReceipt" />
+              {isCaptain ? 'Print here' : <Bilingual k="printReceipt" />}
             </ActionButton>
             <Link
               to={`/bills/${bill.id}/receipt`}
@@ -401,7 +420,7 @@ export default function BillScreenPage() {
 
           {/* Taking the payment, beside the bill. */}
           <div className="flex flex-col gap-4 lg:col-span-7">
-            {isSettleable && canTakePayment && bill.advance?.available > 0 ? (
+            {isSettleable && isTill && bill.advance?.available > 0 ? (
               <div className="rounded-[10px] border-2 border-ok bg-surface p-4 sm:p-6">
                 <p className="type-label text-ok">Paid online</p>
                 <p className="mt-1 flex flex-wrap items-baseline gap-2">

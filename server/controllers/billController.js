@@ -9,7 +9,9 @@
  * Nothing here computes money. If you find yourself adding a `+` to a paise
  * figure in this file, it belongs in utils/tax.js.
  */
+import { ROLES } from '../config/roles.js';
 import { Bill } from '../models/Bill.js';
+import { Order } from '../models/Order.js';
 import { Restaurant } from '../models/Restaurant.js';
 import {
   advanceOnBill,
@@ -21,10 +23,13 @@ import {
   voidBill,
 } from '../services/billService.js';
 import {
+  assertCanBill,
   assertCanCorrectPayment,
   assertCanDiscount,
+  assertCanTakePayment,
   assertCanVoid,
 } from '../services/billPermissionService.js';
+import { markPrinted, printQueue, requestPrint } from '../services/billPrintService.js';
 import { buildInvoiceData, renderReceipt } from '../services/receiptService.js';
 import { getSetting, getSettings } from '../services/settingsService.js';
 import { sendList, sendSuccess } from '../utils/response.js';
@@ -54,6 +59,11 @@ async function resolveRange(req, { from, to }) {
 
 /** POST /bills */
 export async function postBill(req, res) {
+  // P25 Part D. A captain may bill by the owner's setting; the till always may.
+  if (req.user.role === ROLES.WAITER) {
+    const order = await Order.findOne({ ...scoped(req), _id: req.body.orderId }).select('orderType').lean();
+    assertCanBill(req.user, order, await getSettingsGroup(req, 'billing'));
+  }
   const bill = await createBill(req, req.body);
   return sendSuccess(res, bill, 201);
 }
@@ -144,6 +154,9 @@ export async function postDiscount(req, res) {
 
 /** POST /bills/:billId/payments */
 export async function postPayment(req, res) {
+  if (req.user.role === ROLES.WAITER) {
+    assertCanTakePayment(req.user, await readBill(req, req.params.billId), await getSettingsGroup(req, 'billing'));
+  }
   return sendSuccess(res, await recordPayment(req, req.params.billId, req.body));
 }
 
@@ -188,6 +201,26 @@ export async function getInvoice(req, res) {
   const restaurant = await Restaurant.findById(req.restaurantId);
   const { receipt } = await getSettings(req.restaurantId, { req });
   return sendSuccess(res, buildInvoiceData({ restaurant, bill, receipt }));
+}
+
+/** POST /bills/:billId/print-request. P25 Part D. */
+export async function postPrintRequest(req, res) {
+  return sendSuccess(res, await requestPrint(req, req.params.billId));
+}
+
+/** GET /bills/print-queue. P25 Part D. */
+export async function getPrintQueue(req, res) {
+  return sendSuccess(res, await printQueue(req));
+}
+
+/** POST /bills/:billId/printed. P25 Part D. */
+export async function postPrinted(req, res) {
+  return sendSuccess(res, await markPrinted(req, req.params.billId));
+}
+
+/** One settings group, as the API shapes it. */
+async function getSettingsGroup(req, group) {
+  return (await getSettings(req.restaurantId, { req }))[group];
 }
 
 /** GET /bills/summary */

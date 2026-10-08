@@ -82,6 +82,21 @@ export function getReceipt(billId, width = 32) {
   return api.get(`/bills/${billId}/receipt?width=${width}`);
 }
 
+/** P25 Part D. Ask for the bill to print on the counter's printer. */
+export function requestBillPrint(billId) {
+  return api.post(`/bills/${billId}/print-request`, {});
+}
+
+/** P25 Part D. Every print, from any device, records itself, so the next one says Duplicate. */
+export function markBillPrinted(billId) {
+  return api.post(`/bills/${billId}/printed`, {});
+}
+
+/** P25 Part D. The bills captains asked the counter to print, oldest first. */
+export function getPrintQueue() {
+  return api.get('/bills/print-queue');
+}
+
 /** P25. The bill as data for a full A4 or A5 tax invoice, from the same builder as the receipt. */
 export function getInvoice(billId) {
   return api.get(`/bills/${billId}/invoice`);

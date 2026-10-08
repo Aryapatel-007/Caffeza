@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeProvider.jsx';
 import OnlineAlerts, { useAlertsOn, useOnlineInbox } from '../features/online/OnlineAlerts.jsx';
+import CaptainBillPrinter from '../features/printing/CaptainBillPrinter.jsx';
 import BrandLogo from './ui/BrandLogo.jsx';
 import {
   BagIcon,
@@ -286,6 +287,7 @@ export default function AppShell({ children }) {
         </header>
 
         <OnlineAlerts />
+        <CaptainBillPrinter />
 
         {/* `relative`, so anything absolutely placed inside a screen (screen-reader text,
             tooltips) belongs to this scroll area. Without it such an element was

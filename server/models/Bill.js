@@ -389,6 +389,18 @@ const billSchema = new mongoose.Schema({
   captainName: { type: String, trim: true, default: null },
   guestCount: { type: Number, min: 0, default: null, validate: wholeNumberOrEmpty },
   orderOpenedAt: { type: Date, default: null },
+
+  /**
+   * P25 Part D. Printing at the counter. A captain's request sets
+   * `printRequestedAt`; every print, from any device, adds 1 to `printCount`
+   * and stamps `lastPrintedAt`. The counter's queue is the bills whose request
+   * is newer than their last print, so no bill is in it twice. From the
+   * second print on, the paper says Duplicate.
+   */
+  printRequestedAt: { type: Date, default: null },
+  printRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  lastPrintedAt: { type: Date, default: null },
+  printCount: { type: Number, min: 0, default: 0, validate: wholeNumberOrEmpty },
 });
 
 billSchema.plugin(baseSchemaPlugin);
@@ -427,6 +439,12 @@ billSchema.index({ restaurantId: 1, branchId: 1, 'payments.businessDate': 1 });
 
 /** P14. A series in sequence order: R10 and check C6. */
 billSchema.index({ restaurantId: 1, branchId: 1, invoiceSeries: 1, billSequence: 1 });
+
+/** P25. The counter's print queue: only bills a captain asked to print. */
+billSchema.index(
+  { restaurantId: 1, branchId: 1, printRequestedAt: 1 },
+  { partialFilterExpression: { printRequestedAt: { $type: 'date' } } },
+);
 
 export const Bill = mongoose.model('Bill', billSchema);
 

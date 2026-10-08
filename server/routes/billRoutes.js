@@ -23,6 +23,9 @@ import { ROLES } from '../config/roles.js';
 import {
   getBill,
   getInvoice,
+  getPrintQueue,
+  postPrintRequest,
+  postPrinted,
   getReceipt,
   getSummary,
   listBills,
@@ -43,7 +46,9 @@ import {
   createBillSchema,
   listBillsSchema,
   readBillSchema,
+  billOnlySchema,
   invoiceSchema,
+  printQueueSchema,
   receiptSchema,
   recordPaymentSchema,
   voidBillSchema,
@@ -58,6 +63,12 @@ const managers = [...base, requireRole(ROLES.OWNER, ROLES.MANAGER)];
 
 /** The people who work the till. */
 const till = [...base, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER)];
+
+/**
+ * P25 Part D. The till, and a captain, who may bill and take payment only when
+ * the owner's billing settings allow; billPermissionService decides.
+ */
+const tillAndCaptains = [...base, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER, ROLES.WAITER)];
 
 /** Everyone signed in. A waiter reads the bill they are carrying. */
 const anySignedIn = [
@@ -77,14 +88,17 @@ const anySignedIn = [
  * malformed ObjectId instead of running.
  */
 router.get('/bills/summary', ...managers, validate(billSummarySchema), getSummary);
+router.get('/bills/print-queue', ...till, validate(printQueueSchema), getPrintQueue);
 
-router.post('/bills', ...till, validate(createBillSchema), postBill);
+router.post('/bills', ...tillAndCaptains, validate(createBillSchema), postBill);
 router.get('/bills', ...till, validate(listBillsSchema), listBills);
 router.get('/bills/:billId', ...anySignedIn, validate(readBillSchema), getBill);
 router.get('/bills/:billId/receipt', ...anySignedIn, validate(receiptSchema), getReceipt);
 router.get('/bills/:billId/invoice', ...anySignedIn, validate(invoiceSchema), getInvoice);
 
-router.post('/bills/:billId/payments', ...till, validate(recordPaymentSchema), postPayment);
+router.post('/bills/:billId/payments', ...tillAndCaptains, validate(recordPaymentSchema), postPayment);
+router.post('/bills/:billId/print-request', ...anySignedIn, validate(billOnlySchema), postPrintRequest);
+router.post('/bills/:billId/printed', ...anySignedIn, validate(billOnlySchema), postPrinted);
 
 router.post(
   '/bills/:billId/payments/:paymentId/correct',

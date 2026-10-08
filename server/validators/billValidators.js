@@ -184,6 +184,12 @@ export const voidBillSchema = z.object({
  * silent fallback: a receipt rendered at the wrong width prints as garbage, and
  * finding that out on paper in a restaurant is expensive.
  */
+/** POST /bills/:billId/print-request and /printed. P25 Part D. No body. */
+export const billOnlySchema = z.object({ params: billIdParam, body: z.object({}).strict().optional() });
+
+/** GET /bills/print-queue. P25 Part D. */
+export const printQueueSchema = z.object({ query: z.object({}).strict() });
+
 /** GET /bills/:billId/invoice. P25 C4. */
 export const invoiceSchema = z.object({ params: billIdParam, query: z.object({}).strict() });
 

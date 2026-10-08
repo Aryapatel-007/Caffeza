@@ -29,6 +29,9 @@ const DEFAULTS = Object.freeze({
   // device that saved one is moved from on its next load.
   printer: DEFAULT_PRINTER,
   autoPrintKots: false,
+  // P25 Part D. A counter computer prints the bills captains send it.
+  printCaptainBills: false,
+  printedBillRequests: [],
   kitchenStationId: null,
   printedKotIds: [],
   // Automatic is Day everywhere, the kitchen included. Night is chosen per device.

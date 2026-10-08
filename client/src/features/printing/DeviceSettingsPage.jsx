@@ -18,6 +18,7 @@ export default function DeviceSettingsPage() {
   const { user, features } = useAuth();
   const [settings, update] = useDeviceSettings();
   const isKitchen = user?.role === 'KITCHEN' || user?.role === 'OWNER' || user?.role === 'MANAGER';
+  const isTill = ['OWNER', 'MANAGER', 'CASHIER'].includes(user?.role);
   const restaurantLanguage = features.appearance?.secondLanguage ?? 'NONE';
 
   return (
@@ -96,6 +97,22 @@ export default function DeviceSettingsPage() {
             <span className="type-caption block text-muted">Reads the new order aloud, for example "New takeaway order, W 42, 3 items".</span>
           </span>
         </label>
+
+        {/* P25 Part D. The counter prints what captains send it. */}
+        {isTill && (
+          <label className="flex min-h-12 items-start gap-3">
+            <input
+              type="checkbox"
+              checked={settings.printCaptainBills}
+              onChange={(event) => update({ printCaptainBills: event.target.checked })}
+              className="mt-1 size-5 accent-[var(--color-accent)]"
+            />
+            <span>
+              <span className="type-body block">Print bills sent by captains</span>
+              <span className="type-caption block text-muted">For the counter computer. Each bill a captain sends prints here once, on this device's printer.</span>
+            </span>
+          </label>
+        )}
 
         {isKitchen && (
           <label className="flex min-h-12 items-start gap-3">

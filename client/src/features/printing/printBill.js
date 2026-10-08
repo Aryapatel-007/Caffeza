@@ -9,7 +9,7 @@
  */
 import QRCode from 'qrcode';
 
-import { getInvoice, getReceipt } from '../../api/bills.js';
+import { getInvoice, getReceipt, markBillPrinted } from '../../api/bills.js';
 
 import { INVOICE_STYLES, invoiceHtml } from './invoiceHtml.js';
 import { charactersFor, PRINTERS } from './printers.js';
@@ -21,14 +21,20 @@ export function reviewQrSvg(url) {
   return QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
 }
 
+/**
+ * Prints the bill, then records the print (P25 Part D), so the next print of
+ * it, from any device, says Duplicate at the top.
+ */
 export async function printBill(billId, { printer, logoDataUrl = null }) {
   if (PRINTERS[printer]?.thermal === false) {
     const data = await getInvoice(billId);
     const qrSvg = await reviewQrSvg(data.reviewLinkUrl);
-    return printDocument({ printer, bodyHtml: invoiceHtml(data, { qrSvg, logoDataUrl }), styles: INVOICE_STYLES });
+    await printDocument({ printer, bodyHtml: invoiceHtml(data, { qrSvg, logoDataUrl }), styles: INVOICE_STYLES });
+  } else {
+    const receipt = await getReceipt(billId, charactersFor(printer));
+    // The text already ends "Scan to review us"; the code itself is drawn here.
+    const svg = await reviewQrSvg(receipt.reviewLinkUrl);
+    await printText(receipt.text, printer, { afterHtml: svg ? `<div class="review">${svg}</div>` : '' });
   }
-  const receipt = await getReceipt(billId, charactersFor(printer));
-  // The text already ends "Scan to review us"; the code itself is drawn here.
-  const svg = await reviewQrSvg(receipt.reviewLinkUrl);
-  return printText(receipt.text, printer, { afterHtml: svg ? `<div class="review">${svg}</div>` : '' });
+  return markBillPrinted(billId);
 }
