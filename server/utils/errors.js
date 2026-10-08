@@ -124,6 +124,8 @@ export const ERROR_CODES = Object.freeze({
   PAYMENT_GATEWAY_NOT_CONNECTED: 'PAYMENT_GATEWAY_NOT_CONNECTED',
   PAYMENT_GATEWAY_ERROR: 'PAYMENT_GATEWAY_ERROR',
   ADVANCE_NOT_APPLIED: 'ADVANCE_NOT_APPLIED',
+  // P25 Part F.
+  CASH_COUNT_MISMATCH: 'CASH_COUNT_MISMATCH',
 });
 
 /**
@@ -692,3 +694,14 @@ export class AdvanceNotAppliedError extends AppError {
     });
   }
 }
+
+/** P25 Part F. A count by notes and a total sent beside it disagree. */
+export class CashCountMismatchError extends AppError {
+  constructor(countedInPaise, sentInPaise) {
+    super(
+      `The notes and coins add up to ${(countedInPaise / 100).toFixed(2)}, not ${(sentInPaise / 100).toFixed(2)}. Count again or fix the total.`,
+      { statusCode: 422, code: ERROR_CODES.CASH_COUNT_MISMATCH },
+    );
+  }
+}
+

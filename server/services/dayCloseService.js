@@ -18,7 +18,8 @@ import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { DAY_STATUSES, DayClosure } from '../models/DayClosure.js';
 import { OCCUPYING_ORDER_STATUSES, Order } from '../models/Order.js';
 import { User } from '../models/User.js';
-import { BusinessRuleError, DayNotReadyError, NotFoundError } from '../utils/errors.js';
+import { BusinessRuleError, CashCountMismatchError, DayNotReadyError, NotFoundError } from '../utils/errors.js';
+import { countCash } from './cashService.js';
 import { paiseToRupees } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { businessDateRangeToUtc, formatTimeIst12, nowUtc } from '../utils/time.js';
@@ -107,6 +108,8 @@ function presentClosure(closure) {
     status: plain.status,
     isClosed: plain.status === DAY_STATUSES.CLOSED,
     countedCashInPaise: plain.countedCashInPaise,
+    // P25 Part F. The manager's own count by notes; the blind count never hides it.
+    cashCount: plain.cashCount ?? null,
     expectedCashInPaise: plain.expectedCashInPaise,
     differenceInPaise: plain.differenceInPaise,
     note: plain.note,
@@ -120,7 +123,17 @@ function presentClosure(closure) {
 }
 
 /** POST /day-close. OWNER and MANAGER. */
-export async function closeDay(req, { businessDate, countedCashInPaise, note = null }) {
+export async function closeDay(req, { businessDate, countedCashInPaise, cashCount = null, note = null }) {
+  // P25 Part F. A count by notes and coins: the server totals it, and a total sent beside it must agree.
+  let counted = null;
+  if (cashCount) {
+    counted = await countCash(req, cashCount);
+    if (countedCashInPaise !== undefined && countedCashInPaise !== null && countedCashInPaise !== counted.totalInPaise) {
+      throw new CashCountMismatchError(counted.totalInPaise, countedCashInPaise);
+    }
+    countedCashInPaise = counted.totalInPaise;
+  }
+
   const today = await todayBusinessDate(req);
   if (businessDate > today) {
     throw new BusinessRuleError('That business date has not happened yet.');
@@ -160,6 +173,7 @@ export async function closeDay(req, { businessDate, countedCashInPaise, note = n
       checks,
       closedBy: req.user.id,
       closedAt: at,
+      cashCount: counted ? counted.cashCount : undefined,
     });
     record.history.push({
       action: 'CLOSED',
@@ -169,6 +183,7 @@ export async function closeDay(req, { businessDate, countedCashInPaise, note = n
       countedCashInPaise,
       expectedCashInPaise,
       differenceInPaise,
+      ...(counted ? { cashCount: counted.cashCount } : {}),
     });
     record.markModified('snapshot');
     record.markModified('checks');
@@ -209,6 +224,7 @@ export async function readDay(req, businessDate) {
       status: closure?.status ?? 'OPEN',
       isClosed: false,
       countedCashInPaise: null,
+      cashCount: null,
       expectedCashInPaise: figures.cash.expectedCashInPaise,
       differenceInPaise: null,
       note: null,
@@ -335,6 +351,11 @@ export async function printDay(req, businessDate, width) {
   push(row('Paid out', money(c.paidOutInPaise), width));
   if (c.expectedCashInPaise !== undefined) push(row('Expected cash', money(c.expectedCashInPaise), width));
   if (day.countedCashInPaise !== null) push(row('Counted cash', money(day.countedCashInPaise), width));
+  // P25 Part F. Each note and coin counted, its count and its value.
+  for (const entry of day.cashCount ?? []) {
+    const label = `  ${paiseToRupees(entry.valueInPaise)} ${entry.kind === 'COIN' ? 'coin' : 'note'} x ${entry.count}`;
+    push(row(label, money(entry.valueInPaise * entry.count), width));
+  }
   if (day.differenceInPaise !== undefined && day.differenceInPaise !== null) {
     push(row('Cash difference', money(day.differenceInPaise), width));
   }

@@ -9,6 +9,19 @@ import { z } from 'zod';
 import { CASH_MOVEMENT_TYPE_VALUES } from '../models/CashMovement.js';
 import { businessDate, nonEmptyString, objectId, paise } from './common.js';
 
+/** P25 Part F. A count by notes and coins. The server totals it; kind is needed only for ₹20 and ₹10. */
+export const cashCount = z
+  .array(
+    z
+      .object({
+        valueInPaise: z.number({ error: 'Must be a whole number of paise.' }).int('Must be a whole number of paise.').min(1),
+        kind: z.enum(['NOTE', 'COIN'], { error: 'Must be NOTE or COIN.' }).optional(),
+        count: z.number({ error: 'Must be a whole number.' }).int('Must be a whole number.').min(0, 'Cannot be negative.').max(10_000),
+      })
+      .strict('Is not a field you can set here.'),
+  )
+  .max(40);
+
 const reason = nonEmptyString.max(200, 'Cannot be longer than 200 characters.');
 
 export const listCashSchema = z.object({
@@ -19,11 +32,18 @@ export const recordCashSchema = z.object({
   body: z
     .object({
       type: z.enum(CASH_MOVEMENT_TYPE_VALUES, { error: 'Must be OPENING_FLOAT, PAID_IN or PAID_OUT.' }),
-      amountInPaise: paise.refine((value) => value > 0, 'Must be more than zero.'),
+      amountInPaise: paise.refine((value) => value > 0, 'Must be more than zero.').optional(),
       reason: reason.optional(),
+      cashCount: cashCount.optional(),
     })
     .strict('Is not a field you can set here. The business date is always today.')
     .superRefine((body, context) => {
+      if (body.cashCount && body.type !== 'OPENING_FLOAT') {
+        context.addIssue({ code: 'custom', path: ['cashCount'], message: 'Only the opening float is counted by notes.' });
+      }
+      if (body.amountInPaise === undefined && !body.cashCount) {
+        context.addIssue({ code: 'custom', path: ['amountInPaise'], message: 'Is required.' });
+      }
       if (body.type !== 'OPENING_FLOAT' && !body.reason) {
         context.addIssue({ code: 'custom', path: ['reason'], message: 'Say what the cash was for.' });
       }
@@ -39,13 +59,18 @@ export const closeDaySchema = z.object({
   body: z
     .object({
       businessDate,
-      countedCashInPaise: paise,
+      countedCashInPaise: paise.optional(),
+      cashCount: cashCount.optional(),
       note: z
         .union([z.string().trim().max(500, 'Cannot be longer than 500 characters.'), z.null()])
         .optional()
         .transform((value) => (value === '' || value === undefined ? null : value)),
     })
-    .strict('Is not a field you can set here.'),
+    .strict('Is not a field you can set here.')
+    .refine((body) => body.countedCashInPaise !== undefined || body.cashCount, {
+      path: ['countedCashInPaise'],
+      message: 'Give the counted cash, or count it by notes and coins.',
+    }),
 });
 
 const dateParam = z.object({ businessDate });

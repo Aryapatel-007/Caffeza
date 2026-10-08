@@ -76,6 +76,8 @@ export const LABELS = Object.freeze({
   PAID_WITH: 'Paid with',
   // P25 Part E.
   REFUND_OWED: 'Refund owed',
+  // P25 Part F.
+  CASH_COUNT: 'Cash count',
   TAX_RATE: 'Tax rate',
   TALLY_CODE: 'Tally code',
   HOUR: 'Hour',

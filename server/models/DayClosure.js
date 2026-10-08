@@ -9,6 +9,8 @@
  */
 import mongoose from 'mongoose';
 
+import { cashCountRowSchema } from './CashMovement.js';
+
 import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
@@ -24,6 +26,8 @@ const historySchema = new mongoose.Schema(
     countedCashInPaise: { type: Number, default: null },
     expectedCashInPaise: { type: Number, default: null },
     differenceInPaise: { type: Number, default: null },
+    // P25 Part F. The count by notes and coins behind this close, when it was counted that way.
+    cashCount: { type: [cashCountRowSchema], default: undefined },
   },
   { _id: false },
 );
@@ -47,6 +51,9 @@ const dayClosureSchema = new mongoose.Schema({
   closedAt: { type: Date, required: true },
 
   history: { type: [historySchema], default: [] },
+
+  /** P25 Part F. The latest close's count by notes and coins, or absent when counted as a total. */
+  cashCount: { type: [cashCountRowSchema], default: undefined },
 });
 
 dayClosureSchema.plugin(baseSchemaPlugin);

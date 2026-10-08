@@ -9,12 +9,14 @@
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { CASH_MOVEMENT_TYPES, CashMovement } from '../models/CashMovement.js';
 import { ROLES } from '../config/roles.js';
-import { BusinessRuleError, DuplicateError, ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { BusinessRuleError, CashCountMismatchError, DuplicateError, ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { CashCountError, sumCashCount } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 import { recordAudit } from './auditService.js';
 import { assertDayOpen, todayBusinessDate } from './dayLockService.js';
+import { getSetting } from './settingsService.js';
 
 const DUPLICATE_KEY = 11000;
 const MANAGERS = [ROLES.OWNER, ROLES.MANAGER];
@@ -27,9 +29,20 @@ export async function listCashMovements(req, { date } = {}) {
 }
 
 /** POST /cash-movements. A paid out is manager work and is audited. */
-export async function recordCashMovement(req, { type, amountInPaise, reason = null }) {
+export async function recordCashMovement(req, { type, amountInPaise, reason = null, cashCount = null }) {
   if (type === CASH_MOVEMENT_TYPES.PAID_OUT && !MANAGERS.includes(req.user.role)) {
     throw new ForbiddenError('Only an owner or a manager can take cash out of the drawer.');
+  }
+
+  // P25 Part F. A float counted by notes: the server works out the amount itself.
+  let counted = null;
+  if (cashCount) {
+    counted = await countCash(req, cashCount);
+    if (amountInPaise !== undefined && amountInPaise !== counted.totalInPaise) {
+      throw new CashCountMismatchError(counted.totalInPaise, amountInPaise);
+    }
+    amountInPaise = counted.totalInPaise;
+    if (amountInPaise <= 0) throw new BusinessRuleError('Count at least one note or coin for the float.');
   }
 
   const businessDate = await todayBusinessDate(req);
@@ -39,7 +52,7 @@ export async function recordCashMovement(req, { type, amountInPaise, reason = nu
       await assertDayOpen(req, businessDate, { session });
 
       const [movement] = await CashMovement.create(
-        [{ ...scoped(req), type, amountInPaise, reason, businessDate, at: nowUtc(), by: req.user.id }],
+        [{ ...scoped(req), type, amountInPaise, reason, businessDate, at: nowUtc(), by: req.user.id, ...(counted ? { cashCount: counted.cashCount } : {}) }],
         session ? { session } : {},
       );
 
@@ -87,3 +100,18 @@ export async function voidCashMovement(req, movementId, { reason }) {
 }
 
 export default { listCashMovements, recordCashMovement, voidCashMovement };
+
+/**
+ * Totals a count by notes and coins against this restaurant's denominations.
+ * P25 Part F. Shared by the opening float, Day Close and a cash payment.
+ */
+export async function countCash(req, cashCount) {
+  const denominations = await getSetting(req.restaurantId, 'cash.denominations', { req });
+  try {
+    return sumCashCount(cashCount, denominations);
+  } catch (error) {
+    if (error instanceof CashCountError) throw new BusinessRuleError(error.message);
+    throw error;
+  }
+}
+

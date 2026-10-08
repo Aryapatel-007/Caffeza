@@ -65,6 +65,8 @@ const fromMe = (me) => ({
     captainsMayBill: me.billing?.captainsMayBill ?? true,
     captainsMayTakePayment: Boolean(me.billing?.captainsMayTakePayment),
   },
+  // P25 Part F. The active notes and coins, for the cash counter.
+  cash: { denominations: me.cash?.denominations ?? [] },
   // P19. Section order, the long-open threshold and whether the guest picker may offer Skip.
   floor: { ...DEFAULT_FLOOR, ...(me.floor ?? {}) },
   // P20A. The accent, both colours already worked out by the server.

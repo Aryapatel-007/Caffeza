@@ -20,6 +20,7 @@ import {
 } from '../config/discountReasons.js';
 import { BILL_STATUS_VALUES, DISCOUNT_KINDS } from '../models/Bill.js';
 import { CANCEL_REASON_MAX_LENGTH } from '../models/Order.js';
+import { cashCount } from './dayCloseValidators.js';
 import { REFUND_REFERENCE_MAX_LENGTH, REFUND_STATUS_VALUES } from '../models/Refund.js';
 import { PAYMENT_METHOD_CODE_PATTERN } from '../models/PaymentMethod.js';
 import {
@@ -158,8 +159,21 @@ export const recordPaymentSchema = z.object({
       reference: z
         .union([z.string().trim().max(100, 'Cannot be longer than 100 characters.'), z.null()])
         .optional(),
+      /**
+       * P25 Part F. The cash handed over, and the change, on a cash payment.
+       * `amountInPaise` is what goes on the bill, never what was handed over.
+       */
+      tender: z
+        .object({
+          cashCount: cashCount.optional(),
+          tenderedInPaise: paise,
+          changeInPaise: paise,
+        })
+        .strict('Is not a field you can set here.')
+        .optional(),
     })
-    .strict('Is not a field you can set here.'),
+    .strict('Is not a field you can set here.')
+    .refine((body) => !body.tender || body.method === 'CASH', { path: ['tender'], message: 'Only a cash payment has notes and change.' }),
 });
 
 /** POST /bills/:billId/payments/:paymentId/correct. P08. Only the method changes. */

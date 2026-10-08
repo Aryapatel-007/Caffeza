@@ -6,7 +6,7 @@
  * shows the expected cash so far from computeDayFigures, and no count.
  */
 import { DAY_STATUSES, DayClosure } from '../../../models/DayClosure.js';
-import { sumPaise } from '../../../utils/money.js';
+import { paiseToRupees, sumPaise } from '../../../utils/money.js';
 import { scoped } from '../../../utils/scopedQuery.js';
 import { computeDayFigures } from '../../dayFiguresService.js';
 import { checkC9, datesBetween } from '../../reconciliationService.js';
@@ -24,11 +24,19 @@ const columns = [
   { key: 'expectedCashInPaise', label: LABELS.EXPECTED_CASH, type: 'money' },
   { key: 'countedCashInPaise', label: LABELS.COUNTED_CASH, type: 'money' },
   { key: 'differenceInPaise', label: LABELS.CASH_DIFFERENCE, type: 'money' },
+  // P25 Part F. The notes and coins counted, for a closed day counted that way; empty for a total.
+  { key: 'cashCountText', label: LABELS.CASH_COUNT, type: 'text' },
   { key: 'closedByName', label: LABELS.CLOSED_BY, type: 'text' },
   { key: 'closedAt', label: LABELS.TIME, type: 'time' },
 ];
 
 const SUMMED = ['openingFloatInPaise', 'cashFromBillsInPaise', 'cashCollectionsInPaise', 'paidInInPaise', 'paidOutInPaise', 'expectedCashInPaise', 'countedCashInPaise', 'differenceInPaise'];
+
+/** "6 × ₹500 note, 2 × ₹200 note", or null for a day counted as a total. */
+function cashCountText(cashCount) {
+  if (!cashCount?.length) return null;
+  return cashCount.map((row) => `${row.count} × ${paiseToRupees(row.valueInPaise, { symbol: true })} ${row.kind === 'COIN' ? 'coin' : 'note'}`).join(', ');
+}
 
 export default {
   id: 'R7',
@@ -65,6 +73,7 @@ export default {
         expectedCashInPaise: cash.expectedCashInPaise,
         countedCashInPaise: closure?.countedCashInPaise ?? null,
         differenceInPaise: closure?.differenceInPaise ?? null,
+        cashCountText: cashCountText(closure?.cashCount),
         closedByName: closure ? names.get(String(closure.closedBy)) ?? 'Unknown' : null,
         closedAt: closure?.closedAt ?? null,
         drill: { expectedCashInPaise: { report: 'R2', query: { date } } },

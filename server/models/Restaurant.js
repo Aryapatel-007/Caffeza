@@ -249,6 +249,45 @@ const billingSettingsSchema = new mongoose.Schema(
 );
 
 /**
+ * Cash. P25 Part F. The notes and coins counted for the opening float, at Day
+ * Close, and on a cash payment. India by default, largest first; ₹2,000 is
+ * listed and off, because it is withdrawn from circulation.
+ */
+export const CASH_DENOMINATION_KINDS = Object.freeze(['NOTE', 'COIN']);
+export const DEFAULT_DENOMINATIONS = Object.freeze(
+  [
+    [200000, 'NOTE', false],
+    [50000, 'NOTE', true],
+    [20000, 'NOTE', true],
+    [10000, 'NOTE', true],
+    [5000, 'NOTE', true],
+    [2000, 'NOTE', true],
+    [1000, 'NOTE', true],
+    [2000, 'COIN', true],
+    [1000, 'COIN', true],
+    [500, 'COIN', true],
+    [200, 'COIN', true],
+    [100, 'COIN', true],
+  ].map(([valueInPaise, kind, isActive]) => Object.freeze({ valueInPaise, kind, isActive })),
+);
+
+const denominationSchema = new mongoose.Schema(
+  {
+    valueInPaise: { type: Number, required: true, min: 1, validate: { validator: Number.isInteger, message: 'Must be a whole number of paise.' } },
+    kind: { type: String, required: true, enum: CASH_DENOMINATION_KINDS },
+    isActive: { type: Boolean, required: true, default: true },
+  },
+  { _id: false },
+);
+
+const cashSettingsSchema = new mongoose.Schema(
+  {
+    denominations: { type: [denominationSchema], default: () => DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })) },
+  },
+  { _id: false },
+);
+
+/**
  * Day Close. P10. The blind count: when false, a MANAGER never sees expected
  * cash or the difference in any Day Close response or print.
  */
@@ -416,6 +455,7 @@ const settingsSchema = new mongoose.Schema(
     discounts: { type: discountSettingsSchema, default: () => ({}) },
     billing: { type: billingSettingsSchema, default: () => ({}) },
     dayClose: { type: dayCloseSettingsSchema, default: () => ({}) },
+    cash: { type: cashSettingsSchema, default: () => ({}) },
     floor: { type: floorSettingsSchema, default: () => ({}) },
     appearance: { type: appearanceSettingsSchema, default: () => ({}) },
     online: { type: onlineSettingsSchema, default: () => ({}) },

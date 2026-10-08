@@ -17,6 +17,7 @@ import { z } from 'zod';
 
 import {
   ACCENT_PRESET_NAMES,
+  CASH_DENOMINATION_KINDS,
   INVOICE_MAX_STARTING_NUMBER,
   INVOICE_MODE_VALUES,
   INVOICE_MODES,
@@ -243,6 +244,38 @@ const billing = z
   })
   .strict();
 
+/**
+ * Cash. P25 Part F. The whole list is sent and replaces the stored one. Values
+ * are whole paise above 0, unique within a kind (₹20 may be a note and a
+ * coin), and at least one is active.
+ */
+const cash = z
+  .object({
+    denominations: z
+      .array(
+        z
+          .object({
+            valueInPaise: z.number({ error: 'Must be a whole number of paise.' }).int('Must be a whole number of paise.').min(1, 'Must be more than zero.').max(1_000_000),
+            kind: z.enum(CASH_DENOMINATION_KINDS, { error: 'Must be NOTE or COIN.' }),
+            isActive: z.boolean({ error: 'Must be true or false.' }).default(true),
+          })
+          .strict('Is not a field you can set here.'),
+      )
+      .min(1, 'List at least one note or coin.')
+      .max(30)
+      .superRefine((list, context) => {
+        const keys = list.map((entry) => `${entry.kind}:${entry.valueInPaise}`);
+        if (new Set(keys).size !== keys.length) {
+          context.addIssue({ code: 'custom', message: 'A note or coin is listed twice.' });
+        }
+        if (!list.some((entry) => entry.isActive)) {
+          context.addIssue({ code: 'custom', message: 'Switch on at least one note or coin.' });
+        }
+      })
+      .optional(),
+  })
+  .strict();
+
 /** Day Close. P10. */
 const dayClose = z
   .object({
@@ -381,6 +414,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'discounts',
   'billing',
   'dayClose',
+  'cash',
   'floor',
   'appearance',
   'online',
@@ -427,6 +461,7 @@ export const updateSettingsSchema = z.object({
       discounts: discounts.optional(),
       billing: billing.optional(),
       dayClose: dayClose.optional(),
+      cash: cash.optional(),
       floor: floor.optional(),
       appearance: appearance.optional(),
       online: online.optional(),

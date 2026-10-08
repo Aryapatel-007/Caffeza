@@ -218,7 +218,8 @@ export async function me(req, res) {
   // P23. Online orders too: whether this device's role hears the alert, and
   // the page address for the copy-link button. The server still decides.
   // P25. Whether a captain may bill and take payment, so the order screen knows. The server still decides.
-  const { features, discounts, billing, floor, appearance, online } = await getSettings(req.restaurantId, { req });
+  // P25 Part F. The active notes and coins, for the cash counter on the till.
+  const { features, discounts, billing, floor, appearance, online, cash } = await getSettings(req.restaurantId, { req });
   const now = nowUtc();
 
   return sendSuccess(res, {
@@ -232,6 +233,11 @@ export async function me(req, res) {
     billing: {
       captainsMayBill: billing.captainsMayBill,
       captainsMayTakePayment: billing.captainsMayTakePayment,
+    },
+    cash: {
+      denominations: cash.denominations
+        .filter((entry) => entry.isActive)
+        .map(({ valueInPaise, kind }) => ({ valueInPaise, kind })),
     },
     floor,
     online: {

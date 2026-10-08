@@ -13,13 +13,22 @@ export async function setInvoiceSeries(page, prefix, startingNumber, reason) {
   await expect(page.getByText('Settings saved.')).toBeVisible();
 }
 
-/** Day Close, blind: the manager counts, and a note when the count is off. */
-export async function closeDay(page, businessDate, counted, note) {
+/**
+ * P25 Part F. Counts notes and coins on a CashCounter: `notes` is a list of
+ * `[rupees, count]`, like `[[500, 6], [200, 2]]`, all notes.
+ */
+export async function countNotes(scope, notes) {
+  for (const [rupees, count] of notes) {
+    await scope.getByLabel(`How many note of ₹${rupees.toFixed(2)}`).fill(String(count));
+  }
+}
+
+/** Day Close, blind: the manager counts by notes, and a note when the count is off. */
+export async function closeDay(page, businessDate, notes, note) {
   await page.goto(`/day-close?date=${businessDate}`);
   await expect(page.getByRole('heading', { name: 'Day Close', level: 1 })).toBeVisible();
   await expect(page.getByText('Expected cash')).toHaveCount(0);
-  const form = page.getByText('Cash counted in the drawer').locator('xpath=..');
-  await typeOnKeypad(form, counted);
+  await countNotes(page.getByRole('region', { name: 'Cash counted in the drawer' }), notes);
   const close = page.getByRole('button', { name: /^Close / });
   await close.click();
   const noteField = page.getByLabel(/^Note, required/);

@@ -68,6 +68,7 @@ const SETTING_PATHS = Object.freeze({
   'billing.captainsMayTakePayment': 'settings.billing.captainsMayTakePayment',
 
   'dayClose.showCashDifferenceToManager': 'settings.dayClose.showCashDifferenceToManager',
+  'cash.denominations': 'settings.cash.denominations',
 
   'floor.sectionOrder': 'settings.floor.sectionOrder',
   'floor.longOpenMinutes': 'settings.floor.longOpenMinutes',

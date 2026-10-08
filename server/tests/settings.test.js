@@ -9,6 +9,8 @@
  * that are actually wired to something.
  */
 import assert from 'node:assert/strict';
+
+import { DEFAULT_DENOMINATIONS } from '../models/Restaurant.js';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
 import { AuditLog } from '../models/AuditLog.js';
@@ -59,6 +61,7 @@ const DEFAULTS = {
   discounts: { cashierMayApplyPlatformDiscounts: false },
   billing: { captainsMayBill: true, captainsMayTakePayment: false },
   dayClose: { showCashDifferenceToManager: false },
+  cash: { denominations: DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })) },
   // P19.
   floor: { sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false },
   // P20A.

@@ -7,6 +7,8 @@ import { DotIcon, PrintIcon, TickIcon, TriangleIcon } from '../../components/ui/
 import Input from '../../components/ui/Input.jsx';
 import Money from '../../components/ui/Money.jsx';
 import NumericKeypad from '../../components/ui/NumericKeypad.jsx';
+import CashCounter from '../cash/CashCounter.jsx';
+import { countedTotal, toCashCount } from '../cash/cashCount.js';
 import Spinner from '../../components/ui/Spinner.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
@@ -129,13 +131,17 @@ const STATE_TEXT = { ok: 'text-ok', alert: 'text-alert', open: 'text-open' };
 
 export default function DayClosePage() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, features } = useAuth();
+  const denominations = features?.cash?.denominations ?? [];
   const [params, setParams] = useSearchParams();
   const today = businessDateToday();
   const businessDate = params.get('date') ?? businessDateBefore(today);
   const isOwner = user?.role === ROLES.OWNER;
 
   const [counted, setCounted] = useState('');
+  // P25 Part F. Count by notes and coins (the default), or type the total.
+  const [byNotes, setByNotes] = useState(true);
+  const [counts, setCounts] = useState({});
   const [note, setNote] = useState('');
   const [noteRequired, setNoteRequired] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
@@ -146,9 +152,15 @@ export default function DayClosePage() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['day-close'] });
 
   const close = useMutation({
-    mutationFn: () => closeDay({ businessDate, countedCashInPaise: parseRupeesToPaise(counted), note: note.trim() }),
+    mutationFn: () =>
+      closeDay(
+        byNotes
+          ? { businessDate, cashCount: toCashCount(counts, denominations), note: note.trim() }
+          : { businessDate, countedCashInPaise: parseRupeesToPaise(counted), note: note.trim() },
+      ),
     onSuccess: () => {
       setCounted('');
+      setCounts({});
       setNote('');
       setNoteRequired(false);
       refresh();
@@ -180,7 +192,7 @@ export default function DayClosePage() {
   };
 
   const day = query.data;
-  const countedInPaise = parseRupeesToPaise(counted);
+  const countedInPaise = byNotes ? countedTotal(counts, denominations) : parseRupeesToPaise(counted);
 
   return (
     <main className="v2 text-ink min-h-full bg-ground">
@@ -236,15 +248,35 @@ export default function DayClosePage() {
 
             {!day.isClosed && (
               <section className="grid gap-4 rounded-[10px] border border-line bg-surface p-4">
-                <NumericKeypad
-                  key={`${businessDate}-${day.status}`}
-                  title="Cash counted in the drawer"
-                  prefix="₹"
-                  allowDecimal
-                  initialValue={counted}
-                  onChange={setCounted}
-                  hideActions
-                />
+                <div className="grid grid-cols-2 gap-1 rounded-lg bg-sunken p-1">
+                  {[
+                    [true, 'Count by notes and coins'],
+                    [false, 'Type the total'],
+                  ].map(([value, label]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      aria-pressed={byNotes === value}
+                      onClick={() => setByNotes(value)}
+                      className={['min-h-12 rounded-lg type-label', byNotes === value ? 'border border-line bg-surface' : 'text-muted'].join(' ')}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {byNotes ? (
+                  <CashCounter title="Cash counted in the drawer" denominations={denominations} counts={counts} onChange={setCounts} />
+                ) : (
+                  <NumericKeypad
+                    key={`${businessDate}-${day.status}`}
+                    title="Cash counted in the drawer"
+                    prefix="₹"
+                    allowDecimal
+                    initialValue={counted}
+                    onChange={setCounted}
+                    hideActions
+                  />
+                )}
                 <Input
                   label={noteRequired ? 'Note, required: the count is not what the drawer should hold' : 'Note, optional'}
                   maxLength={500}

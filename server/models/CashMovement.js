@@ -20,6 +20,16 @@ export const CASH_MOVEMENT_TYPES = Object.freeze({
 });
 export const CASH_MOVEMENT_TYPE_VALUES = Object.freeze(Object.values(CASH_MOVEMENT_TYPES));
 
+/** One row of a count by notes and coins. P25 Part F. Shared with dayclosures. */
+export const cashCountRowSchema = new mongoose.Schema(
+  {
+    valueInPaise: { type: Number, required: true, min: 1 },
+    kind: { type: String, required: true, enum: ['NOTE', 'COIN'] },
+    count: { type: Number, required: true, min: 0, max: 10_000, validate: { validator: Number.isInteger, message: 'Must be a whole number.' } },
+  },
+  { _id: false },
+);
+
 const cashMovementSchema = new mongoose.Schema({
   type: { type: String, required: true, enum: CASH_MOVEMENT_TYPE_VALUES },
   amountInPaise: {
@@ -38,6 +48,9 @@ const cashMovementSchema = new mongoose.Schema({
   voidedAt: { type: Date, default: null },
   voidedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   voidReason: { type: String, trim: true, maxlength: 200, default: null },
+
+  /** P25 Part F. An opening float counted by notes and coins: [{ valueInPaise, kind, count }]. */
+  cashCount: { type: [cashCountRowSchema], default: undefined },
 });
 
 cashMovementSchema.plugin(baseSchemaPlugin);

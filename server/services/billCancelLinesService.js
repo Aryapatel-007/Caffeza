@@ -91,6 +91,8 @@ const frozenPayment = (payment) => {
   delete plain._id;
   delete plain.corrections;
   delete plain.carriedFromBillId;
+  // The notes handed over belong to the voided payment; a carried amount may be smaller.
+  delete plain.tender;
   return plain;
 };
 

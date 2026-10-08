@@ -38,6 +38,7 @@ import { advanceFor, refund, releaseAdvance } from './onlinePaymentService.js';
 import { OnlinePayment, ONLINE_PAYMENT_STATUSES } from '../models/OnlinePayment.js';
 import { PaymentMethod } from '../models/PaymentMethod.js';
 import { getSetting, getSettings } from './settingsService.js';
+import { countCash } from './cashService.js';
 import {
   assertBillHasLines,
   assertDiscountFits,
@@ -51,6 +52,7 @@ import {
   AdvanceNotAppliedError,
   BillAlreadyExistsError,
   BusinessRuleError,
+  CashCountMismatchError,
   NotFoundError,
   PaymentMethodNotAllowedError,
   TransactionRequiredError,
@@ -379,7 +381,7 @@ export async function applyDiscount(
  * moves to BILLED, and the table frees. That is the moment the customer has
  * finished, which is why it is here and not at bill creation.
  */
-export async function recordPayment(req, billId, { method, amountInPaise, reference }) {
+export async function recordPayment(req, billId, { method, amountInPaise, reference, tender = null }) {
   const bill = await readBill(req, billId);
 
   // P10: neither the bill's day nor today's may be closed. Checked first.
@@ -399,14 +401,35 @@ export async function recordPayment(req, billId, { method, amountInPaise, refere
 
   // P08: the four method rules, then freeze the method onto the payment.
   const paymentMethod = await methodForBill(req, bill, method);
-  return addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, reference });
+  return addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, reference, tender: await checkedTender(req, amountInPaise, tender) });
+}
+
+/**
+ * P25 Part F. A cash payment's tender: a count by notes totalled on the
+ * server, at least the amount, and change exactly tendered minus amount.
+ */
+async function checkedTender(req, amountInPaise, tender) {
+  if (!tender) return null;
+  let rows;
+  if (tender.cashCount) {
+    const counted = await countCash(req, tender.cashCount);
+    if (counted.totalInPaise !== tender.tenderedInPaise) throw new CashCountMismatchError(counted.totalInPaise, tender.tenderedInPaise);
+    rows = counted.cashCount;
+  }
+  if (tender.tenderedInPaise < amountInPaise) {
+    throw new BusinessRuleError('The cash handed over is less than the amount. Count again.');
+  }
+  if (tender.changeInPaise !== tender.tenderedInPaise - amountInPaise) {
+    throw new BusinessRuleError('The change must be the cash handed over less the amount.');
+  }
+  return { ...(rows ? { cashCount: rows } : {}), tenderedInPaise: tender.tenderedInPaise, changeInPaise: tender.changeInPaise };
 }
 
 /**
  * Pushes one payment and settles the bill when the payments reach its total.
  * Shared by a cashier's payment and by applying an online advance (P24).
  */
-async function addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, reference }) {
+async function addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, reference, tender = null }) {
   const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', {
     req,
   });
@@ -419,6 +442,7 @@ async function addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, re
     reference: reference ?? null,
     receivedBy: req.user.id,
     receivedAt: at,
+    ...(tender ? { tender } : {}),
   });
   bill.amountPaidInPaise = sumPaise(...bill.payments.map((payment) => payment.amountInPaise));
 

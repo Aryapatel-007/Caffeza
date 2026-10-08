@@ -5,6 +5,8 @@ import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
 import Money from '../../components/ui/Money.jsx';
 import NumericKeypad from '../../components/ui/NumericKeypad.jsx';
+import CashCounter from '../cash/CashCounter.jsx';
+import { countedTotal, toCashCount } from '../cash/cashCount.js';
 import Spinner from '../../components/ui/Spinner.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { listCashMovements, recordCashMovement, voidCashMovement } from '../../api/dayClose.js';
@@ -30,19 +32,28 @@ const WORDS = { OPENING_FLOAT: 'Opening float', PAID_IN: 'Paid in', PAID_OUT: 'P
  * say what for. `types` is what this person may record, in the order they are
  * usually needed, so the opening float comes first until there is one.
  */
-function EntryForm({ types, onDone, onError }) {
+function EntryForm({ types, denominations, onDone, onError }) {
   const [type, setType] = useState(types[0]);
   const [amount, setAmount] = useState('');
+  // P25 Part F. The opening float is counted by notes and coins.
+  const [counts, setCounts] = useState({});
   const [reason, setReason] = useState('');
   const [round, setRound] = useState(0);
   const chosen = types.includes(type) ? type : types[0];
-  const amountInPaise = parseRupeesToPaise(amount);
-  const needsReason = chosen !== 'OPENING_FLOAT';
+  const isFloat = chosen === 'OPENING_FLOAT';
+  const amountInPaise = isFloat ? countedTotal(counts, denominations) : parseRupeesToPaise(amount);
+  const needsReason = !isFloat;
 
   const save = useMutation({
-    mutationFn: () => recordCashMovement({ type: chosen, amountInPaise, reason: reason.trim() }),
+    mutationFn: () =>
+      recordCashMovement(
+        isFloat
+          ? { type: chosen, cashCount: toCashCount(counts, denominations) }
+          : { type: chosen, amountInPaise, reason: reason.trim() },
+      ),
     onSuccess: () => {
       setAmount('');
+      setCounts({});
       setReason('');
       setRound((value) => value + 1);
       onDone(`${WORDS[chosen]} recorded.`);
@@ -69,7 +80,11 @@ function EntryForm({ types, onDone, onError }) {
           </button>
         ))}
       </div>
-      <NumericKeypad key={`${chosen}-${round}`} title="Amount" prefix="₹" allowDecimal onChange={setAmount} hideActions />
+      {isFloat ? (
+        <CashCounter title="Count the float" denominations={denominations} counts={counts} onChange={setCounts} />
+      ) : (
+        <NumericKeypad key={`${chosen}-${round}`} title="Amount" prefix="₹" allowDecimal onChange={setAmount} hideActions />
+      )}
       {needsReason && (
         <Input
           label="What for, required"
@@ -94,7 +109,7 @@ function EntryForm({ types, onDone, onError }) {
 
 export default function CashDrawerPage() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, features } = useAuth();
   const [toast, setToast] = useState(null);
   const isManager = [ROLES.OWNER, ROLES.MANAGER].includes(user?.role);
 
@@ -164,6 +179,7 @@ export default function CashDrawerPage() {
 
         <EntryForm
           types={[!hasFloat && 'OPENING_FLOAT', 'PAID_IN', isManager && 'PAID_OUT'].filter(Boolean)}
+          denominations={features?.cash?.denominations ?? []}
           onDone={done}
           onError={fail}
         />

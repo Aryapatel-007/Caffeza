@@ -7,6 +7,7 @@
  * the snapshot with a fresh computation.
  */
 import { platformByCode } from '../../../config/platforms.js';
+import { paiseToRupees } from '../../../utils/money.js';
 import { readDay } from '../../dayCloseService.js';
 import { runRangeChecks } from '../../reconciliationService.js';
 import { dayQuery } from '../params.js';
@@ -53,6 +54,8 @@ function sections(day, date) {
     money('Paid out', c.paidOutInPaise),
     ...(c.expectedCashInPaise !== undefined ? [money('Expected cash', c.expectedCashInPaise)] : []),
     ...(day.countedCashInPaise !== null && day.countedCashInPaise !== undefined ? [money('Counted cash', day.countedCashInPaise)] : []),
+    // P25 Part F. Each note and coin counted, for a day closed with a count by notes.
+    ...(day.cashCount ?? []).map((row) => money(`${row.count} × ${paiseToRupees(row.valueInPaise, { symbol: true })} ${row.kind === 'COIN' ? 'coin' : 'note'}`, row.valueInPaise * row.count)),
     ...(day.differenceInPaise !== null && day.differenceInPaise !== undefined ? [money('Cash difference', day.differenceInPaise)] : []),
   ];
 

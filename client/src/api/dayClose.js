@@ -10,8 +10,13 @@ export function listCashMovements(date) {
 }
 
 /** `type` is OPENING_FLOAT, PAID_IN or PAID_OUT. The server dates it today. */
-export function recordCashMovement({ type, amountInPaise, reason }) {
-  return api.post('/cash-movements', { type, amountInPaise, ...(reason ? { reason } : {}) });
+export function recordCashMovement({ type, amountInPaise, reason, cashCount }) {
+  // P25 Part F. A float counted by notes sends the count; the server works out the amount.
+  return api.post('/cash-movements', {
+    type,
+    ...(cashCount ? { cashCount } : { amountInPaise }),
+    ...(reason ? { reason } : {}),
+  });
 }
 
 export function voidCashMovement(movementId, reason) {
@@ -31,8 +36,13 @@ export function listDays({ from, to } = {}) {
   return api.get(`/day-close${query ? `?${query}` : ''}`);
 }
 
-export function closeDay({ businessDate, countedCashInPaise, note }) {
-  return api.post('/day-close', { businessDate, countedCashInPaise, note: note || null });
+export function closeDay({ businessDate, countedCashInPaise, cashCount, note }) {
+  // P25 Part F. A count by notes and coins, totalled on the server, or the counted total.
+  return api.post('/day-close', {
+    businessDate,
+    ...(cashCount ? { cashCount } : { countedCashInPaise }),
+    note: note || null,
+  });
 }
 
 export function reopenDay(businessDate, reason) {

@@ -31,8 +31,14 @@ export async function recordCash(page, type, amount, reason = null) {
   await page.goto('/cash');
   const form = page.getByRole('heading', { name: 'Record cash' }).locator('xpath=..');
   await form.getByRole('button', { name: type, exact: true }).click();
-  const { typeOnKeypad } = await import('./keypad.js');
-  await typeOnKeypad(form, amount);
+  if (Array.isArray(amount)) {
+    // P25 Part F. The opening float is counted by notes.
+    const { countNotes } = await import('./manager.js');
+    await countNotes(form, amount);
+  } else {
+    const { typeOnKeypad } = await import('./keypad.js');
+    await typeOnKeypad(form, amount);
+  }
   if (reason) await form.getByLabel('What for, required').fill(reason);
   await form.getByRole('button', { name: `Record ${type.toLowerCase()}` }).click();
   await expect(page.getByText(`${type} recorded.`)).toBeVisible();

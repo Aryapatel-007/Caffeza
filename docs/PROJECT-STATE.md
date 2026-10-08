@@ -463,7 +463,7 @@ P25 progress
 - [x] C Bill printing
 - [x] D Captains bill
 - [x] E Cancel an item after billing
-- [ ] F Cash by notes and coins
+- [x] F Cash by notes and coins
 - [ ] G Integrations foundation
 - [ ] H Swiggy and Zomato
 - [ ] I Pine Labs
@@ -500,7 +500,11 @@ Part D: `settings.billing` (`captainsMayBill` on, `captainsMayTakePayment` off),
 
 Part E: `POST /bills/:billId/cancel-lines` voids the bill, cancels the lines and re-bills what is left in one transaction, through the existing cores, now taking a session: `createBillInSession`, `voidBillInSession`, `chargeInSession` (accounts), and `cancelLineInSession` in the new `lineCancelService.js` (the controller calls it too, unchanged). Payments are carried platform, card and UPI, online, then cash; leftover cash is "give back", other money becomes a `refunds` row (new collection), and online money is refunded through Razorpay after the transaction. Golden day B05 comes out at ₹449.00, UPI ₹295.00 then cash ₹154.00, give back ₹346.00, exactly as the prompt said, and C1 to C4 pass. Added beyond the prompt, both in the contract: `preview: true` (the same request rolled back, so the confirmation shows real numbers) and `GET /users/approvers` (names for the PIN step, since a cashier cannot read `GET /users`). Refunds owed show on Day Close as a WARNING check `REFUNDS`, in R2's Controls and as an R5 section, each only when there are any. `GET /refunds`, `POST /refunds/:refundId/done`. Client: Cancel an item on the bill screen (`CancelItemsPanel.jsx`). Note limit is 200, as the existing line cancel, not the prompt's 500.
 
-PAUSED here at Rishi's request, 2026-10-08. Not yet run since Part E's last changes: the whole server suite (the last full run found only the model registry order, now fixed) and `npm run e2e`. Run both first when resuming, then start Part F.
+Paused after Part E and resumed the same day: the full suite then had 1,083 of 1,086 passing, the three being settings-default shapes that Part F's edits reached mid-run (fixed), and `npm run e2e` passed.
+
+Part F: `settings.cash.denominations` (India by default, ₹2,000 listed and off), on `/auth/me` as the active ones. `sumCashCount` in `money.js` totals every count on the server; `CashCountError` there becomes a 422, and a total sent beside a count that disagrees is 422 `CASH_COUNT_MISMATCH`. The opening float (`cashCount` in place of `amountInPaise`), Day Close (in place of `countedCashInPaise`, stored on the closure and its history, printed note by note, still blind to a manager) and a cash payment's `tender` (`{ cashCount, tenderedInPaise, changeInPaise }`; the payment records the amount on the bill). R2's cash drawer lists each note counted; R7 gains a Cash count column. Client: `features/cash/CashCounter.jsx`, used on the cash drawer's float, Day Close (counting by notes is the default, typing a total still there) and the payment panel ("Count the notes handed over", with "Received ₹1,000. Change ₹205." and the notes to give back). The golden day through the screens now counts its float and its close by notes. Differs from the prompt: ₹20 and ₹10 are both a note and a coin in its own default list, so "values unique" is unique within a kind, and a count names its kind for those two.
+
+Next: Part G, the integrations foundation.
 
 ### 2026-10-08 Rishi, P24 built: advance payment, dish photos, the new public page
 

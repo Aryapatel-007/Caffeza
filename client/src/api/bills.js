@@ -53,9 +53,11 @@ export function applyDiscount(billId, { kind, valueInPaise, rateBps, reasonCode,
   return api.post(`/bills/${billId}/discount`, body);
 }
 
-export function recordPayment(billId, { method, amountInPaise, reference }) {
+export function recordPayment(billId, { method, amountInPaise, reference, tender }) {
   const body = { method, amountInPaise };
   if (reference) body.reference = reference;
+  // P25 Part F. The notes handed over and the change, on a cash payment.
+  if (tender) body.tender = tender;
   return api.post(`/bills/${billId}/payments`, body);
 }
 

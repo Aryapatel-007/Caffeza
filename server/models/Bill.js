@@ -19,6 +19,8 @@
  */
 import mongoose from 'mongoose';
 
+import { cashCountRowSchema } from './CashMovement.js';
+
 import { BILL_VOID_REASON_CODES } from '../config/cancelReasons.js';
 import { DISCOUNT_FUNDERS, DISCOUNT_FUNDER_VALUES, DISCOUNT_REASON_CODES } from '../config/discountReasons.js';
 import { MAX_PAISE } from '../utils/money.js';
@@ -275,6 +277,23 @@ const paymentSchema = new mongoose.Schema(
      * method, frozen fields, `receivedAt` and business date.
      */
     carriedFromBillId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bill', default: null },
+
+    /**
+     * P25 Part F. On a cash payment: the notes handed over, the total
+     * tendered and the change given back. Kept for the record; no figure reads
+     * it, because `amountInPaise` is what went on the bill.
+     */
+    tender: {
+      type: new mongoose.Schema(
+        {
+          cashCount: { type: [cashCountRowSchema], default: undefined },
+          tenderedInPaise: { type: Number, required: true, min: 0 },
+          changeInPaise: { type: Number, required: true, min: 0 },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
   },
   { _id: true },
 );

@@ -178,3 +178,61 @@ export function sumPaise(...amounts) {
   }
   return total;
 }
+
+/* --------------------------------------------------------------------------
+ * Counting cash by notes and coins. P25 Part F, API-CONTRACT M16 section 8.
+ * ----------------------------------------------------------------------- */
+
+/** The most of one note or coin a count may hold. */
+export const MAX_CASH_COUNT = 10_000;
+
+/** A cash count this restaurant cannot accept. Services answer it with a 422. */
+export class CashCountError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'CashCountError';
+  }
+}
+
+/**
+ * Totals a count of notes and coins against the restaurant's denominations,
+ * on the server, always: a total sent by a client is never trusted.
+ *
+ * `cashCount` is `[{ valueInPaise, kind?, count }]`; `denominations` is
+ * `settings.cash.denominations`. `kind` may be left out when the value exists
+ * once among the active denominations, and must be given when it is both a
+ * note and a coin (₹20, ₹10). Counts are whole numbers from 0 to 10,000. Rows
+ * with a count of 0 are dropped. Returns `{ totalInPaise, cashCount }`, the
+ * count with every `kind` filled in, largest value first.
+ */
+export function sumCashCount(cashCount, denominations) {
+  if (!Array.isArray(cashCount)) throw new CashCountError('A cash count is a list of notes and coins.');
+  const active = (denominations ?? []).filter((entry) => entry.isActive !== false);
+  const seen = new Set();
+  const rows = [];
+
+  for (const entry of cashCount) {
+    const { valueInPaise, count } = entry ?? {};
+    if (!Number.isInteger(count) || count < 0 || count > MAX_CASH_COUNT) {
+      throw new CashCountError(`A count must be a whole number from 0 to ${MAX_CASH_COUNT}.`);
+    }
+    const matches = active.filter((denomination) => denomination.valueInPaise === valueInPaise && (!entry.kind || denomination.kind === entry.kind));
+    if (matches.length === 0) {
+      throw new CashCountError(`${paiseToRupees(Number(valueInPaise) || 0, { symbol: true })}${entry.kind ? ` ${entry.kind.toLowerCase()}` : ''} is not a note or coin this restaurant counts.`);
+    }
+    if (matches.length > 1) {
+      throw new CashCountError(`Say whether ${paiseToRupees(valueInPaise, { symbol: true })} is a note or a coin.`);
+    }
+    const key = `${matches[0].kind}:${valueInPaise}`;
+    if (seen.has(key)) throw new CashCountError(`${paiseToRupees(valueInPaise, { symbol: true })} is counted twice.`);
+    seen.add(key);
+    if (count > 0) rows.push({ valueInPaise, kind: matches[0].kind, count });
+  }
+
+  rows.sort((a, b) => b.valueInPaise - a.valueInPaise || (a.kind === 'NOTE' ? -1 : 1));
+  const totalInPaise = rows.reduce((total, row) => total + row.valueInPaise * row.count, 0);
+  if (!Number.isSafeInteger(totalInPaise) || totalInPaise > MAX_PAISE) {
+    throw new CashCountError('That count is more cash than one drawer can hold.');
+  }
+  return { totalInPaise, cashCount: rows };
+}

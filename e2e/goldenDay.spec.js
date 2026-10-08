@@ -110,7 +110,7 @@ test('the golden day, through the screens', async ({ browser }) => {
 
   await test.step('11:00 AM Manager: opening float ₹2,000.00', async () => {
     await at('11:00');
-    await recordCash(manager.page, 'Opening float', '2000.00');
+    await recordCash(manager.page, 'Opening float', [[500, 4]]);
   });
 
   await test.step('11:40 AM Khuman Singh opens Table 5', async () => {
@@ -393,7 +393,7 @@ test('the golden day, through the screens', async ({ browser }) => {
   });
   await test.step('12:30 AM, 27 Sep: Manager closes 26 September, blind, ₹3,400.00 with a note', async () => {
     await at('00:30', NEXT);
-    await closeDay(manager.page, DAY, '3400.00', 'Four rupees short');
+    await closeDay(manager.page, DAY, [[500, 6], [200, 2]], 'Four rupees short');
     await shot(manager, 'day-close-1230am');
   });
 
