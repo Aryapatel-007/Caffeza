@@ -45,6 +45,7 @@ import {
 import { pickupBounds, windowContaining } from './openingHoursService.js';
 import { openOrder } from './orderOpenService.js';
 import { buildLineSnapshots, computeLineTotalInPaise, serialiseOrder } from './orderService.js';
+import { onlineConsent } from './customerService.js';
 
 const MINUTE_MS = 60_000;
 const MONGO_DUPLICATE_KEY = 11000;
@@ -476,6 +477,8 @@ export async function accept(req, id, { pickupAt, fireNow, acceptChangedPrices }
       orderType: ORDER_TYPES.TAKEAWAY,
       customerName: doc.customerName,
       customerPhone: doc.customerPhone,
+      // P27. The guest's own consent from the page.
+      customerConsent: onlineConsent(doc.marketingConsent),
       lines: requestLinesOf(doc),
       origin: {
         kind: ORIGIN_KINDS.ONLINE_ORDER,

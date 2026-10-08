@@ -102,6 +102,7 @@ function useMoreGroups() {
         { to: '/day-close', label: 'Day Close', show: manager },
         { to: '/payouts', label: 'Payouts', show: manager },
         { to: '/reports', label: 'Reports', show: manager },
+        { to: '/customers', label: 'Customers', show: manager },
       ],
     },
     {

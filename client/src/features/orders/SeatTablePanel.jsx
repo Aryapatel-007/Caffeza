@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import Input from '../../components/ui/Input.jsx';
 import Sheet from '../../components/ui/Sheet.jsx';
 import { formatTimeIst } from '../../utils/formatDate.js';
 import { QuantityStepper } from './LineOptionsPanel.jsx';
@@ -20,6 +21,18 @@ const QUICK_COUNTS = [1, 2, 3, 4, 5, 6, 7];
 export default function SeatTablePanel({ table, isBusy, allowSkip = false, onCancel, onConfirm, reservation = null, onSeatReservation }) {
   const [guestCount, setGuestCount] = useState(null);
   const [isMore, setIsMore] = useState(false);
+  // P27. The guest's details, all optional, for the customer list.
+  const [guestName, setGuestName] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [agreed, setAgreed] = useState(false);
+  const digits = mobile.replace(/\D/g, '').replace(/^(91|0)(?=\d{10}$)/, '');
+  const mobileOk = digits.length === 10 && /^[6-9]/.test(digits);
+  const mobileWrong = mobile.trim() !== '' && !mobileOk;
+  const guest = {
+    ...(guestName.trim() ? { customerName: guestName.trim() } : {}),
+    ...(mobileOk ? { customerPhone: digits } : {}),
+    ...(mobileOk && agreed ? { offersConsent: true } : {}),
+  };
 
   return (
     <Sheet
@@ -30,8 +43,8 @@ export default function SeatTablePanel({ table, isBusy, allowSkip = false, onCan
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            disabled={guestCount === null || isBusy}
-            onClick={() => onConfirm(guestCount)}
+            disabled={guestCount === null || isBusy || mobileWrong}
+            onClick={() => onConfirm(guestCount, guest)}
             className="type-button flex min-h-14 w-full items-center justify-center rounded-lg bg-accent text-on-accent hover:brightness-110 disabled:opacity-50"
           >
             {isBusy
@@ -44,8 +57,8 @@ export default function SeatTablePanel({ table, isBusy, allowSkip = false, onCan
           {allowSkip && (
             <button
               type="button"
-              disabled={isBusy}
-              onClick={() => onConfirm(undefined)}
+              disabled={isBusy || mobileWrong}
+              onClick={() => onConfirm(undefined, guest)}
               className="type-label min-h-12 w-full rounded-lg text-ink hover:bg-sunken disabled:opacity-50"
             >
               Skip, open without a guest count
@@ -103,6 +116,38 @@ export default function SeatTablePanel({ table, isBusy, allowSkip = false, onCan
           <QuantityStepper value={guestCount} min={8} max={MAX_GUESTS} onChange={setGuestCount} />
         </div>
       )}
+
+      <h3 className="type-heading mt-6">Guest details</h3>
+      <p className="type-caption text-muted">Optional. Builds your customer list, and brings back their visits next time.</p>
+      <div className="mt-3 grid gap-3">
+        <Input label="Guest name" autoComplete="off" maxLength={100} value={guestName} onChange={(event) => setGuestName(event.target.value)} />
+        <Input
+          label="Mobile number"
+          type="tel"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={14}
+          value={mobile}
+          error={mobileWrong ? 'A 10-digit Indian mobile number.' : undefined}
+          onChange={(event) => {
+            setMobile(event.target.value);
+            if (!event.target.value.trim()) setAgreed(false);
+          }}
+        />
+        <label className={['flex items-start gap-3', mobileOk ? '' : 'opacity-50'].join(' ')}>
+          <input
+            type="checkbox"
+            checked={agreed}
+            disabled={!mobileOk}
+            onChange={(event) => setAgreed(event.target.checked)}
+            className="mt-1 h-5 w-5 rounded border border-line focus:ring-2 focus:ring-accent"
+          />
+          <span>
+            <span className="type-body block">The guest agrees to offers and news by SMS or WhatsApp</span>
+            <span className="type-caption block text-muted">Tick only if the guest says yes.</span>
+          </span>
+        </label>
+      </div>
     </Sheet>
   );
 }

@@ -112,11 +112,15 @@ describe('creating an order', () => {
     assert.match(takeawayWithTable.body.error.fields.tableId, /no table/i);
 
     // The union refuses the other branch's fields rather than ignoring them.
-    const dineInWithCustomer = await openOrder(tokens.WAITER, {
+    const dineInWithPlatform = await openOrder(tokens.WAITER, {
       tableId: table.id,
-      customerName: 'Mehul',
+      platform: { code: 'SWIGGY', orderId: '12345' },
     });
-    assert.equal(dineInWithCustomer.status, 400);
+    assert.equal(dineInWithPlatform.status, 400);
+
+    // P27: a seated guest's name is now taken, for the customer list.
+    const dineInWithCustomer = await openOrder(tokens.WAITER, { tableId: table.id, customerName: 'Mehul' });
+    assert.equal(dineInWithCustomer.status, 201, JSON.stringify(dineInWithCustomer.body));
   });
 
   it('refuses a table that does not exist, and one that is switched off', async () => {

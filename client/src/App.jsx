@@ -17,6 +17,7 @@ import StockListPage from './features/inventory/StockListPage.jsx';
 import LabourReportPage from './features/reports/LabourPage.jsx';
 import StockReportPage from './features/reports/StockPage.jsx';
 import AppearancePage from './features/settings/AppearancePage.jsx';
+import CustomersPage from './features/customers/CustomersPage.jsx';
 import IntegrationsPage from './features/integrations/IntegrationsPage.jsx';
 import ItemMappingPage from './features/integrations/ItemMappingPage.jsx';
 import TallyPage from './features/integrations/TallyPage.jsx';
@@ -520,6 +521,18 @@ export default function App() {
           <ProtectedRoute>
             <RequireRole roles={SETTINGS_ROLES}>
               <AppearancePage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P27. Customers: OWNER and MANAGER; the server enforces it. */}
+      <Route
+        path="/customers"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={STAFF_ADMIN_ROLES}>
+              <CustomersPage />
             </RequireRole>
           </ProtectedRoute>
         }

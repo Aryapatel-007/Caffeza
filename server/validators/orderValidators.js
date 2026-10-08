@@ -275,8 +275,12 @@ export const createOrderSchema = z.object({
           .min(MIN_GUEST_COUNT, 'Must be at least 1.')
           .max(MAX_GUEST_COUNT, `Cannot be more than ${MAX_GUEST_COUNT}.`)
           .optional(),
-        customerName: z.never({ error: 'Only a takeaway order has a customer name.' }).optional(),
-        customerPhone: z.never({ error: 'Only a takeaway order has a customer phone.' }).optional(),
+        // P27. A seated guest's details, for the customer list.
+        customerName: nonEmptyString
+          .max(CUSTOMER_NAME_MAX_LENGTH, `Cannot be longer than ${CUSTOMER_NAME_MAX_LENGTH} characters.`)
+          .optional(),
+        customerPhone: phoneIndia.optional(),
+        offersConsent: z.boolean({ error: 'Must be true or false.' }).optional(),
         platform: z.never({ error: 'Only a delivery order has a platform.' }).optional(),
         lines: lines.optional(),
       })
@@ -291,6 +295,7 @@ export const createOrderSchema = z.object({
           .max(CUSTOMER_NAME_MAX_LENGTH, `Cannot be longer than ${CUSTOMER_NAME_MAX_LENGTH} characters.`)
           .optional(),
         customerPhone: phoneIndia.optional(),
+        offersConsent: z.boolean({ error: 'Must be true or false.' }).optional(),
         platform: z.never({ error: 'Only a delivery order has a platform.' }).optional(),
         lines: lines.optional(),
       })
@@ -318,10 +323,14 @@ export const createOrderSchema = z.object({
           .max(CUSTOMER_NAME_MAX_LENGTH, `Cannot be longer than ${CUSTOMER_NAME_MAX_LENGTH} characters.`)
           .optional(),
         customerPhone: phoneIndia.optional(),
+        offersConsent: z.boolean({ error: 'Must be true or false.' }).optional(),
         lines: lines.optional(),
       })
       .strict('Is not a field you can set here.'),
-  ]),
+  ]).refine((body) => !body.offersConsent || Boolean(body.customerPhone), {
+    path: ['offersConsent'],
+    message: "Add the guest's mobile number to record that they agreed to offers.",
+  }),
 });
 
 /**

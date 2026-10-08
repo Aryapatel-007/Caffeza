@@ -40,6 +40,7 @@ import {
 } from './onlinePaymentService.js';
 import { bookableDates, reservationSlots } from './openingHoursService.js';
 import { assertTableUsable, openOrder } from './orderOpenService.js';
+import { onlineConsent } from './customerService.js';
 
 const MINUTE_MS = 60_000;
 const MONGO_DUPLICATE_KEY = 11000;
@@ -442,6 +443,12 @@ export async function seat(req, id, { tableId, guestCount }) {
       tableId: String(table._id),
       guestCount,
       origin: { kind: ORIGIN_KINDS.RESERVATION, id: claimed._id, reference: claimed.reference, pickupAt: null },
+      // P27. The booking's guest becomes the table's customer, with their own consent.
+      customerName: claimed.guestName ?? null,
+      customerPhone: claimed.guestPhone ?? null,
+      customerConsent: claimed.source === RESERVATION_SOURCES.PHONE
+        ? (claimed.marketingConsent?.given ? { ...onlineConsent(claimed.marketingConsent), source: 'STAFF' } : null)
+        : onlineConsent(claimed.marketingConsent),
       // P24. The deposit goes with the order, to be applied on its bill.
       advancePaymentId: claimed.paymentId ?? null,
     });

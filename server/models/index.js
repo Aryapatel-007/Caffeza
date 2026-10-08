@@ -22,6 +22,7 @@ import { Branch } from './Branch.js';
 import { CashMovement } from './CashMovement.js';
 import { Category } from './Category.js';
 import { Counter } from './Counter.js';
+import { Customer } from './Customer.js';
 import { DayClosure } from './DayClosure.js';
 import { Ingredient } from './Ingredient.js';
 import { IntegrationConnection } from './IntegrationConnection.js';
@@ -60,6 +61,7 @@ export const ALL_MODELS = Object.freeze([
   CashMovement,
   Category,
   Counter,
+  Customer,
   DayClosure,
   Ingredient,
   IntegrationConnection,

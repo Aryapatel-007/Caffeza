@@ -17,6 +17,7 @@ import { nowUtc } from '../utils/time.js';
 import { nextNumber } from './counterService.js';
 import { buildLineSnapshots } from './orderService.js';
 import { getSetting } from './settingsService.js';
+import { recordVisit, staffConsent } from './customerService.js';
 
 const MONGO_DUPLICATE_KEY = 11000;
 
@@ -106,7 +107,7 @@ export async function rethrowPlatformConflict(req, platform, error) {
  * `openedBy`.
  */
 export async function openOrder(req, input) {
-  const { orderType, tableId, guestCount, customerName, customerPhone, lines, platform, origin = null, advancePaymentId = null, platformPrices = false } = input;
+  const { orderType, tableId, guestCount, customerName, customerPhone, lines, platform, origin = null, advancePaymentId = null, platformPrices = false, offersConsent = false, customerConsent = null } = input;
 
   const isDineIn = orderType === ORDER_TYPES.DINE_IN;
 
@@ -171,6 +172,15 @@ export async function openOrder(req, input) {
     .save()
     .catch((error) => rethrowPlatformConflict(req, frozenPlatform, error))
     .catch((error) => rethrowTableConflict(req, tableId, error));
+
+  // P27. A visit for the customer with this phone. It never fails the order.
+  if (saved.customerPhone) {
+    try {
+      await recordVisit(req, saved, customerConsent ?? (offersConsent ? staffConsent() : null));
+    } catch (error) {
+      req.log?.warn({ err: { message: error?.message }, orderId: String(saved._id) }, 'Could not record the customer visit.');
+    }
+  }
 
   return saved;
 }
