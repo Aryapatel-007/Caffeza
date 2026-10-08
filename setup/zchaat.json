@@ -1,0 +1,75 @@
+{
+  "restaurant": {
+    "name": "Z Chaat",
+    "legalName": "TO CONFIRM",
+    "gstin": "TO CONFIRM",
+    "fssaiLicenseNumber": "TO CONFIRM",
+    "address": {
+      "line1": "E-19/20, Ground Floor, Siddhraj Z Square",
+      "line2": "Podar International School Road, Kudasan",
+      "city": "Gandhinagar",
+      "state": "Gujarat",
+      "pincode": "382421"
+    },
+    "contactPhone": "7600858900"
+  },
+  "settings": {
+    "businessDayStartsAtMinutes": 300,
+    "features": {
+      "inventory": false,
+      "attendance": false
+    },
+    "receipt": {
+      "headerLine2": "Indian Street Food",
+      "footerText": "Swaad bhi, Yaad bhi!"
+    },
+    "delivery": {
+      "platformCollectsGst": true
+    },
+    "appearance": {
+      "accentPreset": "ESPRESSO",
+      "neutralTone": "WARM",
+      "brandHex": "#A64220",
+      "onBrandHex": "#F6EFD8",
+      "wordmark": "Z. Chaat",
+      "secondLanguage": "GUJARATI"
+    }
+  },
+  "logos": "TO CONFIRM",
+  "stations": [
+    {
+      "name": "Chaat Counter",
+      "displayOrder": 0,
+      "printsTickets": false
+    },
+    {
+      "name": "Tandoor",
+      "displayOrder": 1,
+      "printsTickets": false
+    },
+    {
+      "name": "Beverages",
+      "displayOrder": 2,
+      "printsTickets": false
+    },
+    {
+      "name": "Kitchen",
+      "displayOrder": 3,
+      "printsTickets": false
+    }
+  ],
+  "categoryStations": {
+    "Bhel": "Chaat Counter",
+    "Chaat Darbar": "Chaat Counter",
+    "Kulcha": "Tandoor",
+    "Breads": "Tandoor",
+    "Desi Tadka Sharbat": "Beverages",
+    "Beverages": "Beverages",
+    "Roll Cut Kulfi": "Beverages"
+  },
+  "defaultStation": "Kitchen",
+  "tables": "TO CONFIRM",
+  "paymentMethods": "TO CONFIRM",
+  "accounts": "TO CONFIRM",
+  "staff": "TO CONFIRM"
+}

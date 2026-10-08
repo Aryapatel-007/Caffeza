@@ -26,6 +26,8 @@ import { request, startTestServer, stopTestServer } from './helpers/testServer.j
 const SETUP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'setup');
 const caffezaConfig = () => JSON.parse(readFileSync(path.join(SETUP_DIR, 'archive', 'caffeza', 'caffeza.json'), 'utf8'));
 const caffezaMenu = () => readFileSync(path.join(SETUP_DIR, 'archive', 'caffeza', 'caffeza-menu.csv'), 'utf8');
+const zchaatConfig = () => JSON.parse(readFileSync(path.join(SETUP_DIR, 'zchaat.json'), 'utf8'));
+const zchaatMenu = () => readFileSync(path.join(SETUP_DIR, 'zchaat-menu.csv'), 'utf8');
 
 /** The test server's request already prefixes nothing; the scripts' paths are under /api/v1. */
 const send = (method, pathname, options) => request(method, `/api/v1${pathname}`, options);
@@ -222,7 +224,7 @@ Pizza,Good One,,100.00,5,yes
   });
 });
 
-describe('Caffeza\'s own files', () => {
+describe('Cafezza\'s archived files', () => {
   it('both pass validation in a dry run, with 34 tables, 2 stations, 8 payment methods and 2 accounts', async () => {
     const { config, toConfirm } = validateSetupConfig(caffezaConfig());
     assert.equal(config.tables.names.length, 34);
@@ -313,3 +315,81 @@ describe('the setup file: logos and the brand, P22', () => {
     });
   });
 });
+
+describe('menu descriptions, the optional seventh column, P25', () => {
+  const WITH = `category,item,size,price,gst_percent,available,description
+Chaat Darbar,Sev Poori Chaat,,265.00,5,yes,"Flat puris with potato, onion and sev. 200gm"
+Chaat Darbar,Dahi Bhalla,,265.00,5,yes,"Says ""cool"", and means it"
+Breads,Tandoori Roti,Plain,69.00,5,yes,
+Breads,Tandoori Roti,Butter,69.00,5,yes,Brushed with butter
+`;
+
+  it('fills descriptions from a file that has them, with commas and quotes, and none from an empty cell', async () => {
+    const menu = readMenu(WITH);
+    const items = menu.categories.flatMap((category) => category.items);
+    assert.equal(items[0].description, 'Flat puris with potato, onion and sev. 200gm');
+    assert.equal(items[1].description, 'Says "cool", and means it');
+    assert.equal(items[2].description, 'Brushed with butter');
+
+    const { client, restaurant } = await ownerClient();
+    await applyMenu(await planMenu(client, menu));
+    const sev = await MenuItem.findOne({ restaurantId: restaurant._id, name: 'Sev Poori Chaat' });
+    assert.equal(sev.description, 'Flat puris with potato, onion and sev. 200gm');
+    const bhalla = await MenuItem.findOne({ restaurantId: restaurant._id, name: 'Dahi Bhalla' });
+    assert.equal(bhalla.description, 'Says "cool", and means it');
+  });
+
+  it('still reads a six-column file, and leaves existing descriptions alone', async () => {
+    const { client, restaurant } = await ownerClient();
+    await applyMenu(await planMenu(client, readMenu(WITH)));
+    const six = 'category,item,size,price,gst_percent,available\nChaat Darbar,Sev Poori Chaat,,275.00,5,yes\n';
+    const menu = readMenu(six);
+    assert.equal(menu.hasDescriptions, false);
+    assert.equal(menu.categories[0].items[0].description, null);
+    await applyMenu(await planMenu(client, menu));
+    const sev = await MenuItem.findOne({ restaurantId: restaurant._id, name: 'Sev Poori Chaat' });
+    assert.equal(sev.priceInPaise, 27500);
+    assert.equal(sev.description, 'Flat puris with potato, onion and sev. 200gm');
+  });
+
+  it('changes a description on a re-run, and refuses one that is too long', async () => {
+    const { client, restaurant } = await ownerClient();
+    await applyMenu(await planMenu(client, readMenu(WITH)));
+    const changed = WITH.replace('Flat puris with potato, onion and sev. 200gm', 'New words');
+    const steps = await planMenu(client, readMenu(changed));
+    assert.deepEqual(steps.filter((step) => step.action === 'update').map((step) => step.detail), ['description']);
+    await applyMenu(steps);
+    assert.equal((await MenuItem.findOne({ restaurantId: restaurant._id, name: 'Sev Poori Chaat' })).description, 'New words');
+
+    assert.throws(() => readMenu(`category,item,size,price,gst_percent,available,description\nA,B,,1.00,5,yes,${'x'.repeat(501)}\n`), MenuFileError);
+  });
+});
+
+describe('Z Chaat\'s own files, P25', () => {
+  it('pass a dry run: 97 items in 14 categories, 105 rows with sizes, and the stations routed', async () => {
+    const { config, toConfirm } = validateSetupConfig(zchaatConfig());
+    assert.equal(config.restaurant.name, 'Z Chaat');
+    assert.equal(config.stations.length, 4);
+    for (const at of ['restaurant.gstin', 'restaurant.fssaiLicenseNumber', 'tables', 'staff', 'paymentMethods']) {
+      assert.ok(toConfirm.includes(at), at);
+    }
+
+    const menu = readMenu(zchaatMenu());
+    const items = menu.categories.flatMap((category) => category.items);
+    assert.equal(menu.categories.length, 14);
+    assert.equal(items.length, 97);
+    assert.equal(items.reduce((rows, item) => rows + Math.max(1, item.variants.length), 0), 105);
+    assert.ok(items.every((item) => item.taxRateBps === 500));
+
+    const { client } = await ownerClient();
+    const setupSteps = await planSetup(client, config, { toConfirm });
+    assert.equal(setupSteps.filter((step) => step.section === 'Stations' && step.action === 'create').length, 4);
+    const menuSteps = await planMenu(client, menu, { config });
+    assert.equal(menuSteps.filter((step) => step.section === 'Items' && step.action === 'create').length, 97);
+    const bhel = menuSteps.find((step) => step.section === 'Categories' && step.name === 'Bhel');
+    assert.equal(bhel.detail, 'station Chaat Counter');
+    const sizzler = menuSteps.find((step) => step.section === 'Categories' && step.name === 'Sizzler');
+    assert.equal(sizzler.detail, 'station Kitchen');
+  });
+});
+
