@@ -33,7 +33,17 @@ import {
   postWebhookKey,
   putIntegration,
 } from '../controllers/integrationController.js';
-import { getLedgerMastersFile, getTallyDays, getTallyExportFile, postTallyExports, postTallyRedo } from '../controllers/tallyController.js';
+import {
+  getBridges,
+  getLedgerMastersFile,
+  getTallyDays,
+  getTallyExportFile,
+  postPairingCode,
+  postRevokeBridge,
+  postTallyExports,
+  postTallyRedo,
+  postTallySend,
+} from '../controllers/tallyController.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/permission.js';
 import { tenant } from '../middleware/tenant.js';
@@ -60,6 +70,9 @@ import {
   tallyDaysSchema,
   tallyExportIdSchema,
   tallyLedgerMastersSchema,
+  listBridgesSchema,
+  pairingCodeSchema,
+  tallyBridgeIdSchema,
 } from '../validators/integrationValidators.js';
 
 const router = Router();
@@ -76,6 +89,11 @@ router.post('/integrations/tally/exports', ...managers, validate(createTallyExpo
 router.get('/integrations/tally/exports/:id/file', ...managers, validate(tallyExportIdSchema), getTallyExportFile);
 router.post('/integrations/tally/exports/:id/redo', ...owner, validate(redoTallyExportSchema), postTallyRedo);
 router.get('/integrations/tally/ledger-masters/file', ...owner, validate(tallyLedgerMastersSchema), getLedgerMastersFile);
+// P25 Part K. Sending through the bridge, and the bridges themselves.
+router.post('/integrations/tally/exports/:id/send', ...managers, validate(tallyExportIdSchema), postTallySend);
+router.post('/integrations/tally/bridges/pairing-code', ...owner, validate(pairingCodeSchema), postPairingCode);
+router.get('/integrations/tally/bridges', ...managers, validate(listBridgesSchema), getBridges);
+router.post('/integrations/tally/bridges/:id/revoke', ...owner, validate(tallyBridgeIdSchema), postRevokeBridge);
 router.put('/integrations/:provider', ...owner, validate(saveIntegrationSchema), putIntegration);
 router.post('/integrations/:provider/test', ...owner, validate(providerActionSchema), postTest);
 router.post('/integrations/:provider/pause', ...owner, validate(providerActionSchema), postPause);

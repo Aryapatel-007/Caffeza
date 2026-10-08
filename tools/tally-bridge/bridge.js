@@ -92,7 +92,7 @@ function tallyAddress(args, config) {
   return value.startsWith('http') ? value : `http://${value}`;
 }
 
-/** Posts XML to Tally and returns `{ ok, httpStatus, body }`. Never throws. */
+/** Posts XML to Tally and returns `{ ok, httpStatus, body, reached }`. Never throws. */
 async function postToTally(address, xml) {
   try {
     const response = await fetch(address, {
@@ -102,10 +102,11 @@ async function postToTally(address, xml) {
       signal: AbortSignal.timeout(TALLY_TIMEOUT_MS),
     });
     const body = (await response.text()).slice(0, MAX_BODY);
-    return { ok: response.ok, httpStatus: response.status, body };
+    return { ok: response.ok, httpStatus: response.status, body, reached: true };
   } catch (error) {
-    const reason = error?.name === 'TimeoutError' ? 'Tally did not answer in time.' : `Tally could not be reached at ${address}. Is Tally open, with its HTTP server switched on?`;
-    return { ok: false, httpStatus: null, body: reason };
+    // A timeout may mean Tally took the XML and is still working: reached, and unknown.
+    if (error?.name === 'TimeoutError') return { ok: false, httpStatus: null, body: 'Tally did not answer in time.', reached: true };
+    return { ok: false, httpStatus: null, body: `Tally could not be reached at ${address}. Is Tally open, with its HTTP server switched on?`, reached: false };
   }
 }
 
@@ -158,7 +159,8 @@ async function check(args) {
     console.error(answer.body);
     process.exit(1);
   }
-  const names = [...answer.body.matchAll(/<COMPANY\s+NAME="([^"]*)"/gi)].map((match) => match[1]);
+  const unescape = (text) => text.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  const names = [...answer.body.matchAll(/<COMPANY\s+NAME="([^"]*)"/gi)].map((match) => unescape(match[1]));
   console.log(`Tally answered at ${address}.`);
   console.log(names.length > 0 ? `Open companies: ${names.join(', ')}` : 'No company is open in Tally.');
 }
@@ -172,7 +174,7 @@ async function runOnce(config, address) {
     return 'error';
   }
   const job = next.body.data;
-  const result = job.xml ? await postToTally(address, job.xml) : { ok: true, httpStatus: null, body: '' };
+  const result = job.xml ? await postToTally(address, job.xml) : { ok: true, httpStatus: null, body: '', reached: true };
   const sent = await callServer(config, 'POST', `/api/v1/tally-bridge/jobs/${job.jobId}/result`, result);
   log(`${job.type} ${job.jobId}: Tally ${result.httpStatus ?? 'unreachable'}, server ${sent.status}${sent.body?.data?.status ? ` ${sent.body.data.status}` : ''}`);
   return 'worked';

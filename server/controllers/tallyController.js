@@ -3,6 +3,7 @@
  * Thin: every rule is in services/integrations/tally/exportService.js.
  */
 import { createExports, exportFile, ledgerMastersFile, listDays, redoExport } from '../services/integrations/tally/exportService.js';
+import { createPairingCode, listBridges, revokeBridge, sendExport } from '../services/integrations/tally/bridgeService.js';
 import { sendSuccess } from '../utils/response.js';
 
 function sendXml(res, { xml, fileName }) {
@@ -34,4 +35,26 @@ export async function postTallyRedo(req, res) {
 /** GET /integrations/tally/ledger-masters/file */
 export async function getLedgerMastersFile(req, res) {
   return sendXml(res, await ledgerMastersFile(req));
+}
+
+/* P25 Part K. The bridge, from the owner's and manager's side. ---------- */
+
+/** POST /integrations/tally/exports/:id/send */
+export async function postTallySend(req, res) {
+  return sendSuccess(res, await sendExport(req, req.params.id));
+}
+
+/** POST /integrations/tally/bridges/pairing-code. The code, once. */
+export async function postPairingCode(req, res) {
+  return sendSuccess(res, await createPairingCode(req, req.body), 201);
+}
+
+/** GET /integrations/tally/bridges */
+export async function getBridges(req, res) {
+  return sendSuccess(res, await listBridges(req));
+}
+
+/** POST /integrations/tally/bridges/:id/revoke */
+export async function postRevokeBridge(req, res) {
+  return sendSuccess(res, await revokeBridge(req, req.params.id));
 }

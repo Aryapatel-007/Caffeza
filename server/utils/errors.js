@@ -135,6 +135,8 @@ export const ERROR_CODES = Object.freeze({
   TALLY_MAPPING_INCOMPLETE: 'TALLY_MAPPING_INCOMPLETE',
   TALLY_ALREADY_EXPORTED: 'TALLY_ALREADY_EXPORTED',
   DAY_NOT_CLOSED: 'DAY_NOT_CLOSED',
+  PAIRING_CODE_INVALID: 'PAIRING_CODE_INVALID',
+  BRIDGE_TOKEN_INVALID: 'BRIDGE_TOKEN_INVALID',
 });
 
 /**
@@ -778,5 +780,19 @@ export class DayNotClosedError extends AppError {
       code: ERROR_CODES.DAY_NOT_CLOSED,
       details: { businessDates },
     });
+  }
+}
+
+/** P25 Part K. A wrong, used or expired pairing code: the same answer for each. */
+export class PairingCodeInvalidError extends AppError {
+  constructor() {
+    super('That pairing code is wrong, used or expired. Ask the owner for a new one.', { statusCode: 401, code: ERROR_CODES.PAIRING_CODE_INVALID });
+  }
+}
+
+/** P25 Part K. An unknown or revoked bridge token, on every bridge route. */
+export class BridgeTokenInvalidError extends AppError {
+  constructor() {
+    super('This Tally bridge is not paired, or was switched off. Pair it again.', { statusCode: 401, code: ERROR_CODES.BRIDGE_TOKEN_INVALID });
   }
 }

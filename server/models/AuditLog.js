@@ -75,6 +75,9 @@ export const AUDIT_ACTIONS = Object.freeze({
   // P25 Part J. A day's vouchers reached Tally, or were built again after the owner deleted them there.
   TALLY_EXPORT_POSTED: 'TALLY_EXPORT_POSTED',
   TALLY_EXPORT_REDONE: 'TALLY_EXPORT_REDONE',
+  // P25 Part K. A computer given, or refused, the right to post into Tally.
+  TALLY_BRIDGE_PAIRED: 'TALLY_BRIDGE_PAIRED',
+  TALLY_BRIDGE_REVOKED: 'TALLY_BRIDGE_REVOKED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 

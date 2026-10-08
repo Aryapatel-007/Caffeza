@@ -115,4 +115,64 @@ export function parseTallyResponse(xml, sentCount) {
   return { status: 'UNKNOWN', lineErrors, counts };
 }
 
-export default { escapeXml, ledgerMastersXml, parseTallyResponse, toTallyXml };
+/** Tally's documented collection export, inline TDL: the names of every object of one type. */
+function collectionXml(type, companyName) {
+  const id = `ERP ${type} Names`;
+  return [
+    '<ENVELOPE>',
+    '  <HEADER>',
+    '    <VERSION>1</VERSION>',
+    '    <TALLYREQUEST>EXPORT</TALLYREQUEST>',
+    '    <TYPE>COLLECTION</TYPE>',
+    `    <ID>${id}</ID>`,
+    '  </HEADER>',
+    '  <BODY>',
+    '    <DESC>',
+    '      <STATICVARIABLES>',
+    '        <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>',
+    ...(companyName ? [`        <SVCURRENTCOMPANY>${escapeXml(companyName)}</SVCURRENTCOMPANY>`] : []),
+    '      </STATICVARIABLES>',
+    '      <TDL>',
+    '        <TDLMESSAGE>',
+    `          <COLLECTION NAME="${id}" ISINITIALIZE="Yes">`,
+    `            <TYPE>${type}</TYPE>`,
+    '            <NATIVEMETHOD>Name</NATIVEMETHOD>',
+    '          </COLLECTION>',
+    '        </TDLMESSAGE>',
+    '      </TDL>',
+    '    </DESC>',
+    '  </BODY>',
+    '</ENVELOPE>',
+    '',
+  ].join('\n');
+}
+
+/** The ledgers in one company, for the check before posting (Part K3). */
+export const ledgerListXml = (companyName) => collectionXml('Ledger', companyName);
+
+/** The companies open in Tally, for a bridge's PING. */
+export const companyListXml = () => collectionXml('Company', null);
+
+const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+const unescapeXml = (text) =>
+  text.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (whole, name) => {
+    if (name[0] === '#') {
+      const code = name[1].toLowerCase() === 'x' ? Number.parseInt(name.slice(2), 16) : Number(name.slice(1));
+      return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
+    }
+    return ENTITIES[name.toLowerCase()] ?? whole;
+  });
+
+/** The NAME attribute of every `<TAG NAME="...">` in Tally's answer, unescaped, once each. */
+export function namesIn(xml, tag) {
+  const names = [...String(xml ?? '').matchAll(new RegExp(`<${tag}\\s+NAME="([^"]*)"`, 'gi'))].map((match) => unescapeXml(match[1]).trim());
+  return [...new Set(names.filter(Boolean))];
+}
+
+/** The ledger names a voucher file uses, unescaped, once each. */
+export function ledgersUsedIn(xml) {
+  const names = [...String(xml ?? '').matchAll(/<LEDGERNAME>([^<]*)<\/LEDGERNAME>/g)].map((match) => unescapeXml(match[1]).trim());
+  return [...new Set(names)];
+}
+
+export default { companyListXml, escapeXml, ledgerListXml, ledgerMastersXml, ledgersUsedIn, namesIn, parseTallyResponse, toTallyXml };

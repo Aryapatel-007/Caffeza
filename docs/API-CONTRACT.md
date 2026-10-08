@@ -7003,6 +7003,36 @@ A revoked or unknown token is 401 `BRIDGE_TOKEN_INVALID` everywhere.
 Posting checks first: a `FETCH_LEDGERS` result newer than the mapping must list
 every mapped ledger, or the post is refused with the missing names.
 
+Settled while building Part K:
+
+1. `send` takes a `BUILT` or `FAILED` export. It queues `FETCH_LEDGERS` and
+   then `POST_VOUCHERS`, each tried once. The check is on the ledgers that
+   export actually uses, compared without regard to case, as Tally compares
+   names. When a fresh list already lacks one, `send` itself is 422
+   `TALLY_MAPPING_INCOMPLETE`, with `missing` like `"Swiggy (not in Tally)"`.
+   When the list is fresh only by the time of the post, the post is never
+   handed to the bridge, and the export becomes `FAILED` with the names in
+   `lineErrors`. No fresh list at all is refused the same way.
+2. The result body also takes `reached` (default true). The bridge sends false
+   when Tally refused the connection, so nothing reached it, and the export is
+   `FAILED`. A timeout is `reached` with no `httpStatus`, so the export is
+   `UNKNOWN`: Tally may have taken it.
+3. A bridge job is locked for 10 minutes. A `PING` or `FETCH_LEDGERS` whose
+   lock runs out may be offered again. A `POST_VOUCHERS` never is: its export
+   becomes `UNKNOWN`, and its job `DEAD`.
+4. Pairing queues a `PING`, so the open companies show at once. The bridge
+   list gives `state`: `PENDING` (a code not yet used), `EXPIRED`, `ACTIVE` or
+   `REVOKED`. It also gives `ledgerCount`, never the hashes.
+5. Pairing has its own limiter, 20 per 15 minutes per address. The bridge
+   routes' limiter counts per token, before the token is checked.
+6. Testing a Tally connection with `delivery: BRIDGE` needs a paired bridge.
+7. The ledger list request is Tally's documented collection export with inline
+   TDL (`TALLYREQUEST` EXPORT, `TYPE` COLLECTION, a `COLLECTION` of `TYPE`
+   Ledger with `NATIVEMETHOD` Name). The answer is read as each
+   `<LEDGER NAME="…">`. Tally's help page for it describes Tally.ERP 9. Part
+   K's manual check confirms TallyPrime, and records any difference in
+   `profiles.js`.
+
 ## Permission summary for M21
 
 | Action | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |

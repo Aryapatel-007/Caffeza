@@ -230,3 +230,28 @@ export const webhookLimiter = rateLimit({
   skip: skipInTest,
   handler: limitReached,
 });
+
+/**
+ * P25 Part K. The Tally bridge's own limits: 60 a minute per token, counted
+ * before the token is even checked, and pairing 20 per 15 minutes per address,
+ * so an 8-character code cannot be guessed at speed.
+ */
+export const bridgeLimiter = rateLimit({
+  windowMs: MINUTE_MS,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => createHash('sha256').update(`bridge|${req.get('authorization') ?? ''}`).digest('hex'),
+  skip: skipInTest,
+  handler: limitReached,
+});
+
+export const bridgePairLimiter = rateLimit({
+  windowMs: 15 * MINUTE_MS,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => createHash('sha256').update(`bridge-pair|${normaliseIp(req.ip)}`).digest('hex'),
+  skip: skipInTest,
+  handler: limitReached,
+});

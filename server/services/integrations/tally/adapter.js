@@ -1,13 +1,16 @@
 /**
  * Tally. P25 Parts J and K. Tally runs on the accountant's own computer, which
  * our server cannot reach: vouchers go as a file to import, or through the
- * bridge (Part K). Testing a FILE connection checks only that it is complete.
+ * bridge. Testing a FILE connection checks only that it is complete; a BRIDGE
+ * connection also needs a paired bridge.
  */
-export function testConnection(connection) {
-  if (connection.config?.delivery === 'BRIDGE') {
-    return Promise.resolve({ ok: false, message: 'Pair a Tally bridge first. It is built in a later part.' });
+import { hasActiveBridge } from './bridgeService.js';
+
+export async function testConnection(connection) {
+  if (connection.config?.delivery === 'BRIDGE' && !(await hasActiveBridge(connection))) {
+    return { ok: false, message: 'Pair a Tally bridge first, on the computer that runs Tally.' };
   }
-  return Promise.resolve({ ok: true });
+  return { ok: true };
 }
 
 export default { testConnection };

@@ -149,3 +149,39 @@ export const redoTallyExportSchema = z.object({
 });
 
 export const tallyLedgerMastersSchema = z.object({ query: z.object({}).strict() });
+
+/* P25 Part K. The Tally bridge. ---------------------------------------- */
+
+export const bridgePairSchema = z.object({
+  body: z
+    .object({
+      code: z.string({ error: 'Is required.' }).trim().min(1, 'Is required.').max(20),
+      machineName: z.string().trim().max(60).nullable().optional(),
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+export const bridgeJobResultSchema = z.object({
+  params: z.object({ jobId: objectIdText }),
+  body: z
+    .object({
+      ok: z.boolean(),
+      httpStatus: z.number().int().min(100).max(599).nullable().default(null),
+      body: z.string().max(5 * 1024 * 1024, 'Up to 5 MB.').default(''),
+      reached: z.boolean().default(true),
+      tallyVersion: z.string().trim().max(60).nullable().optional(),
+      companies: z.array(z.string().trim().max(100)).max(50).nullable().optional(),
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+export const pairingCodeSchema = z.object({
+  body: z.object({ name: z.string({ error: 'Name this computer.' }).trim().min(1, 'Name this computer.').max(40) }).strict('Is not a field you can set here.'),
+});
+
+export const tallyBridgeIdSchema = z.object({
+  params: z.object({ id: objectIdText }),
+  body: z.object({}).strict('Is not a field you can set here.').optional(),
+});
+
+export const listBridgesSchema = z.object({ query: z.object({}).strict() });

@@ -716,6 +716,7 @@ describe('the tenant guard escape hatch, after M3', () => {
       // P25 Part G. A webhook's connection by its key's hash, and the job runner's claim.
       'services/integrations/jobRunner.js': 1,
       'services/integrations/webhookService.js': 1,
+      'services/integrations/tally/bridgeService.js': 1,
       'services/tokenService.js': 1,
     });
   });

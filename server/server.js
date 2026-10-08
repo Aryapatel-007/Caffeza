@@ -29,6 +29,7 @@ import { generalLimiter } from './middleware/rateLimit.js';
 import { LOGO_UPLOAD_PATH } from './routes/brandRoutes.js';
 import { PHOTO_UPLOAD_PATH } from './routes/paymentRoutes.js';
 import hookRoutes, { HOOKS_PATH } from './routes/hookRoutes.js';
+import tallyBridgeRoutes, { TALLY_BRIDGE_PATH } from './routes/tallyBridgeRoutes.js';
 import routes from './routes/index.js';
 import { startJobLoop } from './services/integrations/jobRunner.js';
 import { describeKey, findMissingIndexes } from './services/indexService.js';
@@ -125,6 +126,8 @@ export function createApp({ serveClient: shouldServeClient = config.isProduction
   // they are mounted before the JSON parser, with their own limiter, and end
   // the request there: the general limiter never counts them.
   app.use(`${API_PREFIX}${HOOKS_PATH}`, hookRoutes);
+  // P25 Part K. The Tally bridge: its own token, body limit and limiters, before the JSON parser.
+  app.use(`${API_PREFIX}${TALLY_BRIDGE_PATH}`, tallyBridgeRoutes);
 
   // P22. The logo upload and removal parse their own body with a larger limit,
   // in routes/brandRoutes.js. Every other path keeps this one.
