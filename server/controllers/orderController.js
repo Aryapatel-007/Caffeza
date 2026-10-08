@@ -122,7 +122,9 @@ export async function addOrderLines(req, res) {
   const { version, lines } = req.body;
 
   const order = await loadOrderInTenant(req, orderId);
-  assertOrderIsOpen(order);
+  // P26. A served table orders more: a READY_TO_BILL order with no live bill reopens.
+  const reopens = order.status === ORDER_STATUSES.READY_TO_BILL && !order.billId;
+  if (!reopens) assertOrderIsOpen(order);
 
   /**
    * Snapshotted before the write, on the order as we last read it. If someone
@@ -136,7 +138,10 @@ export async function addOrderLines(req, res) {
   const updated = await applyVersionedUpdate(req, {
     orderId,
     version,
-    update: { $push: { lines: { $each: snapshotLines } } },
+    update: {
+      $push: { lines: { $each: snapshotLines } },
+      ...(reopens ? { $set: { status: ORDER_STATUSES.OPEN, readyToBillAt: null } } : {}),
+    },
   });
 
   req.log?.info(

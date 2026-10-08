@@ -266,3 +266,17 @@ export const receiptSchema = z.object({
       .transform(Number),
   }),
 });
+
+/** P26. POST /bills/:billId/reopen: the same approval as cancelling after billing. */
+export const reopenBillSchema = z.object({
+  params: billIdParam,
+  body: z
+    .object({
+      approval: z
+        .object({ approverId: objectId, pin: z.string().trim().regex(/^\d{4,6}$/, 'A PIN is 4 to 6 digits.') })
+        .strict('Is not a field you can set here.')
+        .optional(),
+    })
+    .strict('Is not a field you can set here.')
+    .default({}),
+});

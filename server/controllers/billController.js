@@ -36,6 +36,7 @@ import { getSetting, getSettings } from '../services/settingsService.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped, scopedForAggregate } from '../utils/scopedQuery.js';
 import { businessDateFor, nowUtc } from '../utils/time.js';
+import { reopenBill } from '../services/billReopenService.js';
 
 /**
  * The business-date range a list or summary covers.
@@ -222,6 +223,11 @@ export async function postPrinted(req, res) {
 /** POST /bills/:billId/cancel-lines. P25 Part E. The service decides who may, and checks the PIN. */
 export async function postCancelLines(req, res) {
   return sendSuccess(res, await cancelLinesAfterBilling(req, req.params.billId, req.body));
+}
+
+/** POST /bills/:billId/reopen. P26. The service decides who may, and checks the PIN. */
+export async function postReopenBill(req, res) {
+  return sendSuccess(res, await reopenBill(req, req.params.billId, req.body ?? {}));
 }
 
 /** GET /refunds. P25 Part E. */

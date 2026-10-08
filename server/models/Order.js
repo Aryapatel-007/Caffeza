@@ -353,6 +353,8 @@ const orderSchema = new mongoose.Schema({
   openedBy: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
   openedAt: { type: Date, required: true, default: Date.now },
   readyToBillAt: { type: Date, default: null },
+  /** P26. The bill voided by POST /bills/:billId/reopen; the next bill carries its discount and payments. */
+  reopenedFromBillId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bill', default: null },
 
   /** Reserved for M3. Null until billed. M2 never sets it. */
   billId: { type: mongoose.Schema.Types.ObjectId, default: null },

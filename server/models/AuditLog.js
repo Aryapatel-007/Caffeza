@@ -72,6 +72,8 @@ export const AUDIT_ACTIONS = Object.freeze({
   PLATFORM_ORDER_REJECTED: 'PLATFORM_ORDER_REJECTED',
   // P25 Part I. A card-machine method recorded by hand, with the reason.
   TERMINAL_BYPASSED: 'TERMINAL_BYPASSED',
+  // P26. A bill voided so the table could order more; the next bill carries its payments.
+  BILL_REOPENED: 'BILL_REOPENED',
   // P25 Part J. A day's vouchers reached Tally, or were built again after the owner deleted them there.
   TALLY_EXPORT_POSTED: 'TALLY_EXPORT_POSTED',
   TALLY_EXPORT_REDONE: 'TALLY_EXPORT_REDONE',

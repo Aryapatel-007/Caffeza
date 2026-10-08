@@ -26,6 +26,7 @@ import {
   getPrintQueue,
   getRefunds,
   postCancelLines,
+  postReopenBill,
   postRefundDone,
   postPrintRequest,
   postPrinted,
@@ -51,6 +52,7 @@ import {
   readBillSchema,
   billOnlySchema,
   cancelLinesSchema,
+  reopenBillSchema,
   listRefundsSchema,
   refundDoneSchema,
   invoiceSchema,
@@ -123,6 +125,8 @@ router.post('/bills/:billId/void', ...managers, validate(voidBillSchema), postVo
 
 // P25 Part E. The till and captains reach it; a CASHIER or WAITER needs a manager's PIN, checked in the service.
 router.post('/bills/:billId/cancel-lines', ...tillAndCaptains, validate(cancelLinesSchema), postCancelLines);
+// P26. Add items after billing: the same people and approval as cancelling.
+router.post('/bills/:billId/reopen', ...tillAndCaptains, validate(reopenBillSchema), postReopenBill);
 router.get('/refunds', ...till, validate(listRefundsSchema), getRefunds);
 router.post('/refunds/:refundId/done', ...managers, validate(refundDoneSchema), postRefundDone);
 

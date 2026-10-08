@@ -39,6 +39,7 @@ import { OnlinePayment, ONLINE_PAYMENT_STATUSES } from '../models/OnlinePayment.
 import { PaymentMethod } from '../models/PaymentMethod.js';
 import { getSetting, getSettings } from './settingsService.js';
 import { countCash } from './cashService.js';
+import { carryPayments } from './billCarryService.js';
 import {
   assertBillHasLines,
   assertDiscountFits,
@@ -163,11 +164,39 @@ export async function createBill(req, { orderId, version }) {
   try {
     let created = null;
 
+    let carriedSummary = null;
+    let online = null;
+
     await session.withTransaction(async () => {
-      created = await createBillInSession(req, { orderId, version }, session);
+      carriedSummary = null;
+      online = null;
+      // P26. A reopened order carries the voided bill's discount and payments.
+      const order = await Order.findOne({ ...scoped(req), _id: orderId }).select('reopenedFromBillId advancePaymentId').session(session).lean();
+      const voided = order?.reopenedFromBillId ? await Bill.findOne({ ...scoped(req), _id: order.reopenedFromBillId }).session(session) : null;
+      created = await createBillInSession(req, { orderId, version, discount: voided?.discount ?? null }, session);
+      if (voided) {
+        const today = await todayBusinessDate(req);
+        const result = await carryPayments(req, { voided, newBill: created, order: { ...order, _id: order._id }, today }, session);
+        created = result.newBill;
+        await Order.updateOne({ ...scoped(req), _id: orderId }, { $set: { reopenedFromBillId: null } }, { session });
+        carriedSummary = {
+          fromBillId: String(voided._id),
+          fromBillNumber: voided.billNumber,
+          carriedInPaise: result.carriedInPaise,
+          cashToGiveBackInPaise: result.cashToGiveBackInPaise,
+          refundsOwed: result.refundsOwed,
+        };
+        if (result.onlineLeftoverInPaise > 0 && order.advancePaymentId) online = { id: order.advancePaymentId, amountInPaise: result.onlineLeftoverInPaise };
+      }
     });
 
-    return created;
+    // P24. Money paid online and not needed any more goes back through the gateway, after the transaction.
+    if (online) {
+      const payment = await OnlinePayment.findOne({ ...scoped(req), _id: online.id });
+      if (payment) await refund(req, payment, { amountInPaise: online.amountInPaise, reason: 'The bill came to less than was paid' });
+    }
+
+    return carriedSummary ? { ...created.toJSON(), carried: carriedSummary } : created;
   } catch (error) {
     throw await billCreationErrorFor(req, orderId, error);
   } finally {

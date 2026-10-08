@@ -18,7 +18,7 @@ import mongoose from 'mongoose';
 import { LINE_CANCEL_REASONS } from '../config/cancelReasons.js';
 import { ROLES } from '../config/roles.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
-import { Bill, BILL_STATUSES } from '../models/Bill.js';
+import { Bill } from '../models/Bill.js';
 import { OnlinePayment } from '../models/OnlinePayment.js';
 import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
 import { Refund, REFUND_STATUSES } from '../models/Refund.js';
@@ -27,8 +27,8 @@ import { BusinessRuleError, ForbiddenError, NotFoundError } from '../utils/error
 import { sumPaise } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { nowUtc } from '../utils/time.js';
-import { chargeInSession } from './accountService.js';
 import { recordAudit } from './auditService.js';
+import { carryPayments, leftoversWithoutBill } from './billCarryService.js';
 import { verifyPin } from './authService.js';
 import { assertNotVoided } from './billPermissionService.js';
 import { billCreationErrorFor, createBillInSession, readBill, voidBillInSession } from './billService.js';
@@ -37,13 +37,11 @@ import { cancelLineInSession } from './lineCancelService.js';
 import { refund as refundOnline } from './onlinePaymentService.js';
 import { applyVersionedUpdate, assertWasPreparedRule, computeLineTotalInPaise } from './orderService.js';
 import { getSettings, isFeatureOn } from './settingsService.js';
-import { ONLINE_METHOD_CODE } from './paymentGatewayService.js';
 
 const MANAGERS = Object.freeze([ROLES.OWNER, ROLES.MANAGER]);
 
 /** Thrown inside a preview's transaction so it rolls back. Never leaves this file. */
 class PreviewOnly extends Error {}
-const CASH = 'CASH';
 const APPROVAL_NEEDED = 'A manager has to approve this. Pick their name and type their PIN.';
 
 /** Order reasons a line reason carries over to, when every item goes. */
@@ -55,7 +53,7 @@ const ORDER_REASON_FOR = Object.freeze({ GUEST_LEFT: 'GUEST_LEFT', PLATFORM_CANC
  * restaurant to type their PIN on the same screen: checked by verifyPin, which
  * issues no session and locks after five wrong tries.
  */
-async function approverFor(req, approval, billing, { preview = false } = {}) {
+export async function approverFor(req, approval, billing, { preview = false } = {}) {
   if (MANAGERS.includes(req.user.role)) return req.user.id;
   const mayAsk = req.user.role === ROLES.CASHIER || (req.user.role === ROLES.WAITER && billing.captainsMayBill);
   if (!mayAsk) throw new ForbiddenError('Only the counter can cancel an item on a bill.');
@@ -77,24 +75,6 @@ async function approverFor(req, approval, billing, { preview = false } = {}) {
   await verifyPin({ restaurantId: req.restaurantId, branchId: approver.branchId, userId: approver._id }, approval.pin);
   return approver._id;
 }
-
-/** Platform money first, then card and UPI, then paid online, then cash; oldest first within each. */
-function carryRank(payment) {
-  if (payment.methodKind === 'PLATFORM') return 0;
-  if (payment.method === CASH) return 3;
-  if (payment.method === ONLINE_METHOD_CODE) return 2;
-  return 1;
-}
-
-const frozenPayment = (payment) => {
-  const plain = payment.toObject ? payment.toObject() : { ...payment };
-  delete plain._id;
-  delete plain.corrections;
-  delete plain.carriedFromBillId;
-  // The notes handed over belong to the voided payment; a carried amount may be smaller.
-  delete plain.tender;
-  return plain;
-};
 
 /**
  * POST /bills/:billId/cancel-lines. Returns `{ bill, voidedBillId,
@@ -194,14 +174,11 @@ async function runInSession(req, { billId, lines, reasonCode, note, names, appro
     );
   }
 
-  const payments = [...voided.payments].sort(
-    (a, b) => carryRank(a) - carryRank(b) || new Date(a.receivedAt) - new Date(b.receivedAt),
-  );
   const live = order.lines.filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED);
 
   let newBill = null;
   let orderCancelled = false;
-  const carried = new Map();
+  let leftovers;
 
   if (live.length > 0) {
     // 3 and 4. A new bill, numbered now, with the old discount carried over.
@@ -210,54 +187,9 @@ async function runInSession(req, { billId, lines, reasonCode, note, names, appro
       { orderId: order._id, version: order.version, discount: voided.discount ?? null },
       session,
     );
-
-    // 5. The payments, in carrying order, until the new total is covered.
-    let due = newBill.grandTotalInPaise;
-    for (const payment of payments) {
-      if (due <= 0) break;
-      const amount = Math.min(payment.amountInPaise, due);
-      newBill.payments.push({ ...frozenPayment(payment), amountInPaise: amount, carriedFromBillId: voided._id });
-      carried.set(String(payment._id), amount);
-      due -= amount;
-    }
-    newBill.amountPaidInPaise = sumPaise(...newBill.payments.map((payment) => payment.amountInPaise));
-    const paid = newBill.amountPaidInPaise >= newBill.grandTotalInPaise;
-    if (paid) {
-      newBill.status = BILL_STATUSES.PAID;
-      newBill.paidAt = nowUtc();
-    }
-    await newBill.save({ session });
-
-    // P24. A carried online payment claims the advance again, as the void released it.
-    const onlineCarried = sumPaise(
-      ...payments.filter((payment) => payment.method === ONLINE_METHOD_CODE).map((payment) => carried.get(String(payment._id)) ?? 0),
-    );
-    if (onlineCarried > 0 && order.advancePaymentId) {
-      await OnlinePayment.updateOne(
-        { ...scoped(req), _id: order.advancePaymentId },
-        { $inc: { appliedInPaise: onlineCarried }, $set: { appliedToBillId: newBill._id, appliedAt: nowUtc(), appliedBy: req.user.id } },
-        { session },
-      );
-    }
-
-    if (paid) {
-      await Order.updateOne(
-        { ...scoped(req), _id: order._id },
-        { $set: { status: ORDER_STATUSES.BILLED }, $inc: { version: 1 } },
-        { session },
-      );
-    } else if (voided.status === BILL_STATUSES.ON_ACCOUNT && voided.account?.accountId) {
-      // 7. Charged to the same account for whatever is not paid.
-      newBill = await chargeInSession(
-        req,
-        {
-          bill: newBill,
-          account: { _id: voided.account.accountId, name: voided.account.accountName },
-          chargedToAccountInPaise: newBill.grandTotalInPaise - newBill.amountPaidInPaise,
-        },
-        session,
-      );
-    }
+    // 5 to 7. The payments carried, the order billed or the account charged, the rest left over.
+    leftovers = await carryPayments(req, { voided, newBill, order, today }, session);
+    newBill = leftovers.newBill;
   } else {
     // 8. Nothing left: the order goes, with the reason carried over.
     const orderReason = ORDER_REASON_FOR[reasonCode] ?? 'OTHER';
@@ -291,49 +223,10 @@ async function runInSession(req, { billId, lines, reasonCode, note, names, appro
       session,
     );
     orderCancelled = true;
+    // 6. Nothing is carried, so every payment is left over.
+    leftovers = await leftoversWithoutBill(req, { voided, order, today }, session);
   }
-
-  // 6. What is left over: cash is handed back, anything else is owed.
-  let cashToGiveBackInPaise = 0;
-  let onlineLeftoverInPaise = 0;
-  const owed = new Map();
-  for (const payment of payments) {
-    const left = payment.amountInPaise - (carried.get(String(payment._id)) ?? 0);
-    if (left <= 0) continue;
-    if (payment.method === CASH) cashToGiveBackInPaise += left;
-    else if (payment.method === ONLINE_METHOD_CODE) onlineLeftoverInPaise += left;
-    else {
-      const current = owed.get(payment.method) ?? { payment, amountInPaise: 0 };
-      current.amountInPaise += left;
-      owed.set(payment.method, current);
-    }
-  }
-
-  const refundsOwed = [];
-  for (const { payment, amountInPaise } of owed.values()) {
-    const [refund] = await Refund.create(
-      [
-        {
-          restaurantId: req.restaurantId,
-          branchId: req.branchId,
-          billId: newBill?._id ?? null,
-          billNumber: newBill?.billNumber ?? null,
-          voidedBillId: voided._id,
-          voidedBillNumber: voided.billNumber,
-          orderId: order._id,
-          method: payment.method,
-          methodName: payment.methodName ?? payment.method,
-          methodKind: payment.methodKind ?? 'IN_HAND',
-          amountInPaise,
-          businessDate: today,
-          status: REFUND_STATUSES.OWED,
-          createdBy: req.user.id,
-        },
-      ],
-      { session },
-    );
-    refundsOwed.push({ id: String(refund._id), methodName: refund.methodName, amountInPaise });
-  }
+  const { cashToGiveBackInPaise, refundsOwed, onlineLeftoverInPaise } = leftovers;
 
   // 9. One audit line, on the voided bill. OWNER only to read.
   await recordAudit(
