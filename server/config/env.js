@@ -204,6 +204,25 @@ const envSchema = z
         .nullable(),
     ),
 
+    /**
+     * P25 Part G. Encrypts every partner credential (Pine Labs, Swiggy, Zomato)
+     * in the database: 32 random bytes, base64. Required in production; in
+     * development and test a fixed development key stands in, with a warning.
+     * Separate from PAYMENT_SECRETS_KEY so rotating one never touches the other.
+     */
+    INTEGRATION_SECRETS_KEY: z.preprocess(
+      (value) => {
+        const text = value === undefined || value === null ? '' : String(value).trim();
+        return text === '' ? null : text;
+      },
+      z
+        .string()
+        .refine((value) => Buffer.from(value, 'base64').length === 32 && !/replace_me/i.test(value), {
+          message: 'INTEGRATION_SECRETS_KEY must be 32 random bytes in base64. Make one with: openssl rand -base64 32',
+        })
+        .nullable(),
+    ),
+
     /** P24. Razorpay's API address. Tests and the e2e server point it at a fake. */
     RAZORPAY_API_BASE: optionalVar('RAZORPAY_API_BASE', 'https://api.razorpay.com').refine(
       whenPresent((value) => /^https?:[/][/][^/]+$/.test(value)),
@@ -222,6 +241,11 @@ const envSchema = z
   .refine((values) => values.JWT_ACCESS_SECRET !== values.JWT_REFRESH_SECRET, {
     error: 'JWT_REFRESH_SECRET must be a different value from JWT_ACCESS_SECRET.',
     path: ['JWT_REFRESH_SECRET'],
+  })
+  // P25 Part G. Partner credentials are never stored under a key everyone knows.
+  .refine((values) => values.NODE_ENV !== 'production' || values.INTEGRATION_SECRETS_KEY, {
+    error: 'INTEGRATION_SECRETS_KEY must be set in production. Make one with: openssl rand -base64 32',
+    path: ['INTEGRATION_SECRETS_KEY'],
   })
   // In development and test an absent TRUST_PROXY means false. In production
   // someone has to have decided, even if the decision is false.

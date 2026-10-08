@@ -98,6 +98,7 @@ Environment variables for staging and production:
 | `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL` | As in `.env.example` |
 | `BCRYPT_ROUNDS` | As in `.env.example` |
 | `CLIENT_ORIGIN` | The exact https address, like `https://caffeza.<domain>`, with no trailing slash |
+| `INTEGRATION_SECRETS_KEY` | P25. `openssl rand -base64 32`. Different in every environment. **Required**: the server refuses to start without it. Encrypts every partner credential (Pine Labs, Swiggy, Zomato). Losing this key makes every saved partner credential unreadable, and they must be entered again. |
 | `PAYMENT_SECRETS_KEY` | P24. `openssl rand -base64 32`. Different in every environment. Encrypts each restaurant's Razorpay secrets. Optional: without it, connecting a gateway is refused. Losing it means every restaurant connects Razorpay again. |
 | `LOGIN_RATE_LIMIT_WINDOW_MINUTES`, `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` | As in `.env.example` |
 | `DISPLAY_TIMEZONE` | `Asia/Kolkata` |
@@ -289,6 +290,7 @@ slim with production dependencies only, the server, the setup files and
 | `CLIENT_ORIGIN` | Exactly the address people open, for example `https://caffeza-staging.<domain>` |
 | `TRUST_PROXY` | Per the host's documentation, usually `1`. Never `true`. |
 | `RELEASE_VERSION` | The commit being deployed |
+| `INTEGRATION_SECRETS_KEY` | `openssl rand -base64 32`, kept with the other secrets. Required. Losing it means re-entering every partner credential. |
 | `PAYMENT_SECRETS_KEY` | `openssl rand -base64 32`, kept with the other secrets. Never change it once restaurants have connected Razorpay. |
 | `BCRYPT_ROUNDS`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `LOGIN_RATE_LIMIT_*`, `DISPLAY_TIMEZONE` | As in `.env.example` |
 

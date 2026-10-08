@@ -52,6 +52,13 @@ const userSchema = new mongoose.Schema({
   /** Never trust an enum from the client. Checked against the frozen list. */
   role: { type: String, required: true, enum: ROLE_VALUES },
 
+  /**
+   * P25 Part G. The restaurant's integration user, like "Swiggy (automatic)",
+   * that partner integrations act as. It cannot sign in: authService refuses
+   * it exactly as it refuses an unknown phone, and staff lists leave it out.
+   */
+  isSystem: { type: Boolean, required: true, default: false },
+
   /** There is no delete. Attendance history has to survive staff turnover. */
   isActive: { type: Boolean, required: true, default: true },
 

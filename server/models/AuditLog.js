@@ -63,6 +63,11 @@ export const AUDIT_ACTIONS = Object.freeze({
   // P25 Part E. A paid bill voided and re-issued smaller; money returned outside the system.
   BILL_LINES_CANCELLED_AFTER_BILLING: 'BILL_LINES_CANCELLED_AFTER_BILLING',
   REFUND_RECORDED: 'REFUND_RECORDED',
+  // P25 Part G. A partner connection saved, its credentials replaced, stopped or started.
+  INTEGRATION_CONNECTED: 'INTEGRATION_CONNECTED',
+  INTEGRATION_CREDENTIALS_CHANGED: 'INTEGRATION_CREDENTIALS_CHANGED',
+  INTEGRATION_PAUSED: 'INTEGRATION_PAUSED',
+  INTEGRATION_RESUMED: 'INTEGRATION_RESUMED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 
@@ -81,6 +86,10 @@ export const AUDIT_ENTITY_TYPES = Object.freeze({
   USER: 'USER',
   MENU_ITEM: 'MENU_ITEM',
   RECIPE: 'RECIPE',
+  // P25.
+  INTEGRATION: 'INTEGRATION',
+  PLATFORM_ORDER: 'PLATFORM_ORDER',
+  TALLY_EXPORT: 'TALLY_EXPORT',
 });
 export const AUDIT_ENTITY_TYPE_VALUES = Object.freeze(Object.values(AUDIT_ENTITY_TYPES));
 

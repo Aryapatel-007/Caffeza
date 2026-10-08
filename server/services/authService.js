@@ -58,7 +58,8 @@ export async function verifyCredentials({ phone, email }, password) {
     .select(WITH_SECRET)
     .setOptions({ skipTenantGuard: true });
 
-  if (!user) {
+  // P25 Part G. The integration user cannot sign in, and is told nothing that says it exists.
+  if (!user || user.isSystem) {
     await compare(password, DUMMY_HASH);
     return { failure: LOGIN_FAILURE.IDENTITY_NOT_FOUND };
   }

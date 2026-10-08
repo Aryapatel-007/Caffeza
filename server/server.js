@@ -28,7 +28,9 @@ import { notFound } from './middleware/notFound.js';
 import { generalLimiter } from './middleware/rateLimit.js';
 import { LOGO_UPLOAD_PATH } from './routes/brandRoutes.js';
 import { PHOTO_UPLOAD_PATH } from './routes/paymentRoutes.js';
+import hookRoutes, { HOOKS_PATH } from './routes/hookRoutes.js';
 import routes from './routes/index.js';
+import { startJobLoop } from './services/integrations/jobRunner.js';
 import { describeKey, findMissingIndexes } from './services/indexService.js';
 
 export const API_PREFIX = '/api/v1';
@@ -118,6 +120,11 @@ export function createApp({ serveClient: shouldServeClient = config.isProduction
 
   // credentials is on for the refresh token cookie that arrives in M0 part B.
   app.use(cors({ origin: config.CLIENT_ORIGIN, credentials: true }));
+
+  // P25 Part G. Partners' webhooks keep their raw bytes for the signature, so
+  // they are mounted before the JSON parser, with their own limiter, and end
+  // the request there: the general limiter never counts them.
+  app.use(`${API_PREFIX}${HOOKS_PATH}`, hookRoutes);
 
   // P22. The logo upload and removal parse their own body with a larger limit,
   // in routes/brandRoutes.js. Every other path keeps this one.
@@ -224,6 +231,9 @@ export async function startServer() {
   await assertIndexesPresent();
 
   const app = createApp();
+  // P25 Part G. One loop per process; version 1 runs one instance.
+  if (!config.isTest) startJobLoop();
+
   const server = app.listen(config.PORT, () => {
     logger.info(
       { port: config.PORT, environment: config.NODE_ENV, api: API_PREFIX },

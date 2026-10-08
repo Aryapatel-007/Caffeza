@@ -216,3 +216,17 @@ export const publicPhoneLimiter = rateLimit({
   skip: skipInTest,
   handler: limitReached,
 });
+
+/**
+ * P25 Part G. A partner's webhook, per webhook key: 120 a minute. The key is
+ * hashed, like the login key, so the store never holds one.
+ */
+export const webhookLimiter = rateLimit({
+  windowMs: MINUTE_MS,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => createHash('sha256').update(`webhook|${req.params?.webhookKey ?? ''}`).digest('hex'),
+  skip: skipInTest,
+  handler: limitReached,
+});

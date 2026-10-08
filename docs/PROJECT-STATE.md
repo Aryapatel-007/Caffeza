@@ -464,7 +464,7 @@ P25 progress
 - [x] D Captains bill
 - [x] E Cancel an item after billing
 - [x] F Cash by notes and coins
-- [ ] G Integrations foundation
+- [x] G Integrations foundation
 - [ ] H Swiggy and Zomato
 - [ ] I Pine Labs
 - [ ] J Tally vouchers
@@ -504,7 +504,9 @@ Paused after Part E and resumed the same day: the full suite then had 1,083 of 1
 
 Part F: `settings.cash.denominations` (India by default, ₹2,000 listed and off), on `/auth/me` as the active ones. `sumCashCount` in `money.js` totals every count on the server; `CashCountError` there becomes a 422, and a total sent beside a count that disagrees is 422 `CASH_COUNT_MISMATCH`. The opening float (`cashCount` in place of `amountInPaise`), Day Close (in place of `countedCashInPaise`, stored on the closure and its history, printed note by note, still blind to a manager) and a cash payment's `tender` (`{ cashCount, tenderedInPaise, changeInPaise }`; the payment records the amount on the bill). R2's cash drawer lists each note counted; R7 gains a Cash count column. Client: `features/cash/CashCounter.jsx`, used on the cash drawer's float, Day Close (counting by notes is the default, typing a total still there) and the payment panel ("Count the notes handed over", with "Received ₹1,000. Change ₹205." and the notes to give back). The golden day through the screens now counts its float and its close by notes. Differs from the prompt: ₹20 and ₹10 are both a note and a coin in its own default list, so "values unique" is unique within a kind, and a count names its kind for those two.
 
-Next: Part G, the integrations foundation.
+Part G: `INTEGRATION_SECRETS_KEY` (required in production, a fixed development key with a warning elsewhere; in `.env.example` and DEPLOYMENT.md), `encryptJson` and `decryptJson` with a key id in P24's `secretBox.js`. Three collections: `integrationconnections`, `integrationevents` (180-day TTL, every line through `redactForLog`, which hides secrets and phone numbers), `integrationjobs`. `services/integrations/`: `providers.js` (the registry; Swiggy and Zomato are WAITING_FOR_PARTNER, as `partner-docs/` holds nothing), `connectionService.js`, `jobRunner.js` (claim by `findOneAndUpdate`, retries 30 s, 2 min, 10 min, 30 min, 2 h, then DEAD; started by `server.js` outside tests), `systemActor.js` (the integration user, CASHIER with `isSystem`, refused at sign-in and left out of staff lists), `webhookService.js` with `POST /api/v1/hooks/:provider/:webhookKey` mounted before the JSON parser with its own limiter, and adapter stubs for the sandbox (its signature check is real), Pine Labs and Tally. Endpoints: `GET /integrations`, `PUT /integrations/:provider`, test, pause, resume, webhook-key, events. Audit `INTEGRATION_CONNECTED`, `INTEGRATION_CREDENTIALS_CHANGED`, `INTEGRATION_PAUSED`, `INTEGRATION_RESUMED`. The tenant-guard tripwire now counts two new uses on purpose: the webhook key lookup and the job runner's claim. G7 was already done by P23.
+
+Next: Part H, Swiggy and Zomato through the sandbox platform.
 
 ### 2026-10-08 Rishi, P24 built: advance payment, dish photos, the new public page
 

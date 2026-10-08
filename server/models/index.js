@@ -24,6 +24,9 @@ import { Category } from './Category.js';
 import { Counter } from './Counter.js';
 import { DayClosure } from './DayClosure.js';
 import { Ingredient } from './Ingredient.js';
+import { IntegrationConnection } from './IntegrationConnection.js';
+import { IntegrationEvent } from './IntegrationEvent.js';
+import { IntegrationJob } from './IntegrationJob.js';
 import { Kot } from './Kot.js';
 import { MenuItem } from './MenuItem.js';
 import { MenuPhoto } from './MenuPhoto.js';
@@ -54,6 +57,9 @@ export const ALL_MODELS = Object.freeze([
   Counter,
   DayClosure,
   Ingredient,
+  IntegrationConnection,
+  IntegrationEvent,
+  IntegrationJob,
   Kot,
   MenuItem,
   MenuPhoto,

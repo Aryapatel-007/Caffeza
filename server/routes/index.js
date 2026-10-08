@@ -22,6 +22,7 @@ import menuRoutes from './menuRoutes.js';
 import onlineRoutes from './onlineRoutes.js';
 import orderRoutes from './orderRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
+import integrationRoutes from './integrationRoutes.js';
 import publicRoutes from './publicRoutes.js';
 import reportRoutes from './reportRoutes.js';
 import restaurantRoutes from './restaurantRoutes.js';
@@ -58,5 +59,7 @@ router.use(auditRoutes);
 router.use(brandRoutes);
 router.use(onlineRoutes);
 router.use(paymentRoutes);
+// P25 Part G. M21 Integrations: partner connections.
+router.use(integrationRoutes);
 
 export default router;

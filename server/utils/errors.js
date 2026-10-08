@@ -126,6 +126,11 @@ export const ERROR_CODES = Object.freeze({
   ADVANCE_NOT_APPLIED: 'ADVANCE_NOT_APPLIED',
   // P25 Part F.
   CASH_COUNT_MISMATCH: 'CASH_COUNT_MISMATCH',
+  // P25 Parts G to K, M21 Integrations.
+  PARTNER_SPEC_MISSING: 'PARTNER_SPEC_MISSING',
+  INTEGRATION_NOT_ACTIVE: 'INTEGRATION_NOT_ACTIVE',
+  INTEGRATION_TEST_FAILED: 'INTEGRATION_TEST_FAILED',
+  PARTNER_CALL_FAILED: 'PARTNER_CALL_FAILED',
 });
 
 /**
@@ -702,6 +707,37 @@ export class CashCountMismatchError extends AppError {
       `The notes and coins add up to ${(countedInPaise / 100).toFixed(2)}, not ${(sentInPaise / 100).toFixed(2)}. Count again or fix the total.`,
       { statusCode: 422, code: ERROR_CODES.CASH_COUNT_MISMATCH },
     );
+  }
+}
+
+/** P25 Part G. The partner has not approved the integration, so its adapter has no document. */
+export class PartnerSpecMissingError extends AppError {
+  constructor(partnerName) {
+    super(
+      `${partnerName} has not approved this integration yet, so live orders cannot be received. Use the Sandbox platform to practise.`,
+      { statusCode: 422, code: ERROR_CODES.PARTNER_SPEC_MISSING },
+    );
+  }
+}
+
+/** P25 Part G. The connection is missing, a draft, paused or in error. */
+export class IntegrationNotActiveError extends AppError {
+  constructor(message = 'This connection is not switched on. An owner can test it and switch it on in Integrations.') {
+    super(message, { statusCode: 422, code: ERROR_CODES.INTEGRATION_NOT_ACTIVE });
+  }
+}
+
+/** P25 Part G. Test connection failed. The message is the plain reason, with no secret in it. */
+export class IntegrationTestFailedError extends AppError {
+  constructor(message) {
+    super(message, { statusCode: 422, code: ERROR_CODES.INTEGRATION_TEST_FAILED });
+  }
+}
+
+/** P25 Part G. A partner call failed or timed out while a person waited. */
+export class PartnerCallFailedError extends AppError {
+  constructor(message) {
+    super(message, { statusCode: 502, code: ERROR_CODES.PARTNER_CALL_FAILED });
   }
 }
 

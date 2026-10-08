@@ -138,7 +138,8 @@ export async function createUser(req, res) {
 export async function listUsers(req, res) {
   const { page, limit, role, isActive, search } = req.query;
 
-  const filter = { ...scoped(req) };
+  // P25 Part G. The integration user is not staff.
+  const filter = { ...scoped(req), isSystem: { $ne: true } };
   if (role !== undefined) filter.role = role;
   if (isActive !== undefined) filter.isActive = isActive;
 
@@ -365,6 +366,7 @@ export async function listApprovers(req, res) {
   const approvers = await User.find({
     restaurantId: req.restaurantId,
     isActive: true,
+    isSystem: { $ne: true },
     role: { $in: [ROLES.OWNER, ROLES.MANAGER] },
   })
     .select('name role')
