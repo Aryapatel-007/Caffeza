@@ -31,5 +31,6 @@ The full table, with dependencies and owners, is in
 | P21 | Golden day, end to end | Done |
 | P22 | Cafezza brand and professional finish | Done |
 | P23 | Online takeaway orders and table reservations | Built, Arya's read outstanding |
+| P24 | Advance payment, dish photos and the new public page | Spec committed, not built |
 
 Prompt files that do not exist yet are added as they are written.

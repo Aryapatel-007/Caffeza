@@ -90,6 +90,7 @@ Each prompt names its model at the top.
 | P21 | Golden day, end to end | M19 proof | Everything | Arya | Opus, high |
 | P22 | Cafezza brand and professional finish | M20 | P20B, P21 | Arya | Opus, high |
 | P23 | Online takeaway orders and table reservations | M14 | P22 | Rishi | Opus, high |
+| P24 | Advance payment, dish photos and the new public page | M14, M1 | P23 | Rishi | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

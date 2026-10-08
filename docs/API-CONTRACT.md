@@ -5927,3 +5927,191 @@ minutes, across addresses.
 nobody has chosen yet; the link has a Copy button. Hindi and Gujarati on the
 public page.
 
+
+## 4. Advance payment (P24)
+
+Specified 2026-10-08, before code. Razorpay, through the cafe's own account and
+Payment Links. The data is in DB-SCHEMA section 29.
+
+### 4.1 Connecting the cafe's Razorpay account
+
+| Endpoint | Body | Roles |
+|---|---|---|
+| `GET /api/v1/settings/payments/gateway` | | OWNER |
+| `PUT /api/v1/settings/payments/gateway` | `{ keyId, keySecret, webhookSecret, reason }` | OWNER |
+| `DELETE /api/v1/settings/payments/gateway` | `{ reason }` | OWNER |
+
+`GET` returns `{ connected, provider: "RAZORPAY", keyId, mode, connectedAt,
+webhookUrl }`. `mode` is `TEST` for a `rzp_test_` key and `LIVE` for `rzp_live_`.
+`webhookUrl` is `{origin}/api/v1/public/{slug}/payments/webhook`, the address
+the owner pastes into Razorpay's dashboard for the `payment_link.paid` event.
+Secrets are never returned.
+
+`PUT` checks the keys by asking Razorpay for one payment link. If Razorpay
+refuses them, the answer is 422 `PAYMENT_GATEWAY_ERROR`, "Razorpay did not
+accept these keys." Without `PAYMENT_SECRETS_KEY` on the server, the answer is
+422 `PAYMENT_GATEWAY_NOT_CONNECTED`, "Online payment is not set up on this
+server." On success the secrets are stored encrypted, and the payment method
+`ONLINE` ("Paid online", `IN_HAND`) is created if missing. Audit:
+`PAYMENT_GATEWAY_CONNECTED`, `PAYMENT_GATEWAY_DISCONNECTED`, with the key id
+and mode, never a secret.
+
+Disconnecting does not touch payments already taken: their refunds still go
+through. It stops new ones.
+
+### 4.2 Settings
+
+`settings.online` gains (DB-SCHEMA section 28):
+
+| Field | Default | Meaning |
+|---|---|---|
+| `takeawayPrepay` | `false` | Takeaway is paid in full online before the cafe sees it |
+| `depositPerPersonInPaise` | `0` | A booking's deposit per person. 0 means no deposit. |
+| `depositRefundCutoffMinutes` | `120` | A guest cancelling at least this long before the booking is refunded |
+| `paymentWindowMinutes` | `15` | How long a payment link stays open |
+
+`takeawayPrepay` and a deposit take effect only while a gateway is connected.
+While none is connected, the page takes requests without payment, as in P23.
+
+### 4.3 Placing, with payment
+
+`POST /public/:slug/orders` and `POST /public/:slug/reservations` keep their
+bodies. When payment applies:
+
+- The request is stored `AWAITING_PAYMENT`, with no `answerBy` yet.
+- A Razorpay payment link is created for the takeaway's estimate, or for the
+  deposit (`partySize × depositPerPersonInPaise`). It has `reference_id` set
+  to our request id, `expire_by` set to now plus `paymentWindowMinutes`, and
+  `callback_url` set to the guest's status page.
+- 201 adds `payment: { status: "CREATED", amountInPaise, payUrl, expiresAt }`.
+  The page sends the guest to `payUrl`.
+
+Errors: 502 `PAYMENT_GATEWAY_ERROR` when Razorpay cannot create the link. The
+request is then stored `PAYMENT_FAILED`, and the guest can try again.
+
+An `AWAITING_PAYMENT` request is invisible to every staff read except its own
+id. It counts towards the open-request limit per phone. It reads as
+`PAYMENT_EXPIRED` once its link has expired.
+
+### 4.4 Confirming a payment
+
+Three ways in. Each ends with the same idempotent `confirmPaid` in
+`onlinePaymentService.js`:
+
+1. **The return.** `POST /public/:slug/orders/:id/payment-return`, and
+   `.../reservations/:id/payment-return`, with the status token and body
+   `{ razorpay_payment_id, razorpay_payment_link_id,
+   razorpay_payment_link_reference_id, razorpay_payment_link_status,
+   razorpay_signature }`, exactly as Razorpay appends them to `callback_url`.
+   The signature is HMAC-SHA256 of
+   `link_id|reference_id|status|payment_id` with the key secret.
+2. **The webhook.** `POST /public/:slug/payments/webhook`, with Razorpay's raw
+   body and `X-Razorpay-Signature`, an HMAC-SHA256 of the raw body with the
+   webhook secret. A bad signature gets 400. A good one for an event other than
+   `payment_link.paid` gets 200 and does nothing.
+3. **The read-back.** When the guest's status page is read, and on each staff
+   inbox read, an `AWAITING_PAYMENT` request asks Razorpay for its link, at most
+   once every 10 seconds.
+
+`confirmPaid` reads the link back from Razorpay and counts the payment only
+when the status is `paid` and the amount paid equals ours. It then moves the
+request to `WAITING` (takeaway) or `REQUESTED` (booking), and starts
+`answerBy`. A second confirmation changes nothing.
+
+The guest's status read adds
+`payment: { status, amountInPaise, paidAt, refundedInPaise, refundStatus, payUrl }`.
+`payUrl` is present only while the payment is `CREATED`.
+
+### 4.5 Refunds
+
+Full refund, automatically, through `POST /v1/payments/:id/refund`, when a paid
+takeaway is declined, expires, or is cancelled by the guest; and when a paid
+booking is declined, expires, is cancelled by staff, or is cancelled by the
+guest at least `depositRefundCutoffMinutes` before `at`. The guest is told on
+the status page.
+
+Forfeited, not refunded: a guest cancelling a booking after the cutoff (the
+page says so before they confirm), and a no-show.
+
+Expiry has no scheduler. Each staff inbox read sweeps up to 10 paid requests
+past `answerBy` into `EXPIRED`, and refunds them.
+
+A refund Razorpay refuses leaves the payment `REFUND_FAILED`. The inbox shows
+it, and an OWNER or MANAGER retries with
+`POST /api/v1/online/payments/:id/refund`.
+
+### 4.6 The advance on the bill
+
+An accepted paid takeaway, or a seated booking with a deposit, opens an order
+whose `advancePaymentId` names the `onlinepayments` record.
+
+`GET /bills/:billId` adds
+`advance: { paymentId, amountInPaise, appliedInPaise, available }` when the
+order has one.
+
+`POST /api/v1/bills/:billId/apply-advance`, OWNER, MANAGER or CASHIER, no body:
+
+1. The same day-lock and void checks as a payment.
+2. Adds a bill payment of method `ONLINE` for the smaller of the advance and
+   what is still due, with `receivedAt` and `businessDate` now, and
+   `reference` set to the Razorpay payment id.
+3. Marks the advance applied. Anything left over is refunded at once, and the
+   response says so.
+4. Settles the bill exactly as a payment does when it reaches the total.
+
+Response: the bill, plus `advanceRefundedInPaise`.
+
+While an advance is unapplied, `POST /bills/:billId/payments` is 422
+`ADVANCE_NOT_APPLIED`: "This order was paid online. Apply the online advance
+first." `ONLINE` can never be chosen by hand: 422
+`PAYMENT_METHOD_NOT_ALLOWED`.
+
+### 4.7 What staff see
+
+Online orders and bookings in staff responses add
+`payment: { status, amountInPaise, paidAt, refundedInPaise }` or null. The inbox
+adds `refundFailures`, a count of payments in `REFUND_FAILED`. The guest's
+`declineReason` is unchanged.
+
+## 5. Dish photos (P24)
+
+DB-SCHEMA section 30.
+
+| Endpoint | Body | Roles |
+|---|---|---|
+| `PUT /api/v1/menu-items/:itemId/photo` | `{ image }`, a base64 data URL | OWNER, MANAGER |
+| `DELETE /api/v1/menu-items/:itemId/photo` | | OWNER, MANAGER |
+| `GET /api/v1/menu-items/:itemId/photo` | | all six |
+| `GET /api/v1/public/:slug/photos/:itemId` | | no token |
+
+The image must be PNG, WebP or JPEG, read from its own bytes, never SVG. It
+must be at most 300 KB, at most 2000 pixels on each side, and at least 320 on
+the shorter side. The screen resizes to 1200 pixels and WebP before upload.
+The body limit on this route is 450 KB, parsed after the role check. The
+response is the item with
+`photo: { hash, width, height, url }`.
+
+Every menu item response adds `photo` (null when none). The public menu adds
+`photoUrl` per item, `/api/v1/public/{slug}/photos/{itemId}?v={hash}`, served
+with `Cache-Control: public, max-age=31536000, immutable` and the hash as the
+ETag. Uploading or removing a photo writes no audit line: it is a picture, not
+a price.
+
+## 6. Error codes added by P24
+
+```
+PAYMENT_GATEWAY_NOT_CONNECTED   422  no gateway, or no PAYMENT_SECRETS_KEY on the server
+PAYMENT_GATEWAY_ERROR           502  Razorpay refused or could not be reached; the message says which
+ADVANCE_NOT_APPLIED             422  a bill with an unapplied online advance takes another payment
+```
+
+## 7. Permission summary for P24
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| Gateway GET, PUT, DELETE | yes | no | no | no | no | no |
+| Apply advance | yes | yes | yes | no | no | no |
+| Retry a refund | yes | yes | no | no | no | no |
+| Photo PUT, DELETE | yes | yes | no | no | no | no |
+| Photo GET | yes | yes | yes | yes | yes | yes |
+| Public payment return, webhook, photo | no token | | | | | |

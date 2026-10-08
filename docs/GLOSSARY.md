@@ -342,3 +342,12 @@ Added by P23 for the public page, the staff inbox and the alert.
 | **Page address** | The link to the restaurant's public page, like `/r/cafezza` |
 | **Online alerts** | The chime, the spoken line and the banner for waiting requests, per device |
 | **Offers consent** | The guest ticked the box agreeing to offers and news by SMS or WhatsApp |
+| **Pay online** | Pay in advance on the cafe's page, through the cafe's own Razorpay account |
+| **Paid online** | The payment method an advance becomes on the bill |
+| **Advance** | Money paid online before the bill exists: a takeaway in full, or a booking deposit |
+| **Deposit** | A booking's advance: people × the deposit per person |
+| **Apply advance** | Put the advance on the bill as a payment |
+| **Refunded** | Paid online and returned to the guest in full, or in part |
+| **Forfeited** | A deposit kept, because the guest cancelled too late or did not come |
+| **Waiting for payment** | Placed on the page and not yet paid. Staff do not see it. |
+

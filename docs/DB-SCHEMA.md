@@ -2289,3 +2289,74 @@ numbers.
 
 Rollback for all of section 28: none is needed to run an older server. To
 remove the data, `$unset` each field and drop the two collections.
+
+## 29. `onlinepayments` (P24)
+
+One advance paid online through the cafe's own Razorpay account: a takeaway in
+full, or a booking deposit. The one record of that money, from the link to the
+last refund.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema` |
+| `kind` | String | yes | `TAKEAWAY` or `DEPOSIT` |
+| `onlineOrderId`, `reservationId` | ObjectId | one of | What it pays for |
+| `amountInPaise` | Number | yes | Integer. The takeaway estimate, or party size × deposit per person. |
+| `status` | String | yes | `CREATED`, `PAID`, `EXPIRED`, `FAILED`, `REFUNDED`, `PARTLY_REFUNDED`, `REFUND_FAILED`, `FORFEITED` |
+| `provider` | String | yes | `RAZORPAY` |
+| `gatewayLinkId`, `payUrl` | String | yes | The payment link and its hosted page |
+| `expiresAt` | Date | yes | When the link closes |
+| `gatewayPaymentId` | String | no | Set when paid |
+| `paidAt` | Date | no | |
+| `lastCheckedAt` | Date | no | The last read-back, for the 10-second floor |
+| `refunds` | [Object] | yes | `{ gatewayRefundId, amountInPaise, reason, status, at, by }`. `status` is `PROCESSED`, `PENDING` or `FAILED`. Append only. |
+| `refundedInPaise` | Number | yes | Default 0. The sum of refunds not `FAILED`. |
+| `appliedInPaise` | Number | yes | Default 0. The part applied to a bill. |
+| `appliedToBillId`, `appliedAt`, `appliedBy` | ObjectId, Date, ObjectId | no | |
+| `orderId` | ObjectId | no | The order it became an advance on |
+| `forfeitedAt` | Date | no | |
+
+Indexes: `{ restaurantId: 1, gatewayLinkId: 1 }` unique;
+`{ restaurantId: 1, onlineOrderId: 1 }`; `{ restaurantId: 1, reservationId: 1 }`;
+`{ restaurantId: 1, branchId: 1, status: 1 }`.
+
+Never deleted. Money that arrived is always accounted for: applied, refunded,
+or forfeited.
+
+### Additions for P24
+
+- `restaurants.paymentGateway`: `{ provider, keyId, keySecretEncrypted,
+  webhookSecretEncrypted, mode, connectedAt, connectedBy }`, default null. The
+  two encrypted fields are `select: false`. AES-256-GCM under
+  `PAYMENT_SECRETS_KEY`, stored as `iv.tag.ciphertext` in base64.
+- `restaurants.settings.online`: `takeawayPrepay` (false),
+  `depositPerPersonInPaise` (0), `depositRefundCutoffMinutes` (120),
+  `paymentWindowMinutes` (15).
+- `onlineorders.status` gains `AWAITING_PAYMENT`, `PAYMENT_EXPIRED` and
+  `PAYMENT_FAILED`. `answerBy` is null until paid. Gains `paymentId`.
+- `reservations.status` gains the same three, and `FORFEITED` is recorded on
+  the payment, not as a reservation status. Gains `paymentId`.
+- `orders.advancePaymentId`: ObjectId, default null.
+- `paymentmethods`: a restaurant connecting a gateway gets the method `ONLINE`,
+  "Paid online", `IN_HAND`. It is used only by apply-advance.
+
+## 30. `menuphotos` (P24)
+
+One photo per menu item, kept out of `menuitems` so the ordering screen's read
+never carries image bytes.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema` |
+| `menuItemId` | ObjectId | yes | |
+| `contentType` | String | yes | From the file's own bytes |
+| `data` | Buffer | yes | At most 300 KB |
+| `sha256` | String | yes | The ETag and the cache key in the URL |
+| `width`, `height`, `sizeBytes` | Number | yes | |
+| `setBy`, `setAt` | ObjectId, Date | yes | |
+
+Index: `{ restaurantId: 1, menuItemId: 1 }` unique.
+
+`menuitems.photo`: `{ sha256, width, height }`, default null, written with the
+photo and cleared with it. Removing a photo deletes its `menuphotos` row: like
+a recipe, a photo is configuration, not a record of something that happened.

@@ -176,6 +176,7 @@ Failure:
 | 422 | Input was well formed but broke a business rule |
 | 429 | Too many requests |
 | 500 | Our fault |
+| 502 | An outside service we depend on failed. Only the payment gateway, from P24. |
 
 Note on 404. If a record belongs to a different restaurant, return 404, not 403. A 403 confirms the record exists, which is an information leak.
 
@@ -231,6 +232,17 @@ REQUEST_ALREADY_DECIDED     409  the request is no longer waiting
 ONLINE_ORDER_CHANGED        422  a price or availability changed since the guest's quote
 RESERVATION_CLASH           409  the table has another confirmed booking inside the hold window
 ```
+
+Added by P24:
+
+```
+PAYMENT_GATEWAY_NOT_CONNECTED   422  no gateway, or no PAYMENT_SECRETS_KEY on the server
+PAYMENT_GATEWAY_ERROR           502  Razorpay refused or could not be reached
+ADVANCE_NOT_APPLIED             422  a bill with an unapplied online advance takes another payment
+```
+
+502 joins the status table for P24 only: the payment gateway, not our server,
+failed.
 
 ### Paging
 
