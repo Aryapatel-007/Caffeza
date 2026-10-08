@@ -47,6 +47,8 @@ export const TAX_TREATMENT_VALUES = Object.freeze(Object.values(TAX_TREATMENTS))
 export const ORIGIN_KINDS = Object.freeze({
   ONLINE_ORDER: 'ONLINE_ORDER',
   RESERVATION: 'RESERVATION',
+  // P25 Part H. A delivery platform's order, accepted through an integration.
+  PLATFORM_ORDER: 'PLATFORM_ORDER',
 });
 export const ORIGIN_KIND_VALUES = Object.freeze(Object.values(ORIGIN_KINDS));
 
@@ -214,6 +216,13 @@ const orderLineSchema = new mongoose.Schema(
     addOns: { type: [lineAddOnSchema], default: [] },
 
     notes: { type: String, trim: true, maxlength: LINE_NOTES_MAX_LENGTH, default: null },
+
+    /**
+     * P25 Part H. Where the price came from: the menu, or, on a platform
+     * order, the price the platform charged the customer, frozen like any
+     * other price.
+     */
+    priceSource: { type: String, enum: ['MENU', 'PLATFORM'], default: 'MENU' },
 
     status: {
       type: String,

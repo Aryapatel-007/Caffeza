@@ -5,6 +5,8 @@
  */
 import { Branch } from '../models/Branch.js';
 import { OnlineOrder } from '../models/OnlineOrder.js';
+import { PlatformOrder } from '../models/PlatformOrder.js';
+import { isFeatureOn } from '../services/settingsService.js';
 import { Reservation } from '../models/Reservation.js';
 import { activePause, onlineSettings } from '../services/onlineCommon.js';
 import { refundFailureCount, sweep } from '../services/onlinePaymentService.js';
@@ -29,37 +31,66 @@ async function loadBranch(req) {
  * indexed fields, cheap enough for every till to ask every 15 seconds.
  */
 export async function getInbox(req, res) {
-  // P24. No scheduler: the tills' poll expires and refunds what nobody answered,
-  // and reads back links whose guests may have paid without coming back.
-  const { online } = await onlineSettings(req);
-  await sweep(req, { online });
-
   const now = nowUtc();
   const scope = { restaurantId: req.restaurantId, branchId: req.branchId };
+  // P25 Part H. Online orders may be off while a delivery platform is connected.
+  const onlineOn = await isFeatureOn(req, 'online');
+  if (onlineOn) {
+    // P24. No scheduler: the tills' poll expires and refunds what nobody answered,
+    // and reads back links whose guests may have paid without coming back.
+    const { online } = await onlineSettings(req);
+    await sweep(req, { online });
+  }
+
   const waitingOrders = { ...scope, ...onlineOrders.waitingFilter(now) };
   const waitingBookings = { ...scope, ...reservations.requestedFilter(now) };
+  const waitingPlatform = { ...scope, status: { $in: ['RECEIVED', 'NEEDS_ATTENTION'] } };
+  const none = () => Promise.resolve(null);
+  const zero = () => Promise.resolve(0);
 
-  const [orderCount, bookingCount, oldestOrder, oldestBooking, latestOrder, latestBooking, branch] = await Promise.all([
-    OnlineOrder.countDocuments(waitingOrders),
-    Reservation.countDocuments(waitingBookings),
-    OnlineOrder.findOne(waitingOrders).sort({ createdAt: 1 }).select('createdAt answerBy'),
-    Reservation.findOne(waitingBookings).sort({ createdAt: 1 }).select('createdAt answerBy'),
-    OnlineOrder.findOne(waitingOrders).sort({ createdAt: -1 }).select('createdAt reference lines pickupAt'),
-    Reservation.findOne(waitingBookings).sort({ createdAt: -1 }).select('createdAt reference partySize at'),
+  const [orderCount, bookingCount, platformCount, oldestOrder, oldestBooking, oldestPlatform, latestOrder, latestBooking, latestPlatform, branch] = await Promise.all([
+    onlineOn ? OnlineOrder.countDocuments(waitingOrders) : zero(),
+    onlineOn ? Reservation.countDocuments(waitingBookings) : zero(),
+    PlatformOrder.countDocuments(waitingPlatform),
+    onlineOn ? OnlineOrder.findOne(waitingOrders).sort({ createdAt: 1 }).select('createdAt answerBy') : none(),
+    onlineOn ? Reservation.findOne(waitingBookings).sort({ createdAt: 1 }).select('createdAt answerBy') : none(),
+    PlatformOrder.findOne(waitingPlatform).sort({ receivedAt: 1 }).select('receivedAt acceptBy'),
+    onlineOn ? OnlineOrder.findOne(waitingOrders).sort({ createdAt: -1 }).select('createdAt reference lines pickupAt') : none(),
+    onlineOn ? Reservation.findOne(waitingBookings).sort({ createdAt: -1 }).select('createdAt reference partySize at') : none(),
+    PlatformOrder.findOne(waitingPlatform).sort({ receivedAt: -1 }).select('receivedAt provider platformCode platformOrderId order.items acceptBy'),
     loadBranch(req),
   ]);
 
-  const oldest = [oldestOrder, oldestBooking].filter(Boolean).sort((a, b) => a.createdAt - b.createdAt)[0] ?? null;
+  const candidates = [
+    oldestOrder && { at: oldestOrder.createdAt, answerBy: oldestOrder.answerBy },
+    oldestBooking && { at: oldestBooking.createdAt, answerBy: oldestBooking.answerBy },
+    oldestPlatform && { at: oldestPlatform.receivedAt, answerBy: oldestPlatform.acceptBy },
+  ].filter(Boolean);
+  const oldest = candidates.sort((a, b) => a.at - b.at)[0] ?? null;
   const latestIsOrder = latestOrder && (!latestBooking || latestOrder.createdAt >= latestBooking.createdAt);
-  const latestDoc = latestIsOrder ? latestOrder : latestBooking;
+  const latestOnline = latestIsOrder ? latestOrder : latestBooking;
+  const latestIsPlatform = latestPlatform && (!latestOnline || latestPlatform.receivedAt >= latestOnline.createdAt);
+  const latestDoc = latestOnline;
 
   return sendSuccess(res, {
     waitingOrders: orderCount,
     waitingReservations: bookingCount,
-    oldestWaitingAt: oldest?.createdAt ?? null,
+    waitingPlatformOrders: platformCount,
+    oldestWaitingAt: oldest?.at ?? null,
     oldestAnswerBy: oldest?.answerBy ?? null,
-    latestRequestAt: latestDoc?.createdAt ?? null,
-    latest: latestDoc
+    latestRequestAt: latestIsPlatform ? latestPlatform.receivedAt : latestDoc?.createdAt ?? null,
+    latest: latestIsPlatform
+      ? {
+          kind: 'PLATFORM_ORDER',
+          provider: latestPlatform.provider,
+          reference: `${latestPlatform.platformCode === 'SWIGGY' ? 'Swiggy' : 'Zomato'} ${latestPlatform.platformOrderId}`,
+          itemCount: (latestPlatform.order?.items ?? []).reduce((sum, item) => sum + item.quantity, 0),
+          pickupAt: null,
+          partySize: null,
+          at: null,
+          acceptBy: latestPlatform.acceptBy ?? null,
+        }
+      : latestDoc
       ? latestIsOrder
         ? {
             kind: 'ONLINE_ORDER',
@@ -79,7 +110,7 @@ export async function getInbox(req, res) {
           }
       : null,
     pausedUntil: activePause(branch, now),
-    refundFailures: await refundFailureCount(req),
+    refundFailures: onlineOn ? await refundFailureCount(req) : 0,
   });
 }
 

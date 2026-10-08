@@ -44,6 +44,8 @@ const DEFAULT_ONLINE = Object.freeze({
   alertRoles: [],
   publicSlug: null,
   pausedUntil: null,
+  // P25 Part H. The delivery platforms connected and on.
+  platformChannels: [],
 });
 
 /** P20A. Ocean and no second language until /auth/me says otherwise. */

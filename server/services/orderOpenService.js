@@ -106,7 +106,7 @@ export async function rethrowPlatformConflict(req, platform, error) {
  * `openedBy`.
  */
 export async function openOrder(req, input) {
-  const { orderType, tableId, guestCount, customerName, customerPhone, lines, platform, origin = null, advancePaymentId = null } = input;
+  const { orderType, tableId, guestCount, customerName, customerPhone, lines, platform, origin = null, advancePaymentId = null, platformPrices = false } = input;
 
   const isDineIn = orderType === ORDER_TYPES.DINE_IN;
 
@@ -133,7 +133,8 @@ export async function openOrder(req, input) {
       ? TAX_TREATMENTS.PLATFORM_COLLECTS
       : TAX_TREATMENTS.NORMAL;
 
-  const snapshotLines = lines?.length ? await buildLineSnapshots(req, lines, { taxTreatment }) : [];
+  // P25 Part H. Only a platform order accepted through an integration freezes the platform's prices.
+  const snapshotLines = lines?.length ? await buildLineSnapshots(req, lines, { taxTreatment, platformPrices }) : [];
 
   /**
    * The number is reserved before the document is written, so a failed insert

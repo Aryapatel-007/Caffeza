@@ -181,6 +181,9 @@ describe('tenancy', () => {
       'services/authService.js': 3,
       // P23. Finding a public page's branch by its address, before any tenant is known.
       'services/publicSiteService.js': 1,
+      // P25 Part G. A webhook's connection by its key's hash, and the job runner's claim.
+      'services/integrations/jobRunner.js': 1,
+      'services/integrations/webhookService.js': 1,
       'services/tokenService.js': 1,
     });
   });

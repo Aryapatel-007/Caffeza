@@ -34,6 +34,7 @@ import {
 } from '../utils/errors.js';
 import { sendSuccess } from '../utils/response.js';
 import { nowUtc } from '../utils/time.js';
+import { activeOrderChannels } from '../services/integrations/channelStatus.js';
 
 function presentUser(user, { includeLastLoginAt = false, includeStation = false } = {}) {
   const shape = {
@@ -247,6 +248,8 @@ export async function me(req, res) {
       alertRoles: [...online.alertRoles],
       publicSlug: branch?.online?.publicSlug ?? null,
       pausedUntil: branch?.online?.pausedUntil && branch.online.pausedUntil > now ? branch.online.pausedUntil : null,
+      // P25 Part H. The delivery platforms connected and on: their orders arrive in the same inbox.
+      platformChannels: await activeOrderChannels(req),
     },
     // P22. Each logo slot's hash and size, never its bytes: a device fetches a
     // logo only when the hash differs from the one it saved.

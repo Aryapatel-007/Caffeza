@@ -34,6 +34,8 @@ import { OnlineOrder } from './OnlineOrder.js';
 import { OnlinePayment } from './OnlinePayment.js';
 import { Order } from './Order.js';
 import { PaymentMethod } from './PaymentMethod.js';
+import { PlatformItemMapping } from './PlatformItemMapping.js';
+import { PlatformOrder } from './PlatformOrder.js';
 import { PlatformPayout } from './PlatformPayout.js';
 import { Recipe } from './Recipe.js';
 import { RefreshToken } from './RefreshToken.js';
@@ -67,6 +69,8 @@ export const ALL_MODELS = Object.freeze([
   OnlinePayment,
   Order,
   PaymentMethod,
+  PlatformItemMapping,
+  PlatformOrder,
   PlatformPayout,
   Recipe,
   RefreshToken,

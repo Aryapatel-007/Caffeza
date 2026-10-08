@@ -1,0 +1,18 @@
+{
+  "type": "ORDER_PLACED",
+  "order": {
+    "platformOrderId": "SBX10002",
+    "customerName": "Ravi",
+    "items": [
+      { "externalItemId": "zc-masala-pav-bhaji", "name": "Masala Pav Bhaji", "quantity": 1, "unitPriceInPaise": 27000, "addOns": [] },
+      { "externalItemId": "zc-chole-bhature", "name": "Chole Bhature", "quantity": 1, "unitPriceInPaise": 29000, "addOns": [] }
+    ],
+    "packagingChargeInPaise": 2000,
+    "merchantDiscountInPaise": 5000,
+    "platformDiscountInPaise": 3000,
+    "totalInPaise": 53000,
+    "paymentMode": "PREPAID",
+    "deliveredBy": "PLATFORM",
+    "instructions": null
+  }
+}

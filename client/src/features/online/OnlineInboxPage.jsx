@@ -12,6 +12,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { acceptOnlineOrder, declineOnlineOrder, getInbox, listOnlineOrders, pauseTakeaway, resumeTakeaway } from '../../api/online.js';
 import Button from '../../components/ui/Button.jsx';
 import EmptyState from '../../components/ui/EmptyState.jsx';
+import PlatformOrdersSection from './PlatformOrdersSection.jsx';
 import Money from '../../components/ui/Money.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
@@ -169,15 +170,19 @@ export default function OnlineInboxPage() {
 
   const inbox = useQuery({ queryKey: INBOX_QUERY_KEY, queryFn: getInbox, refetchInterval: 15_000 });
   const today = businessDateToday();
+  // P25 Part H. With online orders off, this screen shows only delivery platform orders.
+  const onlineOn = Boolean(features.online?.enabled);
   const waiting = useQuery({
     queryKey: ['online', 'orders', 'WAITING', inbox.data?.latestRequestAt ?? null],
     queryFn: () => listOnlineOrders({ status: 'WAITING', limit: 100 }),
     refetchInterval: 15_000,
+    enabled: onlineOn,
   });
   const answered = useQuery({
     queryKey: ['online', 'orders', 'today'],
     queryFn: () => listOnlineOrders({ date: today, limit: 100 }),
     refetchInterval: 30_000,
+    enabled: onlineOn,
   });
 
   const refresh = () => {
@@ -227,9 +232,9 @@ export default function OnlineInboxPage() {
                 Takeaway from {slug ? `/r/${slug}` : 'your page'}. Nothing reaches the kitchen until you accept it.
               </p>
             </div>
-            <OnlineTabs current="takeaway" inbox={inbox.data} />
+            {onlineOn && <OnlineTabs current="takeaway" inbox={inbox.data} />}
           </div>
-          <PauseControls pausedUntil={inbox.data?.pausedUntil} canPause={canDecide} />
+          {onlineOn && <PauseControls pausedUntil={inbox.data?.pausedUntil} canPause={canDecide} />}
           {inbox.data?.refundFailures > 0 && (
             <p className="type-label rounded-lg border border-alert bg-alert-tint px-3 py-2 text-alert">
               {inbox.data.refundFailures === 1 ? '1 refund' : `${inbox.data.refundFailures} refunds`} could not be sent to Razorpay. An owner or manager can retry from the card.
@@ -239,6 +244,8 @@ export default function OnlineInboxPage() {
       </header>
 
       <div className="mx-auto grid max-w-3xl gap-6 px-4 py-6">
+        <PlatformOrdersSection canDecide={canDecide} onToast={setToast} />
+        {onlineOn && (
         <section className="grid gap-3" aria-label="Waiting">
           <h2 className="type-heading">Waiting</h2>
           {waiting.isPending && <Spinner label="Loading online orders" />}
@@ -262,7 +269,9 @@ export default function OnlineInboxPage() {
             />
           ))}
         </section>
+        )}
 
+        {onlineOn && (
         <section className="grid gap-3" aria-label="Answered today">
           <h2 className="type-heading">Answered today</h2>
           {answered.isSuccess && decided.length === 0 && <p className="type-body text-muted">None yet today.</p>}
@@ -270,6 +279,7 @@ export default function OnlineInboxPage() {
             <RequestCard key={request.id} request={request} canDecide={false} onOpenOrder={() => navigate(`/orders/${request.orderId}`)} />
           ))}
         </section>
+        )}
       </div>
 
       {accepting && (

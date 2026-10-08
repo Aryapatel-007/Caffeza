@@ -133,7 +133,14 @@ export function serialiseOrder(order) {
  * One query for every distinct item, not one per line: a waiter adding four
  * portions of the same dish should not cost four round trips.
  */
-export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX_TREATMENTS.NORMAL } = {}) {
+/**
+ * `platformPrices` (P25 Part H, platform orders only): each request carries
+ * `platformUnitPriceInPaise` and optional `platformAddOnPrices` (our add-on id
+ * to the platform's price), and those prices are frozen instead of the menu's,
+ * because that is what the customer was charged. The line says so in
+ * `priceSource`. No other path passes it.
+ */
+export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX_TREATMENTS.NORMAL, platformPrices = false } = {}) {
   const wantedIds = [...new Set(lineRequests.map((line) => String(line.menuItemId)))];
 
   const items = await MenuItem.find({ ...scoped(req), _id: { $in: wantedIds } });
@@ -201,8 +208,13 @@ export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX
       if (addOn.isAvailable === false) {
         throw new BusinessRuleError(`"${addOn.name}" is out of stock right now.`);
       }
-      return { addOnId: addOn._id, name: addOn.name, priceInPaise: addOn.priceInPaise };
+      const platformPrice = platformPrices ? request.platformAddOnPrices?.[String(addOn._id)] : undefined;
+      return { addOnId: addOn._id, name: addOn.name, priceInPaise: Number.isInteger(platformPrice) ? platformPrice : addOn.priceInPaise };
     });
+
+    if (platformPrices && Number.isInteger(request.platformUnitPriceInPaise)) {
+      unitPriceInPaise = request.platformUnitPriceInPaise;
+    }
 
     return {
       menuItemId: item._id,
@@ -224,6 +236,7 @@ export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX
       quantity: request.quantity,
       addOns,
       notes: request.notes ?? null,
+      priceSource: platformPrices && Number.isInteger(request.platformUnitPriceInPaise) ? 'PLATFORM' : 'MENU',
       status: ORDER_LINE_STATUSES.PENDING,
       // P23. A public quote has no signed-in person; it is never saved.
       addedBy: req.user?.id ?? null,

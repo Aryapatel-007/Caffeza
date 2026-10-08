@@ -36,4 +36,11 @@ export async function todayBusinessDate(req) {
   return businessDateFor(nowUtc(), startMinutes);
 }
 
-export default { assertDayOpen, todayBusinessDate };
+/** P25 Part H. Whether a business date is closed, for code that must change nothing on one. */
+export async function isDayClosed(req, businessDate) {
+  return Boolean(
+    await DayClosure.exists({ ...scoped(req), businessDate, status: DAY_STATUSES.CLOSED }),
+  );
+}
+
+export default { assertDayOpen, isDayClosed, todayBusinessDate };

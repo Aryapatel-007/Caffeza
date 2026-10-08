@@ -14,6 +14,7 @@
     "seed:golden": "node --import ./scripts/lib/asTest.js scripts/loadGoldenDay.js",
     "db:restaurants": "node scripts/listRestaurants.js",
     "purge:restaurant": "node scripts/purgeRestaurant.js",
+    "sandbox:order": "node scripts/sandboxOrder.js",
     "db:indexes": "node scripts/buildIndexes.js",
     "setup:restaurant": "node scripts/setupRestaurant.js",
     "import:menu": "node scripts/importMenu.js",

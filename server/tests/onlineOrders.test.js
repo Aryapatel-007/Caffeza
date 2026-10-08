@@ -415,6 +415,8 @@ describe('the inbox and permissions', () => {
       alertRoles: ['OWNER', 'MANAGER', 'CASHIER'],
       publicSlug: world.slug,
       pausedUntil: null,
+      // P25 Part H. No delivery platform connected.
+      platformChannels: [],
     });
   });
 });

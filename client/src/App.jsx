@@ -549,7 +549,7 @@ export default function App() {
         path="/online"
         element={
           <ProtectedRoute>
-            <RequireOnline>
+            <RequireOnline orPlatform>
               <RequireRole roles={ORDER_TAKING_ROLES}>
                 <OnlineInboxPage />
               </RequireRole>

@@ -25,6 +25,8 @@ const connectionSchema = new mongoose.Schema({
   credentialHints: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
   config: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
   webhookKeyHash: { type: String, default: null },
+  /** P25 Part H. An order channel's store, open or closed on the platform, as staff last set it. */
+  storeOpen: { type: Boolean, required: true, default: true },
   lastSuccessAt: { type: Date, default: null },
   lastErrorAt: { type: Date, default: null },
   lastError: { type: String, trim: true, maxlength: LAST_ERROR_MAX_LENGTH, default: null },

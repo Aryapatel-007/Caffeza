@@ -325,6 +325,12 @@ export async function markKotLinesReady(req, { kotId, lineId }) {
     'Kitchen marked food ready.',
   );
 
+  // P25 Part H. A platform order whose food is all ready: the platform is told, by a queued call.
+  if (targets.length > 0) {
+    const { notifyFoodReadyIfDone } = await import('./integrations/platformOrderService.js');
+    await notifyFoodReadyIfDone(req, kot.orderId);
+  }
+
   return serialiseKot(updated);
 }
 

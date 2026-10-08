@@ -17,6 +17,7 @@ import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { DAY_STATUSES, DayClosure } from '../models/DayClosure.js';
 import { OCCUPYING_ORDER_STATUSES, Order } from '../models/Order.js';
+import { PlatformOrder } from '../models/PlatformOrder.js';
 import { User } from '../models/User.js';
 import { BusinessRuleError, CashCountMismatchError, DayNotReadyError, NotFoundError } from '../utils/errors.js';
 import { countCash } from './cashService.js';
@@ -66,7 +67,7 @@ async function blockersFor(req, businessDate, checks, { session = null } = {}) {
   const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', { req });
   const { start, end } = businessDateRangeToUtc(businessDate, businessDate, startMinutes);
 
-  const [openOrders, unpaidBills] = await Promise.all([
+  const [openOrders, unpaidBills, platformOrders] = await Promise.all([
     Order.find({
       ...scoped(req),
       status: { $in: [...OCCUPYING_ORDER_STATUSES] },
@@ -77,6 +78,15 @@ async function blockersFor(req, businessDate, checks, { session = null } = {}) {
       .lean(),
     Bill.find({ ...scoped(req), businessDate, isVoided: false, status: BILL_STATUSES.UNPAID })
       .select('billNumber orderId')
+      .setOptions(opts(session))
+      .lean(),
+    // P25 Part H. A platform order of that date still waiting, accepted and not picked up, or failed.
+    PlatformOrder.find({
+      ...scoped(req),
+      businessDate,
+      status: { $in: ['RECEIVED', 'NEEDS_ATTENTION', 'ACCEPTED', 'FAILED'] },
+    })
+      .select('platformCode platformOrderId status orderId')
       .setOptions(opts(session))
       .lean(),
   ]);
@@ -95,6 +105,12 @@ async function blockersFor(req, businessDate, checks, { session = null } = {}) {
       message: `Bill ${bill.billNumber} is not paid.`,
       ref: String(bill._id),
     })),
+    ...platformOrders.map((order) => {
+      const name = `${order.platformCode === 'SWIGGY' ? 'Swiggy' : 'Zomato'} order ${order.platformOrderId}`;
+      return order.status === 'FAILED'
+        ? { kind: 'PLATFORM_ORDER_FAILED', message: `${name} was accepted on the platform but not created here. Enter it by hand.`, ref: String(order._id) }
+        : { kind: 'PLATFORM_ORDER', message: order.status === 'ACCEPTED' ? `${name} has not been picked up.` : `${name} is still waiting for an answer.`, ref: String(order._id) };
+    }),
     ...checks
       .filter((check) => check.severity === SEVERITY.ERROR && !check.passed)
       .map((check) => ({ kind: 'CHECK', message: check.message, ref: check.id })),

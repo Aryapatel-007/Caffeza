@@ -85,6 +85,12 @@ const spokenTime = (value) =>
 export function spokenLine(latest) {
   if (!latest) return '';
   const reference = latest.reference.replace('-', ' ');
+  // P25 Part H. "New Zomato order, 8645938999, 2 items."
+  if (latest.kind === 'PLATFORM_ORDER') {
+    const items = latest.itemCount === 1 ? '1 item' : `${latest.itemCount} items`;
+    const [platform, number] = latest.reference.split(' ');
+    return `New ${platform} order, ${number}, ${items}.`;
+  }
   if (latest.kind === 'ONLINE_ORDER') {
     const items = latest.itemCount === 1 ? '1 item' : `${latest.itemCount} items`;
     return `New takeaway order, ${reference}, ${items}, pickup ${spokenTime(latest.pickupAt)}.`;

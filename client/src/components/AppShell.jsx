@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeProvider.jsx';
 import OnlineAlerts, { useAlertsOn, useOnlineInbox } from '../features/online/OnlineAlerts.jsx';
 import CaptainBillPrinter from '../features/printing/CaptainBillPrinter.jsx';
+import { inboxOn } from '../features/online/inboxOn.js';
 import BrandLogo from './ui/BrandLogo.jsx';
 import {
   BagIcon,
@@ -89,7 +90,7 @@ function useMoreGroups() {
         { to: '/kitchen', label: 'Kitchen', show: true },
         { to: '/bills', label: 'Bills', show: till },
         { to: '/menu/availability', label: 'Availability', show: true },
-        { to: '/online', label: 'Online orders', show: floor && onlineOn },
+        { to: '/online', label: 'Online orders', show: floor && inboxOn(features) },
         { to: '/online/bookings', label: 'Bookings', show: floor && onlineOn },
       ],
     },
@@ -129,7 +130,8 @@ const ONLINE_MAIN_ROLES = ['OWNER', 'MANAGER', 'CASHIER'];
 function useMainPlaces() {
   const { user, features } = useAuth();
   const keys = [...(MAIN_BY_ROLE[user?.role] ?? ['home'])];
-  if (features.online?.enabled && ONLINE_MAIN_ROLES.includes(user?.role)) keys.push('online');
+  // P25 Part H. Also while a delivery platform is connected: its orders arrive in the same inbox.
+  if (inboxOn(features) && ONLINE_MAIN_ROLES.includes(user?.role)) keys.push('online');
   return keys
     .filter((key) => key !== 'stock' || features.inventory !== false)
     .map((key) => PLACES[key]);

@@ -21,6 +21,7 @@ import { BellIcon } from '../../components/ui/icons/index.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import { chime, onUnlockChange, soundIsUnlocked, speak, spokenLine, unlockSound } from './alertSound.js';
+import { alertRoleOn } from './inboxOn.js';
 
 const POLL_MS = 15_000;
 const REPEAT_MS = 60_000;
@@ -30,8 +31,8 @@ export const INBOX_QUERY_KEY = ['online', 'inbox'];
 export function useAlertsOn() {
   const { user, features } = useAuth();
   const [device] = useDeviceSettings();
-  const online = features.online;
-  return Boolean(online?.enabled && online.alertRoles?.includes(user?.role) && device.onlineAlerts !== false);
+  // P25 Part H. Platform orders ring the same alert, for the till.
+  return Boolean(alertRoleOn(features, user?.role) && device.onlineAlerts !== false);
 }
 
 /** The inbox, shared by the banner and the nav badge through one query. */
@@ -71,7 +72,7 @@ export default function OnlineAlerts() {
     };
   }, []);
 
-  const waiting = inbox ? inbox.waitingOrders + inbox.waitingReservations : 0;
+  const waiting = inbox ? inbox.waitingOrders + inbox.waitingReservations + (inbox.waitingPlatformOrders ?? 0) : 0;
   const latestAt = inbox?.latestRequestAt ?? null;
 
   // A new request: announce it once.
@@ -145,7 +146,7 @@ export default function OnlineAlerts() {
         </button>
       )}
       <Link
-        to={inbox.waitingOrders > 0 ? '/online' : '/online/bookings'}
+        to={inbox.waitingOrders > 0 || inbox.waitingPlatformOrders > 0 ? '/online' : '/online/bookings'}
         className="type-button flex min-h-12 items-center rounded-lg bg-surface px-4 text-ink hover:bg-sunken"
       >
         Open

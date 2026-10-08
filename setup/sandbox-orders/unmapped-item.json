@@ -1,0 +1,18 @@
+{
+  "type": "ORDER_PLACED",
+  "order": {
+    "platformOrderId": "SBX10003",
+    "customerName": "Meera",
+    "items": [
+      { "externalItemId": "zc-sev-poori", "name": "Sev Poori Chaat", "quantity": 1, "unitPriceInPaise": 26500, "addOns": [] },
+      { "externalItemId": "zc-new-dish-not-mapped", "name": "Kesar Rabdi Kulfi Falooda", "quantity": 1, "unitPriceInPaise": 21000, "addOns": [] }
+    ],
+    "packagingChargeInPaise": 0,
+    "merchantDiscountInPaise": 0,
+    "platformDiscountInPaise": 0,
+    "totalInPaise": 47500,
+    "paymentMode": "PREPAID",
+    "deliveredBy": "PLATFORM",
+    "instructions": null
+  }
+}

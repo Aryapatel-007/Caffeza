@@ -15,6 +15,7 @@ export const LINE_CANCEL_REASONS = [
   { code: 'TOO_SLOW', label: 'Took too long' },
   { code: 'QUALITY', label: 'Quality complaint' },
   { code: 'GUEST_LEFT', label: 'Guest left' },
+  { code: 'PLATFORM_CANCELLED', label: 'Cancelled by the platform' },
   { code: 'OTHER', label: 'Other' },
 ];
 
@@ -22,6 +23,7 @@ export const ORDER_CANCEL_REASONS = [
   { code: 'GUEST_LEFT', label: 'Guest left' },
   { code: 'WRONG_TABLE', label: 'Opened on the wrong table' },
   { code: 'DUPLICATE', label: 'Opened twice' },
+  { code: 'PLATFORM_CANCELLED', label: 'Cancelled by the platform' },
   { code: 'OTHER', label: 'Other' },
 ];
 
@@ -31,6 +33,7 @@ export const BILL_VOID_REASONS = [
   { code: 'DISCOUNT_CHANGED', label: 'Discount needs changing' },
   { code: 'DUPLICATE', label: 'Billed twice' },
   { code: 'GUEST_DISPUTE', label: 'Guest disputed the bill' },
+  { code: 'PLATFORM_CANCELLED', label: 'Cancelled by the platform' },
   { code: 'OTHER', label: 'Other' },
 ];
 

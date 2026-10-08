@@ -28,7 +28,7 @@ import {
 } from '../controllers/onlineController.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { requireRole } from '../middleware/permission.js';
-import { requireFeature } from '../middleware/requireFeature.js';
+import { requireFeature, requireOnlineOrChannel } from '../middleware/requireFeature.js';
 import { tenant } from '../middleware/tenant.js';
 import { validate } from '../middleware/validate.js';
 import {
@@ -58,7 +58,17 @@ const floor = [...online, requireRole(OWNER, MANAGER, CASHIER, WAITER)];
 /** Deciding: the till. */
 const till = [...online, requireRole(OWNER, MANAGER, CASHIER)];
 
-router.get('/online/inbox', ...floor, validate(inboxSchema), getInbox);
+// P25 Part H. The inbox also carries delivery platform orders, so it is on when
+// online orders are on OR any delivery platform is connected and on.
+router.get(
+  '/online/inbox',
+  authenticate,
+  tenant,
+  requireOnlineOrChannel,
+  requireRole(OWNER, MANAGER, CASHIER, WAITER),
+  validate(inboxSchema),
+  getInbox,
+);
 
 router.get('/online/orders', ...floor, validate(listOnlineOrdersSchema), listOnlineOrders);
 router.get('/online/orders/:id', ...floor, validate(onlineIdSchema), getOnlineOrder);

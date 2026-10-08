@@ -309,6 +309,10 @@ export async function setAvailability(req, res) {
     'Menu availability changed.',
   );
 
+  // P25 Part H. Every active delivery platform where this dish is mapped is told, by a queued call.
+  const { queueAvailabilityFor } = await import('../services/integrations/platformOrderService.js');
+  await queueAvailabilityFor(req, item._id);
+
   return sendSuccess(res, item.toJSON());
 }
 

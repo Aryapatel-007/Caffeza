@@ -1,0 +1,18 @@
+{
+  "type": "ORDER_PLACED",
+  "order": {
+    "platformOrderId": "SBX10001",
+    "customerName": "Asha",
+    "items": [
+      { "externalItemId": "zc-pani-puri", "name": "Pani Puri With 6 Flavoured Pani", "quantity": 2, "unitPriceInPaise": 27000, "addOns": [] },
+      { "externalItemId": "zc-masala-jaljeera", "name": "Masala Jaljeera", "quantity": 1, "unitPriceInPaise": 19500, "addOns": [] }
+    ],
+    "packagingChargeInPaise": 0,
+    "merchantDiscountInPaise": 0,
+    "platformDiscountInPaise": 0,
+    "totalInPaise": 73500,
+    "paymentMode": "PREPAID",
+    "deliveredBy": "PLATFORM",
+    "instructions": "Less spicy please"
+  }
+}
