@@ -9,11 +9,11 @@
  */
 import { LINE_CANCEL_REASONS, reasonText } from '../config/cancelReasons.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
-import { ORDER_LINE_STATUSES } from '../models/Order.js';
+import { ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
 import { nowUtc } from '../utils/time.js';
 import { recordAudit } from './auditService.js';
 import { cancelKotLinesFor } from './kitchenService.js';
-import { applyVersionedUpdate, computeLineTotalInPaise } from './orderService.js';
+import { applyVersionedUpdate, computeLineTotalInPaise, isReadyToBill } from './orderService.js';
 import { returnStockForCancelledLine } from './stockMovementService.js';
 
 /**
@@ -21,6 +21,9 @@ import { returnStockForCancelledLine } from './stockMovementService.js';
  * caller has already checked the order may change and the wasPrepared rule.
  */
 export async function cancelLineInSession(req, { order, line, version, reasonCode, note = null, wasPrepared, inventoryOn }, session) {
+  // P26. When what is left is all served, the order is ready to bill, as when the last dish is served.
+  const linesAfter = order.lines.map((entry) => (String(entry._id) === String(line._id) ? { status: ORDER_LINE_STATUSES.CANCELLED } : entry));
+  const nowReady = order.status === ORDER_STATUSES.OPEN && isReadyToBill(linesAfter);
   const updated = await applyVersionedUpdate(req, {
     orderId: order._id,
     version,
@@ -33,6 +36,7 @@ export async function cancelLineInSession(req, { order, line, version, reasonCod
         // P04: the free-text field now holds the optional note.
         'lines.$[line].cancelReason': note ?? null,
         'lines.$[line].wasPrepared': wasPrepared ?? null,
+        ...(nowReady ? { status: ORDER_STATUSES.READY_TO_BILL, readyToBillAt: nowUtc() } : {}),
       },
     },
     arrayFilters: [{ 'line._id': line._id }],

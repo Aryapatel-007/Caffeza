@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { BackIcon } from '../../components/ui/icons/index.jsx';
 import Money from '../../components/ui/Money.jsx';
@@ -31,7 +31,8 @@ import MoveTablePanel from './MoveTablePanel.jsx';
 import NoChargePanel from './NoChargePanel.jsx';
 import OrderLineList from './OrderLineList.jsx';
 import { errorMessage, shouldRefetch } from './errorCopy.js';
-import { placeLabel } from './orderLabel.js';
+import { placeLabel } from './orderLabel.js';
+
 import Spinner from '../../components/ui/Spinner.jsx';
 
 /** Only these two may cancel a whole order. The server is what enforces it. */
@@ -83,6 +84,9 @@ export default function OrderScreenPage() {
   const [cancelling, setCancelling] = useState(null);
   const [isReviewing, setIsReviewing] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+  // P26. Opened from a bill's Add items, the menu shows at once.
+  const [searchParams] = useSearchParams();
+  const [addingMore, setAddingMore] = useState(() => searchParams.get('add') === '1');
 
   const orderQuery = useQuery({
     queryKey: ['order', orderId],
@@ -164,6 +168,9 @@ export default function OrderScreenPage() {
   const itemCount = liveLines.reduce((sum, line) => sum + line.quantity, 0);
   const pendingCount = order.lines.filter((line) => line.status === 'PENDING').length;
   const isOpen = order.status === 'OPEN';
+  // P26. A served table, with no bill yet, can order more: the menu shows again.
+  const canAddMore = order.status === 'READY_TO_BILL' && !order.billId;
+  const showMenu = isOpen || (canAddMore && addingMore);
   const canCancelOrder = CAN_CANCEL_ORDER.includes(user?.role);
   const canMove = isOpen && order.orderType === 'DINE_IN';
   // Takeaway and delivery have no table, so on a wide screen the order is a
@@ -237,7 +244,7 @@ export default function OrderScreenPage() {
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-2 sm:max-w-xl">
-          {isOpen && (
+          {showMenu && (
             <label className="relative block w-full max-w-sm">
               <span className="sr-only">Search the menu</span>
               <input
@@ -259,11 +266,20 @@ export default function OrderScreenPage() {
               Switch table
             </button>
           )}
+          {canAddMore && !addingMore && (
+            <button
+              type="button"
+              onClick={() => setAddingMore(true)}
+              className="type-button min-h-12 whitespace-nowrap rounded-lg border border-ink bg-surface px-4 hover:bg-sunken"
+            >
+              Add more dishes
+            </button>
+          )}
           {!isOpen && <BillOrderButton order={order} />}
         </div>
       </header>
 
-      {isOpen ? (
+      {showMenu ? (
         <div className={isCounter ? 'flex flex-1 flex-col gap-4 lg:flex-row lg:items-start' : 'contents'}>
           <div className={isCounter ? 'flex min-w-0 flex-1 flex-col gap-4' : 'contents'}>
           <MenuPicker

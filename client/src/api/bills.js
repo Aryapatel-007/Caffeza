@@ -122,3 +122,8 @@ export function getInvoice(billId) {
 export function getBillsSummary({ from, to }) {
   return api.get(`/bills/summary${toQuery({ from, to })}`);
 }
+
+/** P26. Voids a bill so the table can order more; the next bill carries its payments. */
+export function reopenBill(billId, body = {}) {
+  return api.post(`/bills/${billId}/reopen`, body);
+}

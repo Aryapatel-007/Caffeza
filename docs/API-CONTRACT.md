@@ -1889,6 +1889,11 @@ whether the ingredients are gone.
 Cancelling a fired line also cancels its matching KOT line, so the kitchen stops
 cooking a dish the floor already voided.
 
+P26: when cancelling a line leaves every other live line `SERVED`, the order
+moves to `READY_TO_BILL` in the same write, exactly as serving the last line
+does. Before P26 a served table whose one unsent dish was cancelled stayed
+`OPEN` and could not be billed.
+
 ### 12.7 Mark a line served
 
 ```

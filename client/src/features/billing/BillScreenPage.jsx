@@ -35,6 +35,7 @@ import { printBill } from '../printing/printBill.js';
 import { useTheme } from '../../context/ThemeProvider.jsx';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import VoidBillPanel from './VoidBillPanel.jsx';
+import AddItemsPanel from './AddItemsPanel.jsx';
 import CancelItemsPanel from './CancelItemsPanel.jsx';
 import { BILL_VOID_REASONS, describeReason } from '../orders/cancelReasons.js';
 import { placeLabel } from '../orders/orderLabel.js';
@@ -283,6 +284,15 @@ export default function BillScreenPage() {
             >
               Receipt preview
             </Link>
+            {canCancelItems && (
+              <button
+                type="button"
+                onClick={() => setPanel('add-items')}
+                className="flex min-h-12 items-center rounded-lg px-3 text-ink hover:bg-sunken"
+              >
+                Add items
+              </button>
+            )}
             {canCancelItems && (
               <button
                 type="button"
@@ -537,6 +547,21 @@ export default function BillScreenPage() {
             queryClient.invalidateQueries({ queryKey: ['bills'] });
             // The new bill opens, ready to print.
             if (result.bill) navigate(`/bills/${result.bill.id}`);
+          }}
+        />
+      )}
+
+      {panel === 'add-items' && (
+        <AddItemsPanel
+          bill={bill}
+          needsApproval={!canManage}
+          onCancel={() => setPanel(null)}
+          onDone={(result) => {
+            setPanel(null);
+            queryClient.invalidateQueries({ queryKey: ['bill'] });
+            queryClient.invalidateQueries({ queryKey: ['bills'] });
+            // The order opens, with the menu, for the new dishes.
+            navigate(`/orders/${result.orderId}?add=1`);
           }}
         />
       )}

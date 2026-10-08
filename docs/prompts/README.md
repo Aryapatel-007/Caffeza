@@ -33,6 +33,6 @@ The full table, with dependencies and owners, is in
 | P23 | Online takeaway orders and table reservations | Built, Arya's read outstanding |
 | P24 | Advance payment, dish photos and the new public page | Built, Arya's read outstanding |
 | P25 | Z Chaat, the cashier, and integrations | Done. Arya's read of M21 outstanding. |
-| P26 | Adding items after serving and after billing | In progress |
+| P26 | Adding items after serving and after billing | Done. Arya's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.
