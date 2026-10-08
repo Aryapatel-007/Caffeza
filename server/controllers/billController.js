@@ -29,6 +29,7 @@ import {
   assertCanTakePayment,
   assertCanVoid,
 } from '../services/billPermissionService.js';
+import { cancelLinesAfterBilling, listRefunds as findRefunds, markRefundDone } from '../services/billCancelLinesService.js';
 import { markPrinted, printQueue, requestPrint } from '../services/billPrintService.js';
 import { buildInvoiceData, renderReceipt } from '../services/receiptService.js';
 import { getSetting, getSettings } from '../services/settingsService.js';
@@ -216,6 +217,22 @@ export async function getPrintQueue(req, res) {
 /** POST /bills/:billId/printed. P25 Part D. */
 export async function postPrinted(req, res) {
   return sendSuccess(res, await markPrinted(req, req.params.billId));
+}
+
+/** POST /bills/:billId/cancel-lines. P25 Part E. The service decides who may, and checks the PIN. */
+export async function postCancelLines(req, res) {
+  return sendSuccess(res, await cancelLinesAfterBilling(req, req.params.billId, req.body));
+}
+
+/** GET /refunds. P25 Part E. */
+export async function getRefunds(req, res) {
+  const { rows, total, page, limit } = await findRefunds(req, req.query);
+  return sendList(res, rows, { page, limit, total });
+}
+
+/** POST /refunds/:refundId/done. P25 Part E. */
+export async function postRefundDone(req, res) {
+  return sendSuccess(res, await markRefundDone(req, req.params.refundId, req.body));
 }
 
 /** One settings group, as the API shapes it. */

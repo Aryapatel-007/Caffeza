@@ -47,3 +47,8 @@ export function setUserStatus(userId, isActive) {
 export function resetUserPassword(userId, newPassword) {
   return api.patch(`/users/${userId}/password`, { newPassword });
 }
+
+/** P25 Part E. The owners and managers who can approve with a PIN: id, name and role only. */
+export function listApprovers() {
+  return api.get('/users/approvers');
+}

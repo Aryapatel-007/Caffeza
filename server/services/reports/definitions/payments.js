@@ -11,6 +11,7 @@
 import { Account } from '../../../models/Account.js';
 import { ACCOUNT_ENTRY_TYPES, AccountEntry } from '../../../models/AccountEntry.js';
 import { Bill, BILL_STATUSES } from '../../../models/Bill.js';
+import { Refund } from '../../../models/Refund.js';
 import { sumPaise } from '../../../utils/money.js';
 import { scoped, scopedForAggregate } from '../../../utils/scopedQuery.js';
 import { datesBetween, runRangeChecks } from '../../reconciliationService.js';
@@ -32,6 +33,15 @@ const collectionColumns = [
   { key: 'accountName', label: LABELS.ACCOUNT, type: 'text' },
   { key: 'methodName', label: LABELS.PAYMENT_METHOD, type: 'text' },
   { key: 'amountInPaise', label: LABELS.COLLECTION, type: 'money' },
+];
+
+/** P25 Part E. Money owed back to guests after an item was cancelled on a paid bill. */
+const refundColumns = [
+  { key: 'businessDate', label: LABELS.BUSINESS_DATE, type: 'date' },
+  { key: 'billNumber', label: LABELS.INVOICE_NUMBER, type: 'text' },
+  { key: 'methodName', label: LABELS.PAYMENT_METHOD, type: 'text' },
+  { key: 'status', label: LABELS.STATUS, type: 'text' },
+  { key: 'amountInPaise', label: LABELS.REFUND_OWED, type: 'money' },
 ];
 
 export default {
@@ -143,10 +153,22 @@ export default {
       drill: { amountInPaise: { report: 'R17', query: { accountId: String(entry.accountId) } } },
     }));
 
+    // P25 Part E. Shown only for a range that has any, so other days read exactly as before.
+    const refundRows = (await Refund.find({ ...scoped(req), businessDate: { $gte: from, $lte: to } }).sort({ createdAt: 1 }).lean()).map((row) => ({
+      businessDate: row.businessDate,
+      billNumber: row.billNumber ?? row.voidedBillNumber,
+      methodName: row.methodName,
+      status: row.status === 'OWED' ? 'Owed' : 'Refunded',
+      amountInPaise: row.amountInPaise,
+    }));
+
     return {
       sections: [
         { key: 'days', title: 'Payments', columns, rows, totals },
         { key: 'collections', title: 'Collections', columns: collectionColumns, rows: collections, totals: { amountInPaise: sumPaise(0, ...collections.map((row) => row.amountInPaise)) } },
+        ...(refundRows.length > 0
+          ? [{ key: 'refunds', title: 'Refunds owed', columns: refundColumns, rows: refundRows, totals: { amountInPaise: sumPaise(0, ...refundRows.map((row) => row.amountInPaise)) } }]
+          : []),
       ],
     };
   },

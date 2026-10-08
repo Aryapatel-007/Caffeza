@@ -11,7 +11,7 @@
  */
 import { z } from 'zod';
 
-import { BILL_VOID_REASON_CODES } from '../config/cancelReasons.js';
+import { BILL_VOID_REASON_CODES, LINE_CANCEL_REASON_CODES } from '../config/cancelReasons.js';
 import {
   DISCOUNT_FUNDERS,
   DISCOUNT_FUNDER_VALUES,
@@ -19,6 +19,8 @@ import {
   isPlatformDiscountReason,
 } from '../config/discountReasons.js';
 import { BILL_STATUS_VALUES, DISCOUNT_KINDS } from '../models/Bill.js';
+import { CANCEL_REASON_MAX_LENGTH } from '../models/Order.js';
+import { REFUND_REFERENCE_MAX_LENGTH, REFUND_STATUS_VALUES } from '../models/Refund.js';
 import { PAYMENT_METHOD_CODE_PATTERN } from '../models/PaymentMethod.js';
 import {
   MAX_BASIS_POINTS,
@@ -184,6 +186,52 @@ export const voidBillSchema = z.object({
  * silent fallback: a receipt rendered at the wrong width prints as garbage, and
  * finding that out on paper in a restaurant is expensive.
  */
+/**
+ * POST /bills/:billId/cancel-lines. P25 Part E. Whole lines, each with its own
+ * "was it already made", one reason, and a manager's PIN for the till.
+ */
+export const cancelLinesSchema = z.object({
+  params: billIdParam,
+  body: z
+    .object({
+      lines: z
+        .array(
+          z
+            .object({ lineId: objectId, wasPrepared: z.boolean({ error: 'Must be true or false.' }) })
+            .strict('Is not a field you can set here.'),
+        )
+        .min(1, 'Pick at least one item.')
+        .max(100)
+        .refine((lines) => new Set(lines.map((line) => line.lineId)).size === lines.length, 'Each item can be picked once.'),
+      ...reasonFields(LINE_CANCEL_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
+      approval: z
+        .object({ approverId: objectId, pin: z.string({ error: 'Must be text.' }).regex(/^\d{4,6}$/, 'A PIN is 4 to 6 digits.') })
+        .strict('Is not a field you can set here.')
+        .optional(),
+      // The same numbers, with nothing written: for the confirmation's sentence.
+      preview: z.boolean({ error: 'Must be true or false.' }).optional(),
+    })
+    .strict('Is not a field you can set here.')
+    .superRefine(requireNoteForOther),
+});
+
+/** GET /refunds. P25 Part E. */
+export const listRefundsSchema = z.object({
+  query: paginationQuery.extend({
+    status: z.enum(REFUND_STATUS_VALUES, { error: 'Is not a refund status.' }).optional(),
+    from: businessDate.optional(),
+    to: businessDate.optional(),
+  }),
+});
+
+/** POST /refunds/:refundId/done. P25 Part E. */
+export const refundDoneSchema = z.object({
+  params: z.object({ refundId: objectId }),
+  body: z
+    .object({ reference: nonEmptyString.max(REFUND_REFERENCE_MAX_LENGTH, `Cannot be longer than ${REFUND_REFERENCE_MAX_LENGTH} characters.`) })
+    .strict('Is not a field you can set here.'),
+});
+
 /** POST /bills/:billId/print-request and /printed. P25 Part D. No body. */
 export const billOnlySchema = z.object({ params: billIdParam, body: z.object({}).strict().optional() });
 

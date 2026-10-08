@@ -231,57 +231,66 @@ export async function chargeBillToAccount(req, billId, { accountId }) {
   const at = nowUtc();
   const startMinutes = await startMinutesFor(req);
 
-  return withOptionalTransaction(async (session) => {
-    const charged = await Bill.findOneAndUpdate(
-      { ...scoped(req), _id: bill._id, status: BILL_STATUSES.UNPAID, isVoided: false },
-      {
-        $set: {
-          status: BILL_STATUSES.ON_ACCOUNT,
-          account: { accountId: account._id, accountName: account.name },
-          chargedToAccountInPaise,
-          chargedAt: at,
-          chargedBy: req.user.id,
-        },
+  return withOptionalTransaction((session) =>
+    chargeInSession(req, { bill, account, chargedToAccountInPaise, at, startMinutes }, session),
+  );
+}
+
+/**
+ * The core of a charge, inside the transaction it is given. P25 Part E charges
+ * a re-issued bill to the account its voided bill was on, through here.
+ */
+export async function chargeInSession(req, { bill, account, chargedToAccountInPaise, at = nowUtc(), startMinutes = null }, session) {
+  const minutes = startMinutes ?? (await startMinutesFor(req));
+  const charged = await Bill.findOneAndUpdate(
+    { ...scoped(req), _id: bill._id, status: BILL_STATUSES.UNPAID, isVoided: false },
+    {
+      $set: {
+        status: BILL_STATUSES.ON_ACCOUNT,
+        account: { accountId: account._id, accountName: account.name },
+        chargedToAccountInPaise,
+        chargedAt: at,
+        chargedBy: req.user.id,
       },
-      { new: true, ...opts(session) },
-    );
-    if (!charged) throw new BusinessRuleError('This bill changed while it was being charged. Open it again.');
+    },
+    { new: true, ...opts(session) },
+  );
+  if (!charged) throw new BusinessRuleError('This bill changed while it was being charged. Open it again.');
 
-    // The same targeted write a full payment makes: the pre hook frees the table.
-    await Order.updateOne(
-      { ...scoped(req), _id: bill.orderId },
-      { $set: { status: ORDER_STATUSES.BILLED }, $inc: { version: 1 } },
-      opts(session),
-    );
+  // The same targeted write a full payment makes: the pre hook frees the table.
+  await Order.updateOne(
+    { ...scoped(req), _id: bill.orderId },
+    { $set: { status: ORDER_STATUSES.BILLED }, $inc: { version: 1 } },
+    opts(session),
+  );
 
-    await recordEntry(
-      req,
-      {
-        accountId: account._id,
-        type: ACCOUNT_ENTRY_TYPES.CHARGE,
-        amountInPaise: chargedToAccountInPaise,
-        billId: bill._id,
-        billNumber: bill.billNumber,
-      },
-      { session, at, startMinutes },
-    );
+  await recordEntry(
+    req,
+    {
+      accountId: account._id,
+      type: ACCOUNT_ENTRY_TYPES.CHARGE,
+      amountInPaise: chargedToAccountInPaise,
+      billId: bill._id,
+      billNumber: bill.billNumber,
+    },
+    { session, at, startMinutes: minutes },
+  );
 
-    await recordAudit(
-      req,
-      {
-        action: AUDIT_ACTIONS.BILL_CHARGED_TO_ACCOUNT,
-        entityType: AUDIT_ENTITY_TYPES.BILL,
-        entityId: bill._id,
-        entityLabel: bill.billNumber,
-        reason: `Charged to ${account.name}`,
-        amountInPaise: chargedToAccountInPaise,
-        details: { accountId: String(account._id), accountName: account.name },
-      },
-      session,
-    );
+  await recordAudit(
+    req,
+    {
+      action: AUDIT_ACTIONS.BILL_CHARGED_TO_ACCOUNT,
+      entityType: AUDIT_ENTITY_TYPES.BILL,
+      entityId: bill._id,
+      entityLabel: bill.billNumber,
+      reason: `Charged to ${account.name}`,
+      amountInPaise: chargedToAccountInPaise,
+      details: { accountId: String(account._id), accountName: account.name },
+    },
+    session,
+  );
 
-    return charged;
-  });
+  return charged;
 }
 
 /**

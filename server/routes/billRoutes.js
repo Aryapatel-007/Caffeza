@@ -24,6 +24,9 @@ import {
   getBill,
   getInvoice,
   getPrintQueue,
+  getRefunds,
+  postCancelLines,
+  postRefundDone,
   postPrintRequest,
   postPrinted,
   getReceipt,
@@ -47,6 +50,9 @@ import {
   listBillsSchema,
   readBillSchema,
   billOnlySchema,
+  cancelLinesSchema,
+  listRefundsSchema,
+  refundDoneSchema,
   invoiceSchema,
   printQueueSchema,
   receiptSchema,
@@ -114,5 +120,10 @@ router.post(
  */
 router.post('/bills/:billId/discount', ...till, validate(applyDiscountSchema), postDiscount);
 router.post('/bills/:billId/void', ...managers, validate(voidBillSchema), postVoid);
+
+// P25 Part E. The till and captains reach it; a CASHIER or WAITER needs a manager's PIN, checked in the service.
+router.post('/bills/:billId/cancel-lines', ...tillAndCaptains, validate(cancelLinesSchema), postCancelLines);
+router.get('/refunds', ...till, validate(listRefundsSchema), getRefunds);
+router.post('/refunds/:refundId/done', ...managers, validate(refundDoneSchema), postRefundDone);
 
 export default router;

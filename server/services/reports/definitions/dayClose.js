@@ -84,6 +84,10 @@ function sections(day, date) {
     { line: 'Wasted value', amountInPaise: g.cancelledItems.wastedValueInPaise },
     { line: 'Orders cancelled', count: g.cancelledOrders.count, amountInPaise: g.cancelledOrders.valueInPaise },
     { line: 'Voided bills', count: g.voidedBills.count, amountInPaise: g.voidedBills.valueInPaise, drill: { count: toBills({ ...day1, status: 'VOIDED' }) } },
+    // P25 Part E. Card, UPI or platform money owed back after an item was cancelled on a paid bill.
+    ...(f.refunds && (f.refunds.owedInPaise > 0 || f.refunds.refundedInPaise > 0)
+      ? [{ line: 'Refunds owed', count: f.refunds.owed.length, amountInPaise: f.refunds.owedInPaise }]
+      : []),
   ];
 
   const invoices = f.invoices.map((row) => ({ line: row.series, first: row.first, last: row.last, issued: row.issued, voided: row.voided, gaps: row.gaps }));

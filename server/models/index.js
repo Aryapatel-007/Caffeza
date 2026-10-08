@@ -34,6 +34,7 @@ import { PaymentMethod } from './PaymentMethod.js';
 import { PlatformPayout } from './PlatformPayout.js';
 import { Recipe } from './Recipe.js';
 import { RefreshToken } from './RefreshToken.js';
+import { Refund } from './Refund.js';
 import { Reservation } from './Reservation.js';
 import { Restaurant } from './Restaurant.js';
 import { Station } from './Station.js';
@@ -63,6 +64,7 @@ export const ALL_MODELS = Object.freeze([
   PlatformPayout,
   Recipe,
   RefreshToken,
+  Refund,
   Reservation,
   Restaurant,
   Station,

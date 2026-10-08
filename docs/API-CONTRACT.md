@@ -2619,7 +2619,11 @@ POST /api/v1/bills/:billId/cancel-lines
 `lineId` is the **order line's** id, which every bill line carries as
 `orderLineId`. Whole lines only: the existing line cancel has no part-quantity
 cancel, so neither does this. `reasonCode` is from `LINE_CANCEL_REASONS`, plus
-`PLATFORM_CANCELLED` (M21); `note` up to 500 characters, required for `OTHER`.
+`PLATFORM_CANCELLED` (M21); `note` up to 200 characters, as on the existing line cancel, required for `OTHER`.
+
+`preview: true` (built in P25) runs the whole request inside its transaction, reads the result and rolls it back: nothing is written and no bill number is used. It answers `{ preview, voidedBillNumber, voidedBillTotalInPaise, newBillTotalInPaise, orderCancelled, cashToGiveBackInPaise, refundsOwed, onlineRefundInPaise }`, so the confirmation can state the consequence in real numbers while GST stays on the server. A preview needs no `approval`.
+
+`GET /api/v1/users/approvers` (built in P25), OWNER, MANAGER, CASHIER, WAITER: the active owners and managers, `{ id, name, role }` only, for the till to pick an approver from. `GET /users` stays owner and manager only.
 `wasPrepared` is required on every line, default yes on the screen.
 
 Who:

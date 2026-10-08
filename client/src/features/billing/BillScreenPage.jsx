@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BackIcon, PrintIcon } from '../../components/ui/icons/index.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -35,6 +35,7 @@ import { printBill } from '../printing/printBill.js';
 import { useTheme } from '../../context/ThemeProvider.jsx';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import VoidBillPanel from './VoidBillPanel.jsx';
+import CancelItemsPanel from './CancelItemsPanel.jsx';
 import { BILL_VOID_REASONS, describeReason } from '../orders/cancelReasons.js';
 import { placeLabel } from '../orders/orderLabel.js';
 
@@ -53,6 +54,7 @@ const CAN_DISCOUNT_OR_VOID = [ROLES.OWNER, ROLES.MANAGER];
 export default function BillScreenPage() {
   const { billId } = useParams();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { user, features } = useAuth();
 
   const [toast, setToast] = useState(null);
@@ -228,6 +230,11 @@ export default function BillScreenPage() {
     bill.amountPaidInPaise === 0;
   const canCorrect = canManage && !bill.isVoided && bill.status === 'PAID';
   const canVoid = canManage && !bill.isVoided;
+  // P25 Part E. The till, and a captain when captains may bill; a cashier or captain needs a manager's PIN.
+  const canCancelItems =
+    !bill.isVoided &&
+    !(bill.orderType === 'DELIVERY' && bill.platform?.code) &&
+    (isTill || (isCaptain && Boolean(features?.billing?.captainsMayBill)));
 
   // Paid or On Hold, the next useful thing is the printed bill; unpaid, it is the payment.
   const printIsPrimary = !bill.isVoided && !isSettleable;
@@ -276,6 +283,15 @@ export default function BillScreenPage() {
             >
               Receipt preview
             </Link>
+            {canCancelItems && (
+              <button
+                type="button"
+                onClick={() => setPanel('cancel-items')}
+                className="flex min-h-12 items-center rounded-lg px-3 text-alert hover:bg-alert-tint"
+              >
+                Cancel an item
+              </button>
+            )}
             {canVoid && (
               <button
                 type="button"
@@ -498,6 +514,25 @@ export default function BillScreenPage() {
             setCorrecting(null);
           }}
           onConfirm={(body) => correctMutation.mutate({ paymentId: correcting.id, body })}
+        />
+      )}
+
+      {panel === 'cancel-items' && (
+        <CancelItemsPanel
+          bill={bill}
+          needsApproval={!canManage}
+          onCancel={() => setPanel(null)}
+          onDone={(result) => {
+            setPanel(null);
+            const parts = [];
+            if (result.cashToGiveBackInPaise > 0) parts.push(`Give back ${moneyText(result.cashToGiveBackInPaise)} in cash.`);
+            for (const refund of result.refundsOwed) parts.push(`${moneyText(refund.amountInPaise)} is owed back on ${refund.methodName}.`);
+            setToast({ tone: 'success', message: [`Bill ${result.voidedBillNumber} voided.`, ...parts].join(' ') });
+            queryClient.invalidateQueries({ queryKey: ['bill'] });
+            queryClient.invalidateQueries({ queryKey: ['bills'] });
+            // The new bill opens, ready to print.
+            if (result.bill) navigate(`/bills/${result.bill.id}`);
+          }}
         />
       )}
 

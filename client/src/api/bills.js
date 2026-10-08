@@ -82,6 +82,19 @@ export function getReceipt(billId, width = 32) {
   return api.get(`/bills/${billId}/receipt?width=${width}`);
 }
 
+/**
+ * P25 Part E. Cancels items on a bill: voids it and re-bills what is left.
+ * With `preview: true` it answers the same numbers and changes nothing.
+ */
+export function cancelBillLines(billId, body) {
+  return api.post(`/bills/${billId}/cancel-lines`, body);
+}
+
+/** P25 Part E. Records money returned to a guest outside the system. */
+export function markRefundDone(refundId, reference) {
+  return api.post(`/refunds/${refundId}/done`, { reference });
+}
+
 /** P25 Part D. Ask for the bill to print on the counter's printer. */
 export function requestBillPrint(billId) {
   return api.post(`/bills/${billId}/print-request`, {});

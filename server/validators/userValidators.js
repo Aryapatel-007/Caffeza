@@ -119,6 +119,9 @@ const pin = z
   .trim()
   .regex(/^\d{4,6}$/, 'Must be 4 to 6 digits.');
 
+/** GET /users/approvers. P25 Part E. */
+export const listApproversSchema = z.object({ query: z.object({}).strict() });
+
 export const setPinSchema = z.object({
   params: userIdParam,
   body: z.object({ pin }).strict('Is not a field you can set here.'),

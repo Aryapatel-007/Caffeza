@@ -160,97 +160,145 @@ export async function createBill(req, { orderId, version }) {
     let created = null;
 
     await session.withTransaction(async () => {
-      const order = await Order.findOne({ ...scoped(req), _id: orderId }).session(session);
-      if (!order) throw new NotFoundError('Order not found.');
-
-      assertOrderIsBillable(order);
-
-      const lines = order.lines
-        .filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED)
-        .map(toBillLine);
-
-      assertBillHasLines(lines);
-
-      const at = nowUtc();
-      const totals = computeBillTotals({ lines, discount: null });
-      /**
-       * Read inside the transaction, so the bill is numbered from the invoice
-       * series as it is at this moment. Through settingsService, the one place
-       * any module reads configuration from.
-       */
-      const settings = await getSettings(req.restaurantId, { session });
-      const startMinutes = settings.business.businessDayStartsAtMinutes;
-      // P10: a bill is never issued into a closed business day.
-      await assertDayOpen(req, businessDateFor(at, startMinutes), { session });
-      const numbering = await reserveBillNumber(
-        { restaurantId: req.restaurantId, branchId: req.branchId, at, invoice: settings.invoice },
-        session,
-      );
-
-      const captainName = await captainNameFor(req, order.openedBy, session);
-
-      const draft = {
-        restaurantId: req.restaurantId,
-        branchId: req.branchId,
-        ...numbering,
-        orderId: order._id,
-        orderNumber: order.orderNumber,
-        orderType: order.orderType,
-        tableName: order.tableName ?? null,
-        // P06. Copied from the order, so a report groups delivery bills by
-        // platform and knows which were billed at 0% for the platform.
-        platform: order.platform ?? null,
-        taxTreatment: order.taxTreatment ?? 'NORMAL',
-        // P23. Where the order came from, frozen like everything else here.
-        origin: order.origin ?? null,
-        businessDate: businessDateFor(at, startMinutes),
-        status: BILL_STATUSES.UNPAID,
-        lines,
-        discount: null,
-        payments: [],
-        amountPaidInPaise: 0,
-        billedBy: req.user.id,
-        billedAt: at,
-        // P03. Frozen from the order, so captain and covers reports never join back to it.
-        captainId: order.openedBy ?? null,
-        captainName,
-        guestCount: order.guestCount ?? null,
-        orderOpenedAt: order.openedAt ?? null,
-      };
-      applyTotals(draft, lines, totals);
-
-      const [bill] = await Bill.create([draft], { session });
-
-      /**
-       * The order keeps its status. It moves to BILLED when the bill is PAID,
-       * not when it is created, because M2 decided BILLED frees the table and
-       * the customers are still sitting there until they have paid.
-       */
-      await applyVersionedUpdate(req, {
-        orderId: order._id,
-        version,
-        update: { $set: { billId: bill._id } },
-        session,
-      });
-
-      created = bill;
+      created = await createBillInSession(req, { orderId, version }, session);
     });
 
     return created;
   } catch (error) {
-    if (error?.code === DUPLICATE_KEY) {
-      // The partial unique index on { restaurantId, orderId } caught a second
-      // live bill. Hand back the one that exists so the client opens it.
-      const existing = await Bill.findOne({ ...scoped(req), orderId, isVoided: false })
-        .select('_id')
-        .lean();
-      throw new BillAlreadyExistsError(existing?._id);
-    }
-    if (isTransactionUnavailable(error)) throw new TransactionRequiredError();
-    throw error;
+    throw await billCreationErrorFor(req, orderId, error);
   } finally {
     await session.endSession();
   }
+}
+
+/**
+ * Turns the errors bill creation can meet into the ones the API answers with:
+ * a second live bill is BILL_ALREADY_EXISTS carrying the one that exists, and a
+ * connection that cannot run a transaction is TRANSACTION_REQUIRED.
+ */
+export async function billCreationErrorFor(req, orderId, error) {
+  if (error?.code === DUPLICATE_KEY) {
+    // The partial unique index on { restaurantId, orderId } caught a second
+    // live bill. Hand back the one that exists so the client opens it.
+    const existing = await Bill.findOne({ ...scoped(req), orderId, isVoided: false })
+      .select('_id')
+      .lean();
+    return new BillAlreadyExistsError(existing?._id);
+  }
+  if (isTransactionUnavailable(error)) return new TransactionRequiredError();
+  return error;
+}
+
+/**
+ * The core of creating a bill, inside the transaction it is given. P25 Part E
+ * runs it inside the transaction that voids the old bill and cancels lines.
+ *
+ * `discount`, P25 only: a discount carried over from a voided bill, applied as
+ * the bill is created. `{ kind, valueInPaise, rateBps, reasonCode, note,
+ * fundedBy, appliedBy }`; a flat amount larger than the new item total is
+ * capped at it.
+ */
+export async function createBillInSession(req, { orderId, version, discount = null }, session) {
+  const order = await Order.findOne({ ...scoped(req), _id: orderId }).session(session);
+  if (!order) throw new NotFoundError('Order not found.');
+
+  assertOrderIsBillable(order);
+
+  const lines = order.lines
+    .filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED)
+    .map(toBillLine);
+
+  assertBillHasLines(lines);
+
+  const at = nowUtc();
+  const carried = discount ? carriedDiscount(discount, lines) : null;
+  const totals = computeBillTotals({ lines, discount: carried?.request ?? null });
+  /**
+   * Read inside the transaction, so the bill is numbered from the invoice
+   * series as it is at this moment. Through settingsService, the one place
+   * any module reads configuration from.
+   */
+  const settings = await getSettings(req.restaurantId, { session });
+  const startMinutes = settings.business.businessDayStartsAtMinutes;
+  // P10: a bill is never issued into a closed business day.
+  await assertDayOpen(req, businessDateFor(at, startMinutes), { session });
+  const numbering = await reserveBillNumber(
+    { restaurantId: req.restaurantId, branchId: req.branchId, at, invoice: settings.invoice },
+    session,
+  );
+
+  const captainName = await captainNameFor(req, order.openedBy, session);
+
+  const draft = {
+    restaurantId: req.restaurantId,
+    branchId: req.branchId,
+    ...numbering,
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    orderType: order.orderType,
+    tableName: order.tableName ?? null,
+    // P06. Copied from the order, so a report groups delivery bills by
+    // platform and knows which were billed at 0% for the platform.
+    platform: order.platform ?? null,
+    taxTreatment: order.taxTreatment ?? 'NORMAL',
+    // P23. Where the order came from, frozen like everything else here.
+    origin: order.origin ?? null,
+    businessDate: businessDateFor(at, startMinutes),
+    status: BILL_STATUSES.UNPAID,
+    lines,
+    discount: carried?.stored ?? null,
+    payments: [],
+    amountPaidInPaise: 0,
+    billedBy: req.user.id,
+    billedAt: at,
+    // P03. Frozen from the order, so captain and covers reports never join back to it.
+    captainId: order.openedBy ?? null,
+    captainName,
+    guestCount: order.guestCount ?? null,
+    orderOpenedAt: order.openedAt ?? null,
+  };
+  applyTotals(draft, lines, totals);
+
+  const [bill] = await Bill.create([draft], { session });
+
+  /**
+   * The order keeps its status. It moves to BILLED when the bill is PAID,
+   * not when it is created, because M2 decided BILLED frees the table and
+   * the customers are still sitting there until they have paid.
+   */
+  await applyVersionedUpdate(req, {
+    orderId: order._id,
+    version,
+    update: { $set: { billId: bill._id } },
+    session,
+  });
+
+  return bill;
+}
+
+/**
+ * A discount carried over from a voided bill (P25 Part E): a percent stays the
+ * same percent; a flat amount stays the same, capped at the new item total.
+ */
+function carriedDiscount(discount, lines) {
+  const subtotal = sumPaise(...lines.map((line) => line.lineTotalInPaise));
+  const request =
+    discount.kind === 'PERCENT'
+      ? { kind: 'PERCENT', rateBps: discount.rateBps, valueInPaise: null }
+      : { kind: 'FLAT', valueInPaise: Math.min(discount.valueInPaise ?? discount.amountInPaise, subtotal), rateBps: null };
+  const amountInPaise = resolveDiscountAmount(request, subtotal);
+  return {
+    request,
+    stored: {
+      ...request,
+      amountInPaise,
+      reason: discount.note ?? discount.reason ?? null,
+      reasonCode: discount.reasonCode ?? null,
+      fundedBy: discount.fundedBy ?? 'RESTAURANT',
+      appliedBy: discount.appliedBy ?? null,
+      appliedAt: nowUtc(),
+    },
+  };
 }
 
 /** A standalone mongod cannot start a transaction, and billing needs one. */
@@ -535,53 +583,59 @@ export async function voidBill(req, billId, { reasonCode, note = null }) {
    * account also takes the charge off the account's ledger, and the two must
    * land together or not at all.
    */
-  return withOptionalTransaction(async (session) => {
-    const bill = await readBill(req, billId, session);
-    assertNotVoided(bill);
-    // P10: a closed day's bills stay as they are.
-    await assertDayOpen(req, bill.businessDate, { session });
+  return withOptionalTransaction((session) => voidBillInSession(req, billId, { reasonCode, note, at }, session));
+}
 
-    bill.isVoided = true;
-    bill.voidedAt = at;
-    bill.voidedBy = req.user.id;
-    // P04: a fixed code, and the free-text field now holds the optional note.
-    bill.voidReasonCode = reasonCode;
-    bill.voidReason = note ?? null;
-    await bill.save(session ? { session } : {});
+/**
+ * The core of voiding, inside the transaction it is given. P25 Part E voids a
+ * bill and re-issues it in one transaction through here.
+ */
+export async function voidBillInSession(req, billId, { reasonCode, note = null, at = nowUtc() }, session) {
+  const bill = await readBill(req, billId, session);
+  assertNotVoided(bill);
+  // P10: a closed day's bills stay as they are.
+  await assertDayOpen(req, bill.businessDate, { session });
 
-    await Order.updateOne(
-      { ...scoped(req), _id: bill.orderId },
-      { $set: { status: ORDER_STATUSES.READY_TO_BILL, billId: null }, $inc: { version: 1 } },
-      session ? { session } : {},
-    );
+  bill.isVoided = true;
+  bill.voidedAt = at;
+  bill.voidedBy = req.user.id;
+  // P04: a fixed code, and the free-text field now holds the optional note.
+  bill.voidReasonCode = reasonCode;
+  bill.voidReason = note ?? null;
+  await bill.save(session ? { session } : {});
 
-    await reverseChargeForVoid(req, bill, { session });
+  await Order.updateOne(
+    { ...scoped(req), _id: bill.orderId },
+    { $set: { status: ORDER_STATUSES.READY_TO_BILL, billId: null }, $inc: { version: 1 } },
+    session ? { session } : {},
+  );
 
-    // P24. A voided bill gives its online advance back to the order, for the next bill.
-    for (const payment of bill.payments.filter((entry) => entry.method === ONLINE_METHOD_CODE)) {
-      await releaseAdvance(req, bill._id, payment.amountInPaise, session);
-    }
+  await reverseChargeForVoid(req, bill, { session });
 
-    await recordAudit(
-      req,
-      {
-        action: AUDIT_ACTIONS.BILL_VOIDED,
-        entityType: AUDIT_ENTITY_TYPES.BILL,
-        entityId: bill._id,
-        entityLabel: bill.billNumber,
-        reason: reasonText(BILL_VOID_REASONS, reasonCode, note),
-        amountInPaise: bill.grandTotalInPaise,
-        details: {
-          wasPaid: bill.amountPaidInPaise > 0,
-          wasOnAccount: bill.status === BILL_STATUSES.ON_ACCOUNT,
-          reasonCode,
-        },
+  // P24. A voided bill gives its online advance back to the order, for the next bill.
+  for (const payment of bill.payments.filter((entry) => entry.method === ONLINE_METHOD_CODE)) {
+    await releaseAdvance(req, bill._id, payment.amountInPaise, session);
+  }
+
+  await recordAudit(
+    req,
+    {
+      action: AUDIT_ACTIONS.BILL_VOIDED,
+      entityType: AUDIT_ENTITY_TYPES.BILL,
+      entityId: bill._id,
+      entityLabel: bill.billNumber,
+      reason: reasonText(BILL_VOID_REASONS, reasonCode, note),
+      amountInPaise: bill.grandTotalInPaise,
+      details: {
+        wasPaid: bill.amountPaidInPaise > 0,
+        wasOnAccount: bill.status === BILL_STATUSES.ON_ACCOUNT,
+        reasonCode,
       },
-      session,
-    );
+    },
+    session,
+  );
 
-    return bill;
-  });
+  return bill;
 }
 
 export default {

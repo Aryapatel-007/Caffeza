@@ -268,6 +268,13 @@ const paymentSchema = new mongoose.Schema(
 
     receivedBy: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
     receivedAt: { type: Date, required: true },
+
+    /**
+     * P25 Part E. Set when an item was cancelled after billing: the payment
+     * was taken on the voided bill and carried onto this one, keeping its
+     * method, frozen fields, `receivedAt` and business date.
+     */
+    carriedFromBillId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bill', default: null },
   },
   { _id: true },
 );

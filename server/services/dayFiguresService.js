@@ -28,6 +28,7 @@ import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { CASH_MOVEMENT_TYPES, CashMovement } from '../models/CashMovement.js';
 import { ORDER_LINE_STATUSES, ORDER_STATUSES, ORDER_TYPES, Order } from '../models/Order.js';
 import { PaymentMethod } from '../models/PaymentMethod.js';
+import { Refund, REFUND_STATUSES } from '../models/Refund.js';
 import { averagePaise, sumPaise } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { businessDateFor, businessDateRangeToUtc } from '../utils/time.js';
@@ -389,6 +390,9 @@ export async function computeDayFigures(req, businessDate, { session = null, upT
       PaymentMethod.find({ ...tenant, isActive: true }).sort({ displayOrder: 1 }).setOptions(opts(session)).lean(),
     ]);
 
+  // P25 Part E. Money owed back to guests, created on this business date. Moves no money here.
+  const refundRows = await Refund.find({ ...tenant, businessDate }).sort({ createdAt: 1 }).setOptions(opts(session)).lean();
+
   const { dayBills, billsWithDayPayments, movements, collections, noChargeOrders, cancelOrders } = asAt(upTo, {
     dayBills: loadedDayBills,
     billsWithDayPayments: loadedPaymentBills,
@@ -462,6 +466,13 @@ export async function computeDayFigures(req, businessDate, { session = null, upT
     gst: gstSection(liveBills),
     controls: controlsSection({ bills: liveBills, voidedBills, noChargeOrders, cancelledLines, cancelledOrders }),
     invoices: invoiceSection(dayBills),
+    refunds: {
+      owed: refundRows
+        .filter((row) => row.status === REFUND_STATUSES.OWED)
+        .map((row) => ({ billNumber: row.billNumber ?? row.voidedBillNumber, methodName: row.methodName, amountInPaise: row.amountInPaise })),
+      owedInPaise: sum(refundRows.filter((row) => row.status === REFUND_STATUSES.OWED), (row) => row.amountInPaise),
+      refundedInPaise: sum(refundRows.filter((row) => row.status === REFUND_STATUSES.REFUNDED), (row) => row.amountInPaise),
+    },
   };
 }
 

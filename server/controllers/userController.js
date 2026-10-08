@@ -355,3 +355,23 @@ export async function setUserPin(req, res) {
 
   return sendSuccess(res, { pinSet: true });
 }
+
+/**
+ * GET /users/approvers. P25 Part E. The active owners and managers of this
+ * restaurant, by name, so a cashier or captain can ask one to type a PIN.
+ * Nothing but the id, name and role.
+ */
+export async function listApprovers(req, res) {
+  const approvers = await User.find({
+    restaurantId: req.restaurantId,
+    isActive: true,
+    role: { $in: [ROLES.OWNER, ROLES.MANAGER] },
+  })
+    .select('name role')
+    .sort({ name: 1 })
+    .lean();
+  return sendSuccess(
+    res,
+    approvers.map((user) => ({ id: String(user._id), name: user.name, role: user.role })),
+  );
+}

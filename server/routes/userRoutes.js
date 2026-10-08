@@ -12,6 +12,7 @@ import { Router } from 'express';
 
 import { ROLES } from '../config/roles.js';
 import {
+  listApprovers,
   createUser,
   getUser,
   listUsers,
@@ -25,6 +26,7 @@ import { requireRole } from '../middleware/permission.js';
 import { tenant } from '../middleware/tenant.js';
 import { validate } from '../middleware/validate.js';
 import {
+  listApproversSchema,
   createUserSchema,
   listUsersSchema,
   readUserSchema,
@@ -40,6 +42,19 @@ const staffAdmin = [authenticate, tenant, requireRole(ROLES.OWNER, ROLES.MANAGER
 
 router.post('/users', ...staffAdmin, validate(createUserSchema), createUser);
 router.get('/users', ...staffAdmin, validate(listUsersSchema), listUsers);
+/**
+ * P25 Part E. Who can approve with a PIN: the names of active owners and
+ * managers, for a cashier or captain to pick from. Names only. Before
+ * /users/:userId, or "approvers" is read as an id.
+ */
+router.get(
+  '/users/approvers',
+  authenticate,
+  tenant,
+  requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER, ROLES.WAITER),
+  validate(listApproversSchema),
+  listApprovers,
+);
 router.get('/users/:userId', ...staffAdmin, validate(readUserSchema), getUser);
 router.patch('/users/:userId', ...staffAdmin, validate(updateUserSchema), updateUser);
 router.patch('/users/:userId/status', ...staffAdmin, validate(updateStatusSchema), updateStatus);

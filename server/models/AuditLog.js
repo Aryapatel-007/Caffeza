@@ -60,6 +60,9 @@ export const AUDIT_ACTIONS = Object.freeze({
   // P24. The cafe's Razorpay account connected or disconnected. Never a secret.
   PAYMENT_GATEWAY_CONNECTED: 'PAYMENT_GATEWAY_CONNECTED',
   PAYMENT_GATEWAY_DISCONNECTED: 'PAYMENT_GATEWAY_DISCONNECTED',
+  // P25 Part E. A paid bill voided and re-issued smaller; money returned outside the system.
+  BILL_LINES_CANCELLED_AFTER_BILLING: 'BILL_LINES_CANCELLED_AFTER_BILLING',
+  REFUND_RECORDED: 'REFUND_RECORDED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 

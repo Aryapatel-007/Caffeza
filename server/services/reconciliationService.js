@@ -582,7 +582,19 @@ export async function runDayChecks(req, businessDate, figures, { countedCashInPa
     checkC9(figures.cash, countedCashInPaise),
     byId.C10,
     byId.C11,
+    // P25 Part E. A warning while money is owed back to guests; never a blocker.
+    ...(figures.refunds?.owedInPaise > 0 ? [checkRefundsOwed(figures.refunds)] : []),
   ];
+}
+
+/** P25 Part E. Card, UPI or platform money still to hand back after an item was cancelled on a paid bill. */
+export function checkRefundsOwed(refunds) {
+  return result('REFUNDS', SEVERITY.WARNING, {
+    passed: false,
+    message: `${rupees(refunds.owedInPaise)} is owed back to guests on card or UPI.`,
+    actual: refunds.owedInPaise,
+    refs: refunds.owed.map((row) => row.billNumber).filter(Boolean),
+  });
 }
 
 export default {
