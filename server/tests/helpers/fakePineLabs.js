@@ -7,7 +7,8 @@
 import http from 'node:http';
 
 export const PATHS = Object.freeze({ upload: '/upload', status: '/status', cancel: '/cancel' });
-export const GOOD = Object.freeze({ merchantId: '29610', securityToken: 'a4c9741b-2889-47b8-be2f-ba42081a246e' });
+// Made up for the fake: never a real or published Pine Labs value.
+export const GOOD = Object.freeze({ merchantId: '10001', securityToken: 'fake-pine-labs-token-0001' });
 
 export async function startFakePineLabs() {
   const state = { next: 4000001, transactions: new Map(), requests: [] };

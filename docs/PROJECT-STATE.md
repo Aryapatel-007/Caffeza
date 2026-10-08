@@ -6,24 +6,29 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-08 by Rishi (P24 built)
+Last updated: 2026-10-08 by Rishi (P25 built, all but Part B8)
 
 ---
 
 ## Current stage
 
-Stage 9: **taking the product live at Caffeza, our first paying client.**
+Stage 9: **taking the product live at Z Chaat**, an Indian street food
+restaurant in Gandhinagar. Its setup is `docs/clients/zchaat/PROFILE.md`, with
+every open item in its section 15. The first client, Cafezza, is archived in
+`docs/archive/caffeza/` and `setup/archive/caffeza/`.
 
-M0 to M7 are built. `docs/CURRENT-STATE-AUDIT.md` confirms the code is sound,
-and lists what Caffeza still needs.
+M0 to M8, M10, M14 and M16 to M20 are built. P25 added the cashier's work
+(full-page invoices and printers per device, captains billing, cancelling an
+item after billing, cash counted by notes) and M21 Integrations: Swiggy and
+Zomato behind a sandbox platform, Pine Labs card machines, and Tally by file
+or through a bridge. `docs/INTEGRATIONS.md` says how to set each up and what
+is still waiting.
 
-The plan is `docs/CAFFEZA-BUILD-PLAN.md`: prompts P00 to P22 in
-`docs/prompts/`, then the checklist in `docs/GO-LIVE.md`.
-
-Hosting is decided: a cloud server next to a separate Atlas cluster used only
-by Caffeza, in the same region.
-
-Build complete. Next: the gates in `docs/GO-LIVE.md`, tracked in `docs/GO-LIVE-READINESS.md`.
+The cloud database (`cluster0.dkcsfcz`, `restaurant-erp`) holds Z Chaat, set
+up with its menu and five logins, and a duplicate "zchaat" waiting on Rishi's
+choice of which stays. No bill has been made there. Next: the rest of the
+profile's section 15 from Z Chaat, then the gates in `docs/GO-LIVE.md`,
+tracked in `docs/GO-LIVE-READINESS.md`.
 
 ---
 
@@ -49,6 +54,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | DONE | Every report built and proven against the golden day. Engine and R19 in P14, R2 to R10 in P15, R11 to R13 in P16, R14 to R17 in P17 (R18 is M8's read), R1 and every screen in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M20 | Floor Plan and Look | Arya | DONE | Floor plan in P19, the look in P20A and P20B. Built by Rishi, off the listed owner. Arya's read outstanding. |
+| M21 | Integrations | Arya | IN PROGRESS | Built by Rishi in P25 Parts G to L, off the listed owner. Sealed partner credentials, connections, event log, jobs, webhooks; the sandbox platform complete, Swiggy and Zomato waiting for partner approval; Pine Labs card machines from the public page, with the gaps in `docs/INTEGRATIONS.md`; Tally vouchers by file and through the bridge; alerts. Not done under BUILD-PLAN section 13: Arya has not read it, and the Tally manual check (Part K5) needs Tally installed. |
 
 ---
 
@@ -432,6 +438,21 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-08 | A payment counts only after the server checks Razorpay's signature and reads the link back as paid for the exact amount. The guest's return, the webhook and a read-back on poll all go through the same confirm, which is a no-op the second time. | Nothing the browser says about money is trusted. |
 | 2026-10-08 | The advance reaches the bill as a payment of method `ONLINE` when the cashier taps Apply advance, not when the bill is created, and `ONLINE` cannot be chosen by hand. Until it is applied, any other payment on that bill is a 422 `ADVANCE_NOT_APPLIED`. | A discount is refused once money is on a bill, and a guest must never pay twice. |
 | 2026-10-08 | Dish photos live in `menuphotos`, one per item, PNG, WebP or JPEG checked from their own bytes, SVG refused. Removing a photo deletes its row. | The ordering screen's menu read must never carry image bytes. A photo is configuration, like a recipe. |
+| 2026-10-08 | Z Chaat replaces Cafezza as the live client. Cafezza's profile, setup files and brand are archived, not deleted, and a guard test keeps any client's name out of the code. | Rishi's decision, P25 Part B. The product names no client; a client lives in its profile, its setup files and its own records. |
+| 2026-10-08 | `npm run purge:restaurant` is the only way a restaurant is removed: by name, for mock or test data only, after an EJSON backup to the git-ignored `backups/`. `npm run db:restaurants` lists, and changes nothing. | Removing Cafezza Demo had to be one deliberate, recoverable step, not a script that could reach a real restaurant. |
+| 2026-10-08 | The mock loaders are removed, and `e2e:cloud` refuses unless `E2E_CLOUD_DATABASE` names the database in `MONGO_URI`, with its restaurant and logins from `E2E_CLOUD_*` variables. | Mock bills in the live database broke the rule against test bills in production. |
+| 2026-10-08 | Each device chooses its printer, thermal 80 mm, thermal 58 mm, A4 or A5, and every print is laid out at the paper's real width with its own page size. The full-page invoice and the receipt are built from one `buildInvoiceData`. | Measured: the browser dropped `@page { size: 80mm auto }`, so receipts printed in a corner of Letter paper. One set of figures means the two bills can never disagree. |
+| 2026-10-08 | Captains may bill by default (`settings.billing.captainsMayBill`), not take payment, and may send a bill to print at the counter; the counter prints each request once and every print is counted, so the second says Duplicate. | Z Chaat's captains bill at the table, and a bill printed twice must say so. |
+| 2026-10-08 | Cancelling an item on a billed order voids the bill, cancels the lines and re-bills what is left, in one transaction. Payments carry to the new bill, platform and card first and cash last; cash left over is handed back, and anything else becomes a refund owed, which moves no money here. | The bill keeps a gap-free series and the voided number stays in the register. A refund through a card machine is not something this system can do. |
+| 2026-10-08 | Cash is counted by notes and coins on the float, at Day Close and on a cash payment, and the server adds them up; a total typed beside a count must agree. | The till must never do arithmetic the server does not check. ₹20 and ₹10 exist as notes and coins, so a count names its kind for those two. |
+| 2026-10-08 | Partner credentials are sealed with AES-256-GCM under `INTEGRATION_SECRETS_KEY`, shown only as their last four characters, and never logged, audited or returned. | The repository is public and a database dump must not hand over a card machine's token. |
+| 2026-10-08 | A webhook is verified, stored, then processed by a job, with retries; a duplicate changes nothing. | A partner's retry, or our restart mid-event, must never make a second order or a second payment. |
+| 2026-10-08 | A platform order becomes our delivery order through the same `openOrder`, at the platform's prices (`priceSource: PLATFORM`), as the restaurant's automatic integration user. | One order service, one set of rules, and a bill that matches what the platform charged. |
+| 2026-10-08 | A platform adapter is written only from the platform's own document, kept in the git-ignored `partner-docs/`. Without one, Swiggy and Zomato are Waiting for partner approval, and the sandbox platform is used to practise. | Guessing a partner's endpoints or status codes is how orders go missing in production. |
+| 2026-10-08 | A card machine approval is believed only from Pine Labs' GetStatus, code 0 with the approved amount equal to the amount asked, and is recorded once, in one transaction, with the payment id unique. A different amount records nothing and raises an alert. | The machine, the postback and the screen can all report the same approval; it must become one payment. |
+| 2026-10-08 | Tally gets XML only, for TallyPrime and Tally.ERP 9 through one builder with a profile per version, from closed days only, every voucher balanced to the paisa. A day already downloaded, sent, posted, partly posted or unanswered is never exported again until the owner types that they deleted it from Tally. | Tally cannot tell a re-import from new sales, so the only safe rule is never twice without a person saying the old ones are gone. |
+| 2026-10-08 | The Tally bridge, a small program on the accountant's computer, is the only way our server reaches Tally. It is paired with a one-time code, holds its own token (only its hash is stored), opens nothing but its three routes, and posts nothing while a ledger the day uses is missing from Tally. | Tally runs inside the restaurant's network, which a cloud server cannot reach. |
+| 2026-10-08 | Where P25 was built differently from its prompt: the captain's button keeps the label "Bill this order"; cancel-lines has a `preview` mode and `GET /users/approvers` was added; the cancel note limit is 200; accepting a platform order is claim, call, create, not one transaction; `#A64220` was refused as an accent and Espresso is used; a Tally date is also held while QUEUED, PARTIAL or UNKNOWN; a BUILT or FAILED Tally export is replaced; the daily summary nets round-off; a payout credits the receivable with the gross it covers; a bridge result takes `reached`; a lost bridge post becomes UNKNOWN and is never re-sent; the Tally page is `/settings/tally`, because the router matches paths without regard to case; the e2e server runs the job loop. | Each is written into the contract where it changes behaviour, so the next reader does not take it for a mistake. |
 
 ---
 
@@ -459,7 +480,7 @@ Newest entry at the top. Keep the last ten or so, delete older ones.
 
 P25 progress
 - [x] A Spec
-- [ ] B Move to Z Chaat, remove mock data
+- [x] B Move to Z Chaat, remove mock data
 - [x] C Bill printing
 - [x] D Captains bill
 - [x] E Cancel an item after billing
@@ -471,7 +492,7 @@ P25 progress
 - [x] K Tally bridge
 - [x] L Integration screens
 - [x] M Onboarding runbook
-- [ ] N Full check
+- [x] N Full check
 
 Test count before Part A: 1,053 (after P24).
 
@@ -518,7 +539,10 @@ Part L: server: `services/integrations/alertService.js`, `GET /integrations/aler
 
 Part M: `docs/INTEGRATIONS.md`, for whoever sets up a restaurant: Swiggy and Zomato (approval or a middleman, what to ask for, their document only in `partner-docs/`, practising with the sandbox, connecting, the webhook address, item mapping), Pine Labs (what to ask for, UAT first, linking Card and UPI, the five things its public page does not say), Tally (file or bridge, ledger mapping, import steps for each version, pairing the bridge, never posting a day twice, the manual check still owed), what is built and what is waiting, and the Z Chaat checklist, every item `TO CONFIRM`. Listed in the README's documents table and CLAUDE.md's reading table.
 
-Next: Part N, the full check.
+Part B8, done 2026-10-08 at Rishi's request, by a one-off runner using the setup scripts' own plan and apply functions through the app (the scripts in the repo still refuse a password from anywhere but a terminal): "Z Chaat" provisioned in the cloud database, `setup/zchaat.json` applied (4 created, 2 updated, 8 skipped for TO CONFIRM), the menu loaded (111 created), and five logins, one per role, owner to kitchen, on made-up phones 9000003001 to 9000003005. Their passwords were given to Rishi once, in the chat: change them, and add real staff with their own phones before go-live. The database also holds a second restaurant, "zchaat", with one user and nothing else, made a few minutes earlier from the terminal commands; which one stays is Rishi's decision, and the other is removed with `npm run purge:restaurant`, after its backup.
+
+Part N: the whole suite 1,149 passing, 0 failing (1,053 before Part A). Lint and build pass. Three new browser specs, each passing on its first run: `e2e/captainBilling.spec.js` (a captain on a phone bills Table 3 and sends it to the counter; the counter computer prints it once, and not again), `e2e/cancelAfterBilling.spec.js` (B05 paid in cash, the shake cancelled by a cashier with the manager's PIN: ₹795.00 becomes ₹449.00, give back ₹346.00), `e2e/platformOrders.spec.js` (a sandbox Zomato order arrives on Online, is accepted, both stations mark it ready, the pickup bills it, paid by Zomato at ₹395.00). The e2e server now runs the integration job loop, as production does. `npm run db:indexes` twice on the cloud database: 36 collections, 200 indexes, 0 created either time (the development server had built them already). The repository and its history hold no credential (only placeholders and an obviously fake test key), nothing from `partner-docs/` and nothing from `backups/`; the fake Pine Labs values in `tests/helpers/fakePineLabs.js` were changed to obviously made-up ones, because the old ones looked like Pine Labs' published sample, and those remain in history at `ae9f292`. Docs: CLAUDE.md names Z Chaat and its rules section is "Rules for a live restaurant"; the prompts README marks P25 done.
+Not done by hand, from P25 section 15: a bill printed on each of the four printer settings on real paper, and the Tally manual check (Part K5). Both need the hardware.
 
 ### 2026-10-08 Rishi, P24 built: advance payment, dish photos, the new public page
 

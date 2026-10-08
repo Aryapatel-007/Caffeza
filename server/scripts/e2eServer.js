@@ -73,6 +73,13 @@ await startFakeRazorpay({ port: FAKE_RAZORPAY_PORT, host: HOST });
 const app = createApp({ serveClient: true });
 await new Promise((resolve) => app.listen(APP_PORT, HOST, resolve));
 
+// P25. Webhooks and partner calls are jobs, as in production; server.js starts
+// this loop everywhere but tests, and the browser tests need it running.
+const { startJobLoop } = await import('../services/integrations/jobRunner.js');
+await import('../services/integrations/platformOrderService.js');
+await import('../services/integrations/terminals/terminalService.js');
+startJobLoop();
+
 async function reset() {
   const { collections } = mongoose.connection;
   await Promise.all(Object.values(collections).map((collection) => collection.deleteMany({})));

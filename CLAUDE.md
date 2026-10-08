@@ -2,7 +2,8 @@
 
 MERN stack. REST API. Multi-tenant SaaS for restaurants in Ahmedabad.
 Two developers: Arya and Rishi. One person owns one module fully.
-The first paying client is Caffeza, a cafe in Gandhinagar. Current work is taking the product live there.
+The live client is Z Chaat, an Indian street food restaurant in Gandhinagar. Its setup is in `docs/clients/zchaat/PROFILE.md`.
+The first client, Cafezza, is archived in `docs/archive/caffeza/`.
 
 ## Loaded every session
 
@@ -56,10 +57,10 @@ A totals row is the exact sum of its rows. An average is a sum divided by a sum.
 Every report runs its checks from `docs/RECONCILIATION-RULES.md`. A new check gets a test that breaks it on purpose.
 The golden day in `docs/TEST-DATA.md` must still produce every expected number after your change.
 
-## Rules for Caffeza
+## Rules for a live restaurant
 
-The server runs in the cloud, next to a separate Atlas cluster. Do not add anything that assumes a machine inside the cafe.
-Printing happens from the browser on a device in the cafe. The server never talks to a printer.
+The server runs in the cloud, next to a separate Atlas cluster. Do not add anything that assumes a machine inside the restaurant.
+Printing happens from the browser on a device in the restaurant. The server never talks to a printer.
 Never create a bill in production to test something. Every production bill uses a real GST invoice number.
 Schema changes are additive: new fields with defaults, nothing renamed or removed. If a change cannot be additive, say so and write its rollback steps.
 
