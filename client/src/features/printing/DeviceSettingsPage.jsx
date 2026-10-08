@@ -1,4 +1,5 @@
 import { useAuth } from '../../context/AuthContext.jsx';
+import { PRINTER_KEYS, PRINTERS } from './printers.js';
 import { DENSITIES, TEXT_SIZES, THEMES, useDeviceSettings } from './useDeviceSettings.js';
 
 const THEME_LABELS = { AUTO: 'Automatic', DAY: 'Day', NIGHT: 'Night' };
@@ -62,13 +63,11 @@ export default function DeviceSettingsPage() {
         />
 
         <Choice
-          legend="Paper width"
-          options={[
-            { value: 80, label: '80 mm, 48 characters' },
-            { value: 58, label: '58 mm, 32 characters' },
-          ]}
-          value={settings.paperMm}
-          onChange={(paperMm) => update({ paperMm })}
+          legend="Printer"
+          hint="Bills, kitchen tickets and the Day Close print on this. A thermal page is exactly as long as what it prints."
+          options={PRINTER_KEYS.map((value) => ({ value, label: PRINTERS[value].label, detail: PRINTERS[value].hint }))}
+          value={settings.printer}
+          onChange={(printer) => update({ printer })}
         />
 
         {/* P23. The online alert, per device: a captain's phone or a second till can be quiet. */}
@@ -141,7 +140,10 @@ function Choice({ legend, hint, options, value, onChange }) {
             onChange={() => onChange(option.value)}
             className="size-5 accent-[var(--color-accent)]"
           />
-          <span className="type-body">{option.label}</span>
+          <span className="flex flex-col py-2">
+            <span className="type-body">{option.label}</span>
+            {option.detail && <span className="type-caption text-muted">{option.detail}</span>}
+          </span>
         </label>
       ))}
     </fieldset>

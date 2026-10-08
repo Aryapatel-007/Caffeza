@@ -77,8 +77,8 @@ export default function KitchenDisplayPage() {
   /** Fetches the server-laid-out ticket and prints it. Never throws. */
   async function printKot(kotId, { reprint = false } = {}) {
     try {
-      const { text } = await getKotTicket(kotId, { width: charactersFor(device.paperMm), reprint });
-      await printText(text, device.paperMm);
+      const { text } = await getKotTicket(kotId, { width: charactersFor(device.printer), reprint });
+      await printText(text, device.printer);
       setNotPrinted((current) => {
         const next = new Set(current);
         next.delete(kotId);

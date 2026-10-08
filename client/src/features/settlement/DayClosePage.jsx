@@ -172,8 +172,8 @@ export default function DayClosePage() {
 
   const print = async () => {
     try {
-      const { text } = await getDayPrint(businessDate, charactersFor(device.paperMm));
-      await printText(text, device.paperMm);
+      const { text } = await getDayPrint(businessDate, charactersFor(device.printer));
+      await printText(text, device.printer);
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error) });
     }

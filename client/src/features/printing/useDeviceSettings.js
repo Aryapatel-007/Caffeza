@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { DEFAULT_PRINTER, printerFor } from './printers.js';
+
 /**
  * Settings that belong to this device, not to a user or the restaurant. P05.
  *
  * The cashier's computer has an 80mm printer whoever signs in, and a station
- * tablet prints its own tickets. So paper width, auto-print and the kitchen
+ * tablet prints its own tickets. So the printer, auto-print and the kitchen
  * screen's chosen station live in this browser's localStorage, under one key,
  * read through this one hook.
  *
@@ -23,7 +25,9 @@ export const DENSITIES = Object.freeze(['COMFORTABLE', 'COMPACT']);
 export const TEXT_SIZES = Object.freeze([100, 115, 130]);
 
 const DEFAULTS = Object.freeze({
-  paperMm: 80,
+  // P25. THERMAL_80, THERMAL_58, A4 or A5. Replaced P05's `paperMm`, which a
+  // device that saved one is moved from on its next load.
+  printer: DEFAULT_PRINTER,
   autoPrintKots: false,
   kitchenStationId: null,
   printedKotIds: [],
@@ -48,13 +52,22 @@ const CHANGE_EVENT = 'erp-device-change';
 /** What this tab last wrote, for a browser that refuses storage. */
 let lastWritten = null;
 
-function read() {
+/** Fills in defaults, and moves a device saved before P25 from paper width to a printer. */
+function withDefaults(stored) {
+  const { paperMm: _legacy, ...rest } = { ...DEFAULTS, ...stored };
+  return { ...rest, printer: printerFor(stored) };
+}
+
+function readStored() {
   try {
-    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? 'null');
-    return { ...DEFAULTS, ...(stored ?? lastWritten ?? {}) };
+    return JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? 'null');
   } catch {
-    return { ...DEFAULTS, ...(lastWritten ?? {}) };
+    return null;
   }
+}
+
+function read() {
+  return withDefaults(readStored() ?? lastWritten ?? {});
 }
 
 function write(settings) {
@@ -73,6 +86,12 @@ function write(settings) {
  */
 export function useDeviceSettings() {
   const [settings, setSettings] = useState(read);
+
+  // P25. A device that saved a paper width keeps the same paper, as a printer, from now on.
+  useEffect(() => {
+    const stored = readStored();
+    if (stored && 'paperMm' in stored) write(read());
+  }, []);
 
   // Another tab on the same device changing a setting is picked up here.
   useEffect(() => {
