@@ -470,7 +470,7 @@ P25 progress
 - [x] J Tally vouchers
 - [x] K Tally bridge
 - [x] L Integration screens
-- [ ] M Onboarding runbook
+- [x] M Onboarding runbook
 - [ ] N Full check
 
 Test count before Part A: 1,053 (after P24).
@@ -516,7 +516,9 @@ Part K: the bridge program, `tools/tally-bridge/` (`bridge.js` with `pair`, `che
 
 Part L: server: `services/integrations/alertService.js`, `GET /integrations/alerts` and `POST /integrations/alerts/acknowledge` (OWNER, MANAGER), derived on read from dead jobs (not the bridge's, whose export already says it), failed and mismatched platform orders, platform cancellations on closed days, unknown card machine payments and failed, partly posted or unanswered Tally exports; Done stamps the source record. R1 Today's alerts end with the open integration alerts, kind Integration, each linking to its page through a new `LINK` drill. Client: `/settings/integrations` (a card per partner with its state, last success and last error; the owner opens a sheet to change it, a manager to read it: environment, secrets as "ending 7Q2X" with Replace, the provider's settings, Test connection, Pause and Resume, the webhook address shown once with Make a new address, the event log), item mapping at `/settings/integrations/:provider/mapping` (unmatched items first, each with a search over our menu), and the Tally page at `/settings/tally` (the days of a month with Export, Download file, Send to Tally and, for the owner, Export again behind the typed sentence; the bridge with Pair a new bridge and Switch off; how to import in each version; the ledger list file; the ledger mapping). Integrations is in the Set up menu for owner and manager, and linked from Settings. Found and fixed while checking the screens in a browser: the router matches paths without regard to case, so `/settings/integrations/TALLY` opened the Tally page instead of Tally's sheet, which is why the page is `/settings/tally`; with bridge delivery Tally cannot pass its test until a bridge is paired, so the page shows the bridge first and the days only once connected. Tests: `integrationAlerts.test.js` (4), and `e2e/integrations.spec.js` (the owner connects Tally, pairs a bridge, tests, sees the days; a manager on a phone sees it all read-only, with no sideways scroll).
 
-Next: Part M, `docs/INTEGRATIONS.md`.
+Part M: `docs/INTEGRATIONS.md`, for whoever sets up a restaurant: Swiggy and Zomato (approval or a middleman, what to ask for, their document only in `partner-docs/`, practising with the sandbox, connecting, the webhook address, item mapping), Pine Labs (what to ask for, UAT first, linking Card and UPI, the five things its public page does not say), Tally (file or bridge, ledger mapping, import steps for each version, pairing the bridge, never posting a day twice, the manual check still owed), what is built and what is waiting, and the Z Chaat checklist, every item `TO CONFIRM`. Listed in the README's documents table and CLAUDE.md's reading table.
+
+Next: Part N, the full check.
 
 ### 2026-10-08 Rishi, P24 built: advance payment, dish photos, the new public page
 

@@ -27,6 +27,7 @@ These are long. Read the section your task touches, not the whole file.
 | `docs/BUILD-PLAN.md` | Section 13 before calling a module done. Sections 11 and 12 for security and common mistakes. |
 | `docs/DEPLOYMENT.md` | Before touching startup, environment variables or deployment |
 | `docs/CURRENT-STATE-AUDIT.md` | When you need to know what already exists and where |
+| `docs/INTEGRATIONS.md` | Before any Swiggy, Zomato, Pine Labs or Tally work, or setting up a restaurant's integrations |
 
 API-CONTRACT.md and DB-SCHEMA.md are the specification. Do not invent their contents.
 If a task needs a field or endpoint that is not in them yet, stop and say so instead of adding it.
