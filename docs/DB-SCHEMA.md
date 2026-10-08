@@ -2360,3 +2360,323 @@ Index: `{ restaurantId: 1, menuItemId: 1 }` unique.
 `menuitems.photo`: `{ sha256, width, height }`, default null, written with the
 photo and cleared with it. Removing a photo deletes its `menuphotos` row: like
 a recipe, a photo is configuration, not a record of something that happened.
+
+---
+
+# P25: the cashier, and M21 Integrations
+
+Specified in P25 Part A. Sections 31 to 39 are new collections; section 40 lists
+every new field on an existing collection and in `settings`. Every collection is
+an ordinary tenant collection, `baseSchemaPlugin` then `tenantGuardPlugin`, and
+every index starts with `restaurantId`, except the key lookups in sections 32
+and 39, the job runner's claim in section 34 and the TTL in section 33, each
+explained beside it. The lookups and the claim are the three M21 uses of
+`skipTenantGuard`. Every model is
+registered in `server/models/index.js`. Every change is additive: new fields
+with defaults, nothing renamed or removed.
+
+## 31. `refunds` (P25 Part E)
+
+Money owed back to a guest after an item was cancelled on a bill already paid
+by card, UPI or a platform. It records money returned outside this system and
+moves none inside it.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema` |
+| `billId`, `billNumber` | ObjectId, String | no | The new bill. Null when every line was cancelled and no new bill was made. |
+| `voidedBillId`, `voidedBillNumber` | ObjectId, String | yes | The bill that was voided |
+| `orderId` | ObjectId | yes | |
+| `method`, `methodName`, `methodKind` | String | yes | Frozen from the payment it came from |
+| `amountInPaise` | Number | yes | Integer above 0 |
+| `businessDate` | String | yes | The business date it was created on |
+| `status` | String | yes | `OWED` or `REFUNDED` |
+| `createdBy` | ObjectId | yes | |
+| `refundedAt`, `refundedBy`, `reference` | Date, ObjectId, String | no | Set when a manager records the refund. `reference` 1 to 100 characters. |
+| `createdAt`, `updatedAt` | Date | auto | |
+
+Index: `{ restaurantId: 1, branchId: 1, businessDate: 1, status: 1 }` for Day
+Close and R2's "Refunds owed" line.
+Index: `{ restaurantId: 1, status: 1, createdAt: -1 }` for the list of what is
+still owed.
+
+## 32. `integrationconnections` (P25 Part G)
+
+One partner connection per restaurant, branch and provider.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | From `baseSchema` |
+| `provider` | String | yes | `SWIGGY`, `ZOMATO`, `SANDBOX_PLATFORM`, `PINE_LABS`, `TALLY` |
+| `environment` | String | yes | `SANDBOX`, `UAT`, `PRODUCTION` |
+| `status` | String | yes | `DRAFT`, `ACTIVE`, `PAUSED`, `ERROR`. Default `DRAFT`. |
+| `credentials` | Object | no | `{ keyId, iv, tag, ciphertext }` from `encryptJson`. `select: false`; never returned. |
+| `credentialHints` | Object | yes | Each secret field's last 4 characters. Default `{}`. |
+| `config` | Object | yes | Plain settings, checked by the provider's config schema |
+| `webhookKeyHash` | String | no | SHA-256 hex of the random key in this connection's webhook address |
+| `lastSuccessAt`, `lastErrorAt` | Date | no | |
+| `lastError` | String | no | A plain sentence, up to 300 characters, with no secret in it |
+| `createdBy`, `updatedBy` | ObjectId | yes | |
+
+Index: `{ restaurantId: 1, branchId: 1, provider: 1 }` unique. One connection per
+partner per outlet.
+Index: `{ webhookKeyHash: 1 }` unique, partial on `{ webhookKeyHash: { $type:
+'string' } }`. A webhook finds its connection by the key alone, before it knows
+the restaurant, so this index does not start with `restaurantId`. It is one of
+one of the three sanctioned `skipTenantGuard` uses in M21.
+
+A `SANDBOX_PLATFORM` connection is refused when `NODE_ENV` is `production`.
+
+## 33. `integrationevents` (P25 Part G)
+
+One line per call to or from a partner. Diagnostics, not financial records.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | |
+| `connectionId`, `provider` | ObjectId, String | yes | |
+| `direction` | String | yes | `IN` or `OUT` |
+| `kind` | String | yes | Like `ORDER_PLACED`, `ACCEPT_ORDER`, `GET_STATUS`, `POST_VOUCHERS` |
+| `externalId` | String | no | The partner's id for the thing, like a platform order number or a PTRID |
+| `outcome` | String | yes | `OK`, `FAILED`, `DUPLICATE`, `IGNORED`, `REJECTED` |
+| `httpStatus`, `durationMs` | Number | no | |
+| `request`, `response` | Mixed | no | Passed through `redactForLog(value, provider)`: every secret field and every customer phone number becomes `[hidden]`, then cut to 16 KB |
+| `error` | String | no | |
+| `at` | Date | yes | |
+
+Index: `{ restaurantId: 1, connectionId: 1, at: -1 }` for the connection's log.
+Index: `{ restaurantId: 1, provider: 1, externalId: 1 }` for finding every line
+about one order or payment.
+Index: `{ at: 1 }` with `expireAfterSeconds: 15552000`, 180 days. A TTL index
+must be on a single date field, so it cannot start with `restaurantId`; it only
+ever deletes, never reads.
+
+## 34. `integrationjobs` (P25 Part G)
+
+The queue for outgoing partner calls and incoming events.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | |
+| `connectionId` | ObjectId | yes | |
+| `type` | String | yes | Like `PROCESS_WEBHOOK_EVENT`, `MARK_FOOD_READY`, `SET_ITEM_AVAILABILITY`, `SET_STORE_STATUS`, `PUSH_MENU`, `CHECK_TERMINAL`, `POST_VOUCHERS`, `FETCH_LEDGERS`, `PING` |
+| `payload` | Mixed | yes | Never a credential |
+| `dedupeKey` | String | no | Like `ready:<platformOrderId>` |
+| `status` | String | yes | `QUEUED`, `RUNNING`, `DONE`, `FAILED`, `DEAD`. `FAILED` waits for a retry. |
+| `runAfter` | Date | yes | |
+| `lockedUntil` | Date | no | |
+| `attempts`, `maxAttempts` | Number | yes | Default 0 and 6 |
+| `lastError` | String | no | |
+| `forBridge` | Boolean | yes | Default false. True for Tally jobs that only a bridge picks up. |
+| `acknowledgedAt`, `acknowledgedBy` | Date, ObjectId | no | A `DEAD` job's alert, acknowledged |
+
+Index: `{ status: 1, forBridge: 1, runAfter: 1 }` for the runner, which claims
+due jobs of every restaurant in one loop. It does not start with
+`restaurantId` because the runner is the one reader that spans restaurants, a
+sanctioned `skipTenantGuard` use; each job it claims then runs scoped to its own
+restaurant.
+Index: `{ restaurantId: 1, dedupeKey: 1 }` unique, partial on `{ dedupeKey: {
+$type: 'string' } }`, so a used key is not queued twice.
+Index: `{ restaurantId: 1, connectionId: 1, status: 1, runAfter: 1 }` for a
+bridge's next job and the alerts read.
+
+## 35. `platformitemmappings` (P25 Part H)
+
+Which of our dishes a platform's item is.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | |
+| `connectionId` | ObjectId | yes | |
+| `externalItemId` | String | yes | 1 to 100 characters |
+| `externalVariantId` | String | no | Null when the platform item has no variant |
+| `externalName` | String | no | As last seen in an order |
+| `menuItemId`, `variantId` | ObjectId | yes, no | Ours |
+| `addOnMap` | Object | yes | `{ "<external add-on id>": "<our add-on id>" }`. Default `{}`. |
+| `lastSeenAt` | Date | no | |
+
+Index: `{ restaurantId: 1, connectionId: 1, externalItemId: 1, externalVariantId:
+1 }` unique. One mapping per external pair.
+Index: `{ restaurantId: 1, menuItemId: 1 }` for "which channels sell this dish",
+read when its availability changes.
+
+Unmapped items are not stored here. They are read from `platformorders`.
+
+## 36. `platformorders` (P25 Part H)
+
+A delivery platform's order, from arrival to delivery. **Not** `onlineorders`,
+which P23 uses for the restaurant's own website.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | |
+| `connectionId`, `provider` | ObjectId, String | yes | |
+| `platformCode` | String | yes | `ZOMATO` or `SWIGGY`, what the order is billed as. The sandbox's `actsAs`. |
+| `platformOrderId` | String | yes | The platform's own number |
+| `status` | String | yes | `RECEIVED`, `NEEDS_ATTENTION`, `ACCEPTED`, `REJECTED`, `CANCELLED_BY_PLATFORM`, `PICKED_UP`, `DELIVERED`, `FAILED` |
+| `attentionReasons` | [String] | yes | Any of `UNMAPPED_ITEMS`, `CASH_ON_DELIVERY`, `RESTAURANT_DELIVERY`, `NO_PLATFORM_PAYMENT_METHOD`, `PACKAGING_NOT_MAPPED`, `DAY_CLOSED`. Default `[]`. |
+| `order` | Object | yes | The normalised order (P25 Part H2), with phone numbers already dropped |
+| `orderId`, `billId` | ObjectId | no | Ours, once they exist |
+| `acceptBy` | Date | no | |
+| `decidedBy`, `decidedAt` | ObjectId, Date | no | |
+| `rejectReasonCode`, `rejectNote` | String | no | |
+| `prepMinutes` | Number | no | |
+| `amountMismatch` | Object | no | `{ oursInPaise, platformInPaise }` when the bill and the platform disagree by more than the round-off |
+| `failure` | String | no | Why a `FAILED` order could not be created here |
+| `receivedAt` | Date | yes | |
+| `businessDate` | String | yes | The business date of `receivedAt` |
+| `history` | [Object] | yes | `{ status, at, by, note }`, `by` null for the platform |
+| `acknowledgedAt`, `acknowledgedBy` | Date, ObjectId | no | Its alert, acknowledged |
+
+Index: `{ restaurantId: 1, connectionId: 1, platformOrderId: 1 }` unique. A
+duplicate `ORDER_PLACED` hits it and changes nothing.
+Index: `{ restaurantId: 1, branchId: 1, status: 1, receivedAt: -1 }` for the
+inbox and the list.
+Index: `{ restaurantId: 1, branchId: 1, businessDate: 1, status: 1 }` for Day
+Close blockers.
+
+## 37. `terminaltransactions` (P25 Part I)
+
+One attempt to take a payment on a card machine.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | |
+| `connectionId` | ObjectId | yes | |
+| `billId`, `billNumber` | ObjectId, String | yes | |
+| `methodCode`, `allowedPaymentMode`, `amountInPaise` | String, Number, Number | yes | |
+| `transactionNumber` | String | yes | The bill number with everything but letters and digits removed |
+| `sequenceNumber` | Number | yes | 1, 2, … for every attempt on this bill |
+| `terminal` | Object | yes | `{ name, clientId }` |
+| `ptrid` | String | no | Pine Labs' PlutusTransactionReferenceID |
+| `status` | String | yes | `CREATED`, `WAITING`, `APPROVED`, `DECLINED`, `CANCELLED`, `EXPIRED`, `UNKNOWN` |
+| `result` | Object | no | `{ rrn, approvalCode, tid, mid, paymentMode, amountInPaise, maskedCard }`. `maskedCard` only as the machine sends it, masked. Never a full card number. |
+| `paymentId` | ObjectId | no | The bill payment it became |
+| `businessDate` | String | yes | Of `startedAt` |
+| `startedBy`, `startedAt`, `finishedAt`, `lastCheckedAt` | | | |
+| `acknowledgedAt`, `acknowledgedBy` | Date, ObjectId | no | An `UNKNOWN` alert, acknowledged |
+
+Index: `{ restaurantId: 1, connectionId: 1, transactionNumber: 1, sequenceNumber:
+1 }` unique.
+Index: `{ restaurantId: 1, ptrid: 1 }` unique, partial on `{ ptrid: { $type:
+'string' } }`.
+Index: `{ restaurantId: 1, paymentId: 1 }` unique, partial on `{ paymentId: {
+$type: 'objectId' } }`. One approval is never two payments.
+Index: `{ restaurantId: 1, status: 1, startedAt: 1 }` for the checking job and
+Day Close blockers.
+
+## 38. `tallyexports` (P25 Part J)
+
+One build of one closed business date's vouchers.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | |
+| `connectionId` | ObjectId | yes | |
+| `businessDate` | String | yes | |
+| `granularity`, `version` | String | yes | Copied from the connection when built |
+| `status` | String | yes | `BUILT`, `DOWNLOADED`, `QUEUED`, `POSTED`, `PARTIAL`, `FAILED`, `UNKNOWN`, `STALE` |
+| `voucherCount`, `debitInPaise`, `creditInPaise` | Number | yes | Debits equal credits, or the build fails |
+| `xml` | String | yes | `select: false` in lists |
+| `xmlSha256` | String | yes | |
+| `builtFromCloseAt` | Date | yes | The day closure's `closedAt` it was built from |
+| `jobId` | ObjectId | no | The bridge job, when sent |
+| `response` | String | no | Tally's answer, cut to 64 KB |
+| `lineErrors` | [String] | yes | Default `[]` |
+| `createdBy`, `postedAt` | ObjectId, Date | | |
+| `redoneFromId` | ObjectId | no | The export a redo replaced |
+| `acknowledgedAt`, `acknowledgedBy` | Date, ObjectId | no | A failure's alert, acknowledged |
+
+Index: `{ restaurantId: 1, connectionId: 1, businessDate: 1, createdAt: -1 }` for
+the calendar and the "already exported" check. Not unique: a stale export stays,
+and its redo is a new row.
+
+## 39. `tallybridges` (P25 Part K)
+
+A computer allowed to post into Tally for one connection. A row is created when
+the owner asks for a pairing code and becomes a bridge when the code is used.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | |
+| `connectionId` | ObjectId | yes | |
+| `name` | String | yes | 1 to 40 characters |
+| `machineName` | String | no | Sent by the bridge |
+| `pairingCodeHash` | String | no | SHA-256 of the 8-character code. Cleared when used. |
+| `pairingExpiresAt` | Date | no | 10 minutes after the code was made |
+| `tokenHash` | String | no | SHA-256 of the bridge's token. The token is never stored. |
+| `lastSeenAt` | Date | no | |
+| `tallyVersionSeen` | String | no | |
+| `companiesSeen` | [String] | yes | Default `[]` |
+| `ledgersSeen` | [String] | yes | From the latest `FETCH_LEDGERS`. Default `[]`. |
+| `ledgersSeenAt` | Date | no | |
+| `pairedBy`, `pairedAt` | ObjectId, Date | no | `pairedBy` is the owner who made the code |
+| `revokedAt`, `revokedBy` | Date, ObjectId | no | |
+
+Index: `{ pairingCodeHash: 1 }` unique, partial on `{ pairingCodeHash: { $type:
+'string' } }`, and `{ tokenHash: 1 }` unique, partial on `{ tokenHash: { $type:
+'string' } }`. The bridge is found by its code or token before the restaurant is
+known: another of the three sanctioned M21 `skipTenantGuard` uses.
+Index: `{ restaurantId: 1, connectionId: 1, revokedAt: 1 }` for the list.
+
+## 40. Additions to existing collections and settings (P25)
+
+### `bills`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `printRequestedAt`, `printRequestedBy` | Date, ObjectId | null | Part D. The latest request to print at the counter. |
+| `lastPrintedAt` | Date | null | Part D |
+| `printCount` | Number | 0 | Part D. From 1, every print says "Duplicate". |
+| `payments[].carriedFromBillId` | ObjectId | null | Part E. The voided bill this payment was carried from. |
+| `payments[].tender` | Object | null | Part F. `{ cashCount, tenderedInPaise, changeInPaise }`. Cash only. Read by no figure. |
+| `payments[].terminal` | Object | null | Part I. `{ provider, ptrid, rrn, approvalCode, tid, paymentMode }` |
+
+Index: `{ restaurantId: 1, branchId: 1, printRequestedAt: 1 }`, partial on `{
+printRequestedAt: { $type: 'date' } }`, for the print queue.
+
+### `orders`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `lines[].priceSource` | String | `MENU` | Part H. `PLATFORM` when the line's price is the platform's, frozen from the platform order. |
+| `origin.kind` | | | Gains `PLATFORM_ORDER`, with `id` the `platformorders` id |
+
+### `cashmovements` and `dayclosures`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `cashmovements.cashCount` | [Object] | null | Part F. `[{ valueInPaise, kind, count }]` on an opening float counted by notes |
+| `dayclosures.cashCount` | [Object] | null | Part F. The latest close's count by notes |
+| `dayclosures.history[].cashCount` | [Object] | null | Part F |
+
+### `paymentmethods`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `terminalProvider` | String | null | Part I. `PINE_LABS` or null. `IN_HAND` methods only. |
+| `terminalPaymentMode` | Number | null | Part I. Pine Labs' `AllowedPaymentMode`. Required with a provider. |
+
+### `users`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `isSystem` | Boolean | false | Part G. The integration user. Refused at sign-in, left out of staff lists. Its `phone` is `system:<restaurantId>`. |
+
+### `auditlogs`
+
+`action` and `entityType` gain the values in API-CONTRACT M8, "Added by P25".
+
+### `restaurants.settings`
+
+| Path | Type | Default |
+|---|---|---|
+| `receipt.reviewLinkUrl` | String or null | null |
+| `billing.captainsMayBill` | Boolean | true |
+| `billing.captainsMayTakePayment` | Boolean | false |
+| `cash.denominations` | `[{ valueInPaise, kind, isActive }]` | India, API-CONTRACT M16 section 8.1 |
+| `payments.requireTerminalForLinkedMethods` | Boolean | true |
+| `reports.onHoldTallyCode` | String or null | null |
+
+Every field has a schema default, so a restaurant saved before P25 reads back
+complete, with no migration.

@@ -351,3 +351,30 @@ Added by P23 for the public page, the staff inbox and the alert.
 | **Forfeited** | A deposit kept, because the guest cancelled too late or did not come |
 | **Waiting for payment** | Placed on the page and not yet paid. Staff do not see it. |
 
+---
+
+## 16. Cashier and integration words
+
+Added by P25.
+
+| Term | Meaning |
+|---|---|
+| **Cash count** | How many of each note and coin were counted. The server adds them up; a total typed beside it must agree. |
+| **Tendered** | The cash a guest handed over for a bill, counted by notes or typed |
+| **Change** | Tendered minus the amount applied to the bill, handed back. Never recorded as a payment. |
+| **Refund owed** | Card, UPI or platform money to return to a guest after an item was cancelled on a paid bill. Recorded as done by a manager, with a reference. It moves no money in this system. |
+| **Print request** | A captain asking for a bill to print on the counter's printer |
+| **Bill printer** | This device's printer setting: Thermal 80 mm, Thermal 58 mm, A4 or A5 |
+| **Duplicate** | Printed at the top of a bill from its second print on |
+| **Platform order** | An order a delivery platform sends through an integration, before and after it becomes our delivery order. Not an online order, which comes from the restaurant's own page. |
+| **Order channel** | A delivery platform connected to receive orders: Swiggy, Zomato, or the sandbox platform |
+| **Sandbox platform** | A practice order channel that behaves like a platform, for testing and training. Never in production. |
+| **Item mapping** | Which of our dishes, size and extras a platform's item is |
+| **Payment terminal** | A card machine connected to the bill screen, like a Pine Labs machine |
+| **Terminal payment** | One attempt to take a payment on the card machine, from sending the amount to approved, declined, cancelled or expired |
+| **PTRID** | Pine Labs' reference for an amount sent to the machine. The cashier picks or types it on the machine. |
+| **Tally voucher** | One entry sent to Tally: a sales, receipt or payment voucher, with debits equal to credits |
+| **Ledger mapping** | Which Tally ledger each figure goes to: sales by rate, GST, round-off, each payment method, On Hold, paid in and out |
+| **Tally bridge** | A small program on the computer that runs Tally. It fetches vouchers from our server and posts them into Tally. |
+| **Integration user** | The restaurant's automatic user, like "Swiggy (automatic)", that integrations act as. It cannot sign in. |
+

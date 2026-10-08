@@ -455,6 +455,43 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-08 Rishi, P25 started: Z Chaat, the cashier, and integrations
+
+P25 progress
+- [x] A Spec
+- [ ] B Move to Z Chaat, remove mock data
+- [ ] C Bill printing
+- [ ] D Captains bill
+- [ ] E Cancel an item after billing
+- [ ] F Cash by notes and coins
+- [ ] G Integrations foundation
+- [ ] H Swiggy and Zomato
+- [ ] I Pine Labs
+- [ ] J Tally vouchers
+- [ ] K Tally bridge
+- [ ] L Integration screens
+- [ ] M Onboarding runbook
+- [ ] N Full check
+
+Test count before Part A: 1,053 (after P24).
+
+Part A, spec only, no code. `partner-docs/` and `backups/` are in `.gitignore`. API-CONTRACT: M3 section 16 (full-page invoice, captains billing, print at the counter, cancel after billing, refunds owed), M7 P25 setting groups, M8 P25 actions and reason codes, M10 section 5 (notes and change, card-machine methods), M16 section 8 (denominations, cash counts, refunds on Day Close, new blockers), and the new M21 Integrations section. DB-SCHEMA sections 31 to 39 (`refunds`, `integrationconnections`, `integrationevents`, `integrationjobs`, `platformitemmappings`, `platformorders`, `terminaltransactions`, `tallyexports`, `tallybridges`) and 40, every new field. CONVENTIONS: eleven error codes. GLOSSARY section 16. CAFFEZA-BUILD-PLAN: M21 and P25 rows.
+
+Small details the prompt left open, chosen and written into the spec:
+1. G1 reuses P24's `secretBox.js`, adding `encryptJson`/`decryptJson` beside it, under its own `INTEGRATION_SECRETS_KEY`.
+2. G7 is already done: P23 moved order creation into `orderOpenService.openOrder`.
+3. ₹20 and ₹10 exist as both a note and a coin, so the prompt's "values unique" is "unique within a kind", and a count names its `kind` when the value is ambiguous.
+4. The integration user is a `CASHIER` with `isSystem: true`, refused at sign-in and left out of staff lists.
+5. Integration alerts are derived from their source records with an `acknowledgedAt`, not a new collection.
+6. The sandbox platform has `actsAs` (Zomato or Swiggy), the platform it bills as.
+7. A Tally pairing code lives on a pending `tallybridges` row.
+8. The device storage key stays `caffeza.device`: nobody sees it, and renaming it would forget every device's printer.
+9. Three M21 `skipTenantGuard` uses: the webhook key lookup, the bridge code and token lookup, and the job runner's claim.
+10. Pine Labs `transactionNumber` is the bill number's letters and digits, and `sequenceNumber` counts every attempt on the bill.
+11. The R9 On Hold Tally code moves to `settings.reports.onHoldTallyCode`.
+
+Next: Part B, which stops to ask which restaurants in the cloud database to remove.
+
 ### 2026-10-08 Rishi, P24 built: advance payment, dish photos, the new public page
 
 What was built or decided:

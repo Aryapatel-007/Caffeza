@@ -48,6 +48,7 @@ So Caffeza work reuses M8 and M10, where they already cover what Caffeza needs, 
 | M18 | Kitchen Stations | New | Stations, category routing, one KOT per station |
 | M19 | Reports v2 | New | Every report in `docs/REPORT-SPEC.md` |
 | M20 | Floor Plan and Look | New | Areas, a visual table layout, themes, the visual refresh |
+| M21 | Integrations | New in P25 | A product module, not a client module: Swiggy and Zomato orders, Pine Labs card machines and Tally, for any restaurant |
 
 Deferred until after Caffeza is live, exactly as `docs/BUILD-PLAN.md` describes them:
 M9 Purchase Orders, M11 Payroll, M12 Employee Self-Service, M13 Company Finance Dashboard, M14 Online Ordering, M15 AI Service.
@@ -91,6 +92,7 @@ Each prompt names its model at the top.
 | P22 | Cafezza brand and professional finish | M20 | P20B, P21 | Arya | Opus, high |
 | P23 | Online takeaway orders and table reservations | M14 | P22 | Rishi | Opus, high |
 | P24 | Advance payment, dish photos and the new public page | M14, M1 | P23 | Rishi | Opus, high |
+| P25 | Z Chaat, the cashier, and integrations | Onboarding, M3, M10, M16, M21 | P23 | Arya, for M21 | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

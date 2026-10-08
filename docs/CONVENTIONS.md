@@ -244,6 +244,24 @@ ADVANCE_NOT_APPLIED             422  a bill with an unapplied online advance tak
 502 joins the status table for P24 only: the payment gateway, not our server,
 failed.
 
+Added by P25:
+
+```
+CASH_COUNT_MISMATCH        422  a count by notes and a total sent beside it disagree
+TERMINAL_REQUIRED          422  a method linked to a card machine recorded by hand without a manager's bypass
+PARTNER_SPEC_MISSING       422  the partner has not approved the integration, so its adapter has no document
+INTEGRATION_NOT_ACTIVE     422  the partner connection is missing, a draft, paused or in error
+INTEGRATION_TEST_FAILED    422  test connection failed; the message is the plain reason
+PARTNER_CALL_FAILED        502  a partner call failed or timed out while a person waited
+TALLY_MAPPING_INCOMPLETE   422  a head with an amount has no Tally ledger
+TALLY_ALREADY_EXPORTED     409  the date was posted or downloaded already
+DAY_NOT_CLOSED             422  only closed days are exported to Tally
+PAIRING_CODE_INVALID       401  a Tally bridge pairing code is wrong, used or expired
+BRIDGE_TOKEN_INVALID       401  a Tally bridge token is unknown or revoked
+```
+
+From P25, 502 also covers a partner in M21: Swiggy, Zomato or Pine Labs.
+
 ### Paging
 
 Every list endpoint takes `?page=1&limit=50`.

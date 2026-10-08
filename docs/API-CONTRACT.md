@@ -2485,6 +2485,256 @@ on the exact character count.
 
 ---
 
+## 16. P25: the full-page invoice, captains billing, printing at the counter, cancelling after billing
+
+Specified in P25 Parts C, D and E. Everything below is additive: no existing
+request or response changes shape.
+
+### 16.1 The full-page tax invoice
+
+```
+GET /api/v1/bills/:billId/invoice
+```
+
+Roles: all six, the same as the receipt (section 15).
+
+The bill as structured data, for an A4 or A5 page laid out on the client. The
+receipt text and this data are built by **one** function in
+`receiptService.js`, `buildInvoiceData({ restaurant, bill, settings })`:
+`renderReceipt` lays that data out as fixed-width text, and this endpoint
+returns it as it is. So every amount on the thermal receipt and on the full page
+is the same number, read from the same object. A test compares them for every
+golden day bill.
+
+```json
+{
+  "success": true,
+  "data": {
+    "restaurant": {
+      "name": "Z Chaat", "legalName": "…", "address": "…", "phone": "76008 58900",
+      "gstin": "…", "fssaiNumber": "…", "headerLines": ["Indian Street Food"]
+    },
+    "billId": "6600…", "billNumber": "ZC/1001", "isVoided": false,
+    "isDuplicate": false, "printCount": 0,
+    "issuedAt": "2026-10-09T14:05:00.000Z", "issuedAtIst": "9 Oct 2026, 7:35 PM",
+    "businessDate": "2026-10-09",
+    "orderType": "DINE_IN", "tableName": "Table 4", "captainName": "Ravi", "guestCount": 3,
+    "platform": null, "taxTreatment": "NORMAL",
+    "lines": [
+      { "itemName": "Pani Puri With 6 Flavoured Pani", "variantName": null, "addOnNames": [],
+        "quantity": 2, "unitPriceInPaise": 27000, "lineTotalInPaise": 54000, "taxRateBps": 500 }
+    ],
+    "itemTotalInPaise": 54000,
+    "discount": { "label": "Regular guest", "amountInPaise": 5400 },
+    "taxRows": [ { "taxRateBps": 500, "netSalesInPaise": 48600, "cgstInPaise": 1215, "sgstInPaise": 1215 } ],
+    "cgstInPaise": 1215, "sgstInPaise": 1215, "gstInPaise": 2430,
+    "roundOffInPaise": -30, "billTotalInPaise": 51000,
+    "payments": [ { "methodName": "UPI", "amountInPaise": 51000 } ],
+    "accountName": null,
+    "footerText": "Swaad bhi, Yaad bhi!",
+    "reviewLinkUrl": "https://g.page/r/…/review"
+  }
+}
+```
+
+`gstin`, `fssaiNumber` and `legalName` are null when the matching receipt switch
+(`showGstin`, `showFssai`) is off or the value is not set. `isDuplicate` is true
+when `printCount` is 1 or more (16.3). Money is whole paise; the client formats
+it through `Money`.
+
+404 for another restaurant's bill.
+
+**The printer belongs to the device** (P25 Part C). "This device" stores one
+printer setting, `THERMAL_80`, `THERMAL_58`, `A4` or `A5`, under the single
+device storage key from P05; a device that stored 80 or 58 becomes
+`THERMAL_80` or `THERMAL_58` on its next load. A thermal printer prints the
+receipt text from section 15 at 48 or 32 characters on a page exactly the
+receipt's height (`@page { size: <width>mm <height>mm }`, never `auto`, from
+the pure function `pageCss`). A4 and A5 print this endpoint's data as a full
+tax invoice, black on white, 12 mm margins. KOTs and the Day Close print follow
+the same setting; on A4 or A5 they print as one large block at the top of the
+page. When `receipt.reviewLinkUrl` is set, every printed bill ends with its QR
+code and "Scan to review us", drawn on the client.
+
+### 16.2 Who may make a bill and take a payment (P25 Part D)
+
+`settings.billing` (M7, P25):
+
+| Field | Default | Meaning |
+|---|---|---|
+| `captainsMayBill` | `true` | A `WAITER` may create the bill for a dine-in or takeaway order |
+| `captainsMayTakePayment` | `false` | A `WAITER` may also record payments, count notes and send a payment to the card machine on those bills |
+
+1. `POST /bills` lets `WAITER` through the route; `billPermissionService.assertCanBill(actor, order, settings)` decides. A `WAITER` is refused 403 when `captainsMayBill` is off, and 403 for a `DELIVERY` order whatever the setting: platform orders are billed by the integration (M21).
+2. `POST /bills/:billId/payments` and `POST /bills/:billId/terminal-payments` (M21) let `WAITER` through; `assertCanTakePayment(actor, bill, settings)` refuses 403 unless both settings are on and the bill is not a delivery bill.
+3. Discounts, voids, payment corrections, charging to an account and applying an online advance do not change.
+
+`GET /auth/me` gains `billing: { captainsMayBill, captainsMayTakePayment }`
+beside `features`, `discounts` and `floor`, because a captain cannot read
+`GET /settings`.
+
+### 16.3 Printing a captain's bill at the counter (P25 Part D)
+
+Bills gain, additively: `printRequestedAt`, `printRequestedBy`, `lastPrintedAt`,
+`printCount` (default 0). DB-SCHEMA section 40.
+
+| Method and path | Roles | What it does |
+|---|---|---|
+| `POST /api/v1/bills/:billId/print-request` | all six | Sets `printRequestedAt` to now and `printRequestedBy`. A voided bill is 422. Response 200: the bill. |
+| `GET /api/v1/bills/print-queue` | OWNER, MANAGER, CASHIER | Bills of this branch, not voided, whose `printRequestedAt` is set and later than `lastPrintedAt` (or `lastPrintedAt` is null), oldest request first, at most 50. Each `{ id, billNumber, tableName, printRequestedAt, printRequestedByName, printCount }`. |
+| `POST /api/v1/bills/:billId/printed` | all six | Adds 1 to `printCount` and sets `lastPrintedAt` to now. Response 200: `{ printCount, isDuplicate }`, `isDuplicate` true when `printCount` is now 2 or more. |
+
+The queue is a read of the bills collection, not a second collection, so a bill
+can never be in the queue twice. A second print request after a print puts it
+back. Every print, from any device, calls `printed`, so the receipt and the
+full page print "Duplicate" at the top from the second print on: the receipt
+text endpoint (section 15) and `GET /invoice` both read `printCount` before the
+client records the print, and print "Duplicate" when it is already 1 or more.
+
+The counter device's "Print bills sent by captains" setting is a device setting
+(no endpoint): it polls the queue every 5 seconds, prints each bill once, calls
+`printed`, and remembers the ids it printed in the device's storage so a reload
+never prints twice.
+
+### 16.4 Cancelling an item after the bill is made (P25 Part E)
+
+```
+POST /api/v1/bills/:billId/cancel-lines
+```
+
+```json
+{
+  "lines": [{ "lineId": "6601…", "wasPrepared": true }],
+  "reasonCode": "MODIFICATION",
+  "note": "Guest changed their mind",
+  "approval": { "approverId": "652c…", "pin": "1234" }
+}
+```
+
+`lineId` is the **order line's** id, which every bill line carries as
+`orderLineId`. Whole lines only: the existing line cancel has no part-quantity
+cancel, so neither does this. `reasonCode` is from `LINE_CANCEL_REASONS`, plus
+`PLATFORM_CANCELLED` (M21); `note` up to 500 characters, required for `OTHER`.
+`wasPrepared` is required on every line, default yes on the screen.
+
+Who:
+
+| Caller | Rule |
+|---|---|
+| OWNER, MANAGER | No `approval`. An `approval` sent anyway is ignored. |
+| CASHIER | `approval` required, else 403 "A manager has to approve this." |
+| WAITER | Only when `settings.billing.captainsMayBill` is on, and with `approval`; else 403. |
+| KITCHEN, STOREKEEPER | 403 |
+
+`approval.approverId` must be an active OWNER or MANAGER of the same restaurant
+(403 otherwise, without saying whether the person exists), and `approval.pin`
+is checked with `authService.verifyPin`, which issues no session: a wrong PIN is
+401 `INVALID_PIN` and the fifth wrong PIN locks it, 429 `PIN_LOCKED`, exactly as
+at the attendance station. The approver is stored on the audit line.
+
+Refused, each with a plain message:
+
+1. The bill's business date is closed: 409 `DAY_CLOSED`, before any other rule.
+2. The bill is voided: 422 `ENTRY_VOIDED`.
+3. The bill is a delivery bill with a platform: 422 "Platform orders change through the platform."
+4. A `lineId` is not a live line on this bill: 422.
+5. The same `lineId` twice: 400.
+
+What happens, in **one transaction** (bill creation already needs one):
+
+1. Void the bill with `voidReasonCode: ITEMS_CHANGED` and the note
+   "Items cancelled after billing: " followed by the dish names, through the
+   same code as `voidBill`, so the order returns to `READY_TO_BILL`, an On Hold
+   charge is reversed, and an online advance is released.
+2. Cancel each chosen order line with the given reason and `wasPrepared`,
+   through the same code as the existing line cancel, so stock and the KOT line
+   are handled exactly as before and `LINE_CANCELLED_AFTER_PREP` is written for a
+   prepared line.
+3. If live lines remain, create a new bill for the order through `createBill`'s
+   core, which from P25 runs inside a transaction it is given
+   (`createBillInSession(req, { orderId, version }, session)`); `createBill`
+   keeps its behaviour and opens its own.
+4. Re-apply the old discount, same `reasonCode`, `note` and `fundedBy`: a
+   percent stays the same `rateBps`; a flat amount stays the same, capped at the
+   new item total.
+5. Carry the payments over, in this order: `PLATFORM` kind first, then `CARD`,
+   `UPI` and every other non-cash `IN_HAND` method, then `ONLINE` (P24), then
+   `CASH`; within a kind, oldest first. Each is pushed onto the new bill with the
+   same method and frozen fields, its original `receivedAt`, `receivedBy`,
+   `businessDate` and `reference`, plus `carriedFromBillId`, until the new bill
+   total is covered. The last carried payment is cut down to what is still due.
+6. What is left over:
+   1. Cash: returned as `cashToGiveBackInPaise`. Nothing is recorded: the voided
+      bill's cash no longer counts, and the smaller carried amount is what the
+      drawer keeps, so expected cash is already right.
+   2. Anything else: one `refunds` row per method left over, status `OWED`
+      (DB-SCHEMA section 31). An `ONLINE` leftover is refunded through Razorpay
+      by the P24 refund path instead and is not a `refunds` row.
+7. If the old bill was `ON_ACCOUNT`, the new bill is charged to the same account
+   for whatever is not paid, through the same code as `charge-to-account`.
+8. If no live lines remain, the whole order is cancelled with the same reason
+   (mapped: `GUEST_LEFT` stays, `PLATFORM_CANCELLED` stays, every other line
+   reason becomes `OTHER` with the note "Every item cancelled after billing"),
+   and every payment is left over.
+9. Writes `BILL_LINES_CANCELLED_AFTER_BILLING`, entity `BILL`, on the voided
+   bill, `amountInPaise` the old bill total minus the new (the old total when
+   nothing remains), `details: { voidedBillNumber, newBillId, newBillNumber,
+   lineIds, reasonCode, approvedBy, cashToGiveBackInPaise, refundsOwedInPaise }`.
+   OWNER only in the audit trail.
+
+The new bill is numbered in the same transaction, so the invoice register shows
+the voided number with its reason and the next number, with no gap.
+
+Response 200:
+
+```json
+{
+  "success": true,
+  "data": {
+    "bill": { "…": "the new bill, or null when nothing remains" },
+    "voidedBillId": "6600…", "voidedBillNumber": "CFA/C/22446",
+    "orderCancelled": false,
+    "cashToGiveBackInPaise": 34600,
+    "refundsOwed": [ { "id": "6602…", "methodName": "Card", "amountInPaise": 12000 } ]
+  }
+}
+```
+
+### 16.5 Refunds owed
+
+```
+GET  /api/v1/refunds?status=OWED&from&to
+POST /api/v1/refunds/:refundId/done
+```
+
+`GET`: OWNER, MANAGER, CASHIER. Paged, newest first; `from` and `to` are
+business dates. `POST .../done`: OWNER, MANAGER, body `{ reference }`, 1 to 100
+characters, required. Sets `REFUNDED`, `refundedAt`, `refundedBy`, `reference`,
+and writes `REFUND_RECORDED`, entity `BILL`, on the new bill. A refund already
+`REFUNDED` is 422.
+
+Refunds move no money in this system. They record money returned outside it,
+on the card machine or by UPI. They appear on Day Close and in R2 and R5 as
+their own line "Refunds owed", and as a **warning** on Day Close, never a
+blocker. Marking one done is allowed on a closed day: it changes no figure of
+that day.
+
+### 16.6 Permission summary for P25 in M3
+
+| Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| POST /bills | yes | yes | yes | when `captainsMayBill`, not delivery | no | no |
+| POST /bills/:id/payments | yes | yes | yes | when both billing settings, not delivery | no | no |
+| GET /bills/:id/invoice | yes | yes | yes | yes | yes | yes |
+| POST /bills/:id/print-request | yes | yes | yes | yes | yes | yes |
+| GET /bills/print-queue | yes | yes | yes | no | no | no |
+| POST /bills/:id/printed | yes | yes | yes | yes | yes | yes |
+| POST /bills/:id/cancel-lines | yes | yes | with a manager's PIN | with a manager's PIN, when `captainsMayBill` | no | no |
+| GET /refunds | yes | yes | yes | no | no | no |
+| POST /refunds/:id/done | yes | yes | no | no | no | no |
+
+---
+
 ## Permission summary for M3
 
 | Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
@@ -3361,6 +3611,23 @@ Why 7 characters and 9 digits: GST rules allow an invoice number of at most 16 c
 
 ---
 
+### Setting groups added by P25
+
+Each is read and written through `GET` and `PATCH /settings` like every group,
+OWNER to change, every change audited as `SETTINGS_CHANGED`. Every field has a
+schema default, so a restaurant saved before P25 reads back complete.
+
+| Group and field | Type | Default | Meaning |
+|---|---|---|---|
+| `receipt.reviewLinkUrl` | String or null | null | An `https` address up to 300 characters. When set, every printed bill, thermal and full page, ends with a QR code for it and "Scan to review us". `http`, anything that is not a web address, and anything longer are 400. |
+| `billing.captainsMayBill` | Boolean | true | M3 section 16.2 |
+| `billing.captainsMayTakePayment` | Boolean | false | M3 section 16.2 |
+| `cash.denominations` | List | India, M16 section 8.1 | Notes and coins to count. A PATCH replaces the list. |
+| `payments.requireTerminalForLinkedMethods` | Boolean | true | M10 section 5.2 |
+| `reports.onHoldTallyCode` | String or null | null | Up to 20 characters. The Tally code R9 prints on its On Hold row. Null prints "On Hold" with no code. Was the constant `P03` before P25. |
+
+`GET /auth/me` gains `billing` (both fields) and `cash.denominations`, because
+a captain and a cashier need them and cannot read `GET /settings`.
 ## 2. `GET /api/v1/settings`
 
 Roles: `OWNER`, `MANAGER`.
@@ -3599,6 +3866,29 @@ Added by P22, OWNER only to read like every action outside the manager list:
 | `BRAND_LOGO_SET` | `SETTINGS` | M20, from P22 | The restaurant's logo changed. `details` carries the slot, hash, size, dimensions and type, never the bytes. |
 | `BRAND_LOGO_REMOVED` | `SETTINGS` | M20, from P22 | The restaurant's logo was removed. The same `details`, of the file removed. |
 
+Added by P25, OWNER only to read like every action outside the manager list:
+
+| Action | Entity | Written by | Why it matters |
+|---|---|---|---|
+| `BILL_LINES_CANCELLED_AFTER_BILLING` | `BILL` | M3, from P25 Part E | A paid bill was voided and re-issued smaller. `details` carry both bill numbers, the lines, the approver, the cash given back and the refunds owed. |
+| `REFUND_RECORDED` | `BILL` | M3, from P25 Part E | Money owed back to a guest was returned outside the system, with its reference |
+| `TERMINAL_BYPASSED` | `BILL` | M10, from P25 Part I | A card-machine method recorded by hand, with the reason |
+| `INTEGRATION_CONNECTED` | `INTEGRATION` | M21, from P25 Part G | A partner connection saved for the first time |
+| `INTEGRATION_CREDENTIALS_CHANGED` | `INTEGRATION` | M21 | A partner credential replaced. `details` carry the field names, never the values. |
+| `INTEGRATION_PAUSED`, `INTEGRATION_RESUMED` | `INTEGRATION` | M21 | A connection stopped or started |
+| `PLATFORM_ORDER_REJECTED` | `PLATFORM_ORDER` | M21, from P25 Part H | A platform order turned away, with the reason |
+| `TALLY_EXPORT_POSTED` | `TALLY_EXPORT` | M21, from P25 Part J | A day's vouchers reached Tally |
+| `TALLY_EXPORT_REDONE` | `TALLY_EXPORT` | M21 | A day exported again after the owner confirmed deleting the old vouchers in Tally |
+| `TALLY_BRIDGE_PAIRED`, `TALLY_BRIDGE_REVOKED` | `INTEGRATION` | M21, from P25 Part K | A computer given, or refused, the right to post into Tally |
+
+`entityType` gains `INTEGRATION`, `PLATFORM_ORDER` and `TALLY_EXPORT`.
+
+Reason codes added by P25, appended to the existing lists, server and client:
+
+| List | Code | Label |
+|---|---|---|
+| `LINE_CANCEL_REASONS`, `ORDER_CANCEL_REASONS`, `BILL_VOID_REASONS` | `PLATFORM_CANCELLED` | Cancelled by the platform |
+| `platformRejectReasons.js` (new) | `ITEM_OUT_OF_STOCK`, `KITCHEN_BUSY`, `STORE_CLOSING`, `OTHER` | Item out of stock, Kitchen too busy, Closing soon, Other (note required) |
 ## 3. What deliberately does not write an audit line
 
 Normal operation. Taking an order, firing a KOT, marking a dish ready, recording a payment, clocking in. These are the job, not exceptions to it, and burying seven real events in forty thousand routine ones defeats the collection.
@@ -4365,6 +4655,66 @@ when `settings.discounts.cashierMayApplyPlatformDiscounts` is true (default
 false). A cashier is refused with 403 otherwise. Discounting an `ON_ACCOUNT`
 bill is refused like a paid one.
 
+## 5. P25: notes and change on a cash payment, and methods linked to a card machine
+
+### 5.1 Counting notes on a cash payment (P25 Part F)
+
+`POST /api/v1/bills/:billId/payments` accepts an optional `tender`, only with
+`method: "CASH"`:
+
+```json
+{
+  "method": "CASH",
+  "amountInPaise": 79500,
+  "tender": {
+    "cashCount": [ { "valueInPaise": 50000, "count": 2 } ],
+    "tenderedInPaise": 100000,
+    "changeInPaise": 20500
+  }
+}
+```
+
+1. `cashCount` is optional. When sent, the server totals it with
+   `sumCashCount` against the restaurant's active denominations (M16 section
+   8), and the total must equal `tenderedInPaise`: 422 `CASH_COUNT_MISMATCH`
+   otherwise.
+2. `tenderedInPaise` must be at least `amountInPaise`, and `changeInPaise` must
+   equal `tenderedInPaise − amountInPaise`: 422 `BUSINESS_RULE_VIOLATED`
+   otherwise.
+3. The payment records `amountInPaise`, the amount applied to the bill, never
+   the amount handed over. `tender` is stored on the payment as it is, for the
+   record. Nothing reads it for a figure.
+4. `tender` with any method but `CASH` is 400.
+
+Typing an amount without counting notes works exactly as before.
+
+### 5.2 Methods linked to a card machine (P25 Part I)
+
+Payment methods gain, additively:
+
+| Field | Notes |
+|---|---|
+| `terminalProvider` | `PINE_LABS` or null. Only on an `IN_HAND` method. |
+| `terminalPaymentMode` | Required with a provider, null without. Pine Labs' `AllowedPaymentMode` code, an integer: 1 card, 10 UPI sale, 11 UPI Bharat QR, 0 every mode the machine has. |
+
+Set through `POST` and `PATCH /payment-methods`, OWNER, like every other field.
+A provider on a `PLATFORM` method, or a mode without a provider, is 400.
+
+`settings.payments.requireTerminalForLinkedMethods` (M7, P25), default `true`:
+a payment with a linked method, recorded by hand through `POST
+/bills/:billId/payments`, is refused with 422 `TERMINAL_REQUIRED` "Send this
+payment to the card machine." unless:
+
+1. the caller is OWNER or MANAGER, and
+2. the body carries `terminalBypassReason`, 1 to 200 characters ("The machine is
+   down").
+
+Such a payment is recorded normally and writes `TERMINAL_BYPASSED`, entity
+`BILL`, with the amount and the reason. A CASHIER or WAITER sending a bypass
+reason is 403. With the setting off, linked methods are taken by hand as
+before. Payments made through the machine are recorded by the integration
+(M21 section 5) and carry `terminal: { provider, ptrid, rrn, approvalCode, tid,
+paymentMode }`.
 ## Permission summary for M10
 
 | Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
@@ -4717,6 +5067,92 @@ once per write:
 | `PAYOUT_PERIOD_OVERLAP` | 409 | Two live payouts for one method would cover the same business date |
 | `DAY_NOT_READY` | 422 | Day Close blocked; `details.blockers` lists every reason |
 | `DAY_CLOSED` | 409 | A write would change a closed business date |
+
+## 8. P25: counting cash by notes and coins, refunds owed, and new blockers
+
+### 8.1 Denominations
+
+`settings.cash.denominations` (M7, P25), OWNER to change, audited like every
+setting: a list of `{ valueInPaise, kind, isActive }`, `kind` `NOTE` or `COIN`.
+
+Default, India, largest first:
+
+| Value | Kind | Active |
+|---|---|---|
+| ₹2,000 | NOTE | no, withdrawn from circulation |
+| ₹500, ₹200, ₹100, ₹50, ₹20, ₹10 | NOTE | yes |
+| ₹20, ₹10, ₹5, ₹2, ₹1 | COIN | yes |
+
+₹20 and ₹10 appear once as a note and once as a coin. A value is unique within
+its kind, above 0 and a whole number of paise; at least one is active. A `PATCH
+/settings` replaces the whole list.
+
+### 8.2 One shape everywhere
+
+```json
+"cashCount": [ { "valueInPaise": 50000, "kind": "NOTE", "count": 6 } ]
+```
+
+`kind` is optional when the value exists only once in the active list, and
+required when it exists as both a note and a coin: 400 otherwise. Counts are
+whole numbers from 0 to 10,000. A value that is not an active denomination is
+422 `BUSINESS_RULE_VIOLATED` naming it. **The server always works out the total
+itself**, with one helper in `server/utils/money.js`, `sumCashCount(cashCount,
+denominations)`. A client total is never trusted. Rows with a count of 0 are
+dropped before storing.
+
+### 8.3 Where it is used
+
+1. **Opening float.** `POST /cash-movements` with `type: OPENING_FLOAT` accepts
+   `cashCount` in place of `amountInPaise`. With both, they must agree: 422
+   `CASH_COUNT_MISMATCH` otherwise. The count is stored on the movement.
+   `cashCount` on `PAID_IN` or `PAID_OUT` is 400.
+2. **Day Close.** `POST /day-close` accepts `cashCount` in place of
+   `countedCashInPaise`. With both, they must agree: 422 `CASH_COUNT_MISMATCH`.
+   One of the two is required. The count is stored on the day closure and on its
+   `history` entry. **The blind count does not change**: the count by notes is
+   the manager's own entry, so they see it, and still never see the expected
+   figure. The Day Close print lists each denomination, its count and its value,
+   after counted cash.
+3. **A cash payment.** M10 section 5.1.
+
+### 8.4 Refunds owed on Day Close
+
+`computeDayFigures` gains `refunds: { owed: [ { billNumber, methodName,
+amountInPaise } ], owedInPaise, refundedInPaise }`, the refunds rows created on
+that business date. Day Close shows them, and an open refund adds a check
+result of severity `WARNING` with the message "₹X is owed back to guests on
+card or UPI." It never blocks.
+
+### 8.5 New blockers
+
+`blockersFor` gains three kinds, reported with the others:
+
+| Kind | When |
+|---|---|
+| `PLATFORM_ORDER` | A platform order (M21) received on that business date still `RECEIVED`, `NEEDS_ATTENTION`, or `ACCEPTED` and not picked up |
+| `TERMINAL_PAYMENT` | A terminal payment (M21) started on that business date still `WAITING` or `UNKNOWN` |
+| `PLATFORM_ORDER_FAILED` | A platform order of that date `FAILED`: accepted on the platform but not created here |
+
+### 8.6 Reports
+
+R2 and R7 show the counted denominations for a closed day that has them, under
+Counted cash. A day counted as a total shows the total only. R2 and R5 show
+"Refunds owed" as their own line.
+
+### 8.7 Permission summary for P25 in M16
+
+| Action | OWNER | MANAGER | CASHIER | WAITER |
+|---|---|---|---|---|
+| Count notes for the opening float | yes | yes | yes | no |
+| Count notes at Day Close | yes | yes | no | no |
+| Count notes on a cash payment | yes | yes | yes | when both billing settings |
+
+### 8.8 Error codes added by P25 in M16
+
+| Code | Status | When |
+|---|---|---|
+| `CASH_COUNT_MISMATCH` | 422 | A count by notes and a total sent beside it disagree |
 
 ---
 
@@ -6115,3 +6551,457 @@ ADVANCE_NOT_APPLIED             422  a bill with an unapplied online advance tak
 | Photo PUT, DELETE | yes | yes | no | no | no | no |
 | Photo GET | yes | yes | yes | yes | yes | yes |
 | Public payment return, webhook, photo | no token | | | | | |
+
+---
+
+# M21 Integrations
+
+Owner: Arya. Specified in P25 Part A, built in Parts G to L.
+
+**M21 is a product module, not a client module.** It connects any restaurant
+to the partners it already uses: delivery platforms (order channels), card
+machines (payment terminals) and an accountant's Tally (accounting). Nothing in
+it names a restaurant.
+
+Three areas share one foundation:
+
+| Area | Providers | What it does |
+|---|---|---|
+| Order channels | `SWIGGY`, `ZOMATO`, `SANDBOX_PLATFORM` | Receives platform orders, accepts or rejects them, and bills them on pickup |
+| Payment terminals | `PINE_LABS` | Sends a bill amount to the card machine and records the approved payment |
+| Accounting | `TALLY` | Turns each closed day into Tally vouchers, as a file or through a bridge |
+
+## 1. Rules every M21 endpoint and job obeys
+
+1. **Every record has a `restaurantId`.** A webhook and a bridge call carry no
+   user; each finds its restaurant only through its connection or bridge
+   record, found by the SHA-256 of a random key. Those two lookups, and the job
+   runner's claim of the next due job across restaurants, are the three M21
+   uses of `skipTenantGuard`, and the tripwire test counts them. Everything a
+   claimed job then does runs scoped to the job's own restaurant.
+2. **Partner credentials are encrypted at rest** with `encryptJson` in
+   `server/utils/secretBox.js`, under `INTEGRATION_SECRETS_KEY`. They are never
+   returned by any endpoint, and never written to a log line, an error message,
+   an audit line, an event line or a test fixture. A response shows only the
+   last four characters of each secret field, as `credentialHints`.
+3. **A webhook is verified, stored, then processed by a job.** The reply goes
+   back within a second; nothing slow runs inside it.
+4. **Outgoing partner calls are queued** in `integrationjobs`, so a slow partner
+   never holds up a cashier. The one exception is accepting a platform order,
+   which must succeed on the platform before anything is created here, and runs
+   inline with a short timeout.
+5. **Provider rules live only in the provider registry**,
+   `server/services/integrations/providers.js`. No `if (provider === 'SWIGGY')`
+   anywhere else.
+6. **A real Swiggy or Zomato adapter is written only from that platform's own
+   document**, kept outside git in `partner-docs/`. Without one, the provider is
+   `WAITING_FOR_PARTNER` and cannot be activated.
+7. **Version 1 runs one server instance.** The job loop and the webhook
+   dedupe assume it; DEPLOYMENT.md already says to run one.
+8. Money is whole paise everywhere, including Pine Labs amounts and Tally's
+   rupee text, which is written from paise by integer arithmetic.
+
+## 2. Secrets
+
+`server/utils/secretBox.js`, built in P24 for Razorpay, gains
+`encryptJson(value)` and `decryptJson(box)`: AES-256-GCM, a fresh 12-byte IV
+each time, the 16-byte tag stored beside the ciphertext, and a `keyId` on each
+box, the first 8 hex characters of the SHA-256 of the key, so a box sealed under
+another key is recognised and refused rather than mis-decrypted.
+
+```json
+{ "keyId": "3f9a01c2", "iv": "…", "tag": "…", "ciphertext": "…" }
+```
+
+**`INTEGRATION_SECRETS_KEY`**: 32 random bytes, base64, read only in
+`config/env.js`. It is a separate key from P24's `PAYMENT_SECRETS_KEY`, so
+rotating one never touches the other's records.
+
+1. Required in production. Startup fails with "INTEGRATION_SECRETS_KEY must be
+   set in production. Make one with: openssl rand -base64 32".
+2. In development and test, when absent, a fixed development key is used and a
+   warning is logged once. Never in production.
+3. Losing it makes every saved partner credential unreadable; each must be
+   entered again.
+
+## 3. Connections
+
+One `integrationconnections` record per restaurant, branch and provider
+(DB-SCHEMA section 32).
+
+### 3.1 `GET /api/v1/integrations`
+
+Roles: OWNER, MANAGER. Every provider in the registry, with this branch's
+connection or null:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "provider": "PINE_LABS", "kind": "PAYMENT_TERMINAL", "name": "Pine Labs",
+      "availability": "READY",
+      "credentialFields": ["merchantId", "securityToken"],
+      "connection": {
+        "id": "6610…", "environment": "UAT", "status": "ACTIVE",
+        "credentialHints": { "merchantId": "4521", "securityToken": "7Q2X" },
+        "config": { "baseUrl": "https://www.plutuscloudserviceuat.in:8201", "terminals": [ { "name": "Counter", "clientId": "1234" } ] },
+        "hasWebhook": false,
+        "lastSuccessAt": "…", "lastErrorAt": null, "lastError": null
+      }
+    },
+    { "provider": "SWIGGY", "kind": "ORDER_CHANNEL", "name": "Swiggy", "availability": "WAITING_FOR_PARTNER",
+      "unavailableReason": "Swiggy has not approved this integration yet, so live orders cannot be received. Use the Sandbox platform to practise.",
+      "credentialFields": [], "connection": null }
+  ]
+}
+```
+
+`SANDBOX_PLATFORM` is left out of the list when `NODE_ENV` is `production`.
+
+### 3.2 `PUT /api/v1/integrations/:provider`
+
+Roles: OWNER. Creates or updates this branch's connection.
+
+```json
+{ "environment": "UAT", "credentials": { "merchantId": "…", "securityToken": "…" }, "config": { "…": "…" } }
+```
+
+1. `config` is checked against the provider's own config schema; `credentials`
+   against its credential schema. 400 with `fields` on either.
+2. A credential field sent as `""` or left out keeps the stored value. Sending a
+   new value replaces it and writes `INTEGRATION_CREDENTIALS_CHANGED` with the
+   field names only.
+3. A new connection starts `DRAFT` and writes `INTEGRATION_CONNECTED`. For an
+   order channel or Pine Labs it also makes a webhook key and returns the full
+   address **once**, as `webhookUrl`, beside the connection.
+4. `SANDBOX_PLATFORM` in production is 422 `BUSINESS_RULE_VIOLATED`.
+5. Saving the first connection of a restaurant also creates its integration
+   user (section 6).
+
+Response 200 (201 when created): the connection as in 3.1.
+
+### 3.3 Test, pause, resume, a new webhook address, events
+
+| Method and path | Roles | What it does |
+|---|---|---|
+| `POST /integrations/:provider/test` | OWNER | Calls the adapter's `testConnection`. Success sets `lastSuccessAt`, and moves `DRAFT` or `ERROR` to `ACTIVE`. Failure sets `lastErrorAt` and `lastError` and answers 422 `INTEGRATION_TEST_FAILED` with that plain sentence. A `WAITING_FOR_PARTNER` provider is 422 `PARTNER_SPEC_MISSING`. |
+| `POST /integrations/:provider/pause` | OWNER | `ACTIVE` to `PAUSED`. A paused order channel rejects nothing and accepts nothing: its webhooks are stored as `IGNORED`. `INTEGRATION_PAUSED`. |
+| `POST /integrations/:provider/resume` | OWNER | `PAUSED` to `ACTIVE`. `INTEGRATION_RESUMED`. |
+| `POST /integrations/:provider/webhook-key` | OWNER | A new random key; the old address stops working at once. Returns `{ webhookUrl }`, once. |
+| `GET /integrations/:provider/events?outcome&page&limit` | OWNER, MANAGER | `integrationevents`, newest first, paged. Already redacted when stored. |
+
+A connection that is not `ACTIVE` does nothing: no webhook is processed, no
+job runs, no platform order is accepted, no terminal payment starts (422
+`INTEGRATION_NOT_ACTIVE`).
+
+## 4. Webhooks
+
+```
+POST /api/v1/hooks/:provider/:webhookKey
+```
+
+1. Parsed with `express.raw`, limit 256 KB, before the JSON parser, so the exact
+   bytes are available to check a signature.
+2. No sign-in and no tenant middleware. The connection is found by the SHA-256
+   of the key and the provider. An unknown key, or a provider that does not
+   match, is 404 with no detail.
+3. Its own rate limiter, per key: 120 requests a minute.
+4. The adapter's `verifyWebhook({ rawBody, headers, connection })` runs first.
+   False is 401 and one `REJECTED` event, and nothing else.
+5. A verified request is stored as an `IN` event, parsed into normalised
+   events, and each is handed to a job. The reply is 200 `{ "received": true }`
+   within a second.
+6. A connection that is `PAUSED` stores the event as `IGNORED` and answers 200.
+
+Pine Labs' postback uses the same route (section 7.4).
+
+## 5. Jobs and alerts
+
+`integrationjobs` (DB-SCHEMA section 34) holds every outgoing call and every
+webhook event to process. `server/services/integrations/jobRunner.js`:
+
+1. `runDueJobs({ limit })` claims due jobs one at a time with a
+   `findOneAndUpdate` on `status: QUEUED, runAfter <= now` that sets `RUNNING`
+   and `lockedUntil`, so two runners never run one job. A `RUNNING` job whose
+   `lockedUntil` has passed is claimable again.
+2. Retries wait 30 seconds, 2 minutes, 10 minutes, 30 minutes, then 2 hours.
+   After `maxAttempts` (default 6) the job is `DEAD` and raises an alert.
+3. A `dedupeKey` already used by a job is not queued twice (unique index).
+4. `startJobLoop()` runs `runDueJobs` every 5 seconds. `server.js` starts it
+   outside tests only; tests call `runDueJobs` directly.
+
+### 5.1 Alerts
+
+```
+GET  /api/v1/integrations/alerts
+POST /api/v1/integrations/alerts/acknowledge
+```
+
+Roles: OWNER, MANAGER. Alerts are **derived on read** from the records that
+cause them, never stored separately:
+
+| Kind | From | Sentence |
+|---|---|---|
+| `JOB_DEAD` | A `DEAD` job | "Swiggy did not answer after 6 tries: mark food ready for order 249377796192385." |
+| `PLATFORM_ACCEPT_FAILED` | A platform order `FAILED` | "Accepted on Swiggy but not created here. Enter it by hand." |
+| `PLATFORM_AMOUNT_MISMATCH` | A platform order with `amountMismatch` | "Zomato order … : the platform charged ₹305.00, our bill says ₹310.00." |
+| `PLATFORM_CANCELLED_CLOSED_DAY` | A platform order `NEEDS_ATTENTION` for `DAY_CLOSED` | "Zomato cancelled an order on 26 Sep, a closed day. Reopen it to void the bill." |
+| `TERMINAL_UNKNOWN` | A terminal transaction `UNKNOWN` | "The card machine approved ₹500.00 for bill …, but ₹295.00 was asked for. Check the machine's slip." |
+| `TALLY_FAILED` | A Tally export `FAILED`, `PARTIAL` or `UNKNOWN` | "Tally refused 2 vouchers for 26 Sep: …" |
+
+Each `{ kind, id, at, provider, sentence, link }`. `POST .../acknowledge`
+`{ kind, id }` sets `acknowledgedAt` and `acknowledgedBy` on the source record;
+an acknowledged alert is no longer listed. The same alerts appear in R1 Today's
+alerts section, kind `INTEGRATION`.
+
+## 6. Acting without a signed-in person
+
+`server/services/integrations/systemActor.js`, `asIntegration(restaurantId,
+branchId, provider)`, returns a request-like context `{ restaurantId, branchId,
+user: { id, role }, currentRestaurant }` that every service accepts.
+
+It acts as the restaurant's **integration user**, one per restaurant, created
+when the first connection is saved: name like "Swiggy (automatic)" for the
+provider that first needed it, role `CASHIER`, `isSystem: true`, a phone value
+`system:<restaurantId>` that no sign-in form can type, and a random password
+hash nobody knows. **It cannot sign in**: `authService` refuses any user with
+`isSystem: true` with the same `InvalidCredentialsError` as an unknown phone,
+and refuses a refresh or PIN for one. `GET /users` and every staff list leave
+system users out.
+
+## 7. Order channels
+
+### 7.1 The adapter
+
+`server/services/integrations/channels/adapter.js` documents the interface:
+`capabilities`, `verifyWebhook`, `parseWebhook`, `acceptOrder`, `rejectOrder`,
+`markFoodReady`, `setItemAvailability`, `setStoreStatus`, `pushMenu` (optional),
+`testConnection`. Three adapters: `SANDBOX_PLATFORM`, complete; `SWIGGY` and
+`ZOMATO`, complete only from the platform's own document, otherwise
+`WAITING_FOR_PARTNER` with every method throwing `PartnerSpecMissingError`.
+
+The sandbox signs webhooks with HMAC-SHA256 of the raw body under its
+`webhookSecret` credential, in the header `x-sandbox-signature` as lowercase
+hex. Its config `actsAs` is `ZOMATO` or `SWIGGY`: the platform its orders are
+billed as, so the existing platform rules apply unchanged. Its outgoing calls
+write `OUT` events and succeed, unless its config `failCalls` lists the call to
+fail.
+
+The normalised order and events are in P25 Part H2, and DB-SCHEMA section 36.
+
+Order channel config: `autoAccept` (false), `autoFire` (true),
+`defaultPrepMinutes` (20, 5 to 120), `packagingItemId` (null), and for the
+sandbox `actsAs` and `failCalls`.
+
+### 7.2 Item mapping
+
+| Method and path | Roles |
+|---|---|
+| `GET /integrations/:provider/item-mappings?page&limit` | OWNER, MANAGER |
+| `GET /integrations/:provider/item-mappings/unmapped` | OWNER, MANAGER. Every external item seen in an order with no mapping, newest first, with its last name and the count of orders it was in. |
+| `PUT /integrations/:provider/item-mappings` | OWNER, MANAGER. `{ externalItemId, externalVariantId?, menuItemId, variantId?, addOnMap? }`. Creates or replaces the mapping for that external pair. The menu item, variant and add-ons must be this restaurant's: 422 otherwise. |
+| `DELETE /integrations/:provider/item-mappings/:mappingId` | OWNER, MANAGER. A mapping is configuration, like a recipe, and is removed outright. |
+| `POST /integrations/:provider/item-mappings/import` | OWNER, MANAGER. `{ csv }`, columns `external_item_id,external_variant_id,menu_item,size`, read with the menu import's CSV parser, matched by item name and size. A dry run unless `apply: true`. |
+
+### 7.3 Platform orders
+
+| Method and path | Roles | What it does |
+|---|---|---|
+| `GET /platform-orders?status&date&page&limit` | OWNER, MANAGER, CASHIER | Newest first |
+| `GET /platform-orders/:id` | OWNER, MANAGER, CASHIER | One, with `history` and `attentionReasons` |
+| `POST /platform-orders/:id/accept` | OWNER, MANAGER, CASHIER | `{ prepMinutes? }`, 5 to 120, default the connection's. Refused 422 while any attention reason other than `CASH_ON_DELIVERY` and `RESTAURANT_DELIVERY` remains; those two need `acknowledgeHandling: true`. |
+| `POST /platform-orders/:id/reject` | OWNER, MANAGER, CASHIER | `{ reasonCode, note? }` from `platformRejectReasons.js`. Writes `PLATFORM_ORDER_REJECTED`. |
+| `POST /platform-orders/:id/handed-over` | OWNER, MANAGER, CASHIER | Staff record the rider's pickup when the platform has not sent it; same effect as the platform's `ORDER_PICKED_UP`. |
+| `POST /integrations/:provider/store-status` | OWNER, MANAGER | `{ open }`. Queues `setStoreStatus`. |
+| `POST /integrations/:provider/menu-push` | OWNER, MANAGER | Only when the adapter has `menuPush`; 422 otherwise. Queues `pushMenu` with availability, never prices unless the adapter's document requires them. |
+
+Accept, in this order:
+
+1. Call `acceptOrder` inline, timeout 8 seconds. A failure creates nothing here,
+   keeps the platform order `RECEIVED` or `NEEDS_ATTENTION`, and answers 502
+   `PARTNER_CALL_FAILED` with the plain reason.
+2. Then, in one transaction, create a `DELIVERY` order through
+   `orderOpenService.openOrder` (moved out of the controller in P23, which is
+   P25's G7), with `platform: { code, name, orderId }` from the connection's
+   platform, so the existing one-live-order-per-platform-number guard applies,
+   the tax treatment from `settings.delivery`, `origin: { kind:
+   'PLATFORM_ORDER', id, reference }`, and the integration user as `openedBy`.
+3. Each line is built from its mapping by `buildLineSnapshots` with a price
+   override for this path only: the platform's `unitPriceInPaise` is frozen on
+   the line, with `priceSource: 'PLATFORM'`. Every other line is `MENU`.
+4. A packaging charge is one line of the connection's `packagingItemId` at the
+   platform's price.
+5. With `autoFire`, fire to the stations at once.
+6. If step 2 fails after the platform accepted: status `FAILED`, an alert, and
+   the order's details kept on screen to enter by hand.
+
+On pickup (`ORDER_PICKED_UP` or handed over), as the integration user:
+`createBill`; a merchant discount through `applyDiscount`, reason
+`MERCHANT_PROMO`, funded by the restaurant (a platform-funded discount never
+goes on our bill); then one payment through `recordPayment` with the active
+method whose `platformCode` matches. A difference between our bill total and
+the platform's `totalInPaise` minus `platformDiscountInPaise` larger than the
+round-off still bills, and sets `amountMismatch`.
+
+On `ORDER_CANCELLED` from the platform: not yet fired, the order is cancelled
+with `PLATFORM_CANCELLED`; fired, cancelled with `wasPrepared: true` for lines
+the kitchen marked ready and false otherwise; billed, the bill is voided with
+`PLATFORM_CANCELLED`. On a closed business date nothing changes: the platform
+order becomes `NEEDS_ATTENTION` with `DAY_CLOSED` and an alert.
+
+When every line of an accepted order is ready in the kitchen, `markFoodReady` is
+queued. When an item or variant's availability changes, `setItemAvailability`
+is queued for every `ACTIVE` channel where it is mapped, once per channel.
+
+### 7.4 On the incoming requests screen
+
+Platform orders join P23's inbox, alert, chime, spoken line and banner; nothing
+is copied. `GET /online/inbox` gains `waitingPlatformOrders` and its `latest`
+can be `{ kind: "PLATFORM_ORDER", provider, reference, itemCount, acceptBy }`.
+The inbox and its alert are on when `features.online` is on **or** any order
+channel connection is `ACTIVE`; `GET /auth/me`'s `online` block gains
+`platformChannels: ["SANDBOX_PLATFORM"]`, the active order channels.
+
+## 8. Payment terminals: Pine Labs
+
+Credentials: `merchantId`, `securityToken`. Config: `baseUrl` (required; the UAT
+address is the default only in `UAT`), `paths: { upload, status, cancel }`, each
+required with no code default, `storeId`, `terminals: [{ name, clientId }]` (at
+least one), `autoCancelMinutes` (5), `postbackEnabled` (false).
+
+| Method and path | Roles | What it does |
+|---|---|---|
+| `POST /bills/:billId/terminal-payments` | OWNER, MANAGER, CASHIER, and WAITER under M3 section 16.2 | `{ method, amountInPaise, terminalClientId }`. The method must be linked to `PINE_LABS`, active, and pass every rule a hand payment passes; the amount must fit the bill. Uploads with UploadBilledTransaction and answers 201 with the transaction, `WAITING`, and its `ptrid`. |
+| `GET /terminal-payments/:id` | same | The transaction. When `WAITING` and not checked in the last 3 seconds, calls GetStatus first. |
+| `POST /terminal-payments/:id/cancel` | same | CancelTransaction. `CANCELLED` once Pine Labs confirms; an approval that arrives first wins. |
+| `POST /hooks/PINE_LABS/:webhookKey` | none, the key | Postback, when `postbackEnabled`. A hint only: it triggers GetStatus, never records anything itself. |
+
+`transactionNumber` is the bill number with everything but letters and digits
+removed; `sequenceNumber` counts every attempt on that bill from 1, so a retry
+after a decline is a new sequence. The pair is unique per connection.
+
+When GetStatus reports approval, in one transaction: the transaction moves to
+`APPROVED` only if it is not already, and the payment is recorded through
+`recordPayment` with `reference` the RRN and `terminal: { provider, ptrid, rrn,
+approvalCode, tid, paymentMode }`. `terminaltransactions.paymentId` is unique,
+so one approval is never two payments. An approved amount different from the
+one asked for records nothing, sets `UNKNOWN`, and raises an alert.
+
+A job checks every `WAITING` transaction every 30 seconds until it finishes, or
+until `autoCancelMinutes` plus 5 minutes pass, when it becomes `EXPIRED` after a
+final check.
+
+## 9. Accounting: Tally
+
+### 9.1 Connection
+
+No secrets. Config: `version` (`TALLY_PRIME` or `TALLY_ERP9`), `companyName`,
+`granularity` (`DAILY_SUMMARY` default, or `PER_BILL`), `voucherTypes` (`sales`,
+`receipt`, `payment`, `journal`, defaulting to the same words), `ledgers` (9.2),
+`exportPayouts` (false), `delivery` (`FILE` or `BRIDGE`).
+
+### 9.2 Ledger mapping
+
+`config.ledgers`:
+
+```json
+{
+  "salesByRate": { "500": "Sales @ 5%" },
+  "platformSales": "Sales, aggregator, section 9(5)",
+  "cgst": "Output CGST", "sgst": "Output SGST", "roundOff": "Round Off",
+  "paymentMethods": { "CASH": "Cash", "CARD": "Card Settlement", "UPI": "UPI Collections", "SWIGGY": "Swiggy Receivable", "ONLINE": "Razorpay" },
+  "onHold": { "mode": "ONE", "ledger": "Sundry Debtors - On Hold", "byAccount": {} },
+  "paidOut": "Petty Expenses", "paidIn": "Petty Cash Received",
+  "bank": "Bank", "commissionByMethod": { "SWIGGY": "Swiggy Commission" },
+  "parentGroups": { "sales": "Sales Accounts", "tax": "Duties & Taxes", "payment": "Current Assets", "onHold": "Sundry Debtors", "expense": "Indirect Expenses", "income": "Indirect Incomes" }
+}
+```
+
+`onHold.mode` is `ONE` (one combined ledger) or `PER_ACCOUNT` (`byAccount` keyed
+by account id). Before any export, every head with an amount on that date must
+have a ledger: 422 `TALLY_MAPPING_INCOMPLETE` listing each missing head.
+
+### 9.3 Endpoints
+
+| Method and path | Roles | What it does |
+|---|---|---|
+| `GET /integrations/tally/days?from&to` | OWNER, MANAGER | One row per business date: `closed`, and the latest export's status |
+| `POST /integrations/tally/exports` | OWNER, MANAGER | `{ from, to }`, at most 31 dates. Builds one export per **closed** date. An open date is 422 `DAY_NOT_CLOSED`; a date already `POSTED` or `DOWNLOADED` is 409 `TALLY_ALREADY_EXPORTED`. |
+| `GET /integrations/tally/exports/:id/file` | OWNER, MANAGER | The XML as `application/xml`, `attachment`. Marks `DOWNLOADED`. |
+| `POST /integrations/tally/exports/:id/send` | OWNER, MANAGER | Queues `POST_VOUCHERS` for the bridge. `QUEUED`. Needs a paired bridge: 422 otherwise. |
+| `POST /integrations/tally/exports/:id/redo` | OWNER | `{ confirmation }`, exactly "I have deleted the vouchers for 26 Sep 2026 from Tally." with that date. Marks the old export `STALE` and builds a new one. `TALLY_EXPORT_REDONE`. |
+| `GET /integrations/tally/ledger-masters/file` | OWNER | An XML of plain ledgers under the parent group chosen per head. GST details on tax ledgers are set by the accountant in Tally. |
+| `POST /integrations/tally/bridges/pairing-code` | OWNER | `{ name }`. Returns an 8-character code, valid 10 minutes, once. |
+| `GET /integrations/tally/bridges` | OWNER, MANAGER | Each bridge with `lastSeenAt`, `tallyVersionSeen`, `companiesSeen`, revoked or not. Never the token. |
+| `POST /integrations/tally/bridges/:id/revoke` | OWNER | `TALLY_BRIDGE_REVOKED` |
+
+Reopening a day marks every export of that date `STALE`. A posted export moving
+to `POSTED` writes `TALLY_EXPORT_POSTED`.
+
+### 9.4 The bridge's own routes
+
+Authenticated by `Authorization: Bearer <bridge token>`, through a small
+middleware used only by these routes, with its own rate limiter (60 a minute
+per token). The token is never stored; its SHA-256 is. It is not a user
+session and opens nothing else.
+
+| Method and path | What it does |
+|---|---|
+| `POST /api/v1/tally-bridge/pair` | `{ code, machineName }`, no token. A valid unused code gives `{ token, bridgeId, serverName }` once. `TALLY_BRIDGE_PAIRED`. A wrong, used or expired code is 401 `PAIRING_CODE_INVALID`, the same answer for each. |
+| `GET /api/v1/tally-bridge/jobs/next` | The next job for this bridge's connection: `{ jobId, type, xml?, companyName }`, `type` one of `POST_VOUCHERS`, `FETCH_LEDGERS`, `PING`; or 204 when there is none. Updates `lastSeenAt`. |
+| `POST /api/v1/tally-bridge/jobs/:jobId/result` | `{ ok, httpStatus, body, tallyVersion?, companies? }`, body up to 5 MB. The server parses Tally's answer (P25 Part J5). |
+
+A revoked or unknown token is 401 `BRIDGE_TOKEN_INVALID` everywhere.
+
+Posting checks first: a `FETCH_LEDGERS` result newer than the mapping must list
+every mapped ledger, or the post is refused with the missing names.
+
+## Permission summary for M21
+
+| Action | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
+|---|---|---|---|---|---|---|
+| GET /integrations, events, alerts | yes | yes | no | no | no | no |
+| PUT /integrations/:provider, test, pause, resume, webhook-key | yes | no | no | no | no | no |
+| Acknowledge an alert | yes | yes | no | no | no | no |
+| Item mappings, store status, menu push | yes | yes | no | no | no | no |
+| Platform orders: list, read, accept, reject, handed over | yes | yes | yes | no | no | no |
+| Terminal payments | yes | yes | yes | when both billing settings | no | no |
+| Tally days, exports, file, send, bridges list | yes | yes | no | no | no | no |
+| Tally redo, ledger masters file, pairing code, revoke | yes | no | no | no | no | no |
+
+Webhooks and the bridge routes have no user. They are checked by their own keys
+and tokens.
+
+## Error codes added by M21
+
+| Code | Status | When |
+|---|---|---|
+| `PARTNER_SPEC_MISSING` | 422 | The provider is waiting for the partner's approval and document |
+| `INTEGRATION_NOT_ACTIVE` | 422 | The connection is missing, a draft, paused or in error |
+| `INTEGRATION_TEST_FAILED` | 422 | Test connection failed; the message is the plain reason |
+| `PARTNER_CALL_FAILED` | 502 | A call to the partner failed or timed out while a person waited |
+| `TERMINAL_REQUIRED` | 422 | A method linked to a card machine was recorded by hand without a manager's bypass |
+| `TALLY_MAPPING_INCOMPLETE` | 422 | A head with an amount has no ledger; `missing` lists them |
+| `TALLY_ALREADY_EXPORTED` | 409 | The date was posted or downloaded already; redo needs the owner's confirmation |
+| `DAY_NOT_CLOSED` | 422 | Only closed days are exported |
+| `PAIRING_CODE_INVALID` | 401 | A pairing code is wrong, used or expired |
+| `BRIDGE_TOKEN_INVALID` | 401 | A bridge token is unknown or revoked |
+
+## Settled while specifying P25
+
+1. **G1 reuses P24's `secretBox.js`**, adding `encryptJson` and `decryptJson`
+   beside `sealSecret` and `openSecret`, under its own key
+   `INTEGRATION_SECRETS_KEY`.
+2. **G7 is already done.** P23 moved order creation into
+   `services/orderOpenService.js` `openOrder`; the order channel uses it.
+3. The integration user's role is `CASHIER` with `isSystem: true`, and it is
+   refused at sign-in.
+4. Alerts are derived on read from their source records, with an
+   `acknowledgedAt` on each, rather than stored in a collection of their own.
+5. The sandbox carries `actsAs`, the platform it bills as, because orders and
+   payment methods only know `ZOMATO` and `SWIGGY`.
+6. A Tally pairing code is held on a pending `tallybridges` row, not a separate
+   collection.
+7. The device storage key stays `caffeza.device`. It is not seen by anyone, and
+   renaming it would forget every device's printer and station.
