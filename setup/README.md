@@ -61,10 +61,10 @@ changes, and every problem is listed at once.
 ## The menu file, `zchaat-menu.csv`
 
 ```
-category,item,size,price,gst_percent,available
-Italian Coffees,Caffe Latte,,220.00,5,yes
-Pizza,Margherita,Regular,280.00,5,yes
-Pizza,Margherita,Large,420.00,5,yes
+category,item,size,price,gst_percent,available,description
+Chaat Darbar,Sev Poori Chaat,,265.00,5,yes,"Flat puris with potato, onion, tamarind and green chutney and sev. 200gm"
+Breads,Tandoori Roti,Plain,69.00,5,yes,
+Breads,Tandoori Roti,Butter,69.00,5,yes,
 ```
 
 - One row per item, or per size of an item that comes in sizes. Rows with the
@@ -73,14 +73,19 @@ Pizza,Margherita,Large,420.00,5,yes
 - Prices are rupees before tax, with up to two decimals.
 - `gst_percent` is 0, 5, 12, 18 or 28.
 - `available` is yes or no.
+- `description` is optional, up to 500 characters. A file with only the first
+  six columns still works, and then leaves existing descriptions alone. With
+  the column, an empty cell means no description, and an item with sizes takes
+  the first description among its rows. A description with a comma or a quote
+  goes in double quotes, with a quote inside written twice: `"Says ""hi"", once"`.
 - Categories are made in the order they first appear. Items keep their file
   order.
 - A name containing a comma goes in double quotes.
 - Lines starting with `#` are comments.
 - If any row has a problem, every problem is listed with its line number and
   nothing is written.
-- Re-running updates an item's price, GST, sizes and availability to match the
-  file. Items on the menu but not in the file are listed and left alone.
+- Re-running updates an item's price, GST, sizes, availability and, with the
+  column, description to match the file. Items on the menu but not in the file are listed and left alone.
 
 The add-ons file, passed with `--addons`:
 

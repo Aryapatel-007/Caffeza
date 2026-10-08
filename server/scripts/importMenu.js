@@ -12,10 +12,15 @@
  *
  * The file:
  *
- *   category,item,size,price,gst_percent,available
- *   Italian Coffees,Caffe Latte,,220.00,5,yes
- *   Pizza,Margherita,Regular,280.00,5,yes
- *   Pizza,Margherita,Large,420.00,5,yes
+ *   category,item,size,price,gst_percent,available,description
+ *   Italian Coffees,Caffe Latte,,220.00,5,yes,"Espresso and steamed milk."
+ *   Pizza,Margherita,Regular,280.00,5,yes,
+ *   Pizza,Margherita,Large,420.00,5,yes,
+ *
+ * `description` is optional (P25): a file with the first six columns works as
+ * before. With it, it fills the item's description, the first non-empty one
+ * among an item's size rows, and an empty cell means no description. Without
+ * it, an existing description is left alone.
  *
  * Lines starting with # are comments. Prices are rupees with up to two
  * decimals, converted by rupeesToPaise. GST is 0, 5, 12, 18 or 28 percent and
@@ -30,11 +35,14 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { MENU_ITEM_DESCRIPTION_MAX_LENGTH } from '../models/MenuItem.js';
 import { rupeesToPaise } from '../utils/money.js';
 import { applySteps, countSteps, formatPlan, parseArgs, startOwnerSession } from './lib/scriptApi.js';
 import { planCategoryRouting, validateSetupConfig } from './setupRestaurant.js';
 
 const MENU_HEADER = ['category', 'item', 'size', 'price', 'gst_percent', 'available'];
+/** P25. The optional seventh column. */
+const MENU_HEADER_WITH_DESCRIPTION = [...MENU_HEADER, 'description'];
 const ADDON_HEADER = ['item', 'addon', 'price', 'available'];
 const GST_PERCENTS = new Set(['0', '5', '12', '18', '28']);
 const PRICE_PATTERN = /^\d+(\.\d{1,2})?$/;
@@ -99,10 +107,12 @@ export function parseCsv(text) {
   return rows;
 }
 
-function readHeader(rows, expected, errors) {
+/** The rows after the header, or none. `expected` may list more than one allowed header. */
+function readHeader(rows, expected, errors, allowed = [expected]) {
   const [header, ...rest] = rows;
-  if (!header || header.fields.map((value) => value.toLowerCase()).join(',') !== expected.join(',')) {
-    errors.push({ line: header?.line ?? 1, message: `The first row must be the header: ${expected.join(',')}` });
+  const found = header?.fields.map((value) => value.toLowerCase()).join(',');
+  if (!header || !allowed.some((columns) => columns.join(',') === found)) {
+    errors.push({ line: header?.line ?? 1, message: `The first row must be the header: ${allowed.map((columns) => columns.join(',')).join(' or ')}` });
     return [];
   }
   return rest;
@@ -129,18 +139,25 @@ function readPrice(value, line, errors) {
  */
 export function parseMenuCsv(text) {
   const errors = [];
-  const rows = readHeader(parseCsv(text), MENU_HEADER, errors);
+  const parsed = parseCsv(text);
+  const rows = readHeader(parsed, MENU_HEADER, errors, [MENU_HEADER, MENU_HEADER_WITH_DESCRIPTION]);
+  const hasDescriptions = parsed[0]?.fields.length === MENU_HEADER_WITH_DESCRIPTION.length;
+  const columns = hasDescriptions ? MENU_HEADER_WITH_DESCRIPTION.length : MENU_HEADER.length;
   const categories = [];
   const byCategory = new Map();
   const byItem = new Map();
 
   for (const { line, fields } of rows) {
-    if (fields.length !== MENU_HEADER.length) {
-      errors.push({ line, message: `Expected ${MENU_HEADER.length} values, found ${fields.length}.` });
+    if (fields.length !== columns) {
+      errors.push({ line, message: `Expected ${columns} values, found ${fields.length}.` });
       continue;
     }
     const [category, item, size, price, gst, available] = fields;
+    const description = hasDescriptions ? fields[6] || null : null;
     const before = errors.length;
+    if (description && description.length > MENU_ITEM_DESCRIPTION_MAX_LENGTH) {
+      errors.push({ line, message: `The description is longer than ${MENU_ITEM_DESCRIPTION_MAX_LENGTH} characters.` });
+    }
     if (!category) errors.push({ line, message: 'The category is missing.' });
     if (!item) errors.push({ line, message: 'The item name is missing.' });
     const priceInPaise = readPrice(price, line, errors);
@@ -158,7 +175,7 @@ export function parseMenuCsv(text) {
         byCategory.set(category.toLowerCase(), group);
         categories.push(group);
       }
-      entry = { name: item, category, line, priceInPaise, taxRateBps, isAvailable, sized: Boolean(size), variants: [], addOns: [] };
+      entry = { name: item, category, line, priceInPaise, taxRateBps, isAvailable, description, sized: Boolean(size), variants: [], addOns: [] };
       byItem.set(key, entry);
       byCategory.get(category.toLowerCase()).items.push(entry);
     } else {
@@ -175,6 +192,7 @@ export function parseMenuCsv(text) {
         continue;
       }
     }
+    if (!entry.description && description) entry.description = description;
     if (size) {
       if (entry.variants.some((variant) => variant.name.toLowerCase() === size.toLowerCase())) {
         errors.push({ line, message: `"${item}" has the size "${size}" twice.` });
@@ -187,7 +205,7 @@ export function parseMenuCsv(text) {
     }
   }
 
-  return { categories, errors };
+  return { categories, errors, hasDescriptions };
 }
 
 /** The add-ons file. Each add-on joins its item by name. */
@@ -327,6 +345,7 @@ export async function planMenu(client, menu, { config = null } = {}) {
               priceInPaise: item.priceInPaise,
               taxRateBps: item.taxRateBps,
               displayOrder: position,
+              ...(item.description ? { description: item.description } : {}),
               ...(item.variants.length ? { variants: subdocuments([], item.variants) } : {}),
               ...(item.addOns.length ? { addOns: subdocuments([], item.addOns) } : {}),
             });
@@ -342,6 +361,7 @@ export async function planMenu(client, menu, { config = null } = {}) {
       const changes = {};
       if (existing.priceInPaise !== item.priceInPaise) changes.priceInPaise = item.priceInPaise;
       if (existing.taxRateBps !== item.taxRateBps) changes.taxRateBps = item.taxRateBps;
+      if (menu.hasDescriptions && (existing.description ?? null) !== item.description) changes.description = item.description;
       if (subdocumentsDiffer(existing.variants ?? [], item.variants)) changes.variants = subdocuments(existing.variants ?? [], item.variants);
       if (item.addOns.length && subdocumentsDiffer(existing.addOns ?? [], item.addOns)) {
         changes.addOns = subdocuments(existing.addOns ?? [], item.addOns);
