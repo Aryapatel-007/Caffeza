@@ -2414,6 +2414,7 @@ One partner connection per restaurant, branch and provider.
 | `credentialHints` | Object | yes | Each secret field's last 4 characters. Default `{}`. |
 | `config` | Object | yes | Plain settings, checked by the provider's config schema |
 | `webhookKeyHash` | String | no | SHA-256 hex of the random key in this connection's webhook address |
+| `storeOpen` | Boolean | yes | Order channels: the store, open or closed on the platform, as staff last set it. Default true. Auto-accept only while open. (Built in P25 Part H.) |
 | `lastSuccessAt`, `lastErrorAt` | Date | no | |
 | `lastError` | String | no | A plain sentence, up to 300 characters, with no secret in it |
 | `createdBy`, `updatedBy` | ObjectId | yes | |

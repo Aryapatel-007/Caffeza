@@ -465,7 +465,7 @@ P25 progress
 - [x] E Cancel an item after billing
 - [x] F Cash by notes and coins
 - [x] G Integrations foundation
-- [ ] H Swiggy and Zomato
+- [x] H Swiggy and Zomato
 - [ ] I Pine Labs
 - [ ] J Tally vouchers
 - [ ] K Tally bridge
@@ -506,7 +506,9 @@ Part F: `settings.cash.denominations` (India by default, ₹2,000 listed and off
 
 Part G: `INTEGRATION_SECRETS_KEY` (required in production, a fixed development key with a warning elsewhere; in `.env.example` and DEPLOYMENT.md), `encryptJson` and `decryptJson` with a key id in P24's `secretBox.js`. Three collections: `integrationconnections`, `integrationevents` (180-day TTL, every line through `redactForLog`, which hides secrets and phone numbers), `integrationjobs`. `services/integrations/`: `providers.js` (the registry; Swiggy and Zomato are WAITING_FOR_PARTNER, as `partner-docs/` holds nothing), `connectionService.js`, `jobRunner.js` (claim by `findOneAndUpdate`, retries 30 s, 2 min, 10 min, 30 min, 2 h, then DEAD; started by `server.js` outside tests), `systemActor.js` (the integration user, CASHIER with `isSystem`, refused at sign-in and left out of staff lists), `webhookService.js` with `POST /api/v1/hooks/:provider/:webhookKey` mounted before the JSON parser with its own limiter, and adapter stubs for the sandbox (its signature check is real), Pine Labs and Tally. Endpoints: `GET /integrations`, `PUT /integrations/:provider`, test, pause, resume, webhook-key, events. Audit `INTEGRATION_CONNECTED`, `INTEGRATION_CREDENTIALS_CHANGED`, `INTEGRATION_PAUSED`, `INTEGRATION_RESUMED`. The tenant-guard tripwire now counts two new uses on purpose: the webhook key lookup and the job runner's claim. G7 was already done by P23.
 
-Next: Part H, Swiggy and Zomato through the sandbox platform.
+Part H: `platformitemmappings` and `platformorders`; the sandbox adapter complete (signed webhooks in the normalised shape, phone numbers dropped, outgoing calls logged and failing on request); Swiggy and Zomato stay WAITING_FOR_PARTNER, as `partner-docs/` holds nothing. `services/integrations/platformOrderService.js`: arrival (a duplicate changes nothing), the attention reasons, auto-accept, accept (the platform first, then our DELIVERY order through `openOrder` at the platform's prices with `priceSource: PLATFORM`, fired, as the integration user), reject with a reason (`PLATFORM_ORDER_REJECTED`), pickup (bill, the merchant's discount, the platform's payment method, an amount mismatch flagged), cancelled by the platform before firing, after firing, after billing and on a closed day, food ready once every line is, and availability queued per active channel. `mappingService.js` with list, save, delete, unmapped and CSV import (the menu import's CSV parser moved to `utils/csv.js`). `PLATFORM_CANCELLED` appended to the three reason lists; `platformRejectReasons.js`. The inbox and its alert carry platform orders and are on while online orders are on or a delivery platform is connected; `/auth/me` `online.platformChannels`. Day Close blocks on a platform order waiting, accepted and not picked up, or failed. `npm run sandbox:order` with three samples in `setup/sandbox-orders/`. Golden day B08 as a sandbox Zomato order bills ₹305.00 with shares ₹130.69 and ₹69.31, as TEST-DATA says. Two pinned tests changed on purpose: the second tenant-guard tripwire copy (`menu.test.js`) and `/auth/me`'s online block. Differs from the prompt: accepting is claim, call, create, not one transaction, written into the contract.
+
+Next: Part I, Pine Labs.
 
 ### 2026-10-08 Rishi, P24 built: advance payment, dish photos, the new public page
 

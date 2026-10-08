@@ -6825,6 +6825,17 @@ sandbox `actsAs` and `failCalls`.
 | `POST /integrations/:provider/store-status` | OWNER, MANAGER | `{ open }`. Queues `setStoreStatus`. |
 | `POST /integrations/:provider/menu-push` | OWNER, MANAGER | Only when the adapter has `menuPush`; 422 otherwise. Queues `pushMenu` with availability, never prices unless the adapter's document requires them. |
 
+Settled while building P25 Part H: `openOrder` and `fireOrder` take no session
+(P23 recorded the same), so accepting is not one transaction. It claims the
+platform order with a status-filtered write, calls the platform, then creates
+and fires; a refusal from the platform puts the claim back, and a failure
+after the platform said yes leaves the order `FAILED` with an alert. Before
+the platform is called, the lines are checked against our menu, so a dish
+switched off here is refused with a plain message instead of accepted and
+then failed. The platform's cancel cancels each live line with its own
+answer: made when the kitchen had it ready, not made when it was still
+cooking, nothing to answer when it was never sent.
+
 Accept, in this order:
 
 1. Call `acceptOrder` inline, timeout 8 seconds. A failure creates nothing here,
