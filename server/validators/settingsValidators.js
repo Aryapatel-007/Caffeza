@@ -27,6 +27,7 @@ import {
   RESERVATION_SLOT_MINUTES_VALUES,
   RECEIPT_FOOTER_MAX_LENGTH,
   RECEIPT_HEADER_MAX_LENGTH,
+  REVIEW_LINK_MAX_LENGTH,
   SECOND_LANGUAGES,
   TAX_PRICING_MODE_VALUES,
   TODAY_TILE_KEYS,
@@ -91,6 +92,24 @@ const tax = z
   })
   .strict();
 
+/**
+ * P25. The address a guest's phone opens from the QR code on the bill: https
+ * only, a real web address, at most 300 characters. "" or null clears it.
+ */
+const reviewLinkUrl = z
+  .union([z.string(), z.null()])
+  .transform((value) => (value === null || value.trim() === '' ? null : value.trim()))
+  .refine((value) => value === null || value.length <= REVIEW_LINK_MAX_LENGTH, `Cannot be longer than ${REVIEW_LINK_MAX_LENGTH} characters.`)
+  .refine((value) => {
+    if (value === null) return true;
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' && url.hostname.includes('.') && !/\s/.test(value);
+    } catch {
+      return false;
+    }
+  }, 'Must be a web address starting with https://.');
+
 const receipt = z
   .object({
     headerLine1: receiptText(RECEIPT_HEADER_MAX_LENGTH, 'The first header line').optional(),
@@ -99,6 +118,7 @@ const receipt = z
     showGstin: z.boolean({ error: 'Must be true or false.' }).optional(),
     showFssai: z.boolean({ error: 'Must be true or false.' }).optional(),
     showServerName: z.boolean({ error: 'Must be true or false.' }).optional(),
+    reviewLinkUrl: reviewLinkUrl.optional(),
   })
   .strict();
 

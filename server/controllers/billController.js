@@ -25,8 +25,8 @@ import {
   assertCanDiscount,
   assertCanVoid,
 } from '../services/billPermissionService.js';
-import { renderReceipt } from '../services/receiptService.js';
-import { getSetting } from '../services/settingsService.js';
+import { buildInvoiceData, renderReceipt } from '../services/receiptService.js';
+import { getSetting, getSettings } from '../services/settingsService.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped, scopedForAggregate } from '../utils/scopedQuery.js';
 import { businessDateFor, nowUtc } from '../utils/time.js';
@@ -169,8 +169,25 @@ export async function getReceipt(req, res) {
   // Tenancy root, looked up by _id from a verified token. See DB-SCHEMA.
   const restaurant = await Restaurant.findById(req.restaurantId);
   const { width } = req.query;
+  const { receipt } = await getSettings(req.restaurantId, { req });
 
-  return sendSuccess(res, { width, text: renderReceipt({ restaurant, bill, width }) });
+  return sendSuccess(res, {
+    width,
+    text: renderReceipt({ restaurant, bill, width, receipt }),
+    // P25 C5. The client draws this as a QR code under the text.
+    reviewLinkUrl: receipt.reviewLinkUrl ?? null,
+  });
+}
+
+/**
+ * GET /bills/:billId/invoice. P25 C4. The same data the receipt is laid out
+ * from, for a full A4 or A5 page drawn on the client.
+ */
+export async function getInvoice(req, res) {
+  const bill = await readBill(req, req.params.billId);
+  const restaurant = await Restaurant.findById(req.restaurantId);
+  const { receipt } = await getSettings(req.restaurantId, { req });
+  return sendSuccess(res, buildInvoiceData({ restaurant, bill, receipt }));
 }
 
 /** GET /bills/summary */

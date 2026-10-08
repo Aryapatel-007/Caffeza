@@ -366,6 +366,8 @@ Added by P25.
 | **Print request** | A captain asking for a bill to print on the counter's printer |
 | **Bill printer** | This device's printer setting: Thermal 80 mm, Thermal 58 mm, A4 or A5 |
 | **Duplicate** | Printed at the top of a bill from its second print on |
+| **Tax invoice** | The words at the top of every printed bill, thermal or full page |
+| **Rate** | On a full-page invoice, the price of one of an item, add-ons included, before GST |
 | **Platform order** | An order a delivery platform sends through an integration, before and after it becomes our delivery order. Not an online order, which comes from the restaurant's own page. |
 | **Order channel** | A delivery platform connected to receive orders: Swiggy, Zomato, or the sandbox platform |
 | **Sandbox platform** | A practice order channel that behaves like a platform, for testing and training. Never in production. |

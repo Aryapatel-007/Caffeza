@@ -2511,8 +2511,8 @@ golden day bill.
   "success": true,
   "data": {
     "restaurant": {
-      "name": "Z Chaat", "legalName": "…", "address": "…", "phone": "76008 58900",
-      "gstin": "…", "fssaiNumber": "…", "headerLines": ["Indian Street Food"]
+      "name": "Z Chaat", "legalName": "…", "address": "…", "addressLines": ["…"], "phone": "7600858900",
+      "gstin": "…", "fssaiNumber": "…", "headerAbove": null, "headerLines": ["Indian Street Food"]
     },
     "billId": "6600…", "billNumber": "ZC/1001", "isVoided": false,
     "isDuplicate": false, "printCount": 0,
@@ -2537,8 +2537,13 @@ golden day bill.
 }
 ```
 
-`gstin`, `fssaiNumber` and `legalName` are null when the matching receipt switch
-(`showGstin`, `showFssai`) is off or the value is not set. `isDuplicate` is true
+`gstin` and `fssaiNumber` are null when the matching receipt switch
+(`showGstin`, `showFssai`) is off or the value is not set; `captainName` is null
+unless `showServerName` is on. `headerAbove` is `receipt.headerLine1`, printed
+above the name, and `headerLines` holds `receipt.headerLine2`. From P25 the
+receipt settings are wired: the thermal text and this data both read them, and
+the receipt endpoint also returns `reviewLinkUrl` so the client can draw its QR
+code under the text, which ends "Scan to review us". `isDuplicate` is true
 when `printCount` is 1 or more (16.3). Money is whole paise; the client formats
 it through `Money`.
 
@@ -3472,7 +3477,7 @@ Added to `restaurants.settings`. Every field has a default, so an existing resta
 
 ### `settings.receipt`
 
-Nothing consumes these yet. Thermal printing is Phase 2 and will read them.
+Printed on every bill from P25 Part C, thermal and full page alike.
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
@@ -3735,7 +3740,7 @@ So M7 stores them and stops there. Wiring them into `server/utils/tax.js` is its
 
 The settings screen shows both fields with a short note saying they take effect once billing is updated. That is honest, and it is better than hiding a control an owner will ask about.
 
-`settings.receipt.*` is likewise consumed by nothing until Phase 2 printing exists. It is stored now because the values are worth collecting during onboarding, not because anything reads them today.
+`settings.receipt.*` was consumed by nothing until P25. From P25 Part C the receipt and the full-page invoice both read it: see M3 section 16.1.
 
 ## 5. What is wired now
 

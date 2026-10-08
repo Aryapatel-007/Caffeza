@@ -95,44 +95,145 @@ function istStamp(date) {
   return `${dayOfMonth}/${month}/${year} ${time.slice(0, 5)}`;
 }
 
+/** The address as one line, for the full page. */
+function addressLine(address = {}) {
+  return [address.line1, address.line2, [address.city, address.pincode].filter(Boolean).join(' ')]
+    .filter(Boolean)
+    .join(', ');
+}
+
+/** "Discount (10%)" or "Discount", the same words on paper and on the page. */
+function discountLabel(discount) {
+  return discount.kind === 'PERCENT' ? `Discount (${discount.rateBps / 100}%)` : 'Discount';
+}
+
 /**
- * Renders a bill as plain text at a fixed column width.
+ * The bill as the data every printed form of it is laid out from. P25 C4,
+ * API-CONTRACT M3 section 16.1.
  *
- * `restaurant` and `bill` are documents. Nothing is fetched here: the caller
- * has both already and a formatter that reaches for the database is a
- * formatter that cannot be tested without one.
+ * `renderReceipt` lays this out as fixed-width text for a thermal roll, and
+ * GET /bills/:billId/invoice returns it as it is for a full A4 or A5 page. One
+ * object, so the two can never print different amounts. `receipt` is
+ * `settings.receipt`; a missing one prints the name, GSTIN and FSSAI, and no
+ * header or footer lines.
  */
-export function renderReceipt({ restaurant, bill, width = 32 }) {
+export function buildInvoiceData({ restaurant, bill, receipt = {} }) {
+  const showGstin = receipt.showGstin ?? true;
+  const showFssai = receipt.showFssai ?? true;
+  const printCount = bill.printCount ?? 0;
+
+  return {
+    restaurant: {
+      name: restaurant.name,
+      legalName: restaurant.legalName || null,
+      address: addressLine(restaurant.address ?? {}) || null,
+      addressLines: [
+        restaurant.address?.line1,
+        restaurant.address?.line2,
+        [restaurant.address?.city, restaurant.address?.pincode].filter(Boolean).join(' '),
+      ].filter(Boolean),
+      phone: restaurant.contactPhone || null,
+      gstin: showGstin ? restaurant.gstin || null : null,
+      fssaiNumber: showFssai ? restaurant.fssaiLicenseNumber || null : null,
+      headerAbove: receipt.headerLine1 || null,
+      headerLines: [receipt.headerLine2].filter(Boolean),
+    },
+    billId: String(bill._id ?? bill.id),
+    billNumber: bill.billNumber,
+    isVoided: Boolean(bill.isVoided),
+    printCount,
+    isDuplicate: printCount >= 1,
+    issuedAt: bill.billedAt,
+    issuedAtIst: istStamp(bill.billedAt),
+    businessDate: bill.businessDate,
+    orderType: bill.orderType ?? null,
+    tableName: bill.tableName ?? null,
+    captainName: receipt.showServerName ? bill.captainName ?? null : null,
+    guestCount: bill.guestCount ?? null,
+    platform: bill.platform?.code ? { code: bill.platform.code, name: bill.platform.name, orderId: bill.platform.orderId } : null,
+    taxTreatment: bill.taxTreatment ?? 'NORMAL',
+    lines: bill.lines.map((line) => ({
+      itemName: line.itemName,
+      variantName: line.variantName ?? null,
+      addOnNames: [...(line.addOnNames ?? [])],
+      quantity: line.quantity,
+      unitPriceInPaise: line.unitPriceInPaise,
+      lineTotalInPaise: line.lineTotalInPaise,
+      taxRateBps: line.taxRateBps,
+    })),
+    itemTotalInPaise: bill.subtotalInPaise,
+    discount: bill.discount
+      ? {
+          label: discountLabel(bill.discount),
+          reason: discountReasonText(bill.discount) || null,
+          amountInPaise: bill.discount.amountInPaise,
+        }
+      : null,
+    taxRows: bill.taxBreakdown.map((slab) => ({
+      taxRateBps: slab.taxRateBps,
+      netSalesInPaise: slab.taxableInPaise,
+      cgstInPaise: slab.cgstInPaise,
+      sgstInPaise: slab.sgstInPaise,
+    })),
+    cgstInPaise: bill.taxBreakdown.reduce((sum, slab) => sum + slab.cgstInPaise, 0),
+    sgstInPaise: bill.taxBreakdown.reduce((sum, slab) => sum + slab.sgstInPaise, 0),
+    gstInPaise: bill.totalTaxInPaise,
+    roundOffInPaise: bill.roundOffInPaise,
+    billTotalInPaise: bill.grandTotalInPaise,
+    payments: (bill.payments ?? []).map((payment) => ({
+      methodName: payment.methodName ?? payment.method,
+      amountInPaise: payment.amountInPaise,
+    })),
+    accountName: bill.account?.accountName ?? null,
+    footerText: receipt.footerText || null,
+    reviewLinkUrl: receipt.reviewLinkUrl || null,
+  };
+}
+
+/**
+ * Renders a bill as plain text at a fixed column width, from
+ * `buildInvoiceData`. `restaurant` and `bill` are documents. Nothing is
+ * fetched here: the caller has both already, and a formatter that reaches for
+ * the database is a formatter that cannot be tested without one.
+ *
+ * The review link's QR code is drawn by the client under this text; the text
+ * only says "Scan to review us" is coming.
+ */
+export function renderReceipt({ restaurant, bill, width = 32, receipt = {} }) {
+  return layoutReceipt(buildInvoiceData({ restaurant, bill, receipt }), width);
+}
+
+/** Fixed-width text from the invoice data. */
+export function layoutReceipt(data, width = 32) {
   const lines = [];
   const push = (text = '') => lines.push(text);
+  const header = data.restaurant;
 
-  push(centre(restaurant.name.toUpperCase(), width));
-  if (restaurant.legalName) push(centre(restaurant.legalName, width));
-
-  const address = restaurant.address ?? {};
-  for (const part of [address.line1, address.line2]) {
-    if (part) push(centre(part, width));
-  }
-  if (address.city || address.pincode) {
-    push(centre([address.city, address.pincode].filter(Boolean).join(' '), width));
-  }
-  if (restaurant.gstin) push(centre(`GSTIN: ${restaurant.gstin}`, width));
-  if (restaurant.fssaiLicenseNumber) {
-    push(centre(`FSSAI: ${restaurant.fssaiLicenseNumber}`, width));
-  }
+  if (data.isDuplicate) push(centre('*** DUPLICATE ***', width));
+  if (header.headerAbove) push(centre(header.headerAbove, width));
+  push(centre(header.name.toUpperCase(), width));
+  for (const extra of header.headerLines) push(centre(extra, width));
+  if (header.legalName) push(centre(header.legalName, width));
+  for (const part of header.addressLines) push(centre(part, width));
+  if (header.phone) push(centre(`Ph: ${header.phone}`, width));
+  if (header.gstin) push(centre(`GSTIN: ${header.gstin}`, width));
+  if (header.fssaiNumber) push(centre(`FSSAI: ${header.fssaiNumber}`, width));
 
   push(rule(width, DOUBLE_RULE));
-  push(row('Bill', bill.billNumber, width));
-  push(row('Date', bill.businessDate, width));
-  push(row('Time', istStamp(bill.billedAt), width));
-  if (bill.tableName) push(row('Table', bill.tableName, width));
+  push(centre('TAX INVOICE', width));
+  push(row('Bill', data.billNumber, width));
+  push(row('Date', data.businessDate, width));
+  push(row('Time', data.issuedAtIst, width));
+  if (data.tableName) push(row('Table', data.tableName, width));
+  if (data.captainName) push(row('Captain', data.captainName, width));
+  if (data.platform) push(row(data.platform.name, data.platform.orderId, width));
   push(rule(width));
 
   // Quantity and amount share the right-hand side, so the name gets the rest.
   push(row('Item', 'Amount', width));
   push(rule(width));
 
-  for (const line of bill.lines) {
+  for (const line of data.lines) {
     const wrapped = wrapName(line.itemName + (line.variantName ? ` (${line.variantName})` : ''), width);
     for (const part of wrapped.slice(0, -1)) push(part);
 
@@ -140,51 +241,48 @@ export function renderReceipt({ restaurant, bill, width = 32 }) {
     push(row(last, money(line.lineTotalInPaise), width));
     push(`  ${line.quantity} x ${money(line.unitPriceInPaise)}`);
 
-    for (const addOn of line.addOnNames ?? []) push(`  + ${addOn}`.slice(0, width));
+    for (const addOn of line.addOnNames) push(`  + ${addOn}`.slice(0, width));
   }
 
   push(rule(width));
-  push(row('Subtotal', money(bill.subtotalInPaise), width));
+  push(row('Subtotal', money(data.itemTotalInPaise), width));
 
-  if (bill.discount) {
-    const label =
-      bill.discount.kind === 'PERCENT'
-        ? `Discount (${bill.discount.rateBps / 100}%)`
-        : 'Discount';
-    push(row(label, `-${money(bill.discount.amountInPaise)}`, width));
-    const reasonLine = discountReasonText(bill.discount);
-    if (reasonLine) for (const part of wrapName(`  ${reasonLine}`, width, 2)) push(part);
+  if (data.discount) {
+    push(row(data.discount.label, `-${money(data.discount.amountInPaise)}`, width));
+    if (data.discount.reason) for (const part of wrapName(`  ${data.discount.reason}`, width, 2)) push(part);
   }
 
-  for (const slab of bill.taxBreakdown) {
+  for (const slab of data.taxRows) {
     const percent = slab.taxRateBps / 100;
     push(row(`CGST @ ${percent / 2}%`, money(slab.cgstInPaise), width));
     push(row(`SGST @ ${percent / 2}%`, money(slab.sgstInPaise), width));
   }
 
-  if (bill.roundOffInPaise !== 0) {
-    const sign = bill.roundOffInPaise > 0 ? '' : '-';
-    push(row('Round off', `${sign}${money(Math.abs(bill.roundOffInPaise))}`, width));
+  if (data.roundOffInPaise !== 0) {
+    const sign = data.roundOffInPaise > 0 ? '' : '-';
+    push(row('Round off', `${sign}${money(Math.abs(data.roundOffInPaise))}`, width));
   }
 
   push(rule(width, DOUBLE_RULE));
-  push(row('TOTAL', money(bill.grandTotalInPaise), width));
+  push(row('TOTAL', money(data.billTotalInPaise), width));
   push(rule(width, DOUBLE_RULE));
 
-  for (const payment of bill.payments ?? []) {
-    push(row(payment.method, money(payment.amountInPaise), width));
+  for (const payment of data.payments) {
+    push(row(payment.methodName, money(payment.amountInPaise), width));
   }
+  if (data.accountName) push(row(`On Hold: ${data.accountName}`, '', width).trimEnd());
 
-  if (bill.isVoided) {
+  if (data.isVoided) {
     push('');
     push(centre('*** VOIDED ***', width));
   }
 
   push('');
-  push(centre('Thank you', width));
+  for (const part of wrapName(data.footerText ?? 'Thank you', width, 0)) push(centre(part, width));
+  if (data.reviewLinkUrl) push(centre('Scan to review us', width));
   push('');
 
   return lines.join('\n');
 }
 
-export default { renderReceipt };
+export default { buildInvoiceData, layoutReceipt, renderReceipt };

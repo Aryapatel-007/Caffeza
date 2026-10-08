@@ -4,32 +4,33 @@ import { Link, useParams } from 'react-router-dom';
 
 import Spinner from '../../components/ui/Spinner.jsx';
 import Toast from '../../components/ui/Toast.jsx';
-import { getBill, getReceipt } from '../../api/bills.js';
+import { getBill, getInvoice, getReceipt } from '../../api/bills.js';
+import { useTheme } from '../../context/ThemeProvider.jsx';
 
 import BillStatusBadge from './BillStatusBadge.jsx';
 import { errorMessage } from './errorCopy.js';
 import { LABELS } from '../i18n/labels.js';
-import { charactersFor, printText } from '../printing/printText.js';
+import { INVOICE_STYLES, invoiceHtml } from '../printing/invoiceHtml.js';
+import { printBill, reviewQrSvg } from '../printing/printBill.js';
+import { charactersFor, PRINTER_KEYS, PRINTERS } from '../printing/printers.js';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import { placeLabel } from '../orders/orderLabel.js';
 import Money, { moneyText } from '../../components/ui/Money.jsx';
 
-const PAPER_SIZES = [
-  { mm: 58, label: '58 mm · 32 characters' },
-  { mm: 80, label: '80 mm · 48 characters' },
-];
-
 /**
  * The receipt, exactly as it prints.
  *
- * The slip is the server's own text from GET /bills/:billId/receipt, laid out
- * at this device's paper width, shown in a monospace block the same width as
- * the paper. Nothing on it is drawn or worked out here, so the preview cannot
- * disagree with the paper. Printing goes through the browser like every other
- * print in the product; the server never talks to a printer.
+ * On a thermal printer the slip is the server's own text from
+ * GET /bills/:billId/receipt, laid out at the roll's width, shown in a
+ * monospace block the same width as the paper. On A4 or A5 it is the full-page
+ * tax invoice, drawn by the same `invoiceHtml` the printer gets, from
+ * GET /bills/:billId/invoice (P25). Nothing on either is worked out here, so
+ * the preview cannot disagree with the paper. Printing goes through the
+ * browser like every other print in the product; the server never talks to a
+ * printer.
  *
- * The paper width is the device's setting (the "This device" page), so
- * changing it here changes it for every print from this device.
+ * The printer is the device's setting (the "This device" page), so changing
+ * it here changes it for every print from this device.
  */
 export default function ReceiptPreviewPage() {
   const { billId } = useParams();
@@ -37,19 +38,28 @@ export default function ReceiptPreviewPage() {
   const [toast, setToast] = useState(null);
   const [printing, setPrinting] = useState(false);
 
-  const width = charactersFor(device.paperMm);
+  const { brand } = useTheme();
+  const printer = device.printer;
+  const thermal = PRINTERS[printer].thermal;
+  const width = charactersFor(printer);
+  const logoDataUrl = brand.logos?.LIGHT_GROUND?.dataUrl ?? null;
 
   const bill = useQuery({ queryKey: ['bill', billId], queryFn: () => getBill(billId) });
   const receipt = useQuery({
     queryKey: ['receipt', billId, width],
     queryFn: () => getReceipt(billId, width),
+    enabled: thermal,
   });
+  const invoice = useQuery({ queryKey: ['invoice', billId], queryFn: () => getInvoice(billId), enabled: !thermal });
+  const shown = thermal ? receipt : invoice;
+  const reviewLinkUrl = shown.data?.reviewLinkUrl ?? null;
+  const qr = useQuery({ queryKey: ['review-qr', reviewLinkUrl], queryFn: () => reviewQrSvg(reviewLinkUrl), enabled: Boolean(reviewLinkUrl) });
 
   const print = async () => {
-    if (!receipt.data) return;
+    if (!shown.data) return;
     setPrinting(true);
     try {
-      await printText(receipt.data.text, device.paperMm);
+      await printBill(billId, { printer, logoDataUrl });
       setToast({ tone: 'success', message: 'Sent to the printer.' });
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error) });
@@ -98,34 +108,32 @@ export default function ReceiptPreviewPage() {
               <button
                 type="button"
                 onClick={print}
-                disabled={printing || !receipt.data}
+                disabled={printing || !shown.data}
                 className="flex min-h-14 w-full items-center justify-center rounded-lg bg-accent type-button text-on-accent disabled:opacity-50"
               >
                 {printing ? 'Printing…' : LABELS.printReceipt}
               </button>
 
               <fieldset>
-                <legend className="mb-2 type-caption text-muted">
-                  Paper width
-                </legend>
-                <div className="grid grid-cols-2 gap-1 rounded-full bg-sunken p-1">
-                  {PAPER_SIZES.map((size) => (
+                <legend className="mb-2 type-caption text-muted">Printer</legend>
+                <div className="grid grid-cols-2 gap-1 rounded-lg bg-sunken p-1">
+                  {PRINTER_KEYS.map((key) => (
                     <button
-                      key={size.mm}
+                      key={key}
                       type="button"
-                      aria-pressed={device.paperMm === size.mm}
-                      onClick={() => updateDevice({ paperMm: size.mm })}
+                      aria-pressed={printer === key}
+                      onClick={() => updateDevice({ printer: key })}
                       className={[
                         'min-h-12 rounded-lg type-caption',
-                        '',
-                        device.paperMm === size.mm ? 'bg-surface border border-line' : 'text-muted',
+                        printer === key ? 'bg-surface border border-line' : 'text-muted',
                       ].join(' ')}
                     >
-                      {size.label}
+                      {PRINTERS[key].label}
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 type-caption text-muted">
+                <p className="mt-2 type-caption text-muted">{PRINTERS[printer].hint}</p>
+                <p className="mt-1 type-caption text-muted">
                   Saved for this device, like the setting on the This device page.
                 </p>
               </fieldset>
@@ -141,13 +149,22 @@ export default function ReceiptPreviewPage() {
 
           <div className="col-span-12 flex flex-col items-center xl:col-span-5">
             <p className="mb-3 rounded-lg bg-sunken/70 px-4 py-2 type-num-meta">
-              As printed · {device.paperMm} mm · {width} characters per line
+              As printed · {PRINTERS[printer].label}{thermal ? ` · ${width} characters per line` : ''}
             </p>
 
-            {receipt.isPending && <Spinner label="Laying out the receipt" />}
-            {receipt.isError && <p className="type-body text-alert">{errorMessage(receipt.error)}</p>}
+            {shown.isPending && <Spinner label="Laying out the receipt" />}
+            {shown.isError && <p className="type-body text-alert">{errorMessage(shown.error)}</p>}
 
-            {receipt.data && (
+            {!thermal && invoice.data && (
+              <iframe
+                title="Tax invoice as printed"
+                className="w-full max-w-[210mm] bg-surface shadow-float"
+                style={{ aspectRatio: `${PRINTERS[printer].widthMm} / ${PRINTERS[printer].heightMm}` }}
+                srcDoc={`<!doctype html><html><head><meta charset="utf-8" /><style>html,body{margin:0;background:white;color:black}body{padding:12mm}${INVOICE_STYLES}</style></head><body>${invoiceHtml(invoice.data, { qrSvg: qr.data ?? null, logoDataUrl })}</body></html>`}
+              />
+            )}
+
+            {thermal && receipt.data && (
               <div className="w-fit max-w-full overflow-x-auto bg-surface px-6 py-8 shadow-float [clip-path:polygon(0_6px,3%_0,6%_6px,9%_0,12%_6px,15%_0,18%_6px,21%_0,24%_6px,27%_0,30%_6px,33%_0,36%_6px,39%_0,42%_6px,45%_0,48%_6px,51%_0,54%_6px,57%_0,60%_6px,63%_0,66%_6px,69%_0,72%_6px,75%_0,78%_6px,81%_0,84%_6px,87%_0,90%_6px,93%_0,96%_6px,100%_0,100%_calc(100%-6px),97%_100%,94%_calc(100%-6px),91%_100%,88%_calc(100%-6px),85%_100%,82%_calc(100%-6px),79%_100%,76%_calc(100%-6px),73%_100%,70%_calc(100%-6px),67%_100%,64%_calc(100%-6px),61%_100%,58%_calc(100%-6px),55%_100%,52%_calc(100%-6px),49%_100%,46%_calc(100%-6px),43%_100%,40%_calc(100%-6px),37%_100%,34%_calc(100%-6px),31%_100%,28%_calc(100%-6px),25%_100%,22%_calc(100%-6px),19%_100%,16%_calc(100%-6px),13%_100%,10%_calc(100%-6px),7%_100%,4%_calc(100%-6px),0_100%)]">
                 <pre
                   aria-label="Receipt text"
@@ -156,6 +173,10 @@ export default function ReceiptPreviewPage() {
                 >
                   {receipt.data.text}
                 </pre>
+                {qr.data && (
+                  // The QR code from the qrcode package, an SVG string built on this device.
+                  <div className="mx-auto mt-2 size-28 text-black" dangerouslySetInnerHTML={{ __html: qr.data }} />
+                )}
               </div>
             )}
           </div>

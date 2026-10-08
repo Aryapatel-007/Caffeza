@@ -221,7 +221,7 @@ export default function SettingsPage() {
 
         <Section
           title="Receipt"
-          description="Printed on the customer's bill. Nothing prints these yet; they are collected now so the printer setup has them when it arrives."
+          description="Printed on every bill: thermal receipts and full-page invoices alike."
         >
           <Input
             label="Header line 1"
@@ -242,6 +242,16 @@ export default function SettingsPage() {
             value={form.receipt.footerText ?? ''}
             onChange={(event) => set('receipt', 'footerText')(event.target.value)}
             hint="Up to 200 characters."
+          />
+          <Input
+            label="Review link"
+            type="url"
+            inputMode="url"
+            maxLength={300}
+            placeholder="https://"
+            value={form.receipt.reviewLinkUrl ?? ''}
+            onChange={(event) => set('receipt', 'reviewLinkUrl')(event.target.value)}
+            hint="An https address. Every bill ends with its QR code and the words Scan to review us. Leave empty for no code."
           />
 
           <Checkbox

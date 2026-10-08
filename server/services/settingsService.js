@@ -49,6 +49,7 @@ const SETTING_PATHS = Object.freeze({
   'receipt.showGstin': 'settings.receipt.showGstin',
   'receipt.showFssai': 'settings.receipt.showFssai',
   'receipt.showServerName': 'settings.receipt.showServerName',
+  'receipt.reviewLinkUrl': 'settings.receipt.reviewLinkUrl',
 
   'inventory.lowStockAlertsEnabled': 'settings.inventory.lowStockAlertsEnabled',
 

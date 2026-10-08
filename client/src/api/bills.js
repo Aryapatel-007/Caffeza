@@ -82,6 +82,11 @@ export function getReceipt(billId, width = 32) {
   return api.get(`/bills/${billId}/receipt?width=${width}`);
 }
 
+/** P25. The bill as data for a full A4 or A5 tax invoice, from the same builder as the receipt. */
+export function getInvoice(billId) {
+  return api.get(`/bills/${billId}/invoice`);
+}
+
 export function getBillsSummary({ from, to }) {
   return api.get(`/bills/summary${toQuery({ from, to })}`);
 }

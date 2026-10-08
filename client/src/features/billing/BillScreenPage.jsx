@@ -11,7 +11,6 @@ import {
   applyDiscount,
   correctPayment,
   getBill,
-  getReceipt,
   recordPayment,
   applyAdvance,
   voidBill,
@@ -31,7 +30,8 @@ import { discountReasonLabel } from './discountReasons.js';
 import { errorMessage } from './errorCopy.js';
 import InlinePayment from './InlinePayment.jsx';
 import { methodsForBill, paymentMethodName } from './paymentMethodsForBill.js';
-import { charactersFor, printText } from '../printing/printText.js';
+import { printBill } from '../printing/printBill.js';
+import { useTheme } from '../../context/ThemeProvider.jsx';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import VoidBillPanel from './VoidBillPanel.jsx';
 import { BILL_VOID_REASONS, describeReason } from '../orders/cancelReasons.js';
@@ -164,14 +164,15 @@ export default function BillScreenPage() {
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
   });
 
-  // P05. The paper width belongs to this device, not to whoever signs in.
+  // P05. The printer belongs to this device, not to whoever signs in.
   const [device] = useDeviceSettings();
+  const { brand } = useTheme();
 
   const print = async () => {
     setPrinting(true);
     try {
-      const { text } = await getReceipt(billId, charactersFor(device.paperMm));
-      await printText(text, device.paperMm);
+      // P25. A thermal receipt, or a full A4 or A5 tax invoice, by this device's printer.
+      await printBill(billId, { printer: device.printer, logoDataUrl: brand.logos?.LIGHT_GROUND?.dataUrl ?? null });
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error) });
     } finally {

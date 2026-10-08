@@ -22,6 +22,7 @@ import { Router } from 'express';
 import { ROLES } from '../config/roles.js';
 import {
   getBill,
+  getInvoice,
   getReceipt,
   getSummary,
   listBills,
@@ -42,6 +43,7 @@ import {
   createBillSchema,
   listBillsSchema,
   readBillSchema,
+  invoiceSchema,
   receiptSchema,
   recordPaymentSchema,
   voidBillSchema,
@@ -80,6 +82,7 @@ router.post('/bills', ...till, validate(createBillSchema), postBill);
 router.get('/bills', ...till, validate(listBillsSchema), listBills);
 router.get('/bills/:billId', ...anySignedIn, validate(readBillSchema), getBill);
 router.get('/bills/:billId/receipt', ...anySignedIn, validate(receiptSchema), getReceipt);
+router.get('/bills/:billId/invoice', ...anySignedIn, validate(invoiceSchema), getInvoice);
 
 router.post('/bills/:billId/payments', ...till, validate(recordPaymentSchema), postPayment);
 

@@ -48,6 +48,7 @@ const DEFAULTS = {
     showGstin: true,
     showFssai: true,
     showServerName: false,
+    reviewLinkUrl: null,
   },
   inventory: { lowStockAlertsEnabled: true },
   // P02.

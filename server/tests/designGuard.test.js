@@ -42,6 +42,9 @@ const MONEY_COMPONENT = 'components/ui/Money.jsx';
 const BRAND_LOGO = 'components/ui/BrandLogo.jsx';
 // P24. Dish photos are the one other image, drawn by one component.
 const DISH_PHOTO = 'components/ui/DishPhoto.jsx';
+// P25. The printed tax invoice is a separate HTML document, not a screen, and
+// draws the logo BrandLogo already holds, from its data URL.
+const PRINTED_INVOICE = 'features/printing/invoiceHtml.js';
 const BRAND_API = 'api/brand.js';
 const BRAND_USERS = [BRAND_LOGO, 'features/auth/LoginPage.jsx'];
 const LOOPING = /(?<![\w-])(?:[a-z-]+:)*animate-(?:spin|pulse|ping|bounce)(?![\w-])/;
@@ -137,7 +140,7 @@ describe('design guard: the whole client', () => {
     for (const { name, code } of files) {
       code.split('\n').forEach((line, index) => {
         const where = `${name}:${index + 1}  ${line.trim().slice(0, 100)}`;
-        if (/<img\b/.test(line) && name !== BRAND_LOGO && name !== DISH_PHOTO) found.push(where);
+        if (/<img\b/.test(line) && ![BRAND_LOGO, DISH_PHOTO, PRINTED_INVOICE].includes(name)) found.push(where);
         // Only the brand API file asks the server for the logo's bytes.
         if (/\/restaurant\/logo/.test(line) && name !== BRAND_API) found.push(where);
       });

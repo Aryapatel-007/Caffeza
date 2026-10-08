@@ -52,6 +52,8 @@ export const TAX_PRICING_MODE_VALUES = Object.freeze(Object.values(TAX_PRICING_M
  */
 export const RECEIPT_HEADER_MAX_LENGTH = 40;
 export const RECEIPT_FOOTER_MAX_LENGTH = 200;
+/** P25. The review link printed as a QR code at the foot of every bill. */
+export const REVIEW_LINK_MAX_LENGTH = 300;
 
 /**
  * Tax configuration. Shapes from docs/DB-SCHEMA.md section 17.
@@ -117,6 +119,8 @@ const receiptSettingsSchema = new mongoose.Schema(
     showGstin: { type: Boolean, required: true, default: true },
     showFssai: { type: Boolean, required: true, default: true },
     showServerName: { type: Boolean, required: true, default: false },
+    // P25. An https address; every printed bill ends with its QR code.
+    reviewLinkUrl: { type: String, trim: true, maxlength: REVIEW_LINK_MAX_LENGTH, default: null },
   },
   { _id: false },
 );
