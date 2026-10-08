@@ -22,7 +22,7 @@ These are long. Read the section your task touches, not the whole file.
 | `docs/REPORT-SPEC.md` | Before any report work |
 | `docs/RECONCILIATION-RULES.md` | Before any report, billing, payment or Day Close work |
 | `docs/TEST-DATA.md` | Before writing any report or money test |
-| `docs/CAFFEZA-PROFILE.md` | Before building anything Caffeza-specific |
+| `docs/clients/zchaat/PROFILE.md` | Before building anything for the live client, Z Chaat |
 | `docs/DESIGN-SYSTEM.md` | Before any screen work |
 | `docs/BUILD-PLAN.md` | Section 13 before calling a module done. Sections 11 and 12 for security and common mistakes. |
 | `docs/DEPLOYMENT.md` | Before touching startup, environment variables or deployment |

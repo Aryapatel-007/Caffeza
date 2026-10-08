@@ -1,11 +1,14 @@
 # Caffeza Build Plan
 
+Written for Cafezza, the first client, and kept as the history of P00 to P24.
+The live client is now Z Chaat: see `docs/clients/zchaat/PROFILE.md`.
+
 This file is the plan for taking the existing ERP live at Caffeza, our first paying client.
 It sits next to `docs/BUILD-PLAN.md`, it does not replace it.
 `docs/BUILD-PLAN.md` still describes the whole product.
 This file says what Caffeza needs from it, in what order, and who builds each part.
 
-Read `docs/CAFFEZA-PROFILE.md` for who the client is.
+Read `docs/archive/caffeza/CAFFEZA-PROFILE.md` for who the client was.
 Read `docs/CURRENT-STATE-AUDIT.md` for what already exists.
 
 ---

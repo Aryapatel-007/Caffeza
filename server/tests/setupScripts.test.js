@@ -24,8 +24,8 @@ import { clearTestDatabase, startTestDatabase, stopTestDatabase } from './helper
 import { request, startTestServer, stopTestServer } from './helpers/testServer.js';
 
 const SETUP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'setup');
-const caffezaConfig = () => JSON.parse(readFileSync(path.join(SETUP_DIR, 'caffeza.json'), 'utf8'));
-const caffezaMenu = () => readFileSync(path.join(SETUP_DIR, 'caffeza-menu.csv'), 'utf8');
+const caffezaConfig = () => JSON.parse(readFileSync(path.join(SETUP_DIR, 'archive', 'caffeza', 'caffeza.json'), 'utf8'));
+const caffezaMenu = () => readFileSync(path.join(SETUP_DIR, 'archive', 'caffeza', 'caffeza-menu.csv'), 'utf8');
 
 /** The test server's request already prefixes nothing; the scripts' paths are under /api/v1. */
 const send = (method, pathname, options) => request(method, `/api/v1${pathname}`, options);
@@ -291,7 +291,7 @@ describe('the setup file: logos and the brand, P22', () => {
 
   it('refuses a bad logo file with the same words as the endpoint, before anything changes', () => {
     assert.throws(
-      () => validateSetupConfig(withLogos({ DARK_GROUND: 'docs/brand/cafezza-menu-reference.png', LIGHT_GROUND: 'setup/README.md' })),
+      () => validateSetupConfig(withLogos({ DARK_GROUND: 'docs/archive/caffeza/brand/cafezza-menu-reference.png', LIGHT_GROUND: 'setup/README.md' })),
       (error) => {
         assert.ok(error instanceof SetupConfigError);
         const byPath = Object.fromEntries(error.issues.map((issue) => [issue.path, issue.message]));
@@ -301,7 +301,7 @@ describe('the setup file: logos and the brand, P22', () => {
       },
     );
     assert.throws(() => validateSetupConfig(withLogos({ DARK_GROUND: 'docs/brand/missing.png' })), /cannot be read/);
-    assert.throws(() => validateSetupConfig(withLogos({ MIDDLE_GROUND: 'docs/brand/cafezza-lockup-dark.png' })), SetupConfigError);
+    assert.throws(() => validateSetupConfig(withLogos({ MIDDLE_GROUND: 'docs/archive/caffeza/brand/cafezza-lockup-dark.png' })), SetupConfigError);
   });
 
   it('refuses a brand pair that does not read', () => {

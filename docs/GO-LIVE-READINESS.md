@@ -45,8 +45,8 @@ Screenshots for a person to look at are written to `e2e/screenshots/` on every r
 | 5 | Staff have practised on staging | **Ready, needs a person**: both developers run the training in `docs/GO-LIVE.md` section 2 with every captain, cashier and station. |
 | 6 | The restore drill has been done | **Ready, needs a person**: Arya, `docs/DEPLOYMENT.md` section 8, with the date recorded. |
 | 7 | The backup internet works | **Waiting on Caffeza** for the second line to be installed, then Rishi unplugs the main line during a test bill. |
-| 8 | The owner has checked the menu | **Waiting on Caffeza**: their full menu or an export of it, then the owner's written sign-off on staging. `setup/caffeza-menu.csv` is still partial. |
-| 9 | Every staff login works | **Waiting on Caffeza**: names and phone numbers for every person (all eight staff phones in `setup/caffeza.json` are TO CONFIRM), then each signs in once on their own device. |
+| 8 | The owner has checked the menu | **Waiting on Caffeza**: their full menu or an export of it, then the owner's written sign-off on staging. `setup/archive/caffeza/caffeza-menu.csv` is still partial. |
+| 9 | Every staff login works | **Waiting on Caffeza**: names and phone numbers for every person (all eight staff phones in `setup/archive/caffeza/caffeza.json` are TO CONFIRM), then each signs in once on their own device. |
 | 10 | On Hold opening balances are agreed | **Waiting on Caffeza**: the owner's written list of what each account owes on cutover day. |
 | 11 | Monitoring is on | **Ready, needs a person**: Arya stops staging once and confirms the uptime alert arrives. |
 | 12 | Support is arranged | **Ready, needs a person**: both developers put the support card at the counter. |
@@ -55,7 +55,7 @@ Screenshots for a person to look at are written to `e2e/screenshots/` on every r
 
 ## 3. Everything still TO CONFIRM
 
-From `docs/CAFFEZA-PROFILE.md` section 15 and `setup/caffeza.json`, as one list.
+From `docs/archive/caffeza/CAFFEZA-PROFILE.md` section 15 and `setup/archive/caffeza/caffeza.json`, as one list.
 
 **From Caffeza**
 1. The exact spelling of the trade name on the bill ("Cafezza" or "Caffeza"), the legal name, address, phone and FSSAI number (`restaurant.legalName`, `fssaiLicenseNumber`, `address.line1`, `address.pincode`, `contactPhone`).
@@ -119,6 +119,6 @@ From `docs/CAFFEZA-PROFILE.md` section 15 and `setup/caffeza.json`, as one list.
 ## 5. Verdict
 
 The software is built and proven against the golden day, through the API and through the real screens on each device. Nothing in the code blocks a pilot. What blocks the first real bill is people:
-first Caffeza's answers (menu, staff, accounts, printer, the second internet line), so staging can be set up from `setup/caffeza.json` and the menu import;
+first Caffeza's answers (menu, staff, accounts, printer, the second internet line), so staging can be set up from `setup/archive/caffeza/caffeza.json` and the menu import;
 then their CA's sign-off on a printed sample bill and on the invoice series;
 then the printer, station, restore, monitoring and backup-line checks on staging, the staff training, and `npm run e2e` once more on the release being deployed, before the first pilot day.

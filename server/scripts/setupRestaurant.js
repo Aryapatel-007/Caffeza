@@ -1,8 +1,8 @@
 /**
  * Sets a restaurant up from one JSON file. P11. Phase 2 onboarding.
  *
- *   npm run setup:restaurant -- --config setup/caffeza.json --owner-phone 98xxxxxxxx
- *   npm run setup:restaurant -- --config setup/caffeza.json --owner-phone 98xxxxxxxx --apply
+ *   npm run setup:restaurant -- --config setup/zchaat.json --owner-phone 98xxxxxxxx
+ *   npm run setup:restaurant -- --config setup/zchaat.json --owner-phone 98xxxxxxxx --apply
  *
  * Staging for training and production on cutover day have to be set up the
  * same way, so this reads one file and does it through the real API, signed in
@@ -541,7 +541,7 @@ function printLogins(logins) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (!args.config) throw new Error('Give the setup file with --config, for example --config setup/caffeza.json.');
+  if (!args.config) throw new Error('Give the setup file with --config, for example --config setup/zchaat.json.');
   const file = path.resolve(process.env.INIT_CWD ?? process.cwd(), args.config);
   const raw = JSON.parse(readFileSync(file, 'utf8'));
   const { config, toConfirm } = validateSetupConfig(raw);

@@ -11,6 +11,8 @@ Nothing here was added up by hand.
 Five of these bills are real Caffeza bills from 26 September 2026, and they match Caffeza's own totals exactly:
 B01 is their C22266, B02 is C22276, B03 is C22262, B04 is C22263, and B06 is C22272.
 
+The dish names and invoice numbers come from Cafezza, the first client. The golden day is a test fixture, not a client: it stays exactly as it is now that the live client is Z Chaat (P25).
+
 The fixture builder is written by prompt P14, in `server/tests/helpers/goldenDay.js`.
 It creates everything below through the real services, the same way `scripts/seedDemo.js` drives the real API.
 Prompt P21 replays the whole day end to end.

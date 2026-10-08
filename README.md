@@ -21,7 +21,7 @@ you stop.
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Cloud server and Atlas, backups, the cafe setup |
 | [`docs/GO-LIVE.md`](docs/GO-LIVE.md) | Gates, training, pilot days, cutover |
 | [`docs/prompts/`](docs/prompts/) | The build prompts, P00 to P21, run in order |
-| [`docs/CAFFEZA-PROFILE.md`](docs/CAFFEZA-PROFILE.md) | The client's real setup: tax, invoice series, tables, staff, payment methods |
+| [`docs/clients/zchaat/PROFILE.md`](docs/clients/zchaat/PROFILE.md) | The live client's real setup: tax, invoice series, tables, staff, payment methods, and what is still to confirm |
 
 ## Running it
 

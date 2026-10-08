@@ -276,7 +276,7 @@ export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}
     const owner = tokens.OWNER;
     const manager = tokens.MANAGER;
 
-    // Caffeza's GSTIN, from setup/caffeza.json, so a printed bill reads as a tax invoice.
+    // Caffeza's GSTIN, from setup/archive/caffeza/caffeza.json, so a printed bill reads as a tax invoice.
     ok(await request('PATCH', '/api/v1/restaurant', { token: owner, body: { gstin: '24AARFT4546K1ZM' } }), 'gstin');
 
     ok(

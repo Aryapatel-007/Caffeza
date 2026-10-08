@@ -347,7 +347,7 @@ The first version reproduces the shape their accountant already imports from the
 | Block | Rows |
 |---|---|
 | Sales by rate | One row per tax rate: taxable value, CGST, SGST, final amount, round-off |
-| Sales by payment method | One row per method, using their Tally codes from `docs/CAFFEZA-PROFILE.md` section 10 |
+| Sales by payment method | One row per method, using their Tally codes from `docs/archive/caffeza/CAFFEZA-PROFILE.md` section 10 |
 
 Round-off is its own row, as in their old file.
 Unlike their old file, the by-method block uses each bill's own stored net sales and GST, never a value worked backwards from the rounded amount.

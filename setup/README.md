@@ -18,8 +18,8 @@ hidden. It is never read from a file or a flag.
 2. Set it up, dry run first:
 
    ```
-   npm run setup:restaurant -- --config setup/caffeza.json --owner-phone 98xxxxxxxx
-   npm run setup:restaurant -- --config setup/caffeza.json --owner-phone 98xxxxxxxx --apply
+   npm run setup:restaurant -- --config setup/zchaat.json --owner-phone 98xxxxxxxx
+   npm run setup:restaurant -- --config setup/zchaat.json --owner-phone 98xxxxxxxx --apply
    ```
 
    New staff logins get a generated password, printed once at the end. Hand
@@ -29,15 +29,15 @@ hidden. It is never read from a file or a flag.
    kitchen station; `--addons` is optional.
 
    ```
-   npm run import:menu -- --file setup/caffeza-menu.csv --config setup/caffeza.json --owner-phone 98xxxxxxxx
-   npm run import:menu -- --file setup/caffeza-menu.csv --config setup/caffeza.json --owner-phone 98xxxxxxxx --apply
+   npm run import:menu -- --file setup/zchaat-menu.csv --config setup/zchaat.json --owner-phone 98xxxxxxxx
+   npm run import:menu -- --file setup/zchaat-menu.csv --config setup/zchaat.json --owner-phone 98xxxxxxxx --apply
    ```
 
 4. Read every line of each plan before adding `--apply`.
 
 Paths are relative to the folder you run `npm` from.
 
-## The setup file, `caffeza.json`
+## The setup file, `zchaat.json`
 
 | Key | What it sets |
 |---|---|
@@ -58,7 +58,7 @@ invoice series is set by hand on cutover day (`docs/GO-LIVE.md` section 4).
 The whole file is checked with the server's own validation before anything
 changes, and every problem is listed at once.
 
-## The menu file, `caffeza-menu.csv`
+## The menu file, `zchaat-menu.csv`
 
 ```
 category,item,size,price,gst_percent,available
@@ -89,7 +89,8 @@ item,addon,price,available
 Caffe Latte,Extra Shot,40.00,yes
 ```
 
-`caffeza-menu.csv` is a partial menu for staging and training, built from what
-we know so far. Replace it with Caffeza's full menu, converted to this format,
-before cutover. Their export arrives as a spreadsheet: save it as CSV and match
-the columns above.
+`zchaat-menu.csv` is Z Chaat's menu, read from their printed menu and table
+cards on 8 October 2026. Check every TO CONFIRM item in
+`docs/clients/zchaat/PROFILE.md` before cutover.
+
+Cafezza's files, the first client's, are kept in `setup/archive/caffeza/`.

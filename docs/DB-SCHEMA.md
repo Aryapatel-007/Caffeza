@@ -2026,7 +2026,7 @@ How a bill may be settled. Configured per restaurant.
 | `kind` | String | yes | | `IN_HAND` or `PLATFORM`. Never changes. |
 | `orderTypes` | [String] | yes | | At least one of `DINE_IN`, `TAKEAWAY`, `DELIVERY`. Default all three. |
 | `platformCode` | String | no | | A code from `server/config/platforms.js` for a delivery platform's own payment, like `SWIGGY`. Otherwise null. |
-| `tallyLedgerCode` | String | no | | Up to 20 characters. Caffeza's are in CAFFEZA-PROFILE.md section 10. |
+| `tallyLedgerCode` | String | no | | Up to 20 characters. Cafezza's were in `docs/archive/caffeza/CAFFEZA-PROFILE.md` section 10. |
 | `commissionBps` | Number | no | | `PLATFORM` methods only. Integer 0 to 10000. Null means "rate not set". A change affects only payments taken after it. |
 | `displayOrder` | Number | yes | | Integer, default 0 |
 | `isActive` | Boolean | yes | | Default true. Never deleted. |

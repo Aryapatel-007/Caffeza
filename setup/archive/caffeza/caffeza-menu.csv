@@ -1,4 +1,4 @@
-# PARTIAL MENU for staging and training only. Built from docs/CAFFEZA-PROFILE.md section 9 and the golden day in docs/TEST-DATA.md.
+# PARTIAL MENU for staging and training only. Built from docs/archive/caffeza/CAFFEZA-PROFILE.md section 9 and the golden day in docs/TEST-DATA.md.
 # Replace it with Caffeza's full menu export, converted to this format, before cutover.
 category,item,size,price,gst_percent,available
 Back To School,Piri Piri Crinkle Fries,,240.00,5,yes

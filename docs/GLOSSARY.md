@@ -126,7 +126,7 @@ The two dates differ only for On Hold bills, which are issued on one day and col
 
 | Term | Meaning |
 |---|---|
-| **Payment method** | How a bill was settled. Caffeza has eight. See `docs/CAFFEZA-PROFILE.md` section 10. |
+| **Payment method** | How a bill was settled. Cafezza, the first client, had eight; see `docs/archive/caffeza/CAFFEZA-PROFILE.md` section 10. |
 | **Payment method kind** | `IN_HAND` or `PLATFORM`, set on each payment method and frozen onto each payment |
 | **Money in hand** | Methods of kind `IN_HAND`, where the money is already the cafe's: Cash, Card, UPI |
 | **Platform money** | Methods of kind `PLATFORM`, where a platform collected the money and pays the cafe later, minus commission: Zomato Gold, Dineout, EazyDiner, Zomato, Swiggy |

@@ -25,7 +25,7 @@ import { LABELS } from '../labels.js';
 import { MANAGERS } from './shared.js';
 import { businessDate } from '../../../validators/common.js';
 
-/** Caffeza's Tally code for On Hold, from docs/CAFFEZA-PROFILE.md section 10, fixed by the contract. */
+/** Caffeza's Tally code for On Hold, from docs/archive/caffeza/CAFFEZA-PROFILE.md section 10, fixed by the contract. */
 export const ON_HOLD_TALLY_CODE = 'P03';
 
 const rateColumns = [

@@ -579,7 +579,7 @@ Cafezza's registered trademark is a device mark, "CAFEZZA BE CAFFEINATED": the l
 | `neutralTone` | `WARM` |
 | `brandHex`, `onBrandHex` | `#4A2E2A`, `#F2D7BC`, at 8.87 to 1 |
 | `wordmark` | `Cafezza` |
-| `DARK_GROUND` logo | `docs/brand/cafezza-lockup-dark.png`, 391 by 241 |
+| `DARK_GROUND` logo | `docs/archive/caffeza/brand/cafezza-lockup-dark.png`, 391 by 241 |
 
 The lockup is the square with only its plain brown margin trimmed, keeping padding of one eighth of the trimmed height on every side: 24px around 343 by 193 of artwork. Every non-brown pixel of the original is inside it, and no pixel of the padding differs from `#4A2E2A`. Nothing was scaled. The square is kept for the favicon and as the app icon. Until the owner sends a transparent version with brown artwork for light grounds, day screens show the cream logo on a brown plate.
 
