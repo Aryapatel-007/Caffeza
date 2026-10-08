@@ -237,6 +237,18 @@ const discountSettingsSchema = new mongoose.Schema(
 );
 
 /**
+ * Billing. P25 Part D. Who besides the till may make a bill and take its
+ * money: a captain serving the table, by the owner's choice.
+ */
+const billingSettingsSchema = new mongoose.Schema(
+  {
+    captainsMayBill: { type: Boolean, required: true, default: true },
+    captainsMayTakePayment: { type: Boolean, required: true, default: false },
+  },
+  { _id: false },
+);
+
+/**
  * Day Close. P10. The blind count: when false, a MANAGER never sees expected
  * cash or the difference in any Day Close response or print.
  */
@@ -402,6 +414,7 @@ const settingsSchema = new mongoose.Schema(
     invoice: { type: invoiceSettingsSchema, default: () => ({}) },
     delivery: { type: deliverySettingsSchema, default: () => ({}) },
     discounts: { type: discountSettingsSchema, default: () => ({}) },
+    billing: { type: billingSettingsSchema, default: () => ({}) },
     dayClose: { type: dayCloseSettingsSchema, default: () => ({}) },
     floor: { type: floorSettingsSchema, default: () => ({}) },
     appearance: { type: appearanceSettingsSchema, default: () => ({}) },

@@ -217,7 +217,8 @@ export async function me(req, res) {
   // P20A. The look too, with the night accent worked out on the server.
   // P23. Online orders too: whether this device's role hears the alert, and
   // the page address for the copy-link button. The server still decides.
-  const { features, discounts, floor, appearance, online } = await getSettings(req.restaurantId, { req });
+  // P25. Whether a captain may bill and take payment, so the order screen knows. The server still decides.
+  const { features, discounts, billing, floor, appearance, online } = await getSettings(req.restaurantId, { req });
   const now = nowUtc();
 
   return sendSuccess(res, {
@@ -227,6 +228,10 @@ export async function me(req, res) {
     features,
     discounts: {
       cashierMayApplyPlatformDiscounts: discounts.cashierMayApplyPlatformDiscounts,
+    },
+    billing: {
+      captainsMayBill: billing.captainsMayBill,
+      captainsMayTakePayment: billing.captainsMayTakePayment,
     },
     floor,
     online: {

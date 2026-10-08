@@ -641,10 +641,13 @@ describe('bill permissions, every row of the contract table', () => {
     }
   });
 
-  it('refuses billing and payment to the kitchen, the storekeeper and a waiter', async () => {
+  // P25 Part D changed this row on purpose: a captain (WAITER) may now bill by
+  // the owner's `billing.captainsMayBill`, default on. tests/captainBilling.test.js
+  // covers the captain; the kitchen and the storekeeper are still refused.
+  it('refuses billing to the kitchen and the storekeeper', async () => {
     const { order, tokens } = await billableFloor();
 
-    for (const role of [ROLES.WAITER, ROLES.KITCHEN, ROLES.STOREKEEPER]) {
+    for (const role of [ROLES.KITCHEN, ROLES.STOREKEEPER]) {
       const response = await createBill(tokens[role], {
         orderId: order.id,
         version: order.version,

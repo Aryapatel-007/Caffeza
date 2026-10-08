@@ -26,6 +26,9 @@ const MANAGER_ROLES = Object.freeze([ROLES.OWNER, ROLES.MANAGER]);
 
 const isManagerOrAbove = (role) => MANAGER_ROLES.includes(role);
 
+/** The people who work the till. P25: a captain joins them only by setting. */
+const TILL_ROLES = Object.freeze([ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER]);
+
 /**
  * Applying a discount.
  *
@@ -50,6 +53,42 @@ export function assertCanDiscount(actor, { reasonCode = null, cashierMayApplyPla
   }
 
   throw new ForbiddenError('Only an owner or a manager can discount a bill.');
+}
+
+/**
+ * Making a bill. P25 Part D.
+ *
+ * The till always may. A captain (WAITER) may when the owner leaves
+ * `billing.captainsMayBill` on, for the dine-in or takeaway order they are
+ * serving; never a delivery order, which the platform integration bills (M21).
+ * The route lets a WAITER through so this function can decide.
+ */
+export function assertCanBill(actor, order, billing = {}) {
+  if (TILL_ROLES.includes(actor.role)) return;
+  if (actor.role === ROLES.WAITER && billing.captainsMayBill) {
+    if (order?.orderType === 'DELIVERY') {
+      throw new ForbiddenError('A captain cannot bill a delivery order. The counter bills it.');
+    }
+    return;
+  }
+  throw new ForbiddenError('Only the counter can make this bill.');
+}
+
+/**
+ * Taking a payment, by hand or on the card machine. P25 Part D.
+ *
+ * A captain may only when the owner allows both billing and taking payment,
+ * and never on a delivery bill.
+ */
+export function assertCanTakePayment(actor, bill, billing = {}) {
+  if (TILL_ROLES.includes(actor.role)) return;
+  if (actor.role === ROLES.WAITER && billing.captainsMayBill && billing.captainsMayTakePayment) {
+    if (bill?.orderType === 'DELIVERY') {
+      throw new ForbiddenError('A captain cannot take payment on a delivery bill.');
+    }
+    return;
+  }
+  throw new ForbiddenError('Only the counter can take payment on this bill.');
 }
 
 /** Correcting a payment's method. P08. Moving money between cash and UPI after the fact. */
@@ -158,6 +197,8 @@ export function assertPaymentFits(bill, amountInPaise) {
 
 export default {
   assertBillHasLines,
+  assertCanBill,
+  assertCanTakePayment,
   assertCanCorrectPayment,
   assertCanDiscount,
   assertCanVoid,

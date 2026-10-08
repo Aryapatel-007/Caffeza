@@ -60,6 +60,11 @@ const fromMe = (me) => ({
   ...ALL_FEATURES_ON,
   ...me.features,
   cashierMayApplyPlatformDiscounts: Boolean(me.discounts?.cashierMayApplyPlatformDiscounts),
+  // P25 Part D. Whether a captain may make a bill, and take its payment. The server still decides.
+  billing: {
+    captainsMayBill: me.billing?.captainsMayBill ?? true,
+    captainsMayTakePayment: Boolean(me.billing?.captainsMayTakePayment),
+  },
   // P19. Section order, the long-open threshold and whether the guest picker may offer Skip.
   floor: { ...DEFAULT_FLOOR, ...(me.floor ?? {}) },
   // P20A. The accent, both colours already worked out by the server.

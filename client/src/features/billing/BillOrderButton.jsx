@@ -10,6 +10,12 @@ import { LABELS } from '../i18n/labels.js';
 
 const CAN_BILL = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER];
 
+/** P25 Part D. A captain bills a dine-in or takeaway order when the owner allows it. */
+export function mayBill(user, features, order) {
+  if (CAN_BILL.includes(user?.role)) return true;
+  return user?.role === ROLES.WAITER && Boolean(features?.billing?.captainsMayBill) && order.orderType !== 'DELIVERY';
+}
+
 /**
  * The order screen's one link into M3.
  *
@@ -25,7 +31,7 @@ const CAN_BILL = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER];
  */
 export default function BillOrderButton({ order }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, features } = useAuth();
   const [error, setError] = useState(null);
 
   const mutation = useMutation({
@@ -53,7 +59,7 @@ export default function BillOrderButton({ order }) {
     );
   }
 
-  if (order.status !== 'READY_TO_BILL' || !CAN_BILL.includes(user?.role)) return null;
+  if (order.status !== 'READY_TO_BILL' || !mayBill(user, features, order)) return null;
 
   return (
     <div className="flex flex-col items-end gap-1">

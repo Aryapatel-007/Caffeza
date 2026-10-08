@@ -235,6 +235,14 @@ const discounts = z
   })
   .strict();
 
+/** Billing. P25 Part D. */
+const billing = z
+  .object({
+    captainsMayBill: z.boolean({ error: 'Must be true or false.' }).optional(),
+    captainsMayTakePayment: z.boolean({ error: 'Must be true or false.' }).optional(),
+  })
+  .strict();
+
 /** Day Close. P10. */
 const dayClose = z
   .object({
@@ -371,6 +379,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'invoice',
   'delivery',
   'discounts',
+  'billing',
   'dayClose',
   'floor',
   'appearance',
@@ -416,6 +425,7 @@ export const updateSettingsSchema = z.object({
       invoice: invoice.optional(),
       delivery: delivery.optional(),
       discounts: discounts.optional(),
+      billing: billing.optional(),
       dayClose: dayClose.optional(),
       floor: floor.optional(),
       appearance: appearance.optional(),
