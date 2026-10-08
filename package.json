@@ -25,6 +25,7 @@
     "seed:mock": "npm run seed:mock --workspace=server --",
     "seed:mock:golden": "npm run seed:mock:golden --workspace=server --",
     "db:restaurants": "npm run db:restaurants --workspace=server",
+    "purge:restaurant": "npm run purge:restaurant --workspace=server --",
     "db:indexes": "npm run db:indexes --workspace=server",
     "setup:restaurant": "npm run setup:restaurant --workspace=server --",
     "import:menu": "npm run import:menu --workspace=server --",
