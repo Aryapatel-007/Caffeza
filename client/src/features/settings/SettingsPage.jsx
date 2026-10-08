@@ -165,6 +165,12 @@ export default function SettingsPage() {
           </Link>
         </Section>
 
+        <Section title="Integrations" description="Delivery platforms, the card machine and Tally: connections, item mapping, exports and alerts.">
+          <Link to="/settings/integrations" className="type-button flex min-h-12 w-fit items-center rounded-lg border border-ink bg-surface px-4 hover:bg-sunken">
+            Open Integrations
+          </Link>
+        </Section>
+
         <Section
           title="Business day"
           description="When one day's takings stop and the next day's start. A restaurant that serves past midnight counts those sales under the day service began."

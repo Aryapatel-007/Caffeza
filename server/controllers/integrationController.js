@@ -10,6 +10,7 @@ import {
   setPaused,
   testConnection,
 } from '../services/integrations/connectionService.js';
+import { acknowledgeAlert, listAlerts } from '../services/integrations/alertService.js';
 import { deleteMapping, importMappings, listMappings, saveMapping, unmappedItems } from '../services/integrations/mappingService.js';
 import {
   acceptPlatformOrder,
@@ -147,4 +148,16 @@ export async function getTerminalPayment(req, res) {
 /** POST /terminal-payments/:id/cancel */
 export async function postCancelTerminalPayment(req, res) {
   return sendSuccess(res, await cancelTerminalPayment(req, req.params.id));
+}
+
+/* P25 Part L. Alerts. ------------------------------------------------------ */
+
+/** GET /integrations/alerts */
+export async function getAlerts(req, res) {
+  return sendSuccess(res, await listAlerts(req));
+}
+
+/** POST /integrations/alerts/acknowledge */
+export async function postAcknowledgeAlert(req, res) {
+  return sendSuccess(res, await acknowledgeAlert(req, req.body));
 }

@@ -28,6 +28,7 @@ import { runRangeChecks } from '../../reconciliationService.js';
 import { getSetting } from '../../settingsService.js';
 import { LABELS } from '../labels.js';
 import { FIGURE_COLUMNS, MANAGERS, toBills } from './shared.js';
+import { listAlerts } from '../../integrations/alertService.js';
 
 /** Over 20% of the item total. */
 const LARGE_DISCOUNT_BPS = 2000;
@@ -68,6 +69,7 @@ const ALERT_WORDS = {
   NO_CHARGE: 'No Charge',
   DISCOUNT: 'Discount over 20%',
   CANCELLED_AFTER_PREP: 'Cancelled after preparation',
+  INTEGRATION: 'Integration',
 };
 
 /** A bill live at `now`: never voided, or voided later. */
@@ -178,6 +180,18 @@ export default {
       topItems(tenant, date, now),
       alerts(tenant, date, now, startMinutes),
     ]);
+    // P25 Part L. Open integration alerts follow the day's own, each with its sentence and a link.
+    const integrationRows = (await listAlerts(req)).map((alert) => ({
+      kind: ALERT_WORDS.INTEGRATION,
+      kindCode: 'INTEGRATION',
+      at: alert.at,
+      detail: alert.sentence,
+      amountInPaise: null,
+      integrationKind: alert.kind,
+      link: alert.link,
+      drill: alert.link ? { detail: { report: 'LINK', query: { to: alert.link } } } : {},
+    }));
+    alertRows.push(...integrationRows);
 
     const day = { from: date, to: date };
     const tiles = {

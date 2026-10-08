@@ -10,6 +10,8 @@ import { Router } from 'express';
 
 import { ROLES } from '../config/roles.js';
 import {
+  getAlerts,
+  postAcknowledgeAlert,
   getEvents,
   getIntegrations,
   getMappings,
@@ -65,6 +67,8 @@ import {
   listIntegrationsSchema,
   providerActionSchema,
   saveIntegrationSchema,
+  acknowledgeAlertSchema,
+  listAlertsSchema,
   createTallyExportsSchema,
   redoTallyExportSchema,
   tallyDaysSchema,
@@ -82,6 +86,9 @@ const managers = [authenticate, tenant, requireRole(ROLES.OWNER, ROLES.MANAGER)]
 const till = [authenticate, tenant, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER)];
 
 router.get('/integrations', ...managers, validate(listIntegrationsSchema), getIntegrations);
+// P25 Part L. Alerts, before the provider routes so "alerts" is never read as a provider.
+router.get('/integrations/alerts', ...managers, validate(listAlertsSchema), getAlerts);
+router.post('/integrations/alerts/acknowledge', ...managers, validate(acknowledgeAlertSchema), postAcknowledgeAlert);
 
 // P25 Part J. Tally exports: the owner and the manager; a redo and the ledger masters, the owner.
 router.get('/integrations/tally/days', ...managers, validate(tallyDaysSchema), getTallyDays);

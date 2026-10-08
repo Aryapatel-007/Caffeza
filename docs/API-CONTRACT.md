@@ -6764,6 +6764,12 @@ Each `{ kind, id, at, provider, sentence, link }`. `POST .../acknowledge`
 an acknowledged alert is no longer listed. The same alerts appear in R1 Today's
 alerts section, kind `INTEGRATION`.
 
+Settled while building Part L: a dead bridge job is left out, because its Tally
+export already raises `TALLY_FAILED`. In R1, an integration row has `detail`
+(the sentence), no amount, and `drill.detail` `{ report: 'LINK', query: { to } }`,
+a path inside the app. A `link` is one of `/settings/integrations/:provider`,
+`/online?platformOrder=:id`, `/bills/:billId` or `/settings/tally`.
+
 ## 6. Acting without a signed-in person
 
 `server/services/integrations/systemActor.js`, `asIntegration(restaurantId,

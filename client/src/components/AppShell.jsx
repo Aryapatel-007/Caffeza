@@ -115,6 +115,7 @@ function useMoreGroups() {
         { to: '/attendance/register', label: 'Attendance', show: attendanceOn && manager },
         { to: '/attendance/me', label: 'My hours', show: attendanceOn },
         { to: '/settings', label: 'Settings', show: role === 'OWNER' },
+        { to: '/settings/integrations', label: 'Integrations', show: manager },
         { to: '/device', label: 'This device', show: true },
       ],
     },

@@ -66,6 +66,8 @@ export function drillHref(drill) {
   ).toString();
   if (drill.report === 'R19') return `/reports/bills?${search}`;
   if (drill.report === 'ORDER') return drill.query?.orderId ? `/orders/${drill.query.orderId}` : null;
+  // P25 Part L. An integration alert's own page, always inside the app.
+  if (drill.report === 'LINK') return typeof drill.query?.to === 'string' && drill.query.to.startsWith('/') && !drill.query.to.startsWith('//') ? drill.query.to : null;
   const target = REPORTS.find((report) => report.id === drill.report);
   return target ? `${reportPath(target)}?${search}` : null;
 }

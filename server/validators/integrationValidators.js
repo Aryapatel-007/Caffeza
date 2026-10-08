@@ -185,3 +185,16 @@ export const tallyBridgeIdSchema = z.object({
 });
 
 export const listBridgesSchema = z.object({ query: z.object({}).strict() });
+
+/* P25 Part L. Integration alerts. -------------------------------------- */
+
+export const listAlertsSchema = z.object({ query: z.object({}).strict() });
+
+export const acknowledgeAlertSchema = z.object({
+  body: z
+    .object({
+      kind: z.enum(['JOB_DEAD', 'PLATFORM_ACCEPT_FAILED', 'PLATFORM_AMOUNT_MISMATCH', 'PLATFORM_CANCELLED_CLOSED_DAY', 'TERMINAL_UNKNOWN', 'TALLY_FAILED'], { error: 'Is not a kind of alert.' }),
+      id: objectIdText,
+    })
+    .strict('Is not a field you can set here.'),
+});

@@ -17,6 +17,9 @@ import StockListPage from './features/inventory/StockListPage.jsx';
 import LabourReportPage from './features/reports/LabourPage.jsx';
 import StockReportPage from './features/reports/StockPage.jsx';
 import AppearancePage from './features/settings/AppearancePage.jsx';
+import IntegrationsPage from './features/integrations/IntegrationsPage.jsx';
+import ItemMappingPage from './features/integrations/ItemMappingPage.jsx';
+import TallyPage from './features/integrations/TallyPage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
 import AccountsPage from './features/settlement/AccountsPage.jsx';
 import PayoutsPage from './features/settlement/PayoutsPage.jsx';
@@ -517,6 +520,48 @@ export default function App() {
           <ProtectedRoute>
             <RequireRole roles={SETTINGS_ROLES}>
               <AppearancePage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P25 Part L. Integrations: OWNER and MANAGER read, the server lets only the owner change. */}
+      <Route
+        path="/settings/integrations"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={STAFF_ADMIN_ROLES}>
+              <IntegrationsPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/tally"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={STAFF_ADMIN_ROLES}>
+              <TallyPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/integrations/:provider"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={STAFF_ADMIN_ROLES}>
+              <IntegrationsPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/integrations/:provider/mapping"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={STAFF_ADMIN_ROLES}>
+              <ItemMappingPage />
             </RequireRole>
           </ProtectedRoute>
         }
