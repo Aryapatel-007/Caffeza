@@ -7,27 +7,52 @@ import { addFromPanel, billOrder, details, sendToKitchen, serveAll } from './pag
 import { openTable, tile } from './pages/floor.js';
 
 /**
- * One real table, end to end, against the app as it runs on this machine and
- * the cloud database: `npm run e2e:cloud` with `npm run dev` running and
- * "Cafezza Demo" loaded by `npm run seed:mock`. Not part of `npm run e2e`.
+ * One real table, end to end, against the app as it runs on this machine and a
+ * STAGING database: `npm run e2e:cloud` with `npm run dev` running. Not part of
+ * `npm run e2e`. e2e/cloud.config.js refuses to start unless
+ * `E2E_CLOUD_DATABASE` names the database in `MONGO_URI`, and the test refuses
+ * unless the owner it signs in as belongs to `E2E_CLOUD_RESTAURANT`.
  *
- * A captain seats Table 1 on a phone and sends a dish and a coffee to the
+ * A captain seats a table on a phone and sends a dish and a drink to the
  * kitchen; each station's tablet marks its ticket ready; the captain serves;
- * the counter bills and takes cash; the table is free again; and the owner
- * sees the ten loaded days in Sales by Day. It runs at the real time, so it
- * leaves one paid bill for today, and no table busy.
+ * the counter bills and takes cash; the table is free again; and the owner's
+ * Sales by Day for today balances. It runs at the real time, so it leaves one
+ * paid bill for today, and no table busy.
+ *
+ * The staging restaurant's logins, stations and dishes come from E2E_CLOUD_*
+ * variables, so no client's names live in this file.
  */
-const PASSWORD = process.env.DEMO_PASSWORD ?? 'demopass123';
-const PEOPLE = {
-  captain: '9000002006',
-  counter: '9000002002',
-  liveKitchen: '9000002008',
-  beverages: '9000002009',
-  owner: '9000002000',
+const env = (name) => {
+  const value = process.env[name];
+  if (!value) throw new Error(`e2e:cloud needs ${name}.`);
+  return value;
 };
-const TABLE = 'Table 1';
-const DISH = 'Cheesy Vada Pao Pops';
-const DRINK = 'Cappuccino';
+const RESTAURANT = env('E2E_CLOUD_RESTAURANT');
+const PASSWORD = env('E2E_CLOUD_PASSWORD');
+const PEOPLE = {
+  captain: env('E2E_CLOUD_CAPTAIN_PHONE'),
+  counter: env('E2E_CLOUD_COUNTER_PHONE'),
+  owner: env('E2E_CLOUD_OWNER_PHONE'),
+};
+/** "Station name=phone" pairs, comma separated: every station a ticket goes to. */
+const STATIONS = env('E2E_CLOUD_STATIONS').split(',').map((pair) => pair.split('=').map((part) => part.trim()));
+const TABLE = env('E2E_CLOUD_TABLE');
+const DISH = env('E2E_CLOUD_DISH');
+const DRINK = env('E2E_CLOUD_DRINK');
+
+/** Refuses unless the owner's phone signs in to the named restaurant. */
+async function assertRestaurant(baseURL) {
+  const response = await fetch(`${baseURL}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: PEOPLE.owner, password: PASSWORD }),
+  });
+  const body = await response.json();
+  const name = body?.data?.restaurant?.name;
+  if (name !== RESTAURANT) {
+    throw new Error(`The owner login belongs to "${name}", not E2E_CLOUD_RESTAURANT "${RESTAURANT}". Refusing.`);
+  }
+}
 
 async function signIn(browser, phone, device) {
   const context = await browser.newContext(DEVICES[device]);
@@ -40,8 +65,9 @@ async function signIn(browser, phone, device) {
   return { context, page };
 }
 
-test('a table, from seating to paid, against the cloud database', async ({ browser }) => {
+test('a table, from seating to paid, against the staging database', async ({ browser, baseURL }) => {
   test.setTimeout(5 * 60 * 1000);
+  await assertRestaurant(baseURL);
 
   const captain = await signIn(browser, PEOPLE.captain, 'phone');
   await openTable(captain.page, TABLE, 2);
@@ -56,10 +82,10 @@ test('a table, from seating to paid, against the cloud database', async ({ brows
   await sendToKitchen(captain.page);
   const orderUrl = captain.page.url();
 
-  const live = await signIn(browser, PEOPLE.liveKitchen, 'computer');
-  await markReady(live.page, 'Live Kitchen', TABLE);
-  const bar = await signIn(browser, PEOPLE.beverages, 'computer');
-  await markReady(bar.page, 'Beverages', TABLE);
+  for (const [station, phone] of STATIONS) {
+    const tablet = await signIn(browser, phone, 'computer');
+    await markReady(tablet.page, station, TABLE);
+  }
 
   await captain.page.goto(orderUrl);
   await serveAll(captain.page);
@@ -76,9 +102,6 @@ test('a table, from seating to paid, against the cloud database', async ({ brows
   await expect(tile(captain.page, TABLE, 'free')).toBeVisible();
 
   const owner = await signIn(browser, PEOPLE.owner, 'computer');
-  await owner.page.goto('/reports/sales-by-day?from=2026-09-22&to=2026-10-01');
-  for (const day of ['22 Sep', '26 Sep', '1 Oct']) {
-    await expect(owner.page.getByText(new RegExp(day)).first()).toBeVisible();
-  }
+  await owner.page.goto('/reports/sales-by-day');
   await expect(owner.page.getByText('Balanced', { exact: false }).first()).toBeVisible();
 });

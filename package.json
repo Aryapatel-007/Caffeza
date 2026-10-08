@@ -22,8 +22,6 @@
     "provision:restaurant": "npm run provision:restaurant --workspace=server",
     "seed:demo": "npm run seed:demo --workspace=server",
     "seed:golden": "npm run seed:golden --workspace=server",
-    "seed:mock": "npm run seed:mock --workspace=server --",
-    "seed:mock:golden": "npm run seed:mock:golden --workspace=server --",
     "db:restaurants": "npm run db:restaurants --workspace=server",
     "purge:restaurant": "npm run purge:restaurant --workspace=server --",
     "db:indexes": "npm run db:indexes --workspace=server",

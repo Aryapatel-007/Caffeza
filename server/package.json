@@ -12,14 +12,12 @@
     "provision:restaurant": "node scripts/provisionRestaurant.js",
     "seed:demo": "node scripts/seedDemo.js",
     "seed:golden": "node --import ./scripts/lib/asTest.js scripts/loadGoldenDay.js",
-    "seed:mock": "node --import ./scripts/lib/asTest.js scripts/loadMockDays.js",
     "db:restaurants": "node scripts/listRestaurants.js",
     "purge:restaurant": "node scripts/purgeRestaurant.js",
     "db:indexes": "node scripts/buildIndexes.js",
     "setup:restaurant": "node scripts/setupRestaurant.js",
     "import:menu": "node scripts/importMenu.js",
-    "smoke": "node scripts/smokeCheck.js",
-    "seed:mock:golden": "node --import ./scripts/lib/asTest.js scripts/seedMockDays.js"
+    "smoke": "node scripts/smokeCheck.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

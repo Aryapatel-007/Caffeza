@@ -131,6 +131,13 @@ start if that build is missing or a declared index is missing.
 5. Start the new version. The server refuses to start if the client is not built or an index is missing, and the logs say which.
 6. `npm run smoke -- --url https://caffeza-staging.<domain>`. Every line must pass, and the health line must show the commit from step 2.
 7. On staging: sign in, open a table, send a KOT, bill it, pay it, open Day Close. Staging bills are fine.
+   `npm run e2e:cloud` does the same through the screens. **It must only ever
+   point at a separate staging database, never production**: it creates a real
+   bill. It refuses to start unless `E2E_CLOUD_DATABASE` is set and is exactly
+   the database name in `MONGO_URI`, and it refuses unless the owner login in
+   `E2E_CLOUD_OWNER_PHONE` belongs to the restaurant named in
+   `E2E_CLOUD_RESTAURANT`. Set these only on a developer machine, never on the
+   host.
 8. Deploy the same commit to production: the release step against production's database, then start.
 9. `npm run smoke -- --url https://<production address>`. It only reads and never signs in, so it is safe against production.
 10. On production: sign in, open the menu, open a report. **Do not create a bill in production to test.** Every production bill takes a real GST invoice number that can never be reused.
