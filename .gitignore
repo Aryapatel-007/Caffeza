@@ -52,3 +52,7 @@ Thumbs.db
 # P21 browser tests
 e2e/test-results/
 e2e/screenshots/
+
+# P25. Partner documents (often under NDA) and restaurant data exports. Never commit.
+partner-docs/
+backups/
