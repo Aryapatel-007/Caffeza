@@ -460,7 +460,7 @@ Newest entry at the top. Keep the last ten or so, delete older ones.
 P25 progress
 - [x] A Spec
 - [ ] B Move to Z Chaat, remove mock data
-- [ ] C Bill printing
+- [x] C Bill printing
 - [ ] D Captains bill
 - [ ] E Cancel an item after billing
 - [ ] F Cash by notes and coins
@@ -490,7 +490,13 @@ Small details the prompt left open, chosen and written into the spec:
 10. Pine Labs `transactionNumber` is the bill number's letters and digits, and `sequenceNumber` counts every attempt on the bill.
 11. The R9 On Hold Tally code moves to `settings.reports.onHoldTallyCode`.
 
-Next: Part B, which stops to ask which restaurants in the cloud database to remove.
+Part B, all but B8: the one restaurant in the cloud database, "Cafezza Demo" (mock data, Rishi's call), was backed up to `backups/Cafezza-Demo-2026-10-08T13-28-26/` and removed with the new `npm run purge:restaurant`; the cloud database (`cluster0.dkcsfcz`, `restaurant-erp`) now holds no restaurant. `npm run db:restaurants` lists restaurants, read only. `seed:mock` and `seed:mock:golden` are gone. `e2e:cloud` refuses unless `E2E_CLOUD_DATABASE` equals the database in `MONGO_URI`, and takes its restaurant, logins and dishes from `E2E_CLOUD_*` variables. Cafezza's profile, setup files and brand images are in `docs/archive/caffeza/` and `setup/archive/caffeza/`. A guard test fails on "Caffeza" or "Cafezza" in server or client code outside comments, tests and the two browser storage keys. `docs/clients/zchaat/PROFILE.md`, `setup/zchaat.json` and `setup/zchaat-menu.csv` (97 dishes, 14 categories, 105 rows), and the menu import reads an optional `description` column. The cloud host was taken out of `SEED_DEMO_ALLOWED_HOSTS` in Rishi's `.env`.
+B8 waits on Rishi: provisioning and the two setup scripts read the owner's password at a terminal, so he runs them. Part B is ticked once Z Chaat is in the cloud database.
+Measured, not as the prompt expected: `#A64220` is refused as an accent for being too close to the Open state's colour, not the Late red. The nearest preset accepted is Espresso, `#55473F`.
+
+Part C: confirmed in headless Chrome that `@page { size: 80mm auto }` is dropped whole (the page came out 215.9 by 279.4 mm, Letter), so the receipt printed in a corner of the printer's own paper. Now a device chooses a printer, `THERMAL_80`, `THERMAL_58`, `A4` or `A5` (a saved 80 or 58 moves across on load), and every print lays out in the frame at the paper's real width, is measured, and gets `pageCss`: two lengths on a roll, the paper's own size and 12 mm margins on a page. Printed to PDF through the real modules: 80.1 by 106.9 mm and 57.8 by 114.0 mm, one page each; A4 209.9 by 297.0; A5 148.2 by 209.9. `GET /bills/:billId/invoice` and the receipt text are built from one `buildInvoiceData`; a test checks every amount for all 16 golden day bills. The receipt settings, stored since M7 and read by nothing, now print. `receipt.reviewLinkUrl` (https, up to 300) puts a QR code from the new client dependency `qrcode` at the foot of every bill. The printed invoice is the one file the design guard lets draw an `<img>`, for the logo. Not checked: a real thermal printer.
+
+Next: Part D, captains bill.
 
 ### 2026-10-08 Rishi, P24 built: advance payment, dish photos, the new public page
 
