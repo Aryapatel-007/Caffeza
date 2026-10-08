@@ -461,7 +461,7 @@ P25 progress
 - [x] A Spec
 - [ ] B Move to Z Chaat, remove mock data
 - [x] C Bill printing
-- [ ] D Captains bill
+- [x] D Captains bill
 - [ ] E Cancel an item after billing
 - [ ] F Cash by notes and coins
 - [ ] G Integrations foundation
@@ -496,7 +496,9 @@ Measured, not as the prompt expected: `#A64220` is refused as an accent for bein
 
 Part C: confirmed in headless Chrome that `@page { size: 80mm auto }` is dropped whole (the page came out 215.9 by 279.4 mm, Letter), so the receipt printed in a corner of the printer's own paper. Now a device chooses a printer, `THERMAL_80`, `THERMAL_58`, `A4` or `A5` (a saved 80 or 58 moves across on load), and every print lays out in the frame at the paper's real width, is measured, and gets `pageCss`: two lengths on a roll, the paper's own size and 12 mm margins on a page. Printed to PDF through the real modules: 80.1 by 106.9 mm and 57.8 by 114.0 mm, one page each; A4 209.9 by 297.0; A5 148.2 by 209.9. `GET /bills/:billId/invoice` and the receipt text are built from one `buildInvoiceData`; a test checks every amount for all 16 golden day bills. The receipt settings, stored since M7 and read by nothing, now print. `receipt.reviewLinkUrl` (https, up to 300) puts a QR code from the new client dependency `qrcode` at the foot of every bill. The printed invoice is the one file the design guard lets draw an `<img>`, for the logo. Not checked: a real thermal printer.
 
-Next: Part D, captains bill.
+Part D: `settings.billing` (`captainsMayBill` on, `captainsMayTakePayment` off), on `/auth/me` too. `assertCanBill` and `assertCanTakePayment` in `billPermissionService.js`; a WAITER is let through the two routes and refused there unless the setting allows it, and always for a delivery order. Bills gain `printRequestedAt`, `printRequestedBy`, `lastPrintedAt` and `printCount`; `POST /bills/:billId/print-request`, `GET /bills/print-queue` (a read of `bills`, never a second list), `POST /bills/:billId/printed`; every print records itself, so the second and later say Duplicate. "Print bills sent by captains" on This device runs `CaptainBillPrinter` in the shell, polling every 5 seconds and remembering each request it printed. A captain's bill screen shows Print at counter and Print here. One bills test changed on purpose: a waiter is no longer refused a bill by default. Differs from the prompt: the captain's button keeps the word every role already sees, "Bill this order", rather than a second name, "Make bill", for the same action.
+
+Next: Part E, cancelling an item after billing.
 
 ### 2026-10-08 Rishi, P24 built: advance payment, dish photos, the new public page
 
