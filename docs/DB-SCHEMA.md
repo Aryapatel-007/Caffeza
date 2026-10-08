@@ -2682,3 +2682,23 @@ printRequestedAt: { $type: 'date' } }`, for the print queue.
 
 Every field has a schema default, so a restaurant saved before P25 reads back
 complete, with no migration.
+
+## 41. `customers` (P27)
+
+One guest at one restaurant, by phone. Built from orders.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `restaurantId`, `branchId` | ObjectId | yes | |
+| `phone` | String | yes | 10 digits, normalised |
+| `name` | String | no | The latest name given, up to `CUSTOMER_NAME_MAX_LENGTH` |
+| `firstVisitAt`, `lastVisitAt` | Date | yes | UTC |
+| `lastOrderId` | ObjectId | no | |
+| `visitCount` | Number | yes | Orders opened with this phone |
+| `offers` | Object | yes | `{ given, textVersion, at, source }`, default not given. `source` is `STAFF` or `ONLINE`. |
+| `offersHistory` | [Object] | yes | `{ given, textVersion, at, source, by, reason }`, append only. Default `[]`. |
+
+Index: `{ restaurantId: 1, phone: 1 }` unique; `{ restaurantId: 1, lastVisitAt: -1 }`
+for the list. Orders already store `customerName` and `customerPhone`; a
+dine-in order may now carry them too.
+

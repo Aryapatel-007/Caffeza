@@ -381,3 +381,19 @@ Added by P25.
 | **Integration user** | The restaurant's automatic user, like "Swiggy (automatic)", that integrations act as. It cannot sign in. |
 | **Add items** | On a bill: void it so the table can order more. The money already paid carries to the next bill. (P26) |
 | **Add more dishes** | On a served table's order: take new dishes, which go to the kitchen as usual (P26) |
+
+---
+
+## 17. Customer words
+
+Added by P27.
+
+| Term | Meaning |
+|---|---|
+| **Customer** | One guest at this restaurant, known by their mobile number |
+| **Visit** | One order opened with the customer's mobile number |
+| **Last visit** | When their latest order was opened |
+| **Total spent** | Bill totals of their orders' live bills |
+| **Agreed to offers** | The guest said yes to offers and news by SMS or WhatsApp. Shown with when, how and the wording they agreed to. |
+| **Withdrawn** | The guest asked not to get offers any more |
+

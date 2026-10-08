@@ -7137,3 +7137,56 @@ and tokens.
    collection.
 7. The device storage key stays `caffeza.device`. It is not seen by anyone, and
    renaming it would forget every device's printer and station.
+
+---
+
+# M22 Customers (P27)
+
+A customer is one phone number at one restaurant: the guest's name, visits and
+offers consent. It is built from orders; nothing else creates one.
+
+## 1. Taking the guest's details
+
+`POST /api/v1/orders` (12.1): a `DINE_IN` order also takes `customerName` (1 to
+`CUSTOMER_NAME_MAX_LENGTH`) and `customerPhone` (an Indian mobile, normalised to
+10 digits), both optional, as `TAKEAWAY` and `DELIVERY` already do. Every order
+type takes `offersConsent` (boolean, optional). `offersConsent: true` without a
+`customerPhone` is 400.
+
+Every order opened with a phone, by staff or through `openOrder` from an
+accepted online order or a seated booking, records a visit after the order is
+written. A failure to record it never fails the order; it is logged without
+the phone.
+
+Recording a visit: the customer with that phone is found or created; `name`
+takes the order's name when one is given; `firstVisitAt` is set once,
+`lastVisitAt` and `lastOrderId` every time, `visitCount` goes up by one. When
+consent is given (`offersConsent: true` from staff, source `STAFF`, the current
+text version from `config/consentText.js`; or a guest's own from the page,
+source `ONLINE`, with the version they saw), `offers` becomes given and an
+entry is added to `offersHistory`. No tick never withdraws consent.
+
+## 2. Endpoints
+
+| Method and path | Roles | What it does |
+|---|---|---|
+| `GET /customers?page&limit&offers=true` | OWNER, MANAGER | Newest `lastVisitAt` first. `offers=true` only those who agreed. |
+| `POST /customers/search` | OWNER, MANAGER | `{ query, offers? }`, 2 to 40 characters: a name (case-insensitive, escaped) or 3 or more digits matched against the end of the phone. Up to 50, newest visit first. A POST so a phone never sits in a URL. |
+| `GET /customers/:customerId` | OWNER, MANAGER | The customer, and up to 50 recent orders with that phone: `{ orderId, orderNumber, orderType, tableName, openedAt, status, bill: { billId, billNumber, grandTotalInPaise } \| null }`, the live bill if any. `totalSpentInPaise` adds up those bills. |
+| `PATCH /customers/:customerId` | OWNER, MANAGER | `{ name?, offersConsent?, reason? }`. `offersConsent: false` withdraws, `true` records consent given at the counter; each adds to `offersHistory` with source `STAFF` and `by`. `reason` is required with `offersConsent`. |
+| `GET /customers/export` | OWNER | A CSV file of the customers who agreed to offers: Name, Mobile number, Visits, Last visit, Agreed on, Consent text version. Writes `CUSTOMERS_EXPORTED`, entity `SETTINGS`, with the count only. |
+
+A customer is shown as `{ id, name, phone, visitCount, firstVisitAt,
+lastVisitAt, offers: { given, textVersion, at, source }, offersHistory }`.
+
+## 3. Rules
+
+1. A phone is never in a URL, a log line or an audit line.
+2. 404 for another restaurant's customer.
+3. Customers are never deleted by these endpoints. A guest who asks to be
+   forgotten is a manual request to the owner, outside this prompt.
+
+## Error codes
+
+None new: 400 `VALIDATION_FAILED`, 403, 404 as usual.
+
