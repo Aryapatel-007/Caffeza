@@ -96,6 +96,7 @@ Each prompt names its model at the top.
 | P23 | Online takeaway orders and table reservations | M14 | P22 | Rishi | Opus, high |
 | P24 | Advance payment, dish photos and the new public page | M14, M1 | P23 | Rishi | Opus, high |
 | P25 | Z Chaat, the cashier, and integrations | Onboarding, M3, M10, M16, M21 | P23 | Arya, for M21 | Opus, high |
+| P26 | Adding items after serving and after billing | M2, M3 | P25 | Rishi | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

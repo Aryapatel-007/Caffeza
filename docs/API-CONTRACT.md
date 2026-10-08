@@ -1787,7 +1787,14 @@ This is the partial order problem from BUILD-PLAN section 8: a table orders
 starters, then mains twenty minutes later, on the same order. Lines may be added
 to an `OPEN` order at any time, including after an earlier KOT has been fired.
 
-422 `BUSINESS_RULE_VIOLATED` if the order is not `OPEN`.
+422 `BUSINESS_RULE_VIOLATED` if the order is not `OPEN`, or `READY_TO_BILL`
+with no live bill (P26).
+
+P26: a served table orders more. Adding lines to a `READY_TO_BILL` order with no
+live bill moves it back to `OPEN` and clears `readyToBillAt`, in the same write.
+The new lines go to the kitchen as usual, and when the last is served the order
+is `READY_TO_BILL` again (12.7). An order with a live bill takes new lines only
+after `POST /bills/:billId/reopen` (M3 section 16.7).
 
 422 `BUSINESS_RULE_VIOLATED` (P04) if the chosen variant is marked unavailable,
 with the message `The {variant name} size of "{item name}" is out of stock right
@@ -2727,6 +2734,43 @@ on the card machine or by UPI. They appear on Day Close and in R2 and R5 as
 their own line "Refunds owed", and as a **warning** on Day Close, never a
 blocker. Marking one done is allowed on a closed day: it changes no figure of
 that day.
+
+### 16.7 Adding items after the bill is made (P26)
+
+```
+POST /api/v1/bills/:billId/reopen
+```
+
+Roles: OWNER, MANAGER directly; CASHIER, and WAITER when `captainsMayBill`, with
+`approval: { approverId, pin }` exactly as 16.4.
+
+```json
+{ "approval": { "approverId": "6610…", "pin": "2468" } }
+```
+
+In one transaction: the bill is voided with `voidReasonCode: ITEMS_CHANGED`
+and the note "Reopened to add items", which returns the order to
+`READY_TO_BILL` and re-occupies its table, and the order's `reopenedFromBillId`
+is set to the voided bill. Dishes are then added with 12.4, fired and served as
+usual. Paid, unpaid and On Hold bills alike.
+
+When an order with `reopenedFromBillId` is billed again (`POST /bills`), inside
+the same transaction as the new bill: the voided bill's discount is applied
+when the request sends none; its payments are carried in 16.4's order up to the
+new bill total, each with `carriedFromBillId`; whatever is not needed is cash to
+give back or a refund owed, as in 16.4; a voided On Hold bill's unpaid rest is
+charged to the same account; and `reopenedFromBillId` is cleared. The response
+is the bill, with `carried: { fromBillId, fromBillNumber, carriedInPaise,
+cashToGiveBackInPaise, refundsOwed }` beside it when anything was carried.
+
+Response 200: `{ orderId, voidedBillId, voidedBillNumber }`. Writes
+`BILL_REOPENED`, entity `BILL`, on the voided bill, with `details: { approvedBy,
+paidInPaise }`.
+
+422 `BUSINESS_RULE_VIOLATED` for a voided bill, or a platform order ("Platform
+orders change through the platform."). 409 `DAY_CLOSED` for a closed day. 409
+`TABLE_OCCUPIED` when the table has another order since. 403 as 16.4 without
+the approval.
 
 ### 16.6 Permission summary for P25 in M3
 
@@ -3881,6 +3925,7 @@ Added by P25, OWNER only to read like every action outside the manager list:
 |---|---|---|---|
 | `BILL_LINES_CANCELLED_AFTER_BILLING` | `BILL` | M3, from P25 Part E | A paid bill was voided and re-issued smaller. `details` carry both bill numbers, the lines, the approver, the cash given back and the refunds owed. |
 | `REFUND_RECORDED` | `BILL` | M3, from P25 Part E | Money owed back to a guest was returned outside the system, with its reference |
+| `BILL_REOPENED` | `BILL` | M3, from P26 | A bill voided so the table could order more. `details` carry the approver and what was already paid, which the next bill carries. |
 | `TERMINAL_BYPASSED` | `BILL` | M10, from P25 Part I | A card-machine method recorded by hand, with the reason |
 | `INTEGRATION_CONNECTED` | `INTEGRATION` | M21, from P25 Part G | A partner connection saved for the first time |
 | `INTEGRATION_CREDENTIALS_CHANGED` | `INTEGRATION` | M21 | A partner credential replaced. `details` carry the field names, never the values. |

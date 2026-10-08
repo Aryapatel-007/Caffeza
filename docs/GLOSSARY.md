@@ -379,4 +379,5 @@ Added by P25.
 | **Ledger mapping** | Which Tally ledger each figure goes to: sales by rate, GST, round-off, each payment method, On Hold, paid in and out |
 | **Tally bridge** | A small program on the computer that runs Tally. It fetches vouchers from our server and posts them into Tally. |
 | **Integration user** | The restaurant's automatic user, like "Swiggy (automatic)", that integrations act as. It cannot sign in. |
-
+| **Add items** | On a bill: void it so the table can order more. The money already paid carries to the next bill. (P26) |
+| **Add more dishes** | On a served table's order: take new dishes, which go to the kitchen as usual (P26) |

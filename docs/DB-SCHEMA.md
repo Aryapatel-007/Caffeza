@@ -715,6 +715,7 @@ collection in the project after `menuitems`.
 | `openedBy` | ObjectId | yes | `users._id` | |
 | `openedAt` | Date | yes | | UTC |
 | `readyToBillAt` | Date | no | | UTC. Set when the last line is served. |
+| `reopenedFromBillId` | ObjectId | no | `bills._id` | P26. Default null. The bill voided by `POST /bills/:billId/reopen`, whose discount and payments the next bill of this order carries. Cleared when that bill is made. |
 | `billId` | ObjectId | no | `bills._id` | **Reserved for M3. Null until billed. M2 never sets it.** |
 | `isCancelled` | Boolean | yes | | Default false |
 | `cancelledAt` | Date | no | | UTC |
