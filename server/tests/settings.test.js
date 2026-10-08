@@ -62,6 +62,7 @@ const DEFAULTS = {
   billing: { captainsMayBill: true, captainsMayTakePayment: false },
   dayClose: { showCashDifferenceToManager: false },
   cash: { denominations: DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })) },
+  payments: { requireTerminalForLinkedMethods: true },
   // P19.
   floor: { sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false },
   // P20A.

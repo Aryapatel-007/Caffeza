@@ -104,6 +104,8 @@ export async function createPaymentMethod(req, body) {
       tallyLedgerCode: body.tallyLedgerCode ?? null,
       commissionBps: body.commissionBps ?? null,
       displayOrder: body.displayOrder ?? 0,
+      terminalProvider: body.terminalProvider ?? null,
+      terminalPaymentMode: body.terminalPaymentMode ?? null,
     });
   } catch (error) {
     if (error?.code === DUPLICATE_KEY) {
@@ -124,6 +126,13 @@ export async function updatePaymentMethod(req, methodId, changes) {
 
   for (const [key, value] of Object.entries(changes)) {
     method[key] = value;
+  }
+  // P25 Part I. Checked on the result: a machine only on an in-hand method, a mode exactly with one.
+  if (method.terminalProvider && method.kind === PAYMENT_METHOD_KINDS.PLATFORM) {
+    throw new ValidationError('A platform\'s money never goes through the card machine.', { terminalProvider: 'Not on a platform method.' });
+  }
+  if (Boolean(method.terminalProvider) !== (method.terminalPaymentMode !== null && method.terminalPaymentMode !== undefined)) {
+    throw new ValidationError('A card machine and its payment mode go together.', { terminalPaymentMode: 'Set both, or neither.' });
   }
   await method.save();
   return method;

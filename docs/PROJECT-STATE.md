@@ -466,7 +466,7 @@ P25 progress
 - [x] F Cash by notes and coins
 - [x] G Integrations foundation
 - [x] H Swiggy and Zomato
-- [ ] I Pine Labs
+- [x] I Pine Labs
 - [ ] J Tally vouchers
 - [ ] K Tally bridge
 - [ ] L Integration screens
@@ -508,7 +508,9 @@ Part G: `INTEGRATION_SECRETS_KEY` (required in production, a fixed development k
 
 Part H: `platformitemmappings` and `platformorders`; the sandbox adapter complete (signed webhooks in the normalised shape, phone numbers dropped, outgoing calls logged and failing on request); Swiggy and Zomato stay WAITING_FOR_PARTNER, as `partner-docs/` holds nothing. `services/integrations/platformOrderService.js`: arrival (a duplicate changes nothing), the attention reasons, auto-accept, accept (the platform first, then our DELIVERY order through `openOrder` at the platform's prices with `priceSource: PLATFORM`, fired, as the integration user), reject with a reason (`PLATFORM_ORDER_REJECTED`), pickup (bill, the merchant's discount, the platform's payment method, an amount mismatch flagged), cancelled by the platform before firing, after firing, after billing and on a closed day, food ready once every line is, and availability queued per active channel. `mappingService.js` with list, save, delete, unmapped and CSV import (the menu import's CSV parser moved to `utils/csv.js`). `PLATFORM_CANCELLED` appended to the three reason lists; `platformRejectReasons.js`. The inbox and its alert carry platform orders and are on while online orders are on or a delivery platform is connected; `/auth/me` `online.platformChannels`. Day Close blocks on a platform order waiting, accepted and not picked up, or failed. `npm run sandbox:order` with three samples in `setup/sandbox-orders/`. Golden day B08 as a sandbox Zomato order bills ₹305.00 with shares ₹130.69 and ₹69.31, as TEST-DATA says. Two pinned tests changed on purpose: the second tenant-guard tripwire copy (`menu.test.js`) and `/auth/me`'s online block. Differs from the prompt: accepting is claim, call, create, not one transaction, written into the contract.
 
-Next: Part I, Pine Labs.
+Part I: built from Pine Labs' public page (read 8 October 2026). Payment methods gain `terminalProvider` and `terminalPaymentMode`; `settings.payments.requireTerminalForLinkedMethods` (on): a linked method typed in is 422 `TERMINAL_REQUIRED`, except an owner or manager with `terminalBypassReason`, audited `TERMINAL_BYPASSED`. `terminaltransactions`; `services/integrations/terminals/pineLabs.js` (UploadBilledTransaction, GetStatus, CancelTransaction, every path from the connection's settings) and `terminalService.js` (start, read with a GetStatus at most every 3 seconds, cancel, the postback as a hint only, a job checking every 30 seconds until the machine's cancel time plus 5 minutes, then EXPIRED). An approval is recorded once, through `recordPayment` with the `terminal` fields, in one transaction with `paymentId` unique; a different approved amount records nothing and is UNKNOWN. Day Close blocks on WAITING and UNKNOWN. `/auth/me` lists the machines; This device picks one; the payment panel sends to it and shows the PTRID until it finishes; Settings links Card and UPI to the machine. Golden day B05 takes ₹500.00 cash and ₹295.00 UPI on the machine, sequence 1, paid in full. Gaps, not guessed: the URL paths, the production address, Cancel's fields, and the codes for declined or waiting (only 0 approved and 1008 voided are public). A non-zero answer whose message says declined is declined; anything else waits and expires. These go in `docs/INTEGRATIONS.md` (Part M). Two more copies of the tenant-guard tripwire (`bills.test.js`, `inventory.test.js`) updated on purpose.
+
+Next: Part J, Tally vouchers.
 
 ### 2026-10-08 Rishi, P24 built: advance payment, dish photos, the new public page
 

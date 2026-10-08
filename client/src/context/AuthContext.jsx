@@ -69,6 +69,8 @@ const fromMe = (me) => ({
   },
   // P25 Part F. The active notes and coins, for the cash counter.
   cash: { denominations: me.cash?.denominations ?? [] },
+  // P25 Part I. The card machines this device may send a payment to.
+  terminals: me.terminals ?? [],
   // P19. Section order, the long-open threshold and whether the guest picker may offer Skip.
   floor: { ...DEFAULT_FLOOR, ...(me.floor ?? {}) },
   // P20A. The accent, both colours already worked out by the server.

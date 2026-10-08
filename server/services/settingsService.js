@@ -69,6 +69,7 @@ const SETTING_PATHS = Object.freeze({
 
   'dayClose.showCashDifferenceToManager': 'settings.dayClose.showCashDifferenceToManager',
   'cash.denominations': 'settings.cash.denominations',
+  'payments.requireTerminalForLinkedMethods': 'settings.payments.requireTerminalForLinkedMethods',
 
   'floor.sectionOrder': 'settings.floor.sectionOrder',
   'floor.longOpenMinutes': 'settings.floor.longOpenMinutes',

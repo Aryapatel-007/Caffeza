@@ -13,6 +13,8 @@
  */
 import { z } from 'zod';
 
+import { config } from '../../config/env.js';
+
 export const PROVIDER_KINDS = Object.freeze({
   ORDER_CHANNEL: 'ORDER_CHANNEL',
   PAYMENT_TERMINAL: 'PAYMENT_TERMINAL',
@@ -83,7 +85,8 @@ const PROVIDERS = {
     credentialSchema: z.object({ merchantId: secret(40), securityToken: secret() }).strict(),
     configSchema: z
       .object({
-        baseUrl: z.string().trim().url('Must be a web address.').refine((value) => value.startsWith('https://'), 'Must start with https://.'),
+        // https always; plain http only to this machine outside production, for a test's fake service.
+        baseUrl: z.string().trim().url('Must be a web address.').refine((value) => value.startsWith('https://') || (!config.isProduction && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(value)), 'Must start with https://.'),
         // From the integration document Pine Labs sends with the credentials. No code default.
         paths: z
           .object({

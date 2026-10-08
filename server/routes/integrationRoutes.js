@@ -15,7 +15,10 @@ import {
   getMappings,
   getPlatformOrder,
   getPlatformOrders,
+  getTerminalPayment,
   getUnmapped,
+  postCancelTerminalPayment,
+  postTerminalPayment,
   postAcceptPlatformOrder,
   postHandedOver,
   postImportMappings,
@@ -44,7 +47,9 @@ import {
   platformOrderIdSchema,
   rejectPlatformOrderSchema,
   saveMappingSchema,
+  startTerminalPaymentSchema,
   storeStatusSchema,
+  terminalPaymentIdSchema,
   listEventsSchema,
   listIntegrationsSchema,
   providerActionSchema,
@@ -80,5 +85,11 @@ router.get('/platform-orders/:id', ...till, validate(platformOrderIdSchema), get
 router.post('/platform-orders/:id/accept', ...till, validate(acceptPlatformOrderSchema), postAcceptPlatformOrder);
 router.post('/platform-orders/:id/reject', ...till, validate(rejectPlatformOrderSchema), postRejectPlatformOrder);
 router.post('/platform-orders/:id/handed-over', ...till, validate(handedOverSchema), postHandedOver);
+
+// P25 Part I. The card machine: the till, and a captain when both billing settings allow (checked in the controller).
+const tillAndCaptains = [authenticate, tenant, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER, ROLES.WAITER)];
+router.post('/bills/:billId/terminal-payments', ...tillAndCaptains, validate(startTerminalPaymentSchema), postTerminalPayment);
+router.get('/terminal-payments/:id', ...tillAndCaptains, validate(terminalPaymentIdSchema), getTerminalPayment);
+router.post('/terminal-payments/:id/cancel', ...tillAndCaptains, validate(terminalPaymentIdSchema), postCancelTerminalPayment);
 
 export default router;

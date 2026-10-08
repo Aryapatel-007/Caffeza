@@ -280,6 +280,17 @@ const denominationSchema = new mongoose.Schema(
   { _id: false },
 );
 
+/**
+ * Payments. P25 Part I. When true, a method linked to a card machine is taken
+ * on the machine, never typed in, except by an owner or manager with a reason.
+ */
+const paymentSettingsSchema = new mongoose.Schema(
+  {
+    requireTerminalForLinkedMethods: { type: Boolean, required: true, default: true },
+  },
+  { _id: false },
+);
+
 const cashSettingsSchema = new mongoose.Schema(
   {
     denominations: { type: [denominationSchema], default: () => DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })) },
@@ -456,6 +467,7 @@ const settingsSchema = new mongoose.Schema(
     billing: { type: billingSettingsSchema, default: () => ({}) },
     dayClose: { type: dayCloseSettingsSchema, default: () => ({}) },
     cash: { type: cashSettingsSchema, default: () => ({}) },
+    payments: { type: paymentSettingsSchema, default: () => ({}) },
     floor: { type: floorSettingsSchema, default: () => ({}) },
     appearance: { type: appearanceSettingsSchema, default: () => ({}) },
     online: { type: onlineSettingsSchema, default: () => ({}) },

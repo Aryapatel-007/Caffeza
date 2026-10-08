@@ -20,6 +20,11 @@ import {
   rejectPlatformOrder,
   setStoreStatus,
 } from '../services/integrations/platformOrderService.js';
+import { ROLES } from '../config/roles.js';
+import { assertCanTakePayment } from '../services/billPermissionService.js';
+import { readBill } from '../services/billService.js';
+import { getSettings } from '../services/settingsService.js';
+import { cancelTerminalPayment, readTerminalPayment, startTerminalPayment } from '../services/integrations/terminals/terminalService.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 
 /** GET /integrations */
@@ -121,4 +126,25 @@ export async function removeMapping(req, res) {
 /** POST /integrations/:provider/item-mappings/import */
 export async function postImportMappings(req, res) {
   return sendSuccess(res, await importMappings(req, req.params.provider, req.body));
+}
+
+/* P25 Part I. The card machine. ------------------------------------------ */
+
+/** POST /bills/:billId/terminal-payments. The same people as a payment by hand, captains by setting. */
+export async function postTerminalPayment(req, res) {
+  if (req.user.role === ROLES.WAITER) {
+    const { billing } = await getSettings(req.restaurantId, { req });
+    assertCanTakePayment(req.user, await readBill(req, req.params.billId), billing);
+  }
+  return sendSuccess(res, await startTerminalPayment(req, req.params.billId, req.body), 201);
+}
+
+/** GET /terminal-payments/:id */
+export async function getTerminalPayment(req, res) {
+  return sendSuccess(res, await readTerminalPayment(req, req.params.id));
+}
+
+/** POST /terminal-payments/:id/cancel */
+export async function postCancelTerminalPayment(req, res) {
+  return sendSuccess(res, await cancelTerminalPayment(req, req.params.id));
 }

@@ -32,6 +32,8 @@ const DEFAULTS = Object.freeze({
   // P25 Part D. A counter computer prints the bills captains send it.
   printCaptainBills: false,
   printedBillRequests: [],
+  // P25 Part I. The card machine on this counter, by its Pine Labs client id.
+  terminalClientId: null,
   kitchenStationId: null,
   printedKotIds: [],
   // Automatic is Day everywhere, the kitchen included. Night is chosen per device.

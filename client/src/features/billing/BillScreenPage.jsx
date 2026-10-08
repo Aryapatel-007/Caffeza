@@ -456,6 +456,11 @@ export default function BillScreenPage() {
               </div>
             ) : isSettleable && canTakePayment ? (
               <InlinePayment
+                billId={bill.id}
+                onTerminalFinished={(transaction) => {
+                  queryClient.invalidateQueries({ queryKey: ['bill', billId] });
+                  if (transaction.status === 'APPROVED') setToast({ tone: 'success', message: 'Approved on the card machine.' });
+                }}
                 methods={allowedMethods}
                 outstandingInPaise={outstandingInPaise}
                 isBusy={paymentMutation.isPending}

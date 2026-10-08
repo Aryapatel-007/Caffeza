@@ -131,6 +131,7 @@ export const ERROR_CODES = Object.freeze({
   INTEGRATION_NOT_ACTIVE: 'INTEGRATION_NOT_ACTIVE',
   INTEGRATION_TEST_FAILED: 'INTEGRATION_TEST_FAILED',
   PARTNER_CALL_FAILED: 'PARTNER_CALL_FAILED',
+  TERMINAL_REQUIRED: 'TERMINAL_REQUIRED',
 });
 
 /**
@@ -738,6 +739,13 @@ export class IntegrationTestFailedError extends AppError {
 export class PartnerCallFailedError extends AppError {
   constructor(message) {
     super(message, { statusCode: 502, code: ERROR_CODES.PARTNER_CALL_FAILED });
+  }
+}
+
+/** P25 Part I. A method linked to a card machine, recorded by hand without a manager's reason. */
+export class TerminalRequiredError extends AppError {
+  constructor() {
+    super('Send this payment to the card machine.', { statusCode: 422, code: ERROR_CODES.TERMINAL_REQUIRED });
   }
 }
 

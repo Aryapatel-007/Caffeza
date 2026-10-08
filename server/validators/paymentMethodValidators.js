@@ -69,6 +69,23 @@ export const listPaymentMethodsSchema = z.object({
   query: z.object({ includeInactive: queryBoolean }).strict('Is not a filter on payment methods.'),
 });
 
+/** P25 Part I. A card machine a method is taken on, and the mode the machine offers. */
+const terminalProvider = z.enum(['PINE_LABS'], { error: 'Must be PINE_LABS.' }).nullable();
+const terminalPaymentMode = z.number({ error: 'Must be a Pine Labs payment mode code.' }).int().min(0).max(99).nullable();
+
+/** A machine only on an in-hand method; a mode exactly when there is a machine. */
+function terminalRule(body, context, kind) {
+  if (body.terminalProvider && kind === 'PLATFORM') {
+    context.addIssue({ code: 'custom', path: ['terminalProvider'], message: 'A platform\'s money never goes through the card machine.' });
+  }
+  if (body.terminalProvider && (body.terminalPaymentMode === undefined || body.terminalPaymentMode === null)) {
+    context.addIssue({ code: 'custom', path: ['terminalPaymentMode'], message: 'Choose what the machine takes: 1 card, 10 UPI.' });
+  }
+  if (!body.terminalProvider && body.terminalPaymentMode !== undefined && body.terminalPaymentMode !== null) {
+    context.addIssue({ code: 'custom', path: ['terminalPaymentMode'], message: 'A payment mode needs a card machine.' });
+  }
+}
+
 export const createPaymentMethodSchema = z.object({
   body: z
     .object({
@@ -80,9 +97,12 @@ export const createPaymentMethodSchema = z.object({
       tallyLedgerCode: tallyLedgerCode.optional(),
       commissionBps: commissionBps.optional(),
       displayOrder: displayOrder.optional(),
+      terminalProvider: terminalProvider.optional(),
+      terminalPaymentMode: terminalPaymentMode.optional(),
     })
     .strict('Is not a field you can set here.')
     .superRefine((body, context) => {
+      terminalRule(body, context, body.kind);
       if (body.kind === 'IN_HAND' && body.commissionBps !== undefined && body.commissionBps !== null) {
         context.addIssue({
           code: 'custom',
@@ -105,6 +125,8 @@ export const updatePaymentMethodSchema = z.object({
       tallyLedgerCode: tallyLedgerCode.optional(),
       commissionBps: commissionBps.optional(),
       displayOrder: displayOrder.optional(),
+      terminalProvider: terminalProvider.optional(),
+      terminalPaymentMode: terminalPaymentMode.optional(),
       isActive: z.boolean({ error: 'Must be true or false.' }).optional(),
     })
     .strict('Is not a field you can change here.')

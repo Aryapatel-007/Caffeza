@@ -53,8 +53,10 @@ import {
   BillAlreadyExistsError,
   BusinessRuleError,
   CashCountMismatchError,
+  ForbiddenError,
   NotFoundError,
   PaymentMethodNotAllowedError,
+  TerminalRequiredError,
   TransactionRequiredError,
 } from '../utils/errors.js';
 import { sumPaise } from '../utils/money.js';
@@ -381,8 +383,14 @@ export async function applyDiscount(
  * moves to BILLED, and the table frees. That is the moment the customer has
  * finished, which is why it is here and not at bill creation.
  */
-export async function recordPayment(req, billId, { method, amountInPaise, reference, tender = null }) {
-  const bill = await readBill(req, billId);
+/**
+ * `terminal` is internal (P25 Part I): set only by the card machine flow, with
+ * what the machine approved; no request can send it. `terminalBypassReason`
+ * comes from a request: an owner or manager typing in a card-machine method
+ * because the machine is down.
+ */
+export async function recordPayment(req, billId, { method, amountInPaise, reference, tender = null, terminalBypassReason = null }, { terminal = null, session = null } = {}) {
+  const bill = await readBill(req, billId, session);
 
   // P10: neither the bill's day nor today's may be closed. Checked first.
   await assertDayOpen(req, [bill.businessDate, await todayBusinessDate(req)]);
@@ -401,7 +409,39 @@ export async function recordPayment(req, billId, { method, amountInPaise, refere
 
   // P08: the four method rules, then freeze the method onto the payment.
   const paymentMethod = await methodForBill(req, bill, method);
-  return addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, reference, tender: await checkedTender(req, amountInPaise, tender) });
+
+  // P25 Part I. A method on the card machine is taken there, not typed in.
+  let bypassed = false;
+  if (paymentMethod.terminalProvider && !terminal) {
+    const required = await getSetting(req.restaurantId, 'payments.requireTerminalForLinkedMethods', { req });
+    const isManager = ['OWNER', 'MANAGER'].includes(req.user.role);
+    if (terminalBypassReason && !isManager) {
+      throw new ForbiddenError('Only an owner or a manager can enter a card-machine payment by hand.');
+    }
+    if (required && !terminalBypassReason) throw new TerminalRequiredError();
+    bypassed = Boolean(terminalBypassReason);
+  }
+
+  const settled = await addPaymentAndSettle(req, bill, {
+    paymentMethod,
+    amountInPaise,
+    reference,
+    tender: await checkedTender(req, amountInPaise, tender),
+    terminal,
+    session,
+  });
+  if (bypassed) {
+    await recordAudit(req, {
+      action: AUDIT_ACTIONS.TERMINAL_BYPASSED,
+      entityType: AUDIT_ENTITY_TYPES.BILL,
+      entityId: bill._id,
+      entityLabel: bill.billNumber,
+      reason: terminalBypassReason,
+      amountInPaise,
+      details: { method: paymentMethod.code },
+    });
+  }
+  return settled;
 }
 
 /**
@@ -429,7 +469,7 @@ async function checkedTender(req, amountInPaise, tender) {
  * Pushes one payment and settles the bill when the payments reach its total.
  * Shared by a cashier's payment and by applying an online advance (P24).
  */
-async function addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, reference, tender = null }) {
+async function addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, reference, tender = null, terminal = null, session = null }) {
   const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', {
     req,
   });
@@ -443,6 +483,7 @@ async function addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, re
     receivedBy: req.user.id,
     receivedAt: at,
     ...(tender ? { tender } : {}),
+    ...(terminal ? { terminal } : {}),
   });
   bill.amountPaidInPaise = sumPaise(...bill.payments.map((payment) => payment.amountInPaise));
 
@@ -452,7 +493,7 @@ async function addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, re
     bill.paidAt = at;
   }
 
-  await bill.save();
+  await bill.save(session ? { session } : {});
 
   if (settled) {
     /**
@@ -464,6 +505,7 @@ async function addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, re
     await Order.updateOne(
       { ...scoped(req), _id: bill.orderId },
       { $set: { status: ORDER_STATUSES.BILLED }, $inc: { version: 1 } },
+      session ? { session } : {},
     );
   }
 

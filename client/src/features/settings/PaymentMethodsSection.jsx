@@ -10,7 +10,8 @@ import {
   updatePaymentMethod,
 } from '../../api/paymentMethods.js';
 import { PLATFORMS } from '../orders/platforms.js';
-import { errorMessage } from './errorCopy.js';
+import { errorMessage } from './errorCopy.js';
+
 import Spinner from '../../components/ui/Spinner.jsx';
 
 /**
@@ -65,8 +66,19 @@ function toDraft(method) {
     commissionPercent: bpsToPercent(method.commissionBps),
     displayOrder: String(method.displayOrder),
     isActive: method.isActive,
+    // P25 Part I. "" is not on the card machine; otherwise Pine Labs' payment mode code.
+    terminalMode: method.terminalProvider ? String(method.terminalPaymentMode) : '',
   };
 }
+
+/** P25 Part I. What the card machine takes for this method, in Pine Labs' codes. */
+const TERMINAL_OPTIONS = [
+  { value: '', label: 'Not on the card machine' },
+  { value: '1', label: 'Pine Labs: card' },
+  { value: '10', label: 'Pine Labs: UPI' },
+  { value: '11', label: 'Pine Labs: UPI Bharat QR' },
+  { value: '0', label: 'Pine Labs: every mode the machine has' },
+];
 
 function OrderTypeChoices({ value, onChange }) {
   return (
@@ -112,6 +124,11 @@ function MethodEditor({ method, onSaved, onError }) {
         ...(method.kind === 'PLATFORM' && commissionBps !== undefined ? { commissionBps } : {}),
         displayOrder: Number(draft.displayOrder) || 0,
         isActive: draft.isActive,
+        ...(method.kind === 'IN_HAND'
+          ? draft.terminalMode === ''
+            ? { terminalProvider: null, terminalPaymentMode: null }
+            : { terminalProvider: 'PINE_LABS', terminalPaymentMode: Number(draft.terminalMode) }
+          : {}),
       });
     },
     onSuccess: onSaved,
@@ -153,6 +170,14 @@ function MethodEditor({ method, onSaved, onError }) {
           onChange={(e) => set('displayOrder')(e.target.value)}
         />
       </div>
+      {method.kind === 'IN_HAND' && method.code !== 'CASH' && (
+        <Select
+          label="Card machine"
+          value={draft.terminalMode}
+          onChange={(e) => set('terminalMode')(e.target.value)}
+          options={TERMINAL_OPTIONS}
+        />
+      )}
       {method.kind === 'PLATFORM' && (
         <Select
           label="Delivery platform"

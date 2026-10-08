@@ -171,6 +171,8 @@ export const recordPaymentSchema = z.object({
         })
         .strict('Is not a field you can set here.')
         .optional(),
+      // P25 Part I. Why a card-machine method is typed in: the machine is down. Owner and manager only.
+      terminalBypassReason: z.string().trim().min(1, 'Say why.').max(200).optional(),
     })
     .strict('Is not a field you can set here.')
     .refine((body) => !body.tender || body.method === 'CASH', { path: ['tender'], message: 'Only a cash payment has notes and change.' }),

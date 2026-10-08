@@ -45,6 +45,7 @@ import { Restaurant } from './Restaurant.js';
 import { Station } from './Station.js';
 import { StockMovement } from './StockMovement.js';
 import { Table } from './Table.js';
+import { TerminalTransaction } from './TerminalTransaction.js';
 import { User } from './User.js';
 
 export const ALL_MODELS = Object.freeze([
@@ -80,5 +81,6 @@ export const ALL_MODELS = Object.freeze([
   Station,
   StockMovement,
   Table,
+  TerminalTransaction,
   User,
 ]);

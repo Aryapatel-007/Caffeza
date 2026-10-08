@@ -1,4 +1,10 @@
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+
+import { startTerminalPayment } from '../../api/terminalPayments.js';
+import { useDeviceSettings } from '../printing/useDeviceSettings.js';
+import { errorMessage } from './errorCopy.js';
+import TerminalWaiting from './TerminalWaiting.jsx';
 
 import Money, { moneyText } from '../../components/ui/Money.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -17,14 +23,24 @@ import MethodButtons from './MethodButtons.jsx';
  * one tap on a method and one on Record payment. Methods are the restaurant's
  * configured ones this bill may use, passed in; the server still decides.
  */
-export default function InlinePayment({ methods, outstandingInPaise, isBusy, error, onConfirm }) {
+export default function InlinePayment({ billId, methods, outstandingInPaise, isBusy, error, onConfirm, onTerminalFinished }) {
   // Until one is picked, the first allowed method is selected. Derived, because
   // the methods may still be loading when this mounts.
   const [picked, setMethod] = useState(null);
   const method = methods.find((candidate) => candidate.code === picked?.code) ?? methods[0] ?? null;
   const [reference, setReference] = useState('');
   // P25 Part F. On cash, the notes handed over: the change is worked out as they are counted.
-  const { features } = useAuth();
+  const { user, features } = useAuth();
+  // P25 Part I. A method on the card machine is sent there, from this device's machine.
+  const [device] = useDeviceSettings();
+  const [sent, setSent] = useState(null);
+  const [byHand, setByHand] = useState(false);
+  const [handReason, setHandReason] = useState('');
+  const isManager = ['OWNER', 'MANAGER'].includes(user?.role);
+  const toMachine = useMutation({
+    mutationFn: (amount) => startTerminalPayment(billId, { method: method.code, amountInPaise: amount, terminalClientId: device.terminalClientId }),
+    onSuccess: setSent,
+  });
   const denominations = features?.cash?.denominations ?? [];
   const [counts, setCounts] = useState({});
   const [counting, setCounting] = useState(false);
@@ -71,6 +87,38 @@ export default function InlinePayment({ methods, outstandingInPaise, isBusy, err
             </label>
           )}
 
+          {sent ? (
+            <TerminalWaiting
+              transaction={sent}
+              onFinished={onTerminalFinished}
+              onDismiss={() => {
+                setSent(null);
+                toMachine.reset();
+              }}
+            />
+          ) : (
+          <>
+          {method.terminalProvider && !byHand && !device.terminalClientId && (
+            <p className="type-body mb-3 text-alert">Choose this device&rsquo;s card machine on This device first.</p>
+          )}
+          {method.terminalProvider && isManager && (
+            <div className="mb-3 grid gap-2">
+              <button type="button" onClick={() => setByHand((value) => !value)} className="min-h-12 self-start type-label text-accent underline-offset-4 hover:underline">
+                {byHand ? 'Use the card machine' : 'The machine is down? Enter it by hand'}
+              </button>
+              {byHand && (
+                <input
+                  type="text"
+                  aria-label="Why it is entered by hand"
+                  placeholder="Why, for example: the machine is down"
+                  maxLength={200}
+                  value={handReason}
+                  onChange={(event) => setHandReason(event.target.value)}
+                  className="min-h-12 w-full rounded-lg border border-muted bg-surface px-4 type-body"
+                />
+              )}
+            </div>
+          )}
           <NumericKeypad
             key={`${method.code}-${outstandingInPaise}`}
             title={`${LABELS.amountReceived} · ${method.name}`}
@@ -78,10 +126,10 @@ export default function InlinePayment({ methods, outstandingInPaise, isBusy, err
             allowDecimal
             initialValue={paiseToInput(outstandingInPaise)}
             onChange={setTyped}
-            confirmLabel={<Bilingual k="recordPayment" align="center" />}
+            confirmLabel={method.terminalProvider && !byHand ? 'Send to machine' : <Bilingual k="recordPayment" align="center" />}
             cancelLabel="Reset"
-            busy={isBusy}
-            error={error}
+            busy={isBusy || toMachine.isPending}
+            error={toMachine.isError ? errorMessage(toMachine.error) : error}
             onCancel={() => {
               setReference('');
               setCounts({});
@@ -89,6 +137,15 @@ export default function InlinePayment({ methods, outstandingInPaise, isBusy, err
             onConfirm={(raw) => {
               const amount = parseRupeesToPaise(raw);
               if (amount === null || amount <= 0) return;
+              if (method.terminalProvider && !byHand) {
+                if (device.terminalClientId) toMachine.mutate(amount);
+                return;
+              }
+              if (method.terminalProvider && byHand) {
+                if (!handReason.trim()) return;
+                onConfirm({ method: method.code, amountInPaise: amount, reference: reference.trim() || null, terminalBypassReason: handReason.trim() });
+                return;
+              }
               const counted = isCash && counting && tenderedInPaise > 0;
               // Counted short of the amount: say so rather than record a payment the notes do not cover.
               if (counted && tenderedInPaise < amount) return;
@@ -103,7 +160,10 @@ export default function InlinePayment({ methods, outstandingInPaise, isBusy, err
             }}
           />
 
-          {isCash && denominations.length > 0 && (
+          </>
+          )}
+
+          {!sent && isCash && denominations.length > 0 && (
             <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4">
               <button
                 type="button"

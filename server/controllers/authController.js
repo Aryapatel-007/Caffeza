@@ -34,7 +34,7 @@ import {
 } from '../utils/errors.js';
 import { sendSuccess } from '../utils/response.js';
 import { nowUtc } from '../utils/time.js';
-import { activeOrderChannels } from '../services/integrations/channelStatus.js';
+import { activeOrderChannels, activeTerminals } from '../services/integrations/channelStatus.js';
 
 function presentUser(user, { includeLastLoginAt = false, includeStation = false } = {}) {
   const shape = {
@@ -235,6 +235,8 @@ export async function me(req, res) {
       captainsMayBill: billing.captainsMayBill,
       captainsMayTakePayment: billing.captainsMayTakePayment,
     },
+    // P25 Part I. The card machines this device may send a payment to.
+    terminals: await activeTerminals(req),
     cash: {
       denominations: cash.denominations
         .filter((entry) => entry.isActive)

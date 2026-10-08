@@ -66,6 +66,14 @@ const paymentMethodSchema = new mongoose.Schema({
     maxlength: TALLY_LEDGER_CODE_MAX_LENGTH,
     default: null,
   },
+  /**
+   * P25 Part I. A method taken on a card machine: `PINE_LABS`, or null. In-hand
+   * methods only. `terminalPaymentMode` is Pine Labs' AllowedPaymentMode code
+   * (1 card, 10 UPI sale, 11 UPI Bharat QR, 0 every mode the machine has),
+   * required with a provider and null without.
+   */
+  terminalProvider: { type: String, enum: ['PINE_LABS', null], default: null },
+  terminalPaymentMode: { type: Number, min: 0, max: 99, default: null },
   /** PLATFORM methods only. Null means "rate not set", and no payout is invented. */
   commissionBps: {
     type: Number,

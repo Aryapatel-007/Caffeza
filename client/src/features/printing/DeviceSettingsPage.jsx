@@ -71,6 +71,17 @@ export default function DeviceSettingsPage() {
           onChange={(printer) => update({ printer })}
         />
 
+        {/* P25 Part I. Which card machine sits beside this device. */}
+        {(features.terminals ?? []).length > 0 && (
+          <Choice
+            legend="Card machine"
+            hint="Card and UPI payments taken here are sent to this machine."
+            options={[{ value: null, label: 'None at this device' }, ...features.terminals.map((terminal) => ({ value: terminal.clientId, label: terminal.name }))]}
+            value={settings.terminalClientId}
+            onChange={(terminalClientId) => update({ terminalClientId })}
+          />
+        )}
+
         {/* P23. The online alert, per device: a captain's phone or a second till can be quiet. */}
         <label className="flex min-h-12 items-start gap-3">
           <input

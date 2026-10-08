@@ -53,11 +53,13 @@ export function applyDiscount(billId, { kind, valueInPaise, rateBps, reasonCode,
   return api.post(`/bills/${billId}/discount`, body);
 }
 
-export function recordPayment(billId, { method, amountInPaise, reference, tender }) {
+export function recordPayment(billId, { method, amountInPaise, reference, tender, terminalBypassReason }) {
   const body = { method, amountInPaise };
   if (reference) body.reference = reference;
   // P25 Part F. The notes handed over and the change, on a cash payment.
   if (tender) body.tender = tender;
+  // P25 Part I. A card-machine method typed in by an owner or manager, with why.
+  if (terminalBypassReason) body.terminalBypassReason = terminalBypassReason;
   return api.post(`/bills/${billId}/payments`, body);
 }
 

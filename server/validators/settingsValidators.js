@@ -276,6 +276,11 @@ const cash = z
   })
   .strict();
 
+/** Payments. P25 Part I. */
+const payments = z
+  .object({ requireTerminalForLinkedMethods: z.boolean({ error: 'Must be true or false.' }).optional() })
+  .strict();
+
 /** Day Close. P10. */
 const dayClose = z
   .object({
@@ -415,6 +420,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'billing',
   'dayClose',
   'cash',
+  'payments',
   'floor',
   'appearance',
   'online',
@@ -462,6 +468,7 @@ export const updateSettingsSchema = z.object({
       billing: billing.optional(),
       dayClose: dayClose.optional(),
       cash: cash.optional(),
+      payments: payments.optional(),
       floor: floor.optional(),
       appearance: appearance.optional(),
       online: online.optional(),

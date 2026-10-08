@@ -18,6 +18,7 @@ import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { DAY_STATUSES, DayClosure } from '../models/DayClosure.js';
 import { OCCUPYING_ORDER_STATUSES, Order } from '../models/Order.js';
 import { PlatformOrder } from '../models/PlatformOrder.js';
+import { TerminalTransaction } from '../models/TerminalTransaction.js';
 import { User } from '../models/User.js';
 import { BusinessRuleError, CashCountMismatchError, DayNotReadyError, NotFoundError } from '../utils/errors.js';
 import { countCash } from './cashService.js';
@@ -67,7 +68,7 @@ async function blockersFor(req, businessDate, checks, { session = null } = {}) {
   const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', { req });
   const { start, end } = businessDateRangeToUtc(businessDate, businessDate, startMinutes);
 
-  const [openOrders, unpaidBills, platformOrders] = await Promise.all([
+  const [openOrders, unpaidBills, platformOrders, terminalPayments] = await Promise.all([
     Order.find({
       ...scoped(req),
       status: { $in: [...OCCUPYING_ORDER_STATUSES] },
@@ -87,6 +88,11 @@ async function blockersFor(req, businessDate, checks, { session = null } = {}) {
       status: { $in: ['RECEIVED', 'NEEDS_ATTENTION', 'ACCEPTED', 'FAILED'] },
     })
       .select('platformCode platformOrderId status orderId')
+      .setOptions(opts(session))
+      .lean(),
+    // P25 Part I. A card machine payment of that date still waiting, or one the machine approved for a different amount.
+    TerminalTransaction.find({ ...scoped(req), businessDate, status: { $in: ['WAITING', 'UNKNOWN'] } })
+      .select('billNumber status amountInPaise')
       .setOptions(opts(session))
       .lean(),
   ]);
@@ -111,6 +117,14 @@ async function blockersFor(req, businessDate, checks, { session = null } = {}) {
         ? { kind: 'PLATFORM_ORDER_FAILED', message: `${name} was accepted on the platform but not created here. Enter it by hand.`, ref: String(order._id) }
         : { kind: 'PLATFORM_ORDER', message: order.status === 'ACCEPTED' ? `${name} has not been picked up.` : `${name} is still waiting for an answer.`, ref: String(order._id) };
     }),
+    ...terminalPayments.map((payment) => ({
+      kind: 'TERMINAL_PAYMENT',
+      message:
+        payment.status === 'WAITING'
+          ? `A card machine payment for bill ${payment.billNumber} is still waiting.`
+          : `A card machine payment for bill ${payment.billNumber} needs checking against the machine's slip.`,
+      ref: String(payment._id),
+    })),
     ...checks
       .filter((check) => check.severity === SEVERITY.ERROR && !check.passed)
       .map((check) => ({ kind: 'CHECK', message: check.message, ref: check.id })),

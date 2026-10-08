@@ -283,6 +283,25 @@ const paymentSchema = new mongoose.Schema(
      * tendered and the change given back. Kept for the record; no figure reads
      * it, because `amountInPaise` is what went on the bill.
      */
+    /**
+     * P25 Part I. A payment taken on the card machine: what the machine said.
+     * Never a card number beyond what the machine sends, masked.
+     */
+    terminal: {
+      type: new mongoose.Schema(
+        {
+          provider: { type: String, required: true },
+          ptrid: { type: String, required: true },
+          rrn: { type: String, default: null },
+          approvalCode: { type: String, default: null },
+          tid: { type: String, default: null },
+          paymentMode: { type: String, default: null },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
+
     tender: {
       type: new mongoose.Schema(
         {

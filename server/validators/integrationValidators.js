@@ -111,3 +111,21 @@ export const importMappingsSchema = z.object({
   params: providerParam,
   body: z.object({ csv: z.string().max(200_000), apply: z.boolean().default(false) }).strict('Is not a field you can set here.'),
 });
+
+/* P25 Part I. The card machine. ------------------------------------------ */
+
+export const startTerminalPaymentSchema = z.object({
+  params: z.object({ billId: objectIdText }),
+  body: z
+    .object({
+      method: z.string().trim().regex(/^[A-Z][A-Z0-9_]{1,19}$/, 'Is not a payment method code.'),
+      amountInPaise: z.number().int('Whole paise.').min(1, 'Must be more than zero.'),
+      terminalClientId: z.string().trim().min(1).max(40),
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+export const terminalPaymentIdSchema = z.object({
+  params: z.object({ id: objectIdText }),
+  body: z.object({}).strict('Is not a field you can set here.').optional(),
+});

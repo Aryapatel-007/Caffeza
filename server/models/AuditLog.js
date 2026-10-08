@@ -70,6 +70,8 @@ export const AUDIT_ACTIONS = Object.freeze({
   INTEGRATION_RESUMED: 'INTEGRATION_RESUMED',
   // P25 Part H. A platform order turned away, with the reason.
   PLATFORM_ORDER_REJECTED: 'PLATFORM_ORDER_REJECTED',
+  // P25 Part I. A card-machine method recorded by hand, with the reason.
+  TERMINAL_BYPASSED: 'TERMINAL_BYPASSED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 
