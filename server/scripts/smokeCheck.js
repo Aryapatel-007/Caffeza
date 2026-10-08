@@ -1,7 +1,7 @@
 /**
  * The smoke check, run after every deploy. P12.
  *
- *   npm run smoke -- --url https://caffeza-staging.example.com
+ *   npm run smoke -- --url https://staging.example.com
  *
  * Reads only and never signs in, so it is safe against production: it creates
  * no order, no bill and no session. One line per check, pass or fail, and an
@@ -128,7 +128,7 @@ async function main() {
   const index = process.argv.indexOf('--url');
   const url = index === -1 ? null : process.argv[index + 1];
   if (!url) {
-    console.error('Give the address to check with --url, for example --url https://caffeza-staging.example.com');
+    console.error('Give the address to check with --url, for example --url https://staging.example.com');
     process.exitCode = 1;
     return;
   }

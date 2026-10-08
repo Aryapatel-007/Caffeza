@@ -10,7 +10,7 @@
  *
  * The Gujarati billing words and the Hindi clock words are carried over from
  * version 1. Every other translation was added in P20A and should be read by
- * one of Caffeza's staff before go-live.
+ * one of the restaurant's staff before go-live.
  */
 export const LABELS = Object.freeze({
   // The till.

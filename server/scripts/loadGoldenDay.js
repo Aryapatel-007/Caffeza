@@ -10,7 +10,7 @@
  * Local use only. It runs with NODE_ENV=test, because the fixture sets the
  * clock and the clock refuses to be set anywhere else, and it refuses any
  * database that is not localhost, through the same guard as seed:demo. A
- * previous "Cafezza Golden Day" is wiped first, so a re-run starts clean.
+ * previous "Golden Day Cafe" is wiped first, so a re-run starts clean.
  */
 import { pathToFileURL } from 'node:url';
 
@@ -23,7 +23,7 @@ import { request, startTestServer, stopTestServer } from '../tests/helpers/testS
 import { resetClockForTests, setClockForTests } from '../utils/time.js';
 import { assertSafeToSeed, databaseHost, wipeRestaurantNamed } from './lib/localSeed.js';
 
-export const GOLDEN_RESTAURANT = 'Cafezza Golden Day';
+export const GOLDEN_RESTAURANT = 'Golden Day Cafe';
 
 async function main() {
   assertSafeToSeed();

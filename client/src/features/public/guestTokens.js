@@ -5,6 +5,8 @@
  * a reload. Wrapped in try/catch, because a private window can refuse storage;
  * without it the page still places the request and says to call the cafe.
  */
+// Named before P25 for the first client. Kept so a guest's open request stays
+// readable on their phone; nobody ever sees it.
 const PREFIX = 'caffeza.public.token.';
 
 export function rememberToken(id, token) {

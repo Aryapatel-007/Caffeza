@@ -10,6 +10,8 @@ import { useCallback, useEffect, useState } from 'react';
  *
  * Nothing here is security or money. Losing it costs a click to set again.
  */
+// Named before P25 for the first client. Kept: renaming it would forget every
+// device's printer, station and look, and nobody ever sees it.
 const STORAGE_KEY = 'caffeza.device';
 
 /** How many printed KOT ids to remember, so a refresh never prints twice. */
@@ -41,7 +43,7 @@ const DEFAULTS = Object.freeze({
 });
 
 /** Same-tab listeners. The `storage` event only reaches other tabs. */
-const CHANGE_EVENT = 'caffeza-device-change';
+const CHANGE_EVENT = 'erp-device-change';
 
 /** What this tab last wrote, for a browser that refuses storage. */
 let lastWritten = null;

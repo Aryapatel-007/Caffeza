@@ -3,7 +3,7 @@
  *
  * Money that arrives later. A cashier may see the accounts and record a
  * collection at the till; charging a bill to an account is manager work until
- * Caffeza says otherwise, and adjusting a balance is the owner's. Payouts are
+ * a restaurant asks otherwise, and adjusting a balance is the owner's. Payouts are
  * back-office work for the owner and manager, and only the owner voids one.
  */
 import { Router } from 'express';

@@ -173,7 +173,7 @@ export const INVOICE_MAX_STARTING_NUMBER = 999_999_999;
 /**
  * The invoice series. `FINANCIAL_YEAR` is M3's original "2026-27/000148".
  * `PREFIX` is a prefix plus a running number that never resets, "CFA/C/22442",
- * so Caffeza can continue the series their old system was issuing.
+ * so a restaurant can continue the series its old system was issuing.
  *
  * The rules that stop a change here from breaking the unique indexes on
  * `bills` live in settingsService, because they read the database.
@@ -211,7 +211,7 @@ const invoiceSettingsSchema = new mongoose.Schema(
  *
  * When true, a DELIVERY order from a listed platform is frozen at 0% GST when
  * it is created, because the platform pays the GST under section 9(5).
- * TO CONFIRM with Caffeza's CA. Only orders created after a change follow it.
+ * TO CONFIRM with each restaurant's CA. Only orders created after a change follow it.
  */
 const deliverySettingsSchema = new mongoose.Schema(
   {
@@ -223,7 +223,7 @@ const deliverySettingsSchema = new mongoose.Schema(
 /**
  * Discounts. P08. When true, a CASHIER may apply a discount with a platform
  * reason (Zomato Gold, Dineout, EazyDiner) and no other. TO CONFIRM with
- * Caffeza.
+ * each restaurant.
  */
 const discountSettingsSchema = new mongoose.Schema(
   {

@@ -14,7 +14,7 @@ import StateChip from '../../components/ui/StateChip.jsx';
  * Nothing here sends a price. The panel shows prices so the waiter can read
  * them out, and sends back ids and a quantity. The server prices the line.
  */
-/** The requests a cafe hears most, one tap each. Jain is on Cafezza's menu. */
+/** The requests a cafe hears most, one tap each. Jain is asked for in most Gujarat restaurants. */
 const QUICK_NOTES = ['Less spicy', 'Extra spicy', 'No onion', 'Jain', 'Less sugar', 'No ice'];
 
 export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) {

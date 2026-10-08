@@ -76,7 +76,7 @@ await new Promise((resolve) => app.listen(APP_PORT, HOST, resolve));
 async function reset() {
   const { collections } = mongoose.connection;
   await Promise.all(Object.values(collections).map((collection) => collection.deleteMany({})));
-  const golden = await setupGoldenRestaurant({ name: 'Cafezza', invoiceSeries: false });
+  const golden = await setupGoldenRestaurant({ name: 'Golden Day Cafe', invoiceSeries: false });
   return { phones: golden.phones, password: golden.password, ids: golden.ids };
 }
 
