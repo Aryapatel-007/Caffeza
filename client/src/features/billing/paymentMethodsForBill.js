@@ -9,6 +9,8 @@ export function methodsForBill(methods, bill) {
   const platform = bill.platform?.code ?? null;
   return methods.filter((method) => {
     if (!method.isActive) return false;
+    // P24. Paid online comes only from Apply advance, never from the keypad.
+    if (method.code === 'ONLINE') return false;
     if (!method.orderTypes.includes(bill.orderType)) return false;
     if (platform) return method.platformCode === platform;
     return !method.platformCode;

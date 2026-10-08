@@ -57,6 +57,9 @@ export const AUDIT_ACTIONS = Object.freeze({
   // P22. The restaurant's logo set or removed. Details never carry the bytes.
   BRAND_LOGO_SET: 'BRAND_LOGO_SET',
   BRAND_LOGO_REMOVED: 'BRAND_LOGO_REMOVED',
+  // P24. The cafe's Razorpay account connected or disconnected. Never a secret.
+  PAYMENT_GATEWAY_CONNECTED: 'PAYMENT_GATEWAY_CONNECTED',
+  PAYMENT_GATEWAY_DISCONNECTED: 'PAYMENT_GATEWAY_DISCONNECTED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 

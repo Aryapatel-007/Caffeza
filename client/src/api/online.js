@@ -33,4 +33,7 @@ export const cancelReservation = (id, body) => api.post(`/online/reservations/${
 export const pauseTakeaway = (body) => api.post('/online/pause', body);
 export const resumeTakeaway = () => api.post('/online/resume', {});
 
+/** P24. Retries a refund the gateway refused. OWNER and MANAGER. */
+export const retryRefund = (paymentId) => api.post(`/online/payments/${paymentId}/refund`, {});
+
 export const setPageAddress = (publicSlug) => api.patch('/online/site', { publicSlug });

@@ -273,6 +273,11 @@ const online = z
       .max(ONLINE_ALERT_ROLE_VALUES.length)
       .refine((roles) => new Set(roles).size === roles.length, 'Each role appears once.')
       .optional(),
+    // P24. Advance payment.
+    takeawayPrepay: z.boolean({ error: 'Must be true or false.' }).optional(),
+    depositPerPersonInPaise: wholeMinutes(0, 1_000_000),
+    depositRefundCutoffMinutes: wholeMinutes(0, 2880),
+    paymentWindowMinutes: wholeMinutes(16, 120),
   })
   .strict()
   .refine(

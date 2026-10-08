@@ -8,6 +8,7 @@
 import { guestLabelFor } from '../config/onlineReasons.js';
 import { COUNTER_NAMES } from '../models/Counter.js';
 import { ONLINE_ORDER_STATUSES, OnlineOrder } from '../models/OnlineOrder.js';
+import { OnlinePayment, ONLINE_PAYMENT_KINDS } from '../models/OnlinePayment.js';
 import { Order, ORDER_TYPES, ORIGIN_KINDS } from '../models/Order.js';
 import {
   BusinessRuleError,
@@ -31,6 +32,16 @@ import {
   nextReference,
   onlineSettings,
 } from './onlineCommon.js';
+import {
+  attachToOrder,
+  confirmFromReturn,
+  paymentsById,
+  presentPayment,
+  readBackIfDue,
+  refundAll,
+  startPayment,
+  takeawayAdvanceFor,
+} from './onlinePaymentService.js';
 import { pickupBounds, windowContaining } from './openingHoursService.js';
 import { openOrder } from './orderOpenService.js';
 import { buildLineSnapshots, computeLineTotalInPaise, serialiseOrder } from './orderService.js';
@@ -54,10 +65,12 @@ export function effectiveStatus(doc, now = nowUtc()) {
 /** Stores EXPIRED on a request that has quietly run out, the first time anything touches it. */
 async function persistExpiry(req, doc, now) {
   if (doc.status === ONLINE_ORDER_STATUSES.WAITING && doc.answerBy <= now) {
-    await OnlineOrder.updateOne(
+    const moved = await OnlineOrder.updateOne(
       { ...scoped(req), _id: doc._id, status: ONLINE_ORDER_STATUSES.WAITING },
       { $set: { status: ONLINE_ORDER_STATUSES.EXPIRED } },
     );
+    // P24. Nobody answered, so money paid online goes back.
+    if (moved.modifiedCount) await refundAll(req, doc.paymentId, 'Not answered in time');
   }
 }
 
@@ -141,7 +154,9 @@ export async function place(req, body) {
   if (!online.takeawayEnabled) throw new OnlineClosedError('This cafe is not taking takeaway orders online.');
 
   // A retry or a double tap: the same request back, and nothing new written.
+  // P24: unless the gateway failed to start its payment last time, when it tries again.
   const repeat = await OnlineOrder.findOne({ ...scoped(req), idempotencyKey: body.idempotencyKey });
+  if (repeat?.status === ONLINE_ORDER_STATUSES.PAYMENT_FAILED) return retryPayment(req, repeat, online);
   if (repeat) return { created: false, doc: repeat, token: null };
 
   const pausedUntil = activePause(req.publicSite?.branch, now);
@@ -169,6 +184,8 @@ export async function place(req, body) {
   }
 
   const priced = await quote(req, body.lines);
+  // P24. Paid in full online first, when the cafe asks for it and has a gateway.
+  const advanceInPaise = await takeawayAdvanceFor(req, online, priced.estimate);
   const reference = await nextReference(req, COUNTER_NAMES.ONLINE_ORDER, 'W');
   const { token, hash } = makeStatusToken();
 
@@ -185,11 +202,24 @@ export async function place(req, body) {
       pickupAt,
       pickupWasAsap: body.pickup === 'ASAP',
       businessDate: bounds.businessDate,
-      status: ONLINE_ORDER_STATUSES.WAITING,
-      answerBy: new Date(now.getTime() + online.takeawayAnswerWithinMinutes * MINUTE_MS),
+      status: advanceInPaise > 0 ? ONLINE_ORDER_STATUSES.AWAITING_PAYMENT : ONLINE_ORDER_STATUSES.WAITING,
+      // The cafe's clock starts when the money arrives.
+      answerBy: advanceInPaise > 0 ? null : new Date(now.getTime() + online.takeawayAnswerWithinMinutes * MINUTE_MS),
       statusTokenHash: hash,
       marketingConsent: consentRecord(body.marketingConsent, now),
     });
+    if (advanceInPaise > 0) {
+      await startPayment(req, {
+        kind: ONLINE_PAYMENT_KINDS.TAKEAWAY,
+        request: doc,
+        amountInPaise: advanceInPaise,
+        online,
+        slug: req.publicSite.branch.online.publicSlug,
+        customer: { name: doc.customerName, contact: doc.customerPhone },
+        description: `Takeaway ${reference}`,
+      });
+      return { created: true, doc: await OnlineOrder.findOne({ ...scoped(req), _id: doc._id }), token };
+    }
     return { created: true, doc, token };
   } catch (error) {
     // Two copies of one request racing: the index let one in. Return that one.
@@ -201,6 +231,24 @@ export async function place(req, body) {
   }
 }
 
+/** A placed request whose payment never started: try the gateway again. */
+async function retryPayment(req, doc, online) {
+  await OnlineOrder.updateOne(
+    { ...scoped(req), _id: doc._id, status: ONLINE_ORDER_STATUSES.PAYMENT_FAILED },
+    { $set: { status: ONLINE_ORDER_STATUSES.AWAITING_PAYMENT } },
+  );
+  await startPayment(req, {
+    kind: ONLINE_PAYMENT_KINDS.TAKEAWAY,
+    request: doc,
+    amountInPaise: doc.estimate.billTotalInPaise,
+    online,
+    slug: req.publicSite.branch.online.publicSlug,
+    customer: { name: doc.customerName, contact: doc.customerPhone },
+    description: `Takeaway ${doc.reference}`,
+  });
+  return { created: false, doc: await OnlineOrder.findOne({ ...scoped(req), _id: doc._id }), token: null };
+}
+
 /* ------------------------------------------------------------------------- *
  * Reading
  * ------------------------------------------------------------------------- */
@@ -208,6 +256,7 @@ export async function place(req, body) {
 /** The guest's view. A whitelist: no phone, no staff note, no staff name. */
 export async function serialiseForGuest(req, doc, now = nowUtc()) {
   const status = effectiveStatus(doc, now);
+  const payment = doc.paymentId ? await OnlinePayment.findOne({ ...scoped(req), _id: doc.paymentId }) : null;
   let orderNumber = null;
   if (doc.orderId) {
     const order = await Order.findOne({ ...scoped(req), _id: doc.orderId }).select('orderNumber');
@@ -232,12 +281,14 @@ export async function serialiseForGuest(req, doc, now = nowUtc()) {
     estimate: doc.estimate.toObject ? doc.estimate.toObject() : doc.estimate,
     declineReason: status === ONLINE_ORDER_STATUSES.DECLINED ? guestLabelFor(doc.declineReasonCode) : null,
     orderNumber,
+    payment: presentPayment(payment, { forGuest: true }),
   };
 }
 
-export function serialiseForStaff(doc, names, now = nowUtc()) {
+export function serialiseForStaff(doc, names, now = nowUtc(), payments = new Map()) {
   const json = doc.toJSON();
   json.status = effectiveStatus(doc, now);
+  json.payment = presentPayment(payments.get(String(doc.paymentId)) ?? null);
   json.decidedByName = doc.decidedBy ? (names.get(String(doc.decidedBy)) ?? null) : null;
   json.itemCount = doc.lines.reduce((sum, line) => sum + line.quantity, 0);
   return json;
@@ -246,7 +297,25 @@ export function serialiseForStaff(doc, names, now = nowUtc()) {
 export async function guestRead(req, id) {
   const doc = await OnlineOrder.findOne({ ...scoped(req), _id: id });
   assertGuestToken(doc, req);
-  return serialiseForGuest(req, doc);
+  // P24. A guest who paid and is watching this page sees it move, even without a webhook.
+  if (doc.status === ONLINE_ORDER_STATUSES.AWAITING_PAYMENT && doc.paymentId) {
+    const { online } = await onlineSettings(req);
+    await readBackIfDue(req, await OnlinePayment.findOne({ ...scoped(req), _id: doc.paymentId }), { online });
+    return serialiseForGuest(req, await OnlineOrder.findOne({ ...scoped(req), _id: id }));
+  }
+  await persistExpiry(req, doc, nowUtc());
+  return serialiseForGuest(req, await OnlineOrder.findOne({ ...scoped(req), _id: id }));
+}
+
+/** P24. The guest's return from Razorpay's payment page. */
+export async function guestPaymentReturn(req, id, body) {
+  const doc = await OnlineOrder.findOne({ ...scoped(req), _id: id });
+  assertGuestToken(doc, req);
+  if (doc.paymentId) {
+    const { online } = await onlineSettings(req);
+    await confirmFromReturn(req, await OnlinePayment.findOne({ ...scoped(req), _id: doc.paymentId }), body, { online });
+  }
+  return serialiseForGuest(req, await OnlineOrder.findOne({ ...scoped(req), _id: id }));
 }
 
 export async function guestCancel(req, id) {
@@ -255,7 +324,11 @@ export async function guestCancel(req, id) {
   assertGuestToken(doc, req);
 
   const cancelled = await OnlineOrder.findOneAndUpdate(
-    { ...scoped(req), _id: id, ...waitingFilter(now) },
+    {
+      ...scoped(req),
+      _id: id,
+      $or: [waitingFilter(now), { status: ONLINE_ORDER_STATUSES.AWAITING_PAYMENT }],
+    },
     { $set: { status: ONLINE_ORDER_STATUSES.CANCELLED, cancelledAt: now } },
     { new: true },
   );
@@ -263,6 +336,8 @@ export async function guestCancel(req, id) {
     await persistExpiry(req, doc, now);
     throw new RequestAlreadyDecidedError(effectiveStatus(doc, now));
   }
+  // P24. Paid already: the money goes back. Not yet paid: a payment arriving later is refunded too.
+  await refundAll(req, cancelled.paymentId, 'Cancelled by the guest');
   return serialiseForGuest(req, cancelled, now);
 }
 
@@ -285,14 +360,15 @@ export async function list(req, { page, limit, status, date }) {
     OnlineOrder.countDocuments(filter),
   ]);
   const names = await namesFor(req, docs.map((doc) => doc.decidedBy));
-  return { data: docs.map((doc) => serialiseForStaff(doc, names, now)), total };
+  const payments = await paymentsById(req, docs.map((doc) => doc.paymentId));
+  return { data: docs.map((doc) => serialiseForStaff(doc, names, now, payments)), total };
 }
 
 export async function readOne(req, id) {
   const doc = await OnlineOrder.findOne({ ...scoped(req), _id: id });
   if (!doc) throw new NotFoundError('Online order not found.');
   const names = await namesFor(req, [doc.decidedBy]);
-  return serialiseForStaff(doc, names);
+  return serialiseForStaff(doc, names, nowUtc(), await paymentsById(req, [doc.paymentId]));
 }
 
 /* ------------------------------------------------------------------------- *
@@ -407,6 +483,8 @@ export async function accept(req, id, { pickupAt, fireNow, acceptChangedPrices }
         reference: doc.reference,
         pickupAt: pickupAt ?? doc.pickupAt,
       },
+      // P24. The money paid online goes with the order, to be applied on its bill.
+      advancePaymentId: doc.paymentId ?? null,
     });
 
     doc.acceptedChangedPrices = changes.length > 0;
@@ -414,6 +492,8 @@ export async function accept(req, id, { pickupAt, fireNow, acceptChangedPrices }
     await releaseClaim(req, id);
     throw error;
   }
+
+  await attachToOrder(req, doc.paymentId, order._id);
 
   const accepted = await OnlineOrder.findOneAndUpdate(
     { ...scoped(req), _id: id },
@@ -453,7 +533,7 @@ export async function accept(req, id, { pickupAt, fireNow, acceptChangedPrices }
 
   const names = await namesFor(req, [accepted.decidedBy]);
   return {
-    onlineOrder: serialiseForStaff(accepted, names, now),
+    onlineOrder: serialiseForStaff(accepted, names, now, await paymentsById(req, [accepted.paymentId])),
     order: current,
     kots,
     fireError,
@@ -467,6 +547,8 @@ export async function decline(req, id, { reasonCode, note }) {
     declineReasonCode: reasonCode,
     declineNote: note,
   });
+  // P24. The cafe could not take it, so money paid online goes back.
+  await refundAll(req, doc.paymentId, 'Declined by the cafe');
   const names = await namesFor(req, [doc.decidedBy]);
-  return serialiseForStaff(doc, names, now);
+  return serialiseForStaff(doc, names, now, await paymentsById(req, [doc.paymentId]));
 }

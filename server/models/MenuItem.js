@@ -181,6 +181,23 @@ const menuItemSchema = new mongoose.Schema({
       message: `Cannot have more than ${MAX_ADDONS} add-ons.`,
     },
   },
+
+  /**
+   * P24. The dish's photo, or null. The bytes live in `menuphotos`, so this
+   * read, which the ordering screen makes all service long, never carries an
+   * image. Written and cleared only by services/menuPhotoService.js.
+   */
+  photo: {
+    type: new mongoose.Schema(
+      {
+        sha256: { type: String, required: true, match: /^[0-9a-f]{64}$/ },
+        width: { type: Number, required: true },
+        height: { type: Number, required: true },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
 });
 
 menuItemSchema.plugin(baseSchemaPlugin);

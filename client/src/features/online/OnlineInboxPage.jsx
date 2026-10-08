@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { businessDateToday, formatTimeIst } from '../../utils/formatDate.js';
 import { INBOX_QUERY_KEY } from './OnlineAlerts.jsx';
 import { AcceptSheet, DeclineSheet, errorText } from './OnlineSheets.jsx';
+import PaymentChip from './PaymentChip.jsx';
 import { ORDER_DECLINE_REASONS } from './onlineReasons.js';
 
 const TILL_ROLES = ['OWNER', 'MANAGER', 'CASHIER'];
@@ -126,6 +127,7 @@ function RequestCard({ request, canDecide, onAccept, onDecline, onOpenOrder }) {
         ))}
       </ul>
       {request.note && <p className="type-body rounded-lg bg-sunken px-3 py-2">“{request.note}”</p>}
+      <PaymentChip payment={request.payment} />
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
         <span className="type-label">
@@ -228,6 +230,11 @@ export default function OnlineInboxPage() {
             <OnlineTabs current="takeaway" inbox={inbox.data} />
           </div>
           <PauseControls pausedUntil={inbox.data?.pausedUntil} canPause={canDecide} />
+          {inbox.data?.refundFailures > 0 && (
+            <p className="type-label rounded-lg border border-alert bg-alert-tint px-3 py-2 text-alert">
+              {inbox.data.refundFailures === 1 ? '1 refund' : `${inbox.data.refundFailures} refunds`} could not be sent to Razorpay. An owner or manager can retry from the card.
+            </p>
+          )}
         </div>
       </header>
 

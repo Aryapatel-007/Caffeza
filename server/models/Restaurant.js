@@ -292,6 +292,19 @@ const onlineSettingsSchema = new mongoose.Schema(
       default: 'Pay at the counter when you collect.',
     },
     alertRoles: { type: [{ type: String, enum: ONLINE_ALERT_ROLE_VALUES }], default: () => ['OWNER', 'MANAGER', 'CASHIER'] },
+    // P24. Advance payment. Effective only while a payment gateway is connected.
+    takeawayPrepay: { type: Boolean, required: true, default: false },
+    depositPerPersonInPaise: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+      max: 1_000_000,
+      validate: { validator: Number.isInteger, message: 'Must be whole paise.' },
+    },
+    depositRefundCutoffMinutes: { type: Number, required: true, default: 120, min: 0, max: 2880, validate: minutesOfDay },
+    // Razorpay requires a payment link to stay open at least 15 minutes.
+    paymentWindowMinutes: { type: Number, required: true, default: 20, min: 16, max: 120, validate: minutesOfDay },
   },
   { _id: false },
 );
@@ -455,6 +468,28 @@ const restaurantSchema = new mongoose.Schema(
     brandLogos: { type: brandLogosSchema, default: () => ({}) },
 
     /**
+     * P24. The cafe's own Razorpay account. The two secrets are encrypted with
+     * utils/secretBox.js and `select: false`, so `authenticate`, which loads
+     * this document on every request, never reads them. Only
+     * services/paymentGatewayService.js opens them. Never in any response.
+     */
+    paymentGateway: {
+      type: new mongoose.Schema(
+        {
+          provider: { type: String, enum: ['RAZORPAY'], required: true },
+          keyId: { type: String, required: true, trim: true },
+          keySecretEncrypted: { type: String, required: true, select: false },
+          webhookSecretEncrypted: { type: String, required: true, select: false },
+          mode: { type: String, enum: ['TEST', 'LIVE'], required: true },
+          connectedAt: { type: Date, required: true },
+          connectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
+
+    /**
      * Platform-controlled, not customer-controlled. PATCH /restaurant rejects
      * this field. Deactivating a restaurant is our operation, not theirs.
      */
@@ -477,6 +512,8 @@ const restaurantSchema = new mongoose.Schema(
         delete record.__v;
         // P22. The logo has its own endpoint, and its bytes must never ride along.
         delete record.brandLogos;
+        // P24. The payment account has its own endpoint, which never shows a secret.
+        delete record.paymentGateway;
         return record;
       },
     },

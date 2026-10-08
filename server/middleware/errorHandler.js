@@ -118,7 +118,11 @@ export function errorHandler(error, req, res, _next) {
   // Express has already started writing. Nothing useful left to say.
   if (res.headersSent) return;
 
-  if (statusCode >= 500) {
+  // P24. A 502 we raised on purpose names the payment gateway's failure in a
+  // sentence a guest can act on ("try again in a moment"), so it is shown.
+  const isGatewayFailure = statusCode === 502 && error?.isOperational === true;
+
+  if (statusCode >= 500 && !isGatewayFailure) {
     /**
      * Every 500 looks the same from outside, including the ones we raised
      * deliberately. A 500 means we got something wrong, and the details of how

@@ -68,6 +68,11 @@ export function correctPayment(billId, paymentId, { method, reason }) {
  * OWNER and MANAGER only on the server. The number stays spent, never reissued.
  * A fixed reason code plus an optional note, required for OTHER (P04).
  */
+/** P24. Puts the order's online advance on the bill. Any leftover is refunded by the server. */
+export function applyAdvance(billId) {
+  return api.post(`/bills/${billId}/apply-advance`, {});
+}
+
 export function voidBill(billId, { reasonCode, note }) {
   return api.post(`/bills/${billId}/void`, { reasonCode, note: note || null });
 }

@@ -96,6 +96,11 @@ const DEFAULTS = {
     reservationHoldMinutes: 90,
     pageNote: 'Pay at the counter when you collect.',
     alertRoles: ['OWNER', 'MANAGER', 'CASHIER'],
+    // P24.
+    takeawayPrepay: false,
+    depositPerPersonInPaise: 0,
+    depositRefundCutoffMinutes: 120,
+    paymentWindowMinutes: 20,
   },
 };
 

@@ -10,6 +10,7 @@ import { CONSENT_TEXTS, CURRENT_CONSENT_VERSION } from '../config/consentText.js
 import { Category } from '../models/Category.js';
 import { MenuItem } from '../models/MenuItem.js';
 import { presentLogos } from '../services/brandLogoService.js';
+import { canTakePayments } from '../services/paymentGatewayService.js';
 import * as onlineOrders from '../services/onlineOrderService.js';
 import { openingWindow, windowContaining } from '../services/openingHoursService.js';
 import * as reservations from '../services/reservationService.js';
@@ -19,7 +20,7 @@ import { scoped } from '../utils/scopedQuery.js';
 import { businessDateFor, nowUtc } from '../utils/time.js';
 
 /** GET /public/:slug */
-export function getSite(req, res) {
+export async function getSite(req, res) {
   const { branch, restaurant, settings } = req.publicSite;
   const { online } = settings;
   const dayStart = settings.business.businessDayStartsAtMinutes;
@@ -29,6 +30,7 @@ export function getSite(req, res) {
   const appearance = presentAppearance(settings.appearance, restaurant.name);
   const logos = presentLogos(restaurant);
   const slug = branch.online.publicSlug;
+  const payments = await canTakePayments(restaurant._id);
   const logoUrl = (slot) => (logos[slot]?.hash ? `/api/v1/public/${slug}/logo/${slot}` : null);
 
   const address = branch.address?.line1 || branch.address?.city ? branch.address : restaurant.address;
@@ -59,11 +61,18 @@ export function getSite(req, res) {
       todayClosesAt: today.closesAt,
     },
     pageNote: online.pageNote ?? null,
-    takeaway: onlineOrders.takeawayState(now, online, dayStart, branch),
+    takeaway: {
+      ...onlineOrders.takeawayState(now, online, dayStart, branch),
+      // P24. Paid in full online first.
+      prepay: Boolean(online.takeawayPrepay && payments),
+    },
     reservations: {
       enabled: online.reservationsEnabled,
       maxPartySize: online.reservationMaxPartySize,
       daysAhead: online.reservationDaysAhead,
+      // P24. A deposit per person, refunded when cancelled in good time.
+      depositPerPersonInPaise: payments ? online.depositPerPersonInPaise : 0,
+      depositRefundCutoffMinutes: online.depositRefundCutoffMinutes,
     },
     consentText: CONSENT_TEXTS[CURRENT_CONSENT_VERSION].replace('{restaurant}', restaurant.name),
   });
@@ -94,6 +103,8 @@ export async function getMenu(req, res) {
       addOns: item.addOns
         .filter((addOn) => addOn.isAvailable !== false)
         .map((addOn) => ({ id: String(addOn._id), name: addOn.name, priceInPaise: addOn.priceInPaise })),
+      // P24. The hash in the URL lets the photo be cached for a year.
+      photoUrl: item.photo?.sha256 ? `/api/v1/public/${req.params.slug}/photos/${item._id}?v=${item.photo.sha256.slice(0, 16)}` : null,
     });
   }
 
@@ -141,7 +152,7 @@ export async function getSlots(req, res) {
 /** POST /public/:slug/reservations */
 export async function postReservation(req, res) {
   const { created, doc, token } = await reservations.request(req, req.body);
-  const view = reservations.serialiseForGuest(doc);
+  const view = await reservations.guestView(req, doc._id);
   res.set('Cache-Control', 'no-store');
   return sendSuccess(res, created ? { ...view, statusToken: token } : view, created ? 201 : 200);
 }

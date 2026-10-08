@@ -27,10 +27,14 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { notFound } from './middleware/notFound.js';
 import { generalLimiter } from './middleware/rateLimit.js';
 import { LOGO_UPLOAD_PATH } from './routes/brandRoutes.js';
+import { PHOTO_UPLOAD_PATH } from './routes/paymentRoutes.js';
 import routes from './routes/index.js';
 import { describeKey, findMissingIndexes } from './services/indexService.js';
 
 export const API_PREFIX = '/api/v1';
+
+/** P24. Razorpay signs its webhook over the raw body, so this path keeps it. */
+const WEBHOOK_PATH = /^\/api\/v1\/public\/[^/]+\/payments\/webhook\/?$/;
 
 /**
  * The built client, found from this file's own location, never from the
@@ -117,8 +121,16 @@ export function createApp({ serveClient: shouldServeClient = config.isProduction
 
   // P22. The logo upload and removal parse their own body with a larger limit,
   // in routes/brandRoutes.js. Every other path keeps this one.
-  const jsonBody = express.json({ limit: JSON_BODY_LIMIT });
-  app.use((req, res, next) => (LOGO_UPLOAD_PATH.test(req.path) ? next() : jsonBody(req, res, next)));
+  // P24. Razorpay's webhook is signed over its raw body, so that one path keeps it.
+  const jsonBody = express.json({
+    limit: JSON_BODY_LIMIT,
+    verify: (req, _res, buffer) => {
+      if (WEBHOOK_PATH.test(req.path ?? req.url)) req.rawBody = buffer.toString('utf8');
+    },
+  });
+  // The logo and the dish photo parse their own larger bodies, after the role check.
+  const ownBody = (path) => LOGO_UPLOAD_PATH.test(path) || PHOTO_UPLOAD_PATH.test(path);
+  app.use((req, res, next) => (ownBody(req.path) ? next() : jsonBody(req, res, next)));
   app.use(httpLogger);
   app.use(API_PREFIX, generalLimiter);
   app.use(API_PREFIX, routes);

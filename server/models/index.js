@@ -26,7 +26,9 @@ import { DayClosure } from './DayClosure.js';
 import { Ingredient } from './Ingredient.js';
 import { Kot } from './Kot.js';
 import { MenuItem } from './MenuItem.js';
+import { MenuPhoto } from './MenuPhoto.js';
 import { OnlineOrder } from './OnlineOrder.js';
+import { OnlinePayment } from './OnlinePayment.js';
 import { Order } from './Order.js';
 import { PaymentMethod } from './PaymentMethod.js';
 import { PlatformPayout } from './PlatformPayout.js';
@@ -53,7 +55,9 @@ export const ALL_MODELS = Object.freeze([
   Ingredient,
   Kot,
   MenuItem,
+  MenuPhoto,
   OnlineOrder,
+  OnlinePayment,
   Order,
   PaymentMethod,
   PlatformPayout,

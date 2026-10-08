@@ -91,6 +91,10 @@ const SETTING_PATHS = Object.freeze({
   'online.reservationHoldMinutes': 'settings.online.reservationHoldMinutes',
   'online.pageNote': 'settings.online.pageNote',
   'online.alertRoles': 'settings.online.alertRoles',
+  'online.takeawayPrepay': 'settings.online.takeawayPrepay',
+  'online.depositPerPersonInPaise': 'settings.online.depositPerPersonInPaise',
+  'online.depositRefundCutoffMinutes': 'settings.online.depositRefundCutoffMinutes',
+  'online.paymentWindowMinutes': 'settings.online.paymentWindowMinutes',
 });
 
 /** The modules a restaurant can switch off. P02. */

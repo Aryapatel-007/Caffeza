@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-08 by Rishi (P23 built)
+Last updated: 2026-10-08 by Rishi (P24 built)
 
 ---
 
@@ -43,7 +43,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M7 | Restaurant Settings | Rishi | DONE | Phase 1B's first module. Two endpoints, no new collection: `restaurants.settings` gains `tax`, `receipt` and `inventory`, every field with a schema default so there is no migration. `settingsService` is now the only way any module reads configuration. 27 new tests. Verified live against the Atlas cluster, including a genuine pre-M7 document reading back complete. Not done under BUILD-PLAN section 13: Arya has not read it. P02 added `settings.features` (inventory and attendance switches, enforced by `requireFeature`) and `settings.invoice` (financial-year or prefix numbering). |
 | M8 | Audit Trail | Rishi | DONE | Built in P17, with the manager restriction extended to every new action. `GET /audit`, `/audit/entity/:entityType/:entityId`, `/audit/summary`; append-only by construction; attendance corrections merged at read time. Seven new actions written: user role, deactivate, reactivate, password and PIN resets, menu price changes, recipe changes. Arya's read outstanding. |
 | M10 | Payments | Rishi | IN PROGRESS | Specified in P07. Built in P08: configurable payment methods, frozen payment details, method corrections, discount reasons and funding. Arya's read outstanding. |
-| M14 | Online Ordering and Reservations | Rishi | IN PROGRESS | P23 built 2026-10-08: the public page `/r/:slug` (takeaway and table bookings), the staff inbox and booking book, the spoken alert, Reserved on the floor, Online in Settings. 33 server tests, a browser test (`e2e/online.spec.js`). Not done under BUILD-PLAN section 13: Arya has not read it, and the sound has not been heard on a real tablet or phone. Switched off by default (`settings.features.online`). The QR self-order and delivery from the page are still later M14 work. |
+| M14 | Online Ordering and Reservations | Rishi | IN PROGRESS | P23 built 2026-10-08: the public page `/r/:slug` (takeaway and table bookings), the staff inbox and booking book, the spoken alert, Reserved on the floor, Online in Settings. 33 server tests, a browser test (`e2e/online.spec.js`). Not done under BUILD-PLAN section 13: Arya has not read it, and the sound has not been heard on a real tablet or phone. Switched off by default (`settings.features.online`). P24 built 2026-10-08: advance payment through each cafe's own Razorpay (takeaway in full, booking deposits), automatic refunds, Apply advance on the bill, dish photos, and the redesigned public page. 25 more server tests. The QR self-order and delivery from the page are still later M14 work. |
 | M16 | Settlement and Day Close | Rishi | DONE | Day Close proven against the golden day in `tests/goldenDay.test.js`. No Charge (P08), On Hold accounts (P09), cash drawer, day figures, checks C1 C3 C4 C6 C8 C9, Day Close with the blind count, and the day lock (P10). Built by Rishi. Arya's read outstanding. |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
@@ -427,6 +427,11 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-08 | Creating an order moved from `orderController.createOrder` into `services/orderOpenService.js` `openOrder`. The contract's `orderService.openOrder` is corrected to name the file. | Accepting an online order and seating a booking open orders too, through the same code. The controller is now a thin caller. |
 | 2026-10-08 | Accepting an online order claims the request with a status-filtered write, then releases it if the quote check or the order fails. It is not one transaction. | Order opening and firing are not session-aware, and changing M2's two busiest paths for one caller was the larger risk. Exactly one of two people accepting at once wins, and a test breaks the filter to prove the test catches it. |
 | 2026-10-08 | The public page draws the wordmark, not the logo image. | Only `BrandLogo` may draw an `<img>`, and it reads the logo this device saved after a staff sign-in, which a guest's phone never has. A public logo needs its own small component, for a later prompt. |
+| 2026-10-08 | Online requests can be paid in advance through each cafe's own Razorpay account, by Payment Links. This reverses "Not integrating payments in version 1" for online requests only; the till still only records how a guest paid. (P24) | We never hold guest money, so no Payment Aggregator licence. A hosted payment page means our page loads no outside script and the content security policy is unchanged. |
+| 2026-10-08 | A cafe's Razorpay key secret and webhook secret are sealed with AES-256-GCM under `PAYMENT_SECRETS_KEY` in `server/utils/secretBox.js`. Without the variable, connecting is refused. | A secret in the database must not be readable from a backup or a leaked dump. |
+| 2026-10-08 | A payment counts only after the server checks Razorpay's signature and reads the link back as paid for the exact amount. The guest's return, the webhook and a read-back on poll all go through the same confirm, which is a no-op the second time. | Nothing the browser says about money is trusted. |
+| 2026-10-08 | The advance reaches the bill as a payment of method `ONLINE` when the cashier taps Apply advance, not when the bill is created, and `ONLINE` cannot be chosen by hand. Until it is applied, any other payment on that bill is a 422 `ADVANCE_NOT_APPLIED`. | A discount is refused once money is on a bill, and a guest must never pay twice. |
+| 2026-10-08 | Dish photos live in `menuphotos`, one per item, PNG, WebP or JPEG checked from their own bytes, SVG refused. Removing a photo deletes its row. | The ordering screen's menu read must never carry image bytes. A photo is configuration, like a recipe. |
 
 ---
 
@@ -449,6 +454,24 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-08 Rishi, P24 built: advance payment, dish photos, the new public page
+
+What was built or decided:
+P24, against the spec committed in `54e78cd`. Server: `utils/secretBox.js` and `PAYMENT_SECRETS_KEY`; `services/razorpayClient.js` (payment links, read back, refunds, both signatures, base address `RAZORPAY_API_BASE` so tests run a fake); the gateway connection (`GET`, `PUT`, `DELETE /settings/payments/gateway`, owner only, which also adds the `ONLINE` payment method); `onlinepayments`, with prepaid takeaways and booking deposits waiting as `AWAITING_PAYMENT`, unseen by staff, until paid; confirmation by the guest's return, the webhook (raw body kept for that path only) and a read-back on poll; refunds on decline, expiry, guest cancel in time, staff cancel and a bill smaller than the advance, with `REFUND_FAILED` shown and retried by a manager; a forfeited deposit on a late cancel or a no-show; `POST /bills/:billId/apply-advance`, and cash refused on a bill until the advance is applied. Dish photos: `menuphotos`, `PUT`, `DELETE` and `GET /menu-items/:itemId/photo`, and the public `GET /public/:slug/photos/:itemId` with a year's cache. Client: the redesigned public page (hero, photo mosaic, category chips, dish cards, floating cart, three-step checkout, booking date strip and time groups, ticket-style status with Paid and Refunded), Paid online on inbox and booking cards, Apply advance on the bill, the photo in the item editor, and Payments in Settings.
+Finished in this session: a roles and tenancy test across every new endpoint (P24 test 10), a `secretBox` test that a wrong key and a changed ciphertext fail, a browser test that a declined paid request shows Refunded on the guest's page, and `PAYMENT_SECRETS_KEY` in DEPLOYMENT.md's two environment tables.
+
+Tests: 1,028 before P24 (P23's 1,025 plus its three `onlineClient` tests), 1,053 after, 0 failing. The full run gave 1,048 passing; `secretBox.test.js`'s 5, written while it ran, pass on their own. `onlinePayments.test.js` 17, `menuPhotos.test.js` 3, `secretBox.test.js` 5. `npm run e2e`: the golden day and all three online specs pass. Lint and build pass.
+
+Files or endpoints touched:
+New server: `utils/secretBox.js`, `services/razorpayClient.js`, `paymentGatewayService.js`, `onlinePaymentService.js`, `menuPhotoService.js`, `models/OnlinePayment.js`, `MenuPhoto.js`, `controllers/paymentController.js`, `routes/paymentRoutes.js`, `validators/paymentValidators.js`, tests `onlinePayments.test.js`, `menuPhotos.test.js`, `secretBox.test.js`, `helpers/fakeRazorpay.js`. New client: `components/ui/DishPhoto.jsx`, `features/menu/PhotoField.jsx`, `photoFile.js`, `features/online/PaymentChip.jsx`, `features/public/publicUi.jsx`, `features/settings/PaymentGatewayPanel.jsx`. Changed: `env.js`, `server.js`, `errorHandler.js` (502), `errors.js`, the Restaurant, MenuItem, Order, OnlineOrder, Reservation and AuditLog models, `billService.js`, `onlineOrderService.js`, `reservationService.js`, `orderOpenService.js`, settings, the public pages, the bill screen, the inbox and bookings, `e2e/online.spec.js`, `e2eServer.js`, DEPLOYMENT.md.
+Endpoints: everything in API-CONTRACT M14 sections 4 to 7.
+
+Anything the other developer needs to know:
+Deploy needs `PAYMENT_SECRETS_KEY` set before any restaurant connects Razorpay, and `npm run db:indexes` for the two new collections. Draw a dish photo only through `DishPhoto`; the design guard enforces it. Arya: please read the confirm and refund paths in `onlinePaymentService.js`, and `applyAdvance` in `billService.js`. The two CA questions in the P24 prompt section 7 are still open.
+
+Anything now blocked or unblocked:
+P25 can start. Its Part G should reuse this `secretBox.js`, not write a second one.
 
 ### 2026-10-08 Rishi, rate limit fix and P23 built
 

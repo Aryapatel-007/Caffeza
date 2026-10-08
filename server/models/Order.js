@@ -312,6 +312,9 @@ const orderSchema = new mongoose.Schema({
   /** P23. An online takeaway or a booking, or null. Never changed. */
   origin: { type: originSchema, default: null },
 
+  /** P24. The advance paid online for this order, in `onlinepayments`, or null. */
+  advancePaymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'OnlinePayment', default: null },
+
   guestCount: {
     type: Number,
     min: MIN_GUEST_COUNT,

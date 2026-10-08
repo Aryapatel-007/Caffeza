@@ -8,6 +8,7 @@
  */
 import { guestLabelFor } from '../config/onlineReasons.js';
 import { COUNTER_NAMES } from '../models/Counter.js';
+import { OnlinePayment, ONLINE_PAYMENT_KINDS } from '../models/OnlinePayment.js';
 import { ORDER_TYPES, ORIGIN_KINDS } from '../models/Order.js';
 import {
   Reservation,
@@ -26,6 +27,17 @@ import {
 import { scoped } from '../utils/scopedQuery.js';
 import { businessDateFor, formatTimeIst12, nowUtc } from '../utils/time.js';
 import { assertGuestToken, consentRecord, makeStatusToken, namesFor, nextReference, onlineSettings } from './onlineCommon.js';
+import {
+  attachToOrder,
+  confirmFromReturn,
+  depositFor,
+  forfeit,
+  paymentsById,
+  presentPayment,
+  readBackIfDue,
+  refundAll,
+  startPayment,
+} from './onlinePaymentService.js';
 import { bookableDates, reservationSlots } from './openingHoursService.js';
 import { assertTableUsable, openOrder } from './orderOpenService.js';
 
@@ -77,7 +89,9 @@ async function transition(req, id, now, fromFilter, set) {
   if (updated) return updated;
   const doc = await loadOrThrow(req, id);
   if (effectiveStatus(doc, now) === EXPIRED && doc.status === REQUESTED) {
-    await Reservation.updateOne({ ...scoped(req), _id: id, status: REQUESTED }, { $set: { status: EXPIRED } });
+    const moved = await Reservation.updateOne({ ...scoped(req), _id: id, status: REQUESTED }, { $set: { status: EXPIRED } });
+    // P24. Nobody answered, so a deposit goes back.
+    if (moved.modifiedCount) await refundAll(req, doc.paymentId, 'Not answered in time');
   }
   throw new RequestAlreadyDecidedError(effectiveStatus(doc, now));
 }
@@ -86,7 +100,7 @@ async function transition(req, id, now, fromFilter, set) {
  * Serialising
  * ------------------------------------------------------------------------- */
 
-export function serialiseForGuest(doc, now = nowUtc()) {
+export function serialiseForGuest(doc, now = nowUtc(), payment = null, online = null) {
   const status = effectiveStatus(doc, now);
   return {
     id: String(doc._id),
@@ -97,12 +111,24 @@ export function serialiseForGuest(doc, now = nowUtc()) {
     at: doc.at,
     answerBy: doc.answerBy,
     declineReason: status === DECLINED ? guestLabelFor(doc.declineReasonCode) : null,
+    // P24. The deposit, and until when cancelling still refunds it.
+    payment: presentPayment(payment, { forGuest: true }),
+    refundableUntil:
+      payment && online ? new Date(doc.at.getTime() - online.depositRefundCutoffMinutes * MINUTE_MS) : null,
   };
 }
 
-export function serialiseForStaff(doc, names, now = nowUtc()) {
+export async function guestView(req, id, now = nowUtc()) {
+  const doc = await Reservation.findOne({ ...scoped(req), _id: id });
+  const payment = doc.paymentId ? await OnlinePayment.findOne({ ...scoped(req), _id: doc.paymentId }) : null;
+  const { online } = await onlineSettings(req);
+  return serialiseForGuest(doc, now, payment, online);
+}
+
+export function serialiseForStaff(doc, names, now = nowUtc(), payments = new Map()) {
   const json = doc.toJSON();
   json.status = effectiveStatus(doc, now);
+  json.payment = presentPayment(payments.get(String(doc.paymentId)) ?? null);
   json.decidedByName = doc.decidedBy ? (names.get(String(doc.decidedBy)) ?? null) : null;
   json.seatedByName = doc.seatedBy ? (names.get(String(doc.seatedBy)) ?? null) : null;
   return json;
@@ -110,7 +136,7 @@ export function serialiseForStaff(doc, names, now = nowUtc()) {
 
 async function forStaff(req, doc, now) {
   const names = await namesFor(req, [doc.decidedBy, doc.seatedBy]);
-  return serialiseForStaff(doc, names, now);
+  return serialiseForStaff(doc, names, now, await paymentsById(req, [doc.paymentId]));
 }
 
 /* ------------------------------------------------------------------------- *
@@ -162,6 +188,11 @@ export async function request(req, body) {
   if (!online.reservationsEnabled) throw new OnlineClosedError('This cafe is not taking bookings online.');
 
   const repeat = await Reservation.findOne({ ...scoped(req), idempotencyKey: body.idempotencyKey });
+  if (repeat?.status === RESERVATION_STATUSES.PAYMENT_FAILED) {
+    await Reservation.updateOne({ ...scoped(req), _id: repeat._id }, { $set: { status: RESERVATION_STATUSES.AWAITING_PAYMENT } });
+    await startDeposit(req, repeat, online, await depositFor(req, online, repeat.partySize));
+    return { created: false, doc: await Reservation.findOne({ ...scoped(req), _id: repeat._id }), token: null };
+  }
   if (repeat) return { created: false, doc: repeat, token: null };
 
   assertPartySize(body.partySize, online);
@@ -174,6 +205,8 @@ export async function request(req, body) {
 
   await assertUnderOpenLimit(req, body.guestPhone, now);
 
+  // P24. A deposit per person, when the cafe asks for one and has a gateway.
+  const depositInPaise = await depositFor(req, online, body.partySize);
   const reference = await nextReference(req, COUNTER_NAMES.RESERVATION, 'R');
   const { token, hash } = makeStatusToken();
 
@@ -199,11 +232,16 @@ export async function request(req, body) {
       at: body.at,
       businessDate: date,
       note: body.note,
-      status: REQUESTED,
-      answerBy,
+      status: depositInPaise > 0 ? RESERVATION_STATUSES.AWAITING_PAYMENT : REQUESTED,
+      // The cafe's clock starts when the deposit arrives.
+      answerBy: depositInPaise > 0 ? null : answerBy,
       statusTokenHash: hash,
       marketingConsent: consentRecord(body.marketingConsent, now),
     });
+    if (depositInPaise > 0) {
+      await startDeposit(req, doc, online, depositInPaise);
+      return { created: true, doc: await Reservation.findOne({ ...scoped(req), _id: doc._id }), token };
+    }
     return { created: true, doc, token };
   } catch (error) {
     if (error?.code === MONGO_DUPLICATE_KEY && Object.hasOwn(error.keyPattern ?? {}, 'idempotencyKey')) {
@@ -214,22 +252,56 @@ export async function request(req, body) {
   }
 }
 
+function startDeposit(req, doc, online, amountInPaise) {
+  return startPayment(req, {
+    kind: ONLINE_PAYMENT_KINDS.DEPOSIT,
+    request: doc,
+    amountInPaise,
+    online,
+    slug: req.publicSite.branch.online.publicSlug,
+    customer: { name: doc.guestName, contact: doc.guestPhone },
+    description: `Table booking ${doc.reference}, deposit for ${doc.partySize}`,
+  });
+}
+
 export async function guestRead(req, id) {
   const doc = await Reservation.findOne({ ...scoped(req), _id: id });
   assertGuestToken(doc, req);
-  return serialiseForGuest(doc);
+  if (doc.status === RESERVATION_STATUSES.AWAITING_PAYMENT && doc.paymentId) {
+    const { online } = await onlineSettings(req);
+    await readBackIfDue(req, await OnlinePayment.findOne({ ...scoped(req), _id: doc.paymentId }), { online });
+  }
+  return guestView(req, id);
+}
+
+/** P24. The guest's return from Razorpay's payment page. */
+export async function guestPaymentReturn(req, id, body) {
+  const doc = await Reservation.findOne({ ...scoped(req), _id: id });
+  assertGuestToken(doc, req);
+  if (doc.paymentId) {
+    const { online } = await onlineSettings(req);
+    await confirmFromReturn(req, await OnlinePayment.findOne({ ...scoped(req), _id: doc.paymentId }), body, { online });
+  }
+  return guestView(req, id);
 }
 
 export async function guestCancel(req, id) {
   const now = nowUtc();
   const doc = await Reservation.findOne({ ...scoped(req), _id: id });
   assertGuestToken(doc, req);
-  const cancelled = await transition(req, id, now, { at: { $gt: now }, ...liveFilter(now) }, {
-    status: CANCELLED,
-    cancelledAt: now,
-    cancelledBy: null,
-  });
-  return serialiseForGuest(cancelled, now);
+  const cancelled = await transition(
+    req,
+    id,
+    now,
+    { at: { $gt: now }, $or: [...liveFilter(now).$or, { status: RESERVATION_STATUSES.AWAITING_PAYMENT }] },
+    { status: CANCELLED, cancelledAt: now, cancelledBy: null },
+  );
+  // P24. In good time, the deposit goes back. Too late, it is kept, as the page warned.
+  const { online } = await onlineSettings(req);
+  const inTime = cancelled.at.getTime() - now.getTime() >= online.depositRefundCutoffMinutes * MINUTE_MS;
+  if (inTime) await refundAll(req, cancelled.paymentId, 'Cancelled by the guest in time');
+  else await forfeit(req, cancelled.paymentId);
+  return guestView(req, id, now);
 }
 
 /* ------------------------------------------------------------------------- *
@@ -248,7 +320,8 @@ export async function list(req, { date, status, openOnly }) {
 
   const docs = await Reservation.find(filter).sort({ at: 1 }).limit(500);
   const names = await namesFor(req, docs.flatMap((doc) => [doc.decidedBy, doc.seatedBy]));
-  return docs.map((doc) => serialiseForStaff(doc, names, now));
+  const payments = await paymentsById(req, docs.map((doc) => doc.paymentId));
+  return docs.map((doc) => serialiseForStaff(doc, names, now, payments));
 }
 
 export async function readOne(req, id) {
@@ -340,6 +413,7 @@ export async function decline(req, id, { reasonCode, note }) {
     decidedBy: req.user.id,
     decidedAt: now,
   });
+  await refundAll(req, updated.paymentId, 'Declined by the cafe');
   return forStaff(req, updated, now);
 }
 
@@ -368,6 +442,8 @@ export async function seat(req, id, { tableId, guestCount }) {
       tableId: String(table._id),
       guestCount,
       origin: { kind: ORIGIN_KINDS.RESERVATION, id: claimed._id, reference: claimed.reference, pickupAt: null },
+      // P24. The deposit goes with the order, to be applied on its bill.
+      advancePaymentId: claimed.paymentId ?? null,
     });
   } catch (error) {
     await Reservation.updateOne(
@@ -384,6 +460,8 @@ export async function seat(req, id, { tableId, guestCount }) {
     );
     throw error;
   }
+
+  await attachToOrder(req, claimed.paymentId, order._id);
 
   const seated = await Reservation.findOneAndUpdate(
     { ...scoped(req), _id: id },
@@ -406,6 +484,7 @@ export async function noShow(req, id) {
     noShowBy: req.user.id,
     noShowAt: now,
   });
+  await forfeit(req, updated.paymentId);
   return forStaff(req, updated, now);
 }
 
@@ -417,6 +496,8 @@ export async function cancel(req, id, { note }) {
     cancelledAt: now,
     cancelNote: note,
   });
+  // The cafe cancelled, so a deposit always goes back.
+  await refundAll(req, updated.paymentId, 'Cancelled by the cafe');
   return forStaff(req, updated, now);
 }
 

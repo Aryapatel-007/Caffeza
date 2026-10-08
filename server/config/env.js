@@ -186,6 +186,31 @@ const envSchema = z
     TRUST_PROXY: trustProxyVar,
 
     /**
+     * P24. The key that encrypts each cafe's Razorpay secrets in the database:
+     * 32 random bytes, base64. Optional: without it, connecting a gateway is
+     * refused and the page takes requests without payment.
+     * Generate with: openssl rand -base64 32
+     */
+    PAYMENT_SECRETS_KEY: z.preprocess(
+      (value) => {
+        const text = value === undefined || value === null ? '' : String(value).trim();
+        return text === '' ? null : text;
+      },
+      z
+        .string()
+        .refine((value) => Buffer.from(value, 'base64').length === 32 && !/replace_me/i.test(value), {
+          message: 'PAYMENT_SECRETS_KEY must be 32 random bytes in base64. Generate one with: openssl rand -base64 32',
+        })
+        .nullable(),
+    ),
+
+    /** P24. Razorpay's API address. Tests and the e2e server point it at a fake. */
+    RAZORPAY_API_BASE: optionalVar('RAZORPAY_API_BASE', 'https://api.razorpay.com').refine(
+      whenPresent((value) => /^https?:[/][/][^/]+$/.test(value)),
+      'RAZORPAY_API_BASE must be a bare origin with no trailing slash.',
+    ),
+
+    /**
      * P12. The git commit being deployed, shown on GET /api/v1/health so a
      * smoke check can tell which version answered. Optional; null when unset.
      */

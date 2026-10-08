@@ -65,3 +65,9 @@ export const requestBooking = (slug, body) => call(at(slug, '/reservations'), { 
 export const getBookingStatus = (slug, id, statusToken) => call(at(slug, `/reservations/${id}`), { statusToken });
 export const cancelBooking = (slug, id, statusToken) =>
   call(at(slug, `/reservations/${id}/cancel`), { method: 'POST', statusToken });
+
+/* P24. The guest's return from Razorpay, exactly the query Razorpay appended. */
+export const sendOrderPaymentReturn = (slug, id, statusToken, body) =>
+  call(at(slug, `/orders/${id}/payment-return`), { method: 'POST', body, statusToken });
+export const sendBookingPaymentReturn = (slug, id, statusToken, body) =>
+  call(at(slug, `/reservations/${id}/payment-return`), { method: 'POST', body, statusToken });

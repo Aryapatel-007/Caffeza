@@ -21,6 +21,8 @@ import http from 'node:http';
 
 export const APP_PORT = 5055;
 export const CONTROL_PORT = 5056;
+/** P24. A fake Razorpay, so a guest can pay and come back in the browser test. */
+export const FAKE_RAZORPAY_PORT = 5057;
 const HOST = '127.0.0.1';
 
 if (process.env.NODE_ENV !== 'test') {
@@ -44,6 +46,8 @@ Object.assign(process.env, {
   CLIENT_ORIGIN: `http://${HOST}:${APP_PORT}`,
   LOGIN_RATE_LIMIT_WINDOW_MINUTES: '15',
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS: '50',
+  PAYMENT_SECRETS_KEY: randomBytes(32).toString('base64'),
+  RAZORPAY_API_BASE: `http://${HOST}:${FAKE_RAZORPAY_PORT}`,
 });
 
 const { MongoMemoryReplSet } = await import('mongodb-memory-server');
@@ -62,6 +66,9 @@ for (const model of ALL_MODELS) await model.init();
 
 // The golden helpers drive the API through the test server, as the API tests do.
 await startTestServer();
+
+const { startFakeRazorpay } = await import('../tests/helpers/fakeRazorpay.js');
+await startFakeRazorpay({ port: FAKE_RAZORPAY_PORT, host: HOST });
 
 const app = createApp({ serveClient: true });
 await new Promise((resolve) => app.listen(APP_PORT, HOST, resolve));

@@ -119,6 +119,11 @@ export const ERROR_CODES = Object.freeze({
   REQUEST_ALREADY_DECIDED: 'REQUEST_ALREADY_DECIDED',
   ONLINE_ORDER_CHANGED: 'ONLINE_ORDER_CHANGED',
   RESERVATION_CLASH: 'RESERVATION_CLASH',
+
+  /** Added by P24. Online payment. */
+  PAYMENT_GATEWAY_NOT_CONNECTED: 'PAYMENT_GATEWAY_NOT_CONNECTED',
+  PAYMENT_GATEWAY_ERROR: 'PAYMENT_GATEWAY_ERROR',
+  ADVANCE_NOT_APPLIED: 'ADVANCE_NOT_APPLIED',
 });
 
 /**
@@ -656,6 +661,34 @@ export class ReservationClashError extends AppError {
       statusCode: 409,
       code: ERROR_CODES.RESERVATION_CLASH,
       details: { clashes },
+    });
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * P24. Online payment.
+ * ----------------------------------------------------------------------- */
+
+/** No gateway connected, or no PAYMENT_SECRETS_KEY on this server. */
+export class PaymentGatewayNotConnectedError extends AppError {
+  constructor(message = 'Online payment is not set up for this restaurant.') {
+    super(message, { statusCode: 422, code: ERROR_CODES.PAYMENT_GATEWAY_NOT_CONNECTED });
+  }
+}
+
+/** Razorpay refused, or could not be reached. Not our fault and not the guest's. */
+export class PaymentGatewayError extends AppError {
+  constructor(message) {
+    super(message, { statusCode: 502, code: ERROR_CODES.PAYMENT_GATEWAY_ERROR });
+  }
+}
+
+/** A bill whose order was paid online takes the advance before anything else. */
+export class AdvanceNotAppliedError extends AppError {
+  constructor() {
+    super('This order was paid online. Apply the online advance first.', {
+      statusCode: 422,
+      code: ERROR_CODES.ADVANCE_NOT_APPLIED,
     });
   }
 }

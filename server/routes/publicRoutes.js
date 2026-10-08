@@ -8,6 +8,7 @@
 import { Router } from 'express';
 
 import { getLogo } from '../controllers/brandController.js';
+import { getPublicPhoto, postBookingPaymentReturn, postOrderPaymentReturn, postWebhook } from '../controllers/paymentController.js';
 import {
   getMenu,
   getOrder,
@@ -32,6 +33,7 @@ import {
   publicSlotsSchema,
   publicStatusSchema,
 } from '../validators/onlineValidators.js';
+import { paymentReturnSchema, publicPhotoSchema } from '../validators/paymentValidators.js';
 
 const router = Router();
 
@@ -53,5 +55,12 @@ router.get('/public/:slug/reservations/slots', ...read, validate(publicSlotsSche
 router.post('/public/:slug/reservations', ...place, validate(publicRequestReservationSchema), postReservation);
 router.get('/public/:slug/reservations/:id', ...read, validate(publicStatusSchema), getReservation);
 router.post('/public/:slug/reservations/:id/cancel', ...write, validate(publicStatusSchema), postCancelReservation);
+
+// P24. Advance payment: the guest's return, the webhook, and dish photos.
+router.post('/public/:slug/orders/:id/payment-return', ...write, validate(paymentReturnSchema), postOrderPaymentReturn);
+router.post('/public/:slug/reservations/:id/payment-return', ...write, validate(paymentReturnSchema), postBookingPaymentReturn);
+// Razorpay's servers, not a guest: their own limiter would be wrong, the read one is generous.
+router.post('/public/:slug/payments/webhook', ...read, postWebhook);
+router.get('/public/:slug/photos/:itemId', ...read, validate(publicPhotoSchema), getPublicPhoto);
 
 export default router;

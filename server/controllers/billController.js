@@ -12,6 +12,7 @@
 import { Bill } from '../models/Bill.js';
 import { Restaurant } from '../models/Restaurant.js';
 import {
+  advanceOnBill,
   applyDiscount,
   correctPayment,
   createBill,
@@ -59,7 +60,10 @@ export async function postBill(req, res) {
 
 /** GET /bills/:billId */
 export async function getBill(req, res) {
-  return sendSuccess(res, await readBill(req, req.params.billId));
+  const bill = await readBill(req, req.params.billId);
+  // P24. An order paid online carries its advance, for the Apply advance button.
+  const advance = await advanceOnBill(req, bill);
+  return sendSuccess(res, advance ? { ...bill.toJSON(), advance } : bill);
 }
 
 /** GET /bills */

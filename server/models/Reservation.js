@@ -14,6 +14,10 @@ import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 
 export const RESERVATION_STATUSES = Object.freeze({
+  /** P24. Requested, the deposit not yet paid. Invisible to staff. */
+  AWAITING_PAYMENT: 'AWAITING_PAYMENT',
+  PAYMENT_EXPIRED: 'PAYMENT_EXPIRED',
+  PAYMENT_FAILED: 'PAYMENT_FAILED',
   REQUESTED: 'REQUESTED',
   CONFIRMED: 'CONFIRMED',
   DECLINED: 'DECLINED',
@@ -68,6 +72,9 @@ const reservationSchema = new mongoose.Schema({
   cancelNote: { type: String, trim: true, maxlength: REQUEST_NOTE_MAX_LENGTH, default: null },
 
   noShowBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+
+  /** P24. The deposit in `onlinepayments`, or null. */
+  paymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'OnlinePayment', default: null },
   noShowAt: { type: Date, default: null },
 });
 

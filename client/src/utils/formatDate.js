@@ -66,6 +66,20 @@ export function formatWeekdayIst(value) {
   return format(value, { weekday: 'long' });
 }
 
+/** The hour of the day in India time, 0 to 23. P24, to group booking times. */
+export function istHour(value) {
+  return Number(format(value, { hour: 'numeric', hourCycle: 'h23' }));
+}
+
+/** A date's weekday, day and month, apart, for a date card. P24. */
+export function formatDayParts(value) {
+  return {
+    weekday: format(value, { weekday: 'short' }),
+    day: format(value, { day: 'numeric' }),
+    month: format(value, { month: 'short' }),
+  };
+}
+
 /** Weekday and date, short. Sat 10 Oct. P23, for a booking's day. */
 export function formatDayIst(value) {
   return format(value, { weekday: 'short', day: 'numeric', month: 'short' });

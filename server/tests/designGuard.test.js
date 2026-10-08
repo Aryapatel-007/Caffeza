@@ -40,6 +40,8 @@ const MONEY_COMPONENT = 'components/ui/Money.jsx';
 
 /** P22. The one component that draws a logo, the one file that fetches it, and the two users of `brand`. */
 const BRAND_LOGO = 'components/ui/BrandLogo.jsx';
+// P24. Dish photos are the one other image, drawn by one component.
+const DISH_PHOTO = 'components/ui/DishPhoto.jsx';
 const BRAND_API = 'api/brand.js';
 const BRAND_USERS = [BRAND_LOGO, 'features/auth/LoginPage.jsx'];
 const LOOPING = /(?<![\w-])(?:[a-z-]+:)*animate-(?:spin|pulse|ping|bounce)(?![\w-])/;
@@ -130,12 +132,12 @@ describe('design guard: the whole client', () => {
   });
 
   // P22. The logo is drawn by one component, and the brand colour has two jobs.
-  it('draw a logo only through BrandLogo', () => {
+  it('draw a logo only through BrandLogo, and a dish only through DishPhoto', () => {
     const found = [];
     for (const { name, code } of files) {
       code.split('\n').forEach((line, index) => {
         const where = `${name}:${index + 1}  ${line.trim().slice(0, 100)}`;
-        if (/<img\b/.test(line) && name !== BRAND_LOGO) found.push(where);
+        if (/<img\b/.test(line) && name !== BRAND_LOGO && name !== DISH_PHOTO) found.push(where);
         // Only the brand API file asks the server for the logo's bytes.
         if (/\/restaurant\/logo/.test(line) && name !== BRAND_API) found.push(where);
       });

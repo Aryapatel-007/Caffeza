@@ -6,7 +6,7 @@
  *
  * Shapes come from docs/API-CONTRACT.md sections 4 to 6.
  */
-import { api, requestWithMeta } from './client.js';
+import { api, downloadFile, requestWithMeta } from './client.js';
 
 /** Builds a query string, leaving out anything empty. */
 function toQuery(params = {}) {
@@ -109,4 +109,19 @@ export function setMenuItemActive(menuItemId, isActive) {
  */
 export function getMenuTree({ includeUnavailable = true } = {}) {
   return api.get(`/menu${toQuery({ includeUnavailable })}`);
+}
+
+/* P24. Dish photos. The image is a base64 data URL, resized on the device first. */
+export function setMenuPhoto(menuItemId, image) {
+  return api.put(`/menu-items/${menuItemId}/photo`, { image });
+}
+
+export function removeMenuPhoto(menuItemId) {
+  return api.delete(`/menu-items/${menuItemId}/photo`, { body: {} });
+}
+
+/** The stored photo as an object URL, through the signed-in session. */
+export async function menuPhotoUrl(menuItemId) {
+  const { blob } = await downloadFile(`/menu-items/${menuItemId}/photo`);
+  return URL.createObjectURL(blob);
 }

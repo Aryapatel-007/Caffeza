@@ -7,6 +7,7 @@ import { Branch } from '../models/Branch.js';
 import { OnlineOrder } from '../models/OnlineOrder.js';
 import { Reservation } from '../models/Reservation.js';
 import { activePause, onlineSettings } from '../services/onlineCommon.js';
+import { refundFailureCount, sweep } from '../services/onlinePaymentService.js';
 import * as onlineOrders from '../services/onlineOrderService.js';
 import { windowContaining } from '../services/openingHoursService.js';
 import * as reservations from '../services/reservationService.js';
@@ -28,6 +29,11 @@ async function loadBranch(req) {
  * indexed fields, cheap enough for every till to ask every 15 seconds.
  */
 export async function getInbox(req, res) {
+  // P24. No scheduler: the tills' poll expires and refunds what nobody answered,
+  // and reads back links whose guests may have paid without coming back.
+  const { online } = await onlineSettings(req);
+  await sweep(req, { online });
+
   const now = nowUtc();
   const scope = { restaurantId: req.restaurantId, branchId: req.branchId };
   const waitingOrders = { ...scope, ...onlineOrders.waitingFilter(now) };
@@ -73,6 +79,7 @@ export async function getInbox(req, res) {
           }
       : null,
     pausedUntil: activePause(branch, now),
+    refundFailures: await refundFailureCount(req),
   });
 }
 

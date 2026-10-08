@@ -32,6 +32,7 @@ import { CancelBookingSheet, ConfirmSheet, PhoneBookingSheet, SeatSheet } from '
 import { INBOX_QUERY_KEY } from './OnlineAlerts.jsx';
 import { OnlineTabs } from './OnlineInboxPage.jsx';
 import { DeclineSheet, errorText } from './OnlineSheets.jsx';
+import PaymentChip from './PaymentChip.jsx';
 import { BOOKING_DECLINE_REASONS } from './onlineReasons.js';
 
 const TILL_ROLES = ['OWNER', 'MANAGER', 'CASHIER'];
@@ -71,6 +72,7 @@ function BookingCard({ booking, canDecide, onAction }) {
         <StateChip state={chip.state} word={chip.word} size="sm" />
       </header>
       {booking.note && <p className="type-body rounded-lg bg-sunken px-3 py-2">“{booking.note}”</p>}
+      <PaymentChip payment={booking.payment} />
       <a href={`tel:${booking.guestPhone}`} className="type-label flex min-h-12 w-fit items-center text-accent underline-offset-4 hover:underline">
         {booking.guestPhone}
       </a>

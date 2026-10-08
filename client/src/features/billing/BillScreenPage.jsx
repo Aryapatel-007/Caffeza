@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 
 import { BackIcon, PrintIcon } from '../../components/ui/icons/index.jsx';
+import Button from '../../components/ui/Button.jsx';
 import Money, { moneyText } from '../../components/ui/Money.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import Toast from '../../components/ui/Toast.jsx';
@@ -12,6 +13,7 @@ import {
   getBill,
   getReceipt,
   recordPayment,
+  applyAdvance,
   voidBill,
 } from '../../api/bills.js';
 import { chargeToAccount, createAccount } from '../../api/accounts.js';
@@ -100,6 +102,21 @@ export default function BillScreenPage() {
       setToast({
         tone: 'success',
         message: updated.status === 'PAID' ? 'Payment recorded. Bill paid in full.' : 'Payment recorded.',
+      });
+    },
+    onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
+  });
+
+  // P24. The advance paid online goes on the bill first, with one tap.
+  const advanceMutation = useMutation({
+    mutationFn: () => applyAdvance(billId),
+    onSuccess: (updated) => {
+      invalidate(updated);
+      if (updated.status === 'PAID') setJustPaid(true);
+      const refunded = updated.advanceRefundedInPaise > 0 ? ` ${moneyText(updated.advanceRefundedInPaise)} of the advance was refunded to the guest.` : '';
+      setToast({
+        tone: 'success',
+        message: (updated.status === 'PAID' ? 'Online advance applied. Bill paid in full.' : 'Online advance applied. Collect the rest.') + refunded,
       });
     },
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
@@ -383,7 +400,25 @@ export default function BillScreenPage() {
 
           {/* Taking the payment, beside the bill. */}
           <div className="flex flex-col gap-4 lg:col-span-7">
-            {isSettleable && canTakePayment ? (
+            {isSettleable && canTakePayment && bill.advance?.available > 0 ? (
+              <div className="rounded-[10px] border-2 border-ok bg-surface p-4 sm:p-6">
+                <p className="type-label text-ok">Paid online</p>
+                <p className="mt-1 flex flex-wrap items-baseline gap-2">
+                  <Money paise={bill.advance.available} size="hero" tabular />
+                </p>
+                <p className="type-body mt-2 text-muted">
+                  The guest paid this in advance. Apply it to the bill first.
+                  {bill.advance.available > outstandingInPaise
+                    ? ` The bill is ${moneyText(outstandingInPaise)}, so ${moneyText(bill.advance.available - outstandingInPaise)} goes back to the guest.`
+                    : bill.advance.available < outstandingInPaise
+                      ? ` Then collect the remaining ${moneyText(outstandingInPaise - bill.advance.available)}.`
+                      : ''}
+                </p>
+                <Button size="lg" fullWidth className="mt-4" isLoading={advanceMutation.isPending} onClick={() => advanceMutation.mutate()}>
+                  Apply {moneyText(Math.min(bill.advance.available, outstandingInPaise))} paid online
+                </Button>
+              </div>
+            ) : isSettleable && canTakePayment ? (
               <InlinePayment
                 methods={allowedMethods}
                 outstandingInPaise={outstandingInPaise}

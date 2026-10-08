@@ -104,7 +104,7 @@ describe('the public page', () => {
     const items = menu.body.data.flatMap((category) => category.items);
     assert.deepEqual(items.map((item) => item.name).sort(), ['Cold Shake', 'Masala Chai']);
     for (const item of items) {
-      assert.deepEqual(Object.keys(item).sort(), ['addOns', 'description', 'id', 'name', 'priceInPaise', 'variants']);
+      assert.deepEqual(Object.keys(item).sort(), ['addOns', 'description', 'id', 'name', 'photoUrl', 'priceInPaise', 'variants']);
     }
   });
 

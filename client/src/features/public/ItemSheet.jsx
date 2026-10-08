@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 
+import DishPhoto from '../../components/ui/DishPhoto.jsx';
 import Money from '../../components/ui/Money.jsx';
 import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
 
@@ -26,6 +27,7 @@ export default function ItemSheet({ item, onAdd, onClose }) {
       variantName: variant?.name ?? null,
       addOnIds,
       addOnNames: chosenAddOns.map((addOn) => addOn.name),
+      unitPriceInPaise: unit,
       quantity,
       notes: notes.trim() || null,
     });
@@ -42,6 +44,7 @@ export default function ItemSheet({ item, onAdd, onClose }) {
       }
     >
       <div className="grid gap-5">
+        {item.photoUrl && <DishPhoto src={item.photoUrl} name={item.name} className="-mx-4 -mt-4 aspect-[16/10] w-[calc(100%+2rem)] sm:-mx-6 sm:w-[calc(100%+3rem)]" />}
         {item.variants.length > 0 && (
           <fieldset className="grid gap-2">
             <legend className="type-heading mb-1">Size</legend>

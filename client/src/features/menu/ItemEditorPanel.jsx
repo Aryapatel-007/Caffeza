@@ -5,6 +5,7 @@ import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import Input from '../../components/ui/Input.jsx';
 import Select from '../../components/ui/Select.jsx';
 import { paiseToInput, parseRupeesToPaise } from '../../utils/formatMoney.js';
+import PhotoField from './PhotoField.jsx';
 import SubItemListEditor from './SubItemListEditor.jsx';
 
 /**
@@ -136,6 +137,8 @@ export default function ItemEditorPanel({
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {/* P24. Saved on its own, so only for an item that exists. */}
+        {isEditing && <PhotoField item={item} />}
         <Input label="Item name" required value={form.name} onChange={set('name')} error={fieldErrors.name} />
         <Input label="Description" value={form.description} onChange={set('description')} />
 

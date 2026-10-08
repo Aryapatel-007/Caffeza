@@ -106,7 +106,7 @@ export async function rethrowPlatformConflict(req, platform, error) {
  * `openedBy`.
  */
 export async function openOrder(req, input) {
-  const { orderType, tableId, guestCount, customerName, customerPhone, lines, platform, origin = null } = input;
+  const { orderType, tableId, guestCount, customerName, customerPhone, lines, platform, origin = null, advancePaymentId = null } = input;
 
   const isDineIn = orderType === ORDER_TYPES.DINE_IN;
 
@@ -160,6 +160,7 @@ export async function openOrder(req, input) {
     platform: frozenPlatform,
     taxTreatment,
     origin,
+    advancePaymentId,
     lines: snapshotLines,
     openedBy: req.user.id,
     openedAt: nowUtc(),

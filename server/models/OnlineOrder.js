@@ -17,6 +17,12 @@ import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 
 export const ONLINE_ORDER_STATUSES = Object.freeze({
+  /** P24. Placed, not yet paid. Invisible to staff. */
+  AWAITING_PAYMENT: 'AWAITING_PAYMENT',
+  /** P24. The payment link closed unpaid. Derived on read, too. */
+  PAYMENT_EXPIRED: 'PAYMENT_EXPIRED',
+  /** P24. The gateway could not make a payment link. */
+  PAYMENT_FAILED: 'PAYMENT_FAILED',
   WAITING: 'WAITING',
   ACCEPTED: 'ACCEPTED',
   DECLINED: 'DECLINED',
@@ -93,7 +99,11 @@ const onlineOrderSchema = new mongoose.Schema({
     enum: ONLINE_ORDER_STATUS_VALUES,
     default: ONLINE_ORDER_STATUSES.WAITING,
   },
-  answerBy: { type: Date, required: true },
+  /** Null while waiting for payment: the cafe's clock starts when the money arrives. */
+  answerBy: { type: Date, default: null },
+
+  /** P24. The advance in `onlinepayments`, or null when the page took no payment. */
+  paymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'OnlinePayment', default: null },
 
   /** SHA-256 of the guest's status token. Stripped from every response. */
   statusTokenHash: { type: String, required: true },

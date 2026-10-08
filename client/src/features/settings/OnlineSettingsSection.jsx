@@ -13,7 +13,9 @@ import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
 import Select from '../../components/ui/Select.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { parseRupeesToPaise } from '../../utils/formatMoney.js';
 import { Checkbox, Section } from './settingsParts.jsx';
+import PaymentGatewayPanel from './PaymentGatewayPanel.jsx';
 import { clockToMinutes, minutesToClock } from './timeOfDay.js';
 
 const ALERT_ROLES = [
@@ -37,6 +39,24 @@ function NumberField({ label, hint, value, min, max, onChange }) {
       onChange={(event) => {
         const typed = Number.parseInt(event.target.value, 10);
         if (Number.isInteger(typed)) onChange(typed);
+      }}
+    />
+  );
+}
+
+/** Rupees typed as text, kept as typed, sent as whole paise once it parses. */
+function RupeeField({ label, hint, paise, onChange }) {
+  const [text, setText] = useState(String(paise / 100));
+  return (
+    <Input
+      label={label}
+      hint={hint}
+      inputMode="decimal"
+      value={text}
+      onChange={(event) => {
+        setText(event.target.value);
+        const parsed = parseRupeesToPaise(event.target.value || '0');
+        if (parsed !== null) onChange(parsed);
       }}
     />
   );
@@ -156,6 +176,29 @@ export default function OnlineSettingsSection({ form, set }) {
             value={online.pageNote ?? ''}
             onChange={(event) => setOnline('pageNote')(event.target.value)}
           />
+          <PaymentGatewayPanel />
+          <Checkbox
+            label="Takeaway is paid online, in full, before the cafe sees it"
+            hint="Only while Razorpay is connected. Declined or unanswered orders are refunded automatically."
+            checked={online.takeawayPrepay}
+            onChange={setOnline('takeawayPrepay')}
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <RupeeField
+              label="Booking deposit per person, ₹"
+              hint="0 means no deposit. Taken off the bill on the day."
+              paise={online.depositPerPersonInPaise ?? 0}
+              onChange={setOnline('depositPerPersonInPaise')}
+            />
+            <NumberField
+              label="Refund a cancelled booking up to, minutes before"
+              hint="Cancelled later, or a no-show, keeps the deposit"
+              min={0}
+              max={2880}
+              value={online.depositRefundCutoffMinutes}
+              onChange={setOnline('depositRefundCutoffMinutes')}
+            />
+          </div>
           <fieldset className="grid gap-2">
             <legend className="type-label mb-1">Who hears the alert</legend>
             {ALERT_ROLES.map(({ role, label }) => (

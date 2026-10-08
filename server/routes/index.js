@@ -21,6 +21,7 @@ import inventoryRoutes from './inventoryRoutes.js';
 import menuRoutes from './menuRoutes.js';
 import onlineRoutes from './onlineRoutes.js';
 import orderRoutes from './orderRoutes.js';
+import paymentRoutes from './paymentRoutes.js';
 import publicRoutes from './publicRoutes.js';
 import reportRoutes from './reportRoutes.js';
 import restaurantRoutes from './restaurantRoutes.js';
@@ -56,5 +57,6 @@ router.use(reportV2Routes);
 router.use(auditRoutes);
 router.use(brandRoutes);
 router.use(onlineRoutes);
+router.use(paymentRoutes);
 
 export default router;

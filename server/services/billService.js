@@ -33,6 +33,10 @@ import { assertDayOpen, todayBusinessDate } from './dayLockService.js';
 import { recordAudit } from './auditService.js';
 import { reserveBillNumber } from './billNumberService.js';
 import { frozenMethodFields, methodForBill } from './paymentMethodService.js';
+import { ensureOnlineMethod, ONLINE_METHOD_CODE } from './paymentGatewayService.js';
+import { advanceFor, refund, releaseAdvance } from './onlinePaymentService.js';
+import { OnlinePayment, ONLINE_PAYMENT_STATUSES } from '../models/OnlinePayment.js';
+import { PaymentMethod } from '../models/PaymentMethod.js';
 import { getSetting, getSettings } from './settingsService.js';
 import {
   assertBillHasLines,
@@ -44,9 +48,11 @@ import {
 } from './billPermissionService.js';
 import { applyVersionedUpdate, computeLineTotalInPaise } from './orderService.js';
 import {
+  AdvanceNotAppliedError,
   BillAlreadyExistsError,
   BusinessRuleError,
   NotFoundError,
+  PaymentMethodNotAllowedError,
   TransactionRequiredError,
 } from '../utils/errors.js';
 import { sumPaise } from '../utils/money.js';
@@ -334,8 +340,25 @@ export async function recordPayment(req, billId, { method, amountInPaise, refere
   assertNotVoided(bill);
   assertPaymentFits(bill, amountInPaise);
 
+  // P24. "Paid online" only ever comes from the advance, never from a cashier's pick.
+  if (method === ONLINE_METHOD_CODE) {
+    throw new PaymentMethodNotAllowedError('Paid online is added with Apply advance, not chosen by hand.');
+  }
+  // P24. An order paid online takes its advance first, so no guest pays twice.
+  const order = await Order.findOne({ ...scoped(req), _id: bill.orderId }).select('advancePaymentId');
+  const advance = await advanceFor(req, order);
+  if (advance && advance.available > 0 && advance.payment.appliedInPaise === 0) throw new AdvanceNotAppliedError();
+
   // P08: the four method rules, then freeze the method onto the payment.
   const paymentMethod = await methodForBill(req, bill, method);
+  return addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, reference });
+}
+
+/**
+ * Pushes one payment and settles the bill when the payments reach its total.
+ * Shared by a cashier's payment and by applying an online advance (P24).
+ */
+async function addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, reference }) {
   const startMinutes = await getSetting(req.restaurantId, 'business.businessDayStartsAtMinutes', {
     req,
   });
@@ -373,6 +396,75 @@ export async function recordPayment(req, billId, { method, amountInPaise, refere
   }
 
   return bill;
+}
+
+/**
+ * Puts an order's online advance on its bill. P24, API-CONTRACT M14 section 4.6.
+ *
+ * A payment of method ONLINE for the smaller of the advance and what is due,
+ * received now, so the day figures and C3 count it on the bill's day. Any of
+ * the advance left over is refunded at once. The advance is claimed with a
+ * filtered write first, so two taps apply it once.
+ */
+export async function applyAdvance(req, billId) {
+  const bill = await readBill(req, billId);
+  await assertDayOpen(req, [bill.businessDate, await todayBusinessDate(req)]);
+  assertNotVoided(bill);
+  if (bill.status === BILL_STATUSES.ON_ACCOUNT) {
+    throw new BusinessRuleError('This bill is charged to an account and takes no payment.');
+  }
+
+  const order = await Order.findOne({ ...scoped(req), _id: bill.orderId }).select('advancePaymentId');
+  const advance = await advanceFor(req, order);
+  if (!advance || advance.available <= 0) {
+    throw new BusinessRuleError('There is no online advance left to apply to this bill.');
+  }
+  const due = bill.grandTotalInPaise - bill.amountPaidInPaise;
+  if (due <= 0) throw new BusinessRuleError('This bill is already paid.');
+
+  const amountInPaise = Math.min(advance.available, due);
+  const claimed = await OnlinePayment.findOneAndUpdate(
+    {
+      ...scoped(req),
+      _id: advance.payment._id,
+      status: { $in: [ONLINE_PAYMENT_STATUSES.PAID, ONLINE_PAYMENT_STATUSES.PARTLY_REFUNDED] },
+      appliedInPaise: advance.payment.appliedInPaise,
+    },
+    { $inc: { appliedInPaise: amountInPaise }, $set: { appliedToBillId: bill._id, appliedAt: nowUtc(), appliedBy: req.user.id } },
+    { new: true },
+  );
+  if (!claimed) throw new BusinessRuleError('The online advance was just applied. Refresh the bill.');
+
+  await ensureOnlineMethod(req.restaurantId, req.branchId);
+  const method = await PaymentMethod.findOne({ ...scoped(req), code: ONLINE_METHOD_CODE });
+  const settled = await addPaymentAndSettle(req, bill, {
+    paymentMethod: method,
+    amountInPaise,
+    reference: claimed.gatewayPaymentId,
+  });
+
+  // The bill came to less than the guest paid: the rest goes back now.
+  const leftover = claimed.amountInPaise - claimed.appliedInPaise - claimed.refundedInPaise;
+  let advanceRefundedInPaise = 0;
+  if (leftover > 0) {
+    const after = await refund(req, claimed, { amountInPaise: leftover, reason: 'The bill came to less than the advance' });
+    advanceRefundedInPaise = after.refunds.at(-1)?.status === 'FAILED' ? 0 : leftover;
+  }
+  return { bill: settled, advanceRefundedInPaise };
+}
+
+/** The advance block on a bill read: what was paid online and what is left to apply. */
+export async function advanceOnBill(req, bill) {
+  const order = await Order.findOne({ ...scoped(req), _id: bill.orderId }).select('advancePaymentId');
+  const advance = await advanceFor(req, order);
+  if (!advance) return null;
+  return {
+    paymentId: String(advance.payment._id),
+    amountInPaise: advance.payment.amountInPaise,
+    appliedInPaise: advance.payment.appliedInPaise,
+    refundedInPaise: advance.payment.refundedInPaise,
+    available: advance.available,
+  };
 }
 
 /**
@@ -464,6 +556,11 @@ export async function voidBill(req, billId, { reasonCode, note = null }) {
     );
 
     await reverseChargeForVoid(req, bill, { session });
+
+    // P24. A voided bill gives its online advance back to the order, for the next bill.
+    for (const payment of bill.payments.filter((entry) => entry.method === ONLINE_METHOD_CODE)) {
+      await releaseAdvance(req, bill._id, payment.amountInPaise, session);
+    }
 
     await recordAudit(
       req,

@@ -73,3 +73,8 @@ function normaliseInvoice(invoice) {
     startingNumber: invoice.startingNumber,
   };
 }
+
+/* P24. The cafe's own Razorpay account. Secrets are sent once and never read back. */
+export const getPaymentGateway = () => api.get('/settings/payments/gateway');
+export const connectPaymentGateway = (body) => api.put('/settings/payments/gateway', body);
+export const disconnectPaymentGateway = (reason) => api.delete('/settings/payments/gateway', { body: { reason } });
