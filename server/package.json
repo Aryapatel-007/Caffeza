@@ -13,6 +13,7 @@
     "seed:demo": "node scripts/seedDemo.js",
     "seed:golden": "node --import ./scripts/lib/asTest.js scripts/loadGoldenDay.js",
     "seed:mock": "node --import ./scripts/lib/asTest.js scripts/loadMockDays.js",
+    "db:restaurants": "node scripts/listRestaurants.js",
     "db:indexes": "node scripts/buildIndexes.js",
     "setup:restaurant": "node scripts/setupRestaurant.js",
     "import:menu": "node scripts/importMenu.js",
