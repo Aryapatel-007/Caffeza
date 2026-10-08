@@ -64,7 +64,20 @@ which they have not named yet (section 15 item 5).
 
 ## 6. Floor
 
-`TO CONFIRM`: how many tables, their names and their sections. Their table
+From Rishi, 8 October 2026: two round tables for 8, seven for 6, two for 4,
+and two or three extra. Made in the app that day, in one section, Main, and
+placed on the floor plan:
+
+| Tables | Seats | Shape on the plan |
+|---|---|---|
+| Table 1, Table 2 | 8 | Round |
+| Table 3 to Table 9 | 6 | Long |
+| Table 10, Table 11 | 4 | Square |
+| Table 12 to Table 14 | not set | Square, the extra tables |
+
+`TO CONFIRM`: the names the staff use, whether the extra tables are two or
+three (a table never used can be deleted in Table setup), their seats, and
+where each stands in the room (More, Table setup, Arrange tables). Their table
 cards ask guests to scan a QR code to leave a review (section 15 item 12).
 
 ## 7. People and roles
@@ -140,7 +153,7 @@ The neutral tone is Warm. The second language is Gujarati.
 ## 15. Everything still to confirm
 
 1. Legal name, GSTIN and FSSAI number. All three must print on every bill.
-2. Tables: how many, their names, and their sections.
+2. Tables: made from Rishi's counts (section 6). Still to confirm: their names, two or three extra tables, the extras' seats, and the layout.
 3. Kitchen stations, and which categories go to each. Section 8 is only a starting point.
 4. Staff: names, phone numbers and roles.
 5. Payment methods, including whether Card and UPI go through a Pine Labs machine, and which platforms they use: Swiggy, Zomato, Zomato Gold, Dineout, EazyDiner or others.
