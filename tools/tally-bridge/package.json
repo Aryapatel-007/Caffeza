@@ -1,0 +1,7 @@
+{
+  "name": "tally-bridge",
+  "private": true,
+  "type": "module",
+  "description": "Posts the restaurant ERP's Tally vouchers into Tally on this computer.",
+  "engines": { "node": ">=20" }
+}
