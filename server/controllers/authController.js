@@ -215,7 +215,10 @@ export async function me(req, res) {
   // P19. The floor settings too: the section order, when a table runs long, and
   // whether the guest picker may offer "Skip". The server still decides.
   // P20A. The look too, with the night accent worked out on the server.
-  const { features, discounts, floor, appearance } = await getSettings(req.restaurantId, { req });
+  // P23. Online orders too: whether this device's role hears the alert, and
+  // the page address for the copy-link button. The server still decides.
+  const { features, discounts, floor, appearance, online } = await getSettings(req.restaurantId, { req });
+  const now = nowUtc();
 
   return sendSuccess(res, {
     user: presentUser(req.currentUser, { includeLastLoginAt: true, includeStation: true }),
@@ -226,6 +229,14 @@ export async function me(req, res) {
       cashierMayApplyPlatformDiscounts: discounts.cashierMayApplyPlatformDiscounts,
     },
     floor,
+    online: {
+      enabled: features.online,
+      takeawayEnabled: online.takeawayEnabled,
+      reservationsEnabled: online.reservationsEnabled,
+      alertRoles: [...online.alertRoles],
+      publicSlug: branch?.online?.publicSlug ?? null,
+      pausedUntil: branch?.online?.pausedUntil && branch.online.pausedUntil > now ? branch.online.pausedUntil : null,
+    },
     // P22. Each logo slot's hash and size, never its bytes: a device fetches a
     // logo only when the hash differs from the one it saved.
     appearance: { ...presentAppearance(appearance, req.currentRestaurant?.name), logos: presentLogos(req.currentRestaurant) },

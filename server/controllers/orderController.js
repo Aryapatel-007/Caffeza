@@ -16,28 +16,22 @@ import {
   ORDER_CANCEL_REASONS,
   reasonText,
 } from '../config/cancelReasons.js';
-import { platformByCode } from '../config/platforms.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
-import { COUNTER_NAMES } from '../models/Counter.js';
 import {
-  OCCUPYING_ORDER_STATUSES,
   Order,
   ORDER_LINE_STATUSES,
   PREPARED_LINE_STATUSES,
   ORDER_STATUSES,
   ORDER_TYPES,
-  TAX_TREATMENTS,
 } from '../models/Order.js';
-import { Table } from '../models/Table.js';
 import { recordAudit } from '../services/auditService.js';
-import { nextNumber } from '../services/counterService.js';
 import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/kitchenService.js';
 // M4. wasPrepared: false means the kitchen had already deducted for this line
 // and it was never actually made, so the ingredients go back. Keyed on the
 // ledger, not on the flag alone -- see stockMovementService.js.
 import { giveNoCharge } from '../services/noChargeService.js';
 import { returnStockForCancelledLine } from '../services/stockMovementService.js';
-import { getSetting, isFeatureOn } from '../services/settingsService.js';
+import { isFeatureOn } from '../services/settingsService.js';
 import {
   applyVersionedUpdate,
   assertOrderIsOpen,
@@ -50,157 +44,17 @@ import {
   loadOrderInTenant,
   serialiseOrder,
 } from '../services/orderService.js';
-import { BusinessRuleError, DuplicateError, NotFoundError, TableOccupiedError, ValidationError } from '../utils/errors.js';
+import { BusinessRuleError } from '../utils/errors.js';
 import { sumPaise } from '../utils/money.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
+import { assertTableUsable, openOrder, rethrowTableConflict } from '../services/orderOpenService.js';
 import { nowUtc } from '../utils/time.js';
-
-const MONGO_DUPLICATE_KEY = 11000;
-
-/**
- * Confirms a table exists in this tenant and can take an order.
- *
- * 404 when it does not exist or belongs to another restaurant, 422 when it
- * exists but is switched off. The same split as M1's assertCategoryUsable, for
- * the same reason: "you named something that isn't there" and "you named
- * something real that cannot be used right now" are different answers and the
- * floor view shows different things for each.
- *
- * Part 4 does not spell out the inactive case. A table is only ever switched
- * off while nothing is open on it, so seating a new party on one would quietly
- * undo that decision.
- */
-async function assertTableUsable(req, tableId) {
-  const table = await Table.findOne({ ...scoped(req), _id: tableId });
-  if (!table) throw new NotFoundError('Table not found.');
-  if (!table.isActive) {
-    throw new BusinessRuleError(`Table ${table.name} is turned off. Turn it back on to seat anyone.`);
-  }
-  return table;
-}
-
-/**
- * Turns the partial unique index's duplicate key error into the contract's 409.
- *
- * This is the two waiters problem landing, and it is meant to land here. The
- * index on (restaurantId, tableId, status) filtered to OCCUPYING_ORDER_STATUSES
- * means the database refuses the second insert; nothing in this file checks
- * first, because a check followed by a write has a gap in the middle and
- * Friday night will find it.
- *
- * The lookup below uses the same status list as the index, for the same
- * reason: a table holding a READY_TO_BILL order is occupied too, and a query
- * that only matched OPEN would find nothing and answer as if the table were
- * actually free when the index just said otherwise.
- *
- * The existing order's id goes back with the error so the client opens that
- * order rather than showing the second waiter a dead end.
- */
-async function rethrowTableConflict(req, tableId, error) {
-  const isDuplicate = error?.code === MONGO_DUPLICATE_KEY;
-  const onTableIndex = Object.hasOwn(error?.keyPattern ?? {}, 'tableId');
-
-  if (!isDuplicate || !onTableIndex) throw error;
-
-  const existing = await Order.findOne({
-    ...scoped(req),
-    tableId,
-    status: { $in: OCCUPYING_ORDER_STATUSES },
-  }).select('_id');
-
-  throw new TableOccupiedError(existing?._id);
-}
-
-/**
- * P06. The platform order index refused a second live order with the same
- * platform number. Turned into a 409 naming the order that already has it, so
- * the counter can open that one instead of entering it twice.
- */
-async function rethrowPlatformConflict(req, platform, error) {
-  const isDuplicate = error?.code === MONGO_DUPLICATE_KEY;
-  const onPlatformIndex = Object.hasOwn(error?.keyPattern ?? {}, 'platform.orderId');
-  if (!isDuplicate || !onPlatformIndex) throw error;
-
-  const existing = await Order.findOne({
-    ...scoped(req),
-    'platform.code': platform.code,
-    'platform.orderId': platform.orderId,
-    isCancelled: false,
-  }).select('_id orderNumber');
-
-  throw new DuplicateError(
-    `${platform.name} order ${platform.orderId} is already entered as order ${existing?.orderNumber ?? '?'}.`,
-    { 'platform.orderId': 'Already entered.' },
-    existing ? { existingOrderId: String(existing._id) } : undefined,
-  );
-}
 
 /** POST /orders */
 export async function createOrder(req, res) {
-  const { orderType, tableId, guestCount, customerName, customerPhone, lines, platform } = req.body;
-
-  const isDineIn = orderType === ORDER_TYPES.DINE_IN;
-
-  // P19. Covers feed average per cover, so a restaurant can require them.
-  if (isDineIn && guestCount === undefined && (await getSetting(req.restaurantId, 'floor.requireGuestCount', { req }))) {
-    throw new ValidationError('How many guests? Enter the number before opening the table.', {
-      guestCount: 'How many guests?',
-    });
-  }
-
-  const table = isDineIn ? await assertTableUsable(req, tableId) : null;
-
-  /**
-   * P06. A delivery order freezes its platform, with the name from the list,
-   * and its tax treatment: when the platform collects the GST, every line on
-   * this order is frozen at 0%, now and for lines added later.
-   */
-  const listed = platform ? platformByCode(platform.code) : null;
-  const frozenPlatform = listed ? { code: listed.code, name: listed.name, orderId: platform.orderId } : null;
-  const taxTreatment =
-    orderType === ORDER_TYPES.DELIVERY &&
-    listed &&
-    (await getSetting(req.restaurantId, 'delivery.platformCollectsGst', { req }))
-      ? TAX_TREATMENTS.PLATFORM_COLLECTS
-      : TAX_TREATMENTS.NORMAL;
-
-  const snapshotLines = lines?.length ? await buildLineSnapshots(req, lines, { taxTreatment }) : [];
-
-  /**
-   * The number is reserved before the document is written, so a failed insert
-   * leaves a gap in the sequence rather than reusing a number. That is the
-   * agreed trade for orders and kitchen tickets, and explicitly not the trade
-   * M3 can make for bills. See models/Counter.js.
-   */
-  const orderNumber = await nextNumber({
-    restaurantId: req.restaurantId,
-    branchId: req.branchId,
-    name: COUNTER_NAMES.ORDER,
-  });
-
-  const order = new Order({
-    ...scoped(req),
-    orderNumber,
-    orderType,
-    tableId: table?._id ?? null,
-    // Snapshot, so renaming T1 to "Window 1" next month does not rewrite this.
-    tableName: table?.name ?? null,
-    guestCount: guestCount ?? null,
-    customerName: customerName ?? null,
-    customerPhone: customerPhone ?? null,
-    platform: frozenPlatform,
-    taxTreatment,
-    lines: snapshotLines,
-    openedBy: req.user.id,
-    openedAt: nowUtc(),
-  });
-
-  const saved = await order
-    .save()
-    .catch((error) => rethrowPlatformConflict(req, frozenPlatform, error))
-    .catch((error) => rethrowTableConflict(req, tableId, error));
+  const saved = await openOrder(req, req.body);
 
   req.log?.info(
     {
@@ -208,7 +62,7 @@ export async function createOrder(req, res) {
       orderId: String(saved._id),
       orderNumber: saved.orderNumber,
       orderType: saved.orderType,
-      lineCount: snapshotLines.length,
+      lineCount: saved.lines.length,
     },
     'Order opened.',
   );

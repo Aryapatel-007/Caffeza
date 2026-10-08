@@ -61,6 +61,16 @@ export function formatTimeIst(value) {
   return format(value, { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
+/** The weekday, in full. Saturday. P23, for the spoken booking alert. */
+export function formatWeekdayIst(value) {
+  return format(value, { weekday: 'long' });
+}
+
+/** Weekday and date, short. Sat 10 Oct. P23, for a booking's day. */
+export function formatDayIst(value) {
+  return format(value, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 /**
@@ -135,6 +145,11 @@ export function businessDateForIst(instant, startMinutes = DEFAULT_BUSINESS_DAY_
 /** Today's business date. The default for every date filter on a list screen. */
 export function businessDateToday(startMinutes = DEFAULT_BUSINESS_DAY_START_MINUTES) {
   return businessDateForIst(new Date(), startMinutes);
+}
+
+/** The business date `days` after a label. P23, for the booking date list. */
+export function businessDateAfter(businessDate, days = 1) {
+  return businessDateBefore(businessDate, -days);
 }
 
 /**

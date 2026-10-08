@@ -9,12 +9,15 @@ import Money from '../../components/ui/Money.jsx';
 import TableTile from '../../components/ui/TableTile.jsx';
 import TimeEdge, { ElapsedTime } from '../../components/ui/TimeEdge.jsx';
 import Toast from '../../components/ui/Toast.jsx';
+import { seatReservation } from '../../api/online.js';
 import { createOrder, getOrder, listTables, moveOrderToTable } from '../../api/orders.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { errorMessage, occupiedByOrderId } from './errorCopy.js';
 import MoveTablePanel from './MoveTablePanel.jsx';
-import SeatTablePanel from './SeatTablePanel.jsx';
+import SeatTablePanel from './SeatTablePanel.jsx';
+
 import Spinner from '../../components/ui/Spinner.jsx';
+import { formatTimeIst } from '../../utils/formatDate.js';
 
 /** How a screen reader names a table: "Table 5" for a table called "5", and "Table 5" for one called "Table 5". */
 const spokenName = (name) => (/^table\b/i.test(name) ? name : `Table ${name}`);
@@ -85,6 +88,19 @@ export default function FloorViewPage() {
         navigate(`/orders/${existingOrderId}`);
         return;
       }
+      setSeating(null);
+      setToast({ tone: 'error', message: errorMessage(error) });
+    },
+  });
+
+  // P23. Seating the booking the table is reserved for opens the order with its party.
+  const seatBooking = useMutation({
+    mutationFn: ({ reservation, table }) => seatReservation(reservation.id, { tableId: table.id, guestCount: reservation.partySize }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+      navigate(`/orders/${result.order.id}`);
+    },
+    onError: (error) => {
       setSeating(null);
       setToast({ tone: 'error', message: errorMessage(error) });
     },
@@ -225,6 +241,8 @@ export default function FloorViewPage() {
           allowSkip={!floor.requireGuestCount}
           onCancel={() => setSeating(null)}
           onConfirm={(guestCount) => open.mutate({ tableId: seating.id, guestCount })}
+          reservation={seating.occupancy.upcomingReservation}
+          onSeatReservation={(reservation) => seatBooking.mutate({ reservation, table: seating })}
         />
       )}
 
@@ -256,8 +274,16 @@ function tileProps(table, target) {
     targetMinutes: target,
     isLong: occupancy.isLong,
     captainName: occupancy.captainName,
+    // P23. A free table with a confirmed booking soon.
+    reservedLabel: !taken && occupancy.upcomingReservation
+      ? `Reserved ${formatTimeIst(occupancy.upcomingReservation.at)}, ${occupancy.upcomingReservation.partySize}`
+      : null,
     // A name that already says "Table" is read as it is, never "Table Table 5".
-    ariaLabel: taken ? `${spokenName(table.name)}, ${STATE_WORDS[occupancy.state]}, open the order` : `${spokenName(table.name)}, free, seat guests`,
+    ariaLabel: taken
+      ? `${spokenName(table.name)}, ${STATE_WORDS[occupancy.state]}, open the order`
+      : occupancy.upcomingReservation
+        ? `${spokenName(table.name)}, reserved at ${formatTimeIst(occupancy.upcomingReservation.at)}, seat guests`
+        : `${spokenName(table.name)}, free, seat guests`,
   };
 }
 

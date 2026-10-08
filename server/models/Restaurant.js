@@ -145,6 +145,11 @@ const featureSettingsSchema = new mongoose.Schema(
   {
     inventory: { type: Boolean, required: true, default: true },
     attendance: { type: Boolean, required: true, default: true },
+    /**
+     * P23 (M14). Off by default, unlike the two above: switching it on puts
+     * a public page on the internet, and that is a choice an owner makes.
+     */
+    online: { type: Boolean, required: true, default: false },
   },
   { _id: false },
 );
@@ -260,6 +265,38 @@ const floorSettingsSchema = new mongoose.Schema(
 );
 
 /**
+ * Online takeaway and table bookings. P23 (M14), docs/DB-SCHEMA.md section 28.
+ * Times are minutes past midnight IST. A closing time smaller than the opening
+ * time means the cafe closes after midnight.
+ */
+export const ONLINE_ALERT_ROLE_VALUES = Object.freeze(['OWNER', 'MANAGER', 'CASHIER', 'WAITER', 'STOREKEEPER']);
+export const RESERVATION_SLOT_MINUTES_VALUES = Object.freeze([15, 30, 60]);
+export const ONLINE_PAGE_NOTE_MAX_LENGTH = 200;
+const minutesOfDay = { validator: Number.isInteger, message: 'Must be a whole number of minutes.' };
+const onlineSettingsSchema = new mongoose.Schema(
+  {
+    takeawayEnabled: { type: Boolean, required: true, default: false },
+    reservationsEnabled: { type: Boolean, required: true, default: false },
+    opensAtMinutes: { type: Number, required: true, default: 600, min: 0, max: 1439, validate: minutesOfDay },
+    closesAtMinutes: { type: Number, required: true, default: 1380, min: 0, max: 1439, validate: minutesOfDay },
+    takeawayMinLeadMinutes: { type: Number, required: true, default: 20, min: 0, max: 240, validate: minutesOfDay },
+    takeawayAnswerWithinMinutes: { type: Number, required: true, default: 10, min: 3, max: 60, validate: minutesOfDay },
+    reservationMaxPartySize: { type: Number, required: true, default: 10, min: 1, max: 50, validate: minutesOfDay },
+    reservationDaysAhead: { type: Number, required: true, default: 14, min: 1, max: 60, validate: minutesOfDay },
+    reservationSlotMinutes: { type: Number, required: true, default: 30, enum: RESERVATION_SLOT_MINUTES_VALUES },
+    reservationHoldMinutes: { type: Number, required: true, default: 90, min: 30, max: 240, validate: minutesOfDay },
+    pageNote: {
+      type: String,
+      trim: true,
+      maxlength: ONLINE_PAGE_NOTE_MAX_LENGTH,
+      default: 'Pay at the counter when you collect.',
+    },
+    alertRoles: { type: [{ type: String, enum: ONLINE_ALERT_ROLE_VALUES }], default: () => ['OWNER', 'MANAGER', 'CASHIER'] },
+  },
+  { _id: false },
+);
+
+/**
  * The look. P20A, docs/DESIGN-SYSTEM.md section 11a. Which accent, the name
  * in the top bar, the second language for fixed action words, and which Today
  * tiles show. A custom accent is checked by `utils/colour.js` in the validator;
@@ -351,6 +388,7 @@ const settingsSchema = new mongoose.Schema(
     dayClose: { type: dayCloseSettingsSchema, default: () => ({}) },
     floor: { type: floorSettingsSchema, default: () => ({}) },
     appearance: { type: appearanceSettingsSchema, default: () => ({}) },
+    online: { type: onlineSettingsSchema, default: () => ({}) },
   },
   { _id: false },
 );

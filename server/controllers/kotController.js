@@ -100,7 +100,7 @@ export async function getKotTicket(req, res) {
   const kot = await loadKotInTenant(req, req.params.kotId);
   const [order, firedBy] = await Promise.all([
     Order.findOne({ ...scoped(req), _id: kot.orderId })
-      .select('guestCount customerName platform')
+      .select('guestCount customerName platform origin')
       .lean(),
     User.findOne({ restaurantId: req.restaurantId, _id: kot.firedBy }).select('name').lean(),
   ]);

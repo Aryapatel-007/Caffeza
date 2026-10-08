@@ -239,7 +239,7 @@ describe('GET /auth/me carries the feature switches', () => {
     for (const role of ['WAITER', 'KITCHEN']) {
       const response = await request('GET', '/api/v1/auth/me', { token: tokens[role] });
       assert.equal(response.status, 200);
-      assert.deepEqual(response.body.data.features, { inventory: true, attendance: false }, role);
+      assert.deepEqual(response.body.data.features, { inventory: true, attendance: false, online: false }, role);
     }
   });
 });

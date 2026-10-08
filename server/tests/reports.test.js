@@ -790,6 +790,8 @@ describe('the tenant guard escape hatch, after M6', () => {
 
     assert.deepEqual(counts, {
       'services/authService.js': 3,
+      // P23. Finding a public page's branch by its address, before any tenant is known.
+      'services/publicSiteService.js': 1,
       'services/tokenService.js': 1,
     });
   });

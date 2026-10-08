@@ -25,6 +25,9 @@ export const COUNTER_NAMES = Object.freeze({
   ORDER: 'ORDER',
   KOT: 'KOT',
   BILL: 'BILL',
+  // P23. References W-42 and R-17. Gap-tolerant, like ORDER and KOT.
+  ONLINE_ORDER: 'ONLINE_ORDER',
+  RESERVATION: 'RESERVATION',
 });
 
 export const COUNTER_NAME_VALUES = Object.freeze(Object.values(COUNTER_NAMES));

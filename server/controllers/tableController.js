@@ -8,7 +8,8 @@
 import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { OCCUPYING_ORDER_STATUSES, Order } from '../models/Order.js';
 import { User } from '../models/User.js';
-import { getSetting } from '../services/settingsService.js';
+import { upcomingByTable } from '../services/reservationService.js';
+import { getSetting, getSettings } from '../services/settingsService.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 import { nowUtc } from '../utils/time.js';
 import { Table } from '../models/Table.js';
@@ -108,6 +109,7 @@ const FREE = Object.freeze({
   billId: null,
   billNumber: null,
   billTotalInPaise: null,
+  upcomingReservation: null,
 });
 
 /**
@@ -143,7 +145,26 @@ function occupancyFor(order, { bill = null, captainName = null, isLong = false }
     billId: bill ? String(bill._id) : null,
     billNumber: bill?.billNumber ?? null,
     billTotalInPaise: bill?.grandTotalInPaise ?? null,
+    upcomingReservation: null,
   };
+}
+
+/**
+ * P23. A free table with a confirmed booking soon reads "Reserved". One query,
+ * and none at all while online bookings are switched off, so the floor's
+ * query count is unchanged for a restaurant that does not take them.
+ */
+async function addUpcomingReservations(req, tables) {
+  const settings = await getSettings(req.restaurantId, { req });
+  if (!settings.features.online) return tables;
+
+  const free = tables.filter((table) => !table.occupancy.isOccupied);
+  const upcoming = await upcomingByTable(req, free.map((table) => table.id), nowUtc(), settings.online);
+  return tables.map((table) =>
+    table.occupancy.isOccupied
+      ? table
+      : { ...table, occupancy: { ...table.occupancy, upcomingReservation: upcoming.get(String(table.id)) ?? null } },
+  );
 }
 
 /** POST /tables */
@@ -186,10 +207,13 @@ export async function listTables(req, res) {
     floorByTableId(req),
   ]);
 
-  const withOccupancy = tables.map((table) => ({
-    ...table.toJSON(),
-    occupancy: ordersByTableId.get(String(table._id)) ?? { ...FREE },
-  }));
+  const withOccupancy = await addUpcomingReservations(
+    req,
+    tables.map((table) => ({
+      ...table.toJSON(),
+      occupancy: ordersByTableId.get(String(table._id)) ?? { ...FREE },
+    })),
+  );
 
   /**
    * Filtered here rather than in the query, because occupancy is not stored and

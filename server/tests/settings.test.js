@@ -51,7 +51,7 @@ const DEFAULTS = {
   },
   inventory: { lowStockAlertsEnabled: true },
   // P02.
-  features: { inventory: true, attendance: true },
+  features: { inventory: true, attendance: true, online: false },
   invoice: { mode: 'FINANCIAL_YEAR', prefix: null, startingNumber: null },
   // P06.
   delivery: { platformCollectsGst: true },
@@ -81,6 +81,21 @@ const DEFAULTS = {
     neutralTone: 'COOL',
     brandHex: null,
     onBrandHex: null,
+  },
+  // P23.
+  online: {
+    takeawayEnabled: false,
+    reservationsEnabled: false,
+    opensAtMinutes: 600,
+    closesAtMinutes: 1380,
+    takeawayMinLeadMinutes: 20,
+    takeawayAnswerWithinMinutes: 10,
+    reservationMaxPartySize: 10,
+    reservationDaysAhead: 14,
+    reservationSlotMinutes: 30,
+    reservationHoldMinutes: 90,
+    pageNote: 'Pay at the counter when you collect.',
+    alertRoles: ['OWNER', 'MANAGER', 'CASHIER'],
   },
 };
 

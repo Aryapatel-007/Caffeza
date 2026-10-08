@@ -112,6 +112,13 @@ export const ERROR_CODES = Object.freeze({
 
   /** Added by P13, built in P15. The Tally export refuses while an ERROR check fails. */
   CHECK_FAILED: 'CHECK_FAILED',
+
+  /** Added by P23 (M14). Online takeaway and bookings. */
+  ONLINE_CLOSED: 'ONLINE_CLOSED',
+  TOO_MANY_OPEN_REQUESTS: 'TOO_MANY_OPEN_REQUESTS',
+  REQUEST_ALREADY_DECIDED: 'REQUEST_ALREADY_DECIDED',
+  ONLINE_ORDER_CHANGED: 'ONLINE_ORDER_CHANGED',
+  RESERVATION_CLASH: 'RESERVATION_CLASH',
 });
 
 /**
@@ -598,5 +605,57 @@ export class AuditLogImmutableError extends AppError {
       code: ERROR_CODES.INTERNAL_ERROR,
     });
     this.operation = operation;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * P23 (M14). Online takeaway and bookings.
+ * ----------------------------------------------------------------------- */
+
+/** Takeaway or bookings are off, paused, or outside hours. The message is what the page shows. */
+export class OnlineClosedError extends AppError {
+  constructor(message) {
+    super(message, { statusCode: 422, code: ERROR_CODES.ONLINE_CLOSED });
+  }
+}
+
+/** This phone already has the most open requests allowed. */
+export class TooManyOpenRequestsError extends AppError {
+  constructor(message) {
+    super(message, { statusCode: 422, code: ERROR_CODES.TOO_MANY_OPEN_REQUESTS });
+  }
+}
+
+/** The request is no longer waiting. `currentStatus` says what it is now. */
+export class RequestAlreadyDecidedError extends AppError {
+  constructor(currentStatus) {
+    super(`This request has already been dealt with. It is ${String(currentStatus).toLowerCase().replace('_', ' ')}.`, {
+      statusCode: 409,
+      code: ERROR_CODES.REQUEST_ALREADY_DECIDED,
+      details: { currentStatus },
+    });
+  }
+}
+
+/** A price or availability changed since the guest's quote. `changes` lists each. */
+export class OnlineOrderChangedError extends AppError {
+  constructor(changes) {
+    super(
+      changes.some((change) => change.unavailable)
+        ? 'Something in this order is no longer available. Call the guest, then decline it.'
+        : 'Prices changed since the guest ordered. Call the guest before accepting at the new prices.',
+      { statusCode: 422, code: ERROR_CODES.ONLINE_ORDER_CHANGED, details: { changes } },
+    );
+  }
+}
+
+/** The table has another confirmed booking inside the hold window. */
+export class ReservationClashError extends AppError {
+  constructor(clashes) {
+    super(`That table is already booked near that time (${clashes.map((clash) => clash.reference).join(', ')}).`, {
+      statusCode: 409,
+      code: ERROR_CODES.RESERVATION_CLASH,
+      details: { clashes },
+    });
   }
 }

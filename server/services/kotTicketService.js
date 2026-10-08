@@ -42,6 +42,16 @@ function destination({ kot, order }) {
     return lines;
   }
 
+  // P23. An online takeaway carries its reference and pickup time, so the
+  // kitchen knows when it is wanted, and only the guest's first name.
+  if (order?.origin?.kind === 'ONLINE_ORDER') {
+    const pickup = order.origin.pickupAt ? `  PICKUP ${formatTimeIst12(order.origin.pickupAt).toUpperCase()}` : '';
+    const lines = [`ONLINE  ${order.origin.reference}${pickup}`];
+    const firstName = order.customerName?.split(/\s+/)[0];
+    if (firstName) lines.push(firstName);
+    return lines;
+  }
+
   const lines = ['TAKEAWAY'];
   if (order?.customerName) lines.push(order.customerName);
   return lines;

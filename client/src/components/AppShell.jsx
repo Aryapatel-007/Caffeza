@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeProvider.jsx';
+import OnlineAlerts, { useAlertsOn, useOnlineInbox } from '../features/online/OnlineAlerts.jsx';
 import BrandLogo from './ui/BrandLogo.jsx';
 import {
   BagIcon,
@@ -10,6 +11,7 @@ import {
   ChartIcon,
   DeviceIcon,
   FloorIcon,
+  GlobeIcon,
   HomeIcon,
   KitchenIcon,
   LockIcon,
@@ -51,6 +53,8 @@ const PLACES = {
   reports: { to: '/reports', label: 'Reports', Icon: ChartIcon },
   availability: { to: '/menu/availability', label: 'Availability', Icon: MenuBookIcon },
   stock: { to: '/inventory', label: 'Stock', Icon: MenuBookIcon },
+  // P23. Online takeaway and bookings, shown only while the feature is on.
+  online: { to: '/online', label: 'Online', Icon: GlobeIcon },
 };
 
 /** Each role's four main places, in the order they are used. */
@@ -71,6 +75,7 @@ function useMoreGroups() {
   const floor = till || role === 'WAITER';
   const inventoryOn = features.inventory !== false;
   const attendanceOn = features.attendance !== false;
+  const onlineOn = Boolean(features.online?.enabled);
 
   const groups = [
     {
@@ -83,6 +88,8 @@ function useMoreGroups() {
         { to: '/kitchen', label: 'Kitchen', show: true },
         { to: '/bills', label: 'Bills', show: till },
         { to: '/menu/availability', label: 'Availability', show: true },
+        { to: '/online', label: 'Online orders', show: floor && onlineOn },
+        { to: '/online/bookings', label: 'Bookings', show: floor && onlineOn },
       ],
     },
     {
@@ -115,15 +122,32 @@ function useMoreGroups() {
     .filter((group) => group.items.length > 0);
 }
 
+/** The till's roles, who get Online beside their main places while it is on. */
+const ONLINE_MAIN_ROLES = ['OWNER', 'MANAGER', 'CASHIER'];
+
 function useMainPlaces() {
   const { user, features } = useAuth();
-  const keys = MAIN_BY_ROLE[user?.role] ?? ['home'];
+  const keys = [...(MAIN_BY_ROLE[user?.role] ?? ['home'])];
+  if (features.online?.enabled && ONLINE_MAIN_ROLES.includes(user?.role)) keys.push('online');
   return keys
     .filter((key) => key !== 'stock' || features.inventory !== false)
     .map((key) => PLACES[key]);
 }
 
 const isCurrent = (pathname, to) => pathname === to || (to !== '/dashboard' && pathname.startsWith(`${to}/`) && !(to === '/menu' && pathname.startsWith('/menu/availability')));
+
+/** The waiting count on the Online place, from the same query the alert polls. */
+function OnlineBadge() {
+  const alertsOn = useAlertsOn();
+  const { data } = useOnlineInbox(alertsOn);
+  const waiting = data ? data.waitingOrders + data.waitingReservations : 0;
+  if (!waiting) return null;
+  return (
+    <span className="type-caption absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-alert px-1 text-on-accent">
+      {waiting}
+    </span>
+  );
+}
 
 function PlaceLink({ place, layout }) {
   const { pathname } = useLocation();
@@ -139,8 +163,9 @@ function PlaceLink({ place, layout }) {
         active ? 'bg-sunken text-ink' : 'text-muted hover:bg-sunken hover:text-ink',
       ].join(' ')}
     >
-      <span className={active ? 'text-accent' : ''}>
+      <span className={`relative ${active ? 'text-accent' : ''}`}>
         <Icon size={22} />
+        {place.to === '/online' && <OnlineBadge />}
       </span>
       <span className="type-caption">{place.label}</span>
     </NavLink>
@@ -259,6 +284,8 @@ export default function AppShell({ children }) {
           <TopBarMark isService={isServicePath(pathname)} />
           <span className="type-caption truncate text-muted">{user?.name}</span>
         </header>
+
+        <OnlineAlerts />
 
         {/* `relative`, so anything absolutely placed inside a screen (screen-reader text,
             tooltips) belongs to this scroll area. Without it such an element was

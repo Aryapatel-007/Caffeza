@@ -187,3 +187,14 @@ export const SignOutIcon = (props) => (
     <path d="M8 3.5H4v13h4M12 6.5 15.5 10 12 13.5M15.5 10H7.5" />
   </Svg>
 );
+export const BellIcon = (props) => (
+  <Svg {...props}>
+    <path d="M5 14V9a5 5 0 0 1 10 0v5l1.5 2h-13zM8.5 18.5h3" />
+  </Svg>
+);
+export const GlobeIcon = (props) => (
+  <Svg {...props}>
+    <circle cx="10" cy="10" r="7.5" />
+    <path d="M2.5 10h15M10 2.5c2.2 2.4 2.2 12.6 0 15M10 2.5c-2.2 2.4-2.2 12.6 0 15" />
+  </Svg>
+);

@@ -189,6 +189,7 @@ describe('listing tables', () => {
     const [table] = response.body.data;
 
     // P19 widened the block, on purpose: the floor state and its figures, null when free.
+    // P23 added the upcoming booking.
     assert.deepEqual(table.occupancy, {
       isOccupied: false,
       orderId: null,
@@ -203,6 +204,8 @@ describe('listing tables', () => {
       billId: null,
       billNumber: null,
       billTotalInPaise: null,
+      // P23. A confirmed booking soon, or null.
+      upcomingReservation: null,
     });
   });
 

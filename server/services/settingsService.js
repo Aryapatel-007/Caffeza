@@ -54,6 +54,7 @@ const SETTING_PATHS = Object.freeze({
 
   'features.inventory': 'settings.features.inventory',
   'features.attendance': 'settings.features.attendance',
+  'features.online': 'settings.features.online',
 
   'invoice.mode': 'settings.invoice.mode',
   'invoice.prefix': 'settings.invoice.prefix',
@@ -77,10 +78,23 @@ const SETTING_PATHS = Object.freeze({
   'appearance.neutralTone': 'settings.appearance.neutralTone',
   'appearance.brandHex': 'settings.appearance.brandHex',
   'appearance.onBrandHex': 'settings.appearance.onBrandHex',
+
+  'online.takeawayEnabled': 'settings.online.takeawayEnabled',
+  'online.reservationsEnabled': 'settings.online.reservationsEnabled',
+  'online.opensAtMinutes': 'settings.online.opensAtMinutes',
+  'online.closesAtMinutes': 'settings.online.closesAtMinutes',
+  'online.takeawayMinLeadMinutes': 'settings.online.takeawayMinLeadMinutes',
+  'online.takeawayAnswerWithinMinutes': 'settings.online.takeawayAnswerWithinMinutes',
+  'online.reservationMaxPartySize': 'settings.online.reservationMaxPartySize',
+  'online.reservationDaysAhead': 'settings.online.reservationDaysAhead',
+  'online.reservationSlotMinutes': 'settings.online.reservationSlotMinutes',
+  'online.reservationHoldMinutes': 'settings.online.reservationHoldMinutes',
+  'online.pageNote': 'settings.online.pageNote',
+  'online.alertRoles': 'settings.online.alertRoles',
 });
 
 /** The modules a restaurant can switch off. P02. */
-export const FEATURE_NAMES = Object.freeze(['inventory', 'attendance']);
+export const FEATURE_NAMES = Object.freeze(['inventory', 'attendance', 'online']);
 
 export const SETTING_API_PATHS = Object.freeze(Object.keys(SETTING_PATHS));
 

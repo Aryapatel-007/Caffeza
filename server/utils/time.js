@@ -220,3 +220,27 @@ export function businessDateRangeToUtc(from, to, startMinutes = DEFAULT_BUSINESS
 
   return { start, end };
 }
+
+/* ------------------------------------------------------------------------- *
+ * Wall-clock India time, for opening hours. P23 (M14).
+ * ------------------------------------------------------------------------- */
+
+/**
+ * The UTC instant of an India wall-clock time: `date` is "YYYY-MM-DD", and
+ * `minutes` is minutes past that date's midnight IST, and may run past 1440
+ * into the next day. India has no daylight saving, so this is exact.
+ */
+export function istWallClockToUtc(date, minutes) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) throw new TypeError(`istWallClockToUtc received "${date}", not a YYYY-MM-DD date.`);
+  const [, year, month, day] = match.map(Number);
+  return new Date(Date.UTC(year, month - 1, day) + (minutes - IST_OFFSET_MINUTES) * MINUTE_MS);
+}
+
+/** "YYYY-MM-DD" plus a number of days, as a label. No time zone is involved. */
+export function addDaysToDate(date, days) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) throw new TypeError(`addDaysToDate received "${date}", not a YYYY-MM-DD date.`);
+  const [, year, month, day] = match.map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import Sheet from '../../components/ui/Sheet.jsx';
+import { formatTimeIst } from '../../utils/formatDate.js';
 import { QuantityStepper } from './LineOptionsPanel.jsx';
 
 /** The server's own ceiling, MAX_GUEST_COUNT in server/models/Order.js. */
@@ -16,7 +17,7 @@ const QUICK_COUNTS = [1, 2, 3, 4, 5, 6, 7];
  * without guests when it is on. Asking here, on the tap that seats the table,
  * is the one moment the waiter is looking at the guests.
  */
-export default function SeatTablePanel({ table, isBusy, allowSkip = false, onCancel, onConfirm }) {
+export default function SeatTablePanel({ table, isBusy, allowSkip = false, onCancel, onConfirm, reservation = null, onSeatReservation }) {
   const [guestCount, setGuestCount] = useState(null);
   const [isMore, setIsMore] = useState(false);
 
@@ -53,6 +54,24 @@ export default function SeatTablePanel({ table, isBusy, allowSkip = false, onCan
         </div>
       }
     >
+      {/* P23. The booking this table is held for comes first. */}
+      {reservation && (
+        <div className="mb-6 grid gap-2 rounded-lg border border-open bg-open-tint p-3 text-open">
+          <p className="type-label">
+            Reserved for {reservation.guestName}, {reservation.partySize} at {formatTimeIst(reservation.at)} ({reservation.reference})
+          </p>
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={() => onSeatReservation(reservation)}
+            className="type-button min-h-12 rounded-lg bg-accent px-4 text-on-accent hover:brightness-110 disabled:opacity-50"
+          >
+            Seat {reservation.reference}, {reservation.partySize} {reservation.partySize === 1 ? 'guest' : 'guests'}
+          </button>
+          <p className="type-caption">Or seat other guests below.</p>
+        </div>
+      )}
+
       <h3 className="type-heading">How many guests?</h3>
       <p className="type-caption text-muted">Counted as covers on the bill.</p>
 

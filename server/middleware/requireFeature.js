@@ -19,6 +19,7 @@ import { FeatureDisabledError, UnauthenticatedError } from '../utils/errors.js';
 const FEATURE_LABELS = Object.freeze({
   inventory: 'Inventory',
   attendance: 'Attendance',
+  online: 'Online orders and bookings',
 });
 
 /**

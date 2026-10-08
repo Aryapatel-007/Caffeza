@@ -36,6 +36,16 @@ const ALL_FEATURES_ON = Object.freeze({ inventory: true, attendance: true });
  */
 const DEFAULT_FLOOR = Object.freeze({ sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false });
 
+/** P23. Off until /auth/me says otherwise, so no device chimes by mistake. */
+const DEFAULT_ONLINE = Object.freeze({
+  enabled: false,
+  takeawayEnabled: false,
+  reservationsEnabled: false,
+  alertRoles: [],
+  publicSlug: null,
+  pausedUntil: null,
+});
+
 /** P20A. Ocean and no second language until /auth/me says otherwise. */
 const DEFAULT_APPEARANCE = Object.freeze({
   accentPreset: 'OCEAN',
@@ -56,6 +66,8 @@ const fromMe = (me) => ({
   appearance: { ...DEFAULT_APPEARANCE, ...(me.appearance ?? {}) },
   // The top bar's wordmark falls back to the restaurant's name.
   restaurantName: me.restaurant?.name ?? null,
+  // P23. Online orders: whether this role hears the alert, and the page address.
+  online: { ...DEFAULT_ONLINE, ...(me.online ?? {}) },
 });
 
 export function AuthProvider({ children }) {

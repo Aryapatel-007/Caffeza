@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import NotFoundPage from './components/NotFoundPage.jsx';
@@ -38,6 +39,9 @@ import TableArrangePage from './features/orders/TableArrangePage.jsx';
 import TableManagementPage from './features/orders/TableManagementPage.jsx';
 import TakeawayOrderPage from './features/orders/TakeawayOrderPage.jsx';
 import DeliveryOrderPage from './features/orders/DeliveryOrderPage.jsx';
+import BookingsPage from './features/online/BookingsPage.jsx';
+import OnlineInboxPage from './features/online/OnlineInboxPage.jsx';
+import RequireOnline from './features/online/RequireOnline.jsx';
 import StaffFormPage from './features/users/StaffFormPage.jsx';
 import StaffListPage from './features/users/StaffListPage.jsx';
 import { ROLES } from './features/users/roles.js';
@@ -101,6 +105,13 @@ const STOCK_REPORT_ROLES = [ROLES.OWNER, ROLES.MANAGER, ROLES.STOREKEEPER];
  * read endpoint is open to them for exactly that.
  */
 const SETTINGS_ROLES = [ROLES.OWNER];
+
+/**
+ * P23. The guest's page, in its own chunk. The staff screens are still in the
+ * main bundle, so a guest downloads them too until those are split; see the
+ * known problems table.
+ */
+const PublicSite = lazy(() => import('./features/public/PublicSite.jsx'));
 
 /**
  * Routes.
@@ -530,6 +541,42 @@ export default function App() {
               <StationsPage />
             </RequireRole>
           </ProtectedRoute>
+        }
+      />
+
+      {/* P23. Online takeaway and bookings, the staff side. */}
+      <Route
+        path="/online"
+        element={
+          <ProtectedRoute>
+            <RequireOnline>
+              <RequireRole roles={ORDER_TAKING_ROLES}>
+                <OnlineInboxPage />
+              </RequireRole>
+            </RequireOnline>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/online/bookings"
+        element={
+          <ProtectedRoute>
+            <RequireOnline>
+              <RequireRole roles={ORDER_TAKING_ROLES}>
+                <BookingsPage />
+              </RequireRole>
+            </RequireOnline>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P23. The guest's page. No sign-in, no app frame. */}
+      <Route
+        path="/r/:slug/*"
+        element={
+          <Suspense fallback={null}>
+            <PublicSite />
+          </Suspense>
         }
       />
 

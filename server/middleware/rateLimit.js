@@ -164,3 +164,55 @@ export const authLimiter = rateLimit({
   },
   handler: limitReached,
 });
+
+/* ------------------------------------------------------------------------- *
+ * The public page. P23 (M14), API-CONTRACT M14 section 1.
+ *
+ * Kept apart from the general limiter in both directions: guests never use up
+ * the cafe's own budget, and the cafe never uses up the guests'.
+ * ------------------------------------------------------------------------- */
+
+const PUBLIC_READ_WINDOW_MINUTES = 5;
+const PUBLIC_READ_MAX = 300;
+const PUBLIC_WRITE_WINDOW_MINUTES = 15;
+const PUBLIC_WRITE_MAX = 6;
+
+/** Reads: the menu, the slots, a guest's status page polling. Per address. */
+export const publicReadLimiter = rateLimit({
+  windowMs: PUBLIC_READ_WINDOW_MINUTES * MINUTE_MS,
+  limit: PUBLIC_READ_MAX,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `public-read|${normaliseIp(req.ip)}`,
+  skip: skipInTest,
+  handler: limitReached,
+});
+
+/** Placing an order or a booking, and cancelling one. Per address. */
+export const publicWriteLimiter = rateLimit({
+  windowMs: PUBLIC_WRITE_WINDOW_MINUTES * MINUTE_MS,
+  limit: PUBLIC_WRITE_MAX,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `public-write|${normaliseIp(req.ip)}`,
+  skip: skipInTest,
+  handler: limitReached,
+});
+
+/**
+ * Placing, per phone number, across addresses: someone switching networks
+ * to flood one cafe with one number still runs out. Hashed, like the login
+ * key, so the store never holds a phone number.
+ */
+export const publicPhoneLimiter = rateLimit({
+  windowMs: PUBLIC_WRITE_WINDOW_MINUTES * MINUTE_MS,
+  limit: PUBLIC_WRITE_MAX,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator(req) {
+    const phone = normalisePhoneIndia(req.body?.customerPhone ?? req.body?.guestPhone);
+    return createHash('sha256').update(`public-phone|${typeof phone === 'string' ? phone : ''}`).digest('hex');
+  },
+  skip: skipInTest,
+  handler: limitReached,
+});

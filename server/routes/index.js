@@ -19,7 +19,9 @@ import branchRoutes from './branchRoutes.js';
 import healthRoutes from './healthRoutes.js';
 import inventoryRoutes from './inventoryRoutes.js';
 import menuRoutes from './menuRoutes.js';
+import onlineRoutes from './onlineRoutes.js';
 import orderRoutes from './orderRoutes.js';
+import publicRoutes from './publicRoutes.js';
 import reportRoutes from './reportRoutes.js';
 import restaurantRoutes from './restaurantRoutes.js';
 import settingsRoutes from './settingsRoutes.js';
@@ -33,6 +35,8 @@ import userRoutes from './userRoutes.js';
 const router = Router();
 
 router.use(healthRoutes);
+// P23. The public page, before anything that signs a person in.
+router.use(publicRoutes);
 router.use(authRoutes);
 router.use(restaurantRoutes);
 router.use(branchRoutes);
@@ -51,5 +55,6 @@ router.use(dayCloseRoutes);
 router.use(reportV2Routes);
 router.use(auditRoutes);
 router.use(brandRoutes);
+router.use(onlineRoutes);
 
 export default router;

@@ -22,6 +22,9 @@ import {
   INVOICE_MODES,
   INVOICE_PREFIX_PATTERN,
   NEUTRAL_TONE_VALUES,
+  ONLINE_ALERT_ROLE_VALUES,
+  ONLINE_PAGE_NOTE_MAX_LENGTH,
+  RESERVATION_SLOT_MINUTES_VALUES,
   RECEIPT_FOOTER_MAX_LENGTH,
   RECEIPT_HEADER_MAX_LENGTH,
   SECOND_LANGUAGES,
@@ -110,6 +113,7 @@ const features = z
   .object({
     inventory: z.boolean({ error: 'Must be true or false.' }).optional(),
     attendance: z.boolean({ error: 'Must be true or false.' }).optional(),
+    online: z.boolean({ error: 'Must be true or false.' }).optional(),
   })
   .strict();
 
@@ -236,6 +240,49 @@ const floor = z
   })
   .strict();
 
+const wholeMinutes = (min, max) =>
+  z
+    .number({ error: 'Must be a number.' })
+    .int('Must be a whole number.')
+    .min(min, `Must be at least ${min}.`)
+    .max(max, `Cannot be more than ${max}.`)
+    .optional();
+
+/** Online takeaway and bookings. P23, DB-SCHEMA section 28. */
+const online = z
+  .object({
+    takeawayEnabled: z.boolean({ error: 'Must be true or false.' }).optional(),
+    reservationsEnabled: z.boolean({ error: 'Must be true or false.' }).optional(),
+    opensAtMinutes: wholeMinutes(0, 1439),
+    closesAtMinutes: wholeMinutes(0, 1439),
+    takeawayMinLeadMinutes: wholeMinutes(0, 240),
+    takeawayAnswerWithinMinutes: wholeMinutes(3, 60),
+    reservationMaxPartySize: wholeMinutes(1, 50),
+    reservationDaysAhead: wholeMinutes(1, 60),
+    reservationSlotMinutes: z
+      .union(RESERVATION_SLOT_MINUTES_VALUES.map((value) => z.literal(value)), { error: 'Must be 15, 30 or 60.' })
+      .optional(),
+    reservationHoldMinutes: wholeMinutes(30, 240),
+    // "" is stored as null, the same rule as the receipt text fields.
+    pageNote: z
+      .union([z.string().trim().max(ONLINE_PAGE_NOTE_MAX_LENGTH, `Cannot be longer than ${ONLINE_PAGE_NOTE_MAX_LENGTH} characters.`), z.null()])
+      .transform((value) => (value === '' ? null : value))
+      .optional(),
+    alertRoles: z
+      .array(z.enum(ONLINE_ALERT_ROLE_VALUES, { error: `Each must be one of ${ONLINE_ALERT_ROLE_VALUES.join(', ')}.` }))
+      .max(ONLINE_ALERT_ROLE_VALUES.length)
+      .refine((roles) => new Set(roles).size === roles.length, 'Each role appears once.')
+      .optional(),
+  })
+  .strict()
+  .refine(
+    (group) =>
+      group.opensAtMinutes === undefined ||
+      group.closesAtMinutes === undefined ||
+      group.opensAtMinutes !== group.closesAtMinutes,
+    { message: 'Opening and closing times cannot be the same.', path: ['closesAtMinutes'] },
+  );
+
 /**
  * The look. P20A, DESIGN-SYSTEM sections 4c and 11a.
  *
@@ -302,6 +349,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'dayClose',
   'floor',
   'appearance',
+  'online',
 ]);
 
 /**
@@ -346,6 +394,7 @@ export const updateSettingsSchema = z.object({
       dayClose: dayClose.optional(),
       floor: floor.optional(),
       appearance: appearance.optional(),
+      online: online.optional(),
     })
     .strict()
     .refine(

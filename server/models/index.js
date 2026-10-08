@@ -26,11 +26,13 @@ import { DayClosure } from './DayClosure.js';
 import { Ingredient } from './Ingredient.js';
 import { Kot } from './Kot.js';
 import { MenuItem } from './MenuItem.js';
+import { OnlineOrder } from './OnlineOrder.js';
 import { Order } from './Order.js';
 import { PaymentMethod } from './PaymentMethod.js';
 import { PlatformPayout } from './PlatformPayout.js';
 import { Recipe } from './Recipe.js';
 import { RefreshToken } from './RefreshToken.js';
+import { Reservation } from './Reservation.js';
 import { Restaurant } from './Restaurant.js';
 import { Station } from './Station.js';
 import { StockMovement } from './StockMovement.js';
@@ -51,11 +53,13 @@ export const ALL_MODELS = Object.freeze([
   Ingredient,
   Kot,
   MenuItem,
+  OnlineOrder,
   Order,
   PaymentMethod,
   PlatformPayout,
   Recipe,
   RefreshToken,
+  Reservation,
   Restaurant,
   Station,
   StockMovement,

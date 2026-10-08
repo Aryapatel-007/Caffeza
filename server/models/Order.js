@@ -40,6 +40,26 @@ export const TAX_TREATMENTS = Object.freeze({
 });
 export const TAX_TREATMENT_VALUES = Object.freeze(Object.values(TAX_TREATMENTS));
 
+/**
+ * Where an order came from, when it was not a staff member's own. P23 (M14).
+ * Set once, by orderOpenService, and never changed. Copied onto the bill.
+ */
+export const ORIGIN_KINDS = Object.freeze({
+  ONLINE_ORDER: 'ONLINE_ORDER',
+  RESERVATION: 'RESERVATION',
+});
+export const ORIGIN_KIND_VALUES = Object.freeze(Object.values(ORIGIN_KINDS));
+
+export const originSchema = new mongoose.Schema(
+  {
+    kind: { type: String, required: true, enum: ORIGIN_KIND_VALUES },
+    id: { type: mongoose.Schema.Types.ObjectId, required: true },
+    reference: { type: String, required: true, trim: true },
+    pickupAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
 /** A platform's own order number: letters and digits, 3 to 40. */
 export const PLATFORM_ORDER_ID_PATTERN = /^[A-Za-z0-9]{3,40}$/;
 export const ORDER_TYPE_VALUES = Object.freeze(Object.values(ORDER_TYPES));
@@ -288,6 +308,9 @@ const orderSchema = new mongoose.Schema({
     enum: TAX_TREATMENT_VALUES,
     default: TAX_TREATMENTS.NORMAL,
   },
+
+  /** P23. An online takeaway or a booking, or null. Never changed. */
+  origin: { type: originSchema, default: null },
 
   guestCount: {
     type: Number,

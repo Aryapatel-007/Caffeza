@@ -225,7 +225,8 @@ export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX
       addOns,
       notes: request.notes ?? null,
       status: ORDER_LINE_STATUSES.PENDING,
-      addedBy: req.user.id,
+      // P23. A public quote has no signed-in person; it is never saved.
+      addedBy: req.user?.id ?? null,
       addedAt: now,
     };
   });

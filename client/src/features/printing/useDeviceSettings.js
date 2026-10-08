@@ -35,6 +35,9 @@ const DEFAULTS = Object.freeze({
   // pair and logos as small data URLs with their hashes. The sign-in screen
   // uses it before anyone signs in, and signing out keeps it. Not secret.
   brand: null,
+  // P23. The online alert on this device: the chime and banner, and the spoken line.
+  onlineAlerts: true,
+  speakAlerts: true,
 });
 
 /** Same-tab listeners. The `storage` event only reaches other tabs. */

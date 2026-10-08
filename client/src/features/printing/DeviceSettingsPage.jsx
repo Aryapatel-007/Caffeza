@@ -71,6 +71,33 @@ export default function DeviceSettingsPage() {
           onChange={(paperMm) => update({ paperMm })}
         />
 
+        {/* P23. The online alert, per device: a captain's phone or a second till can be quiet. */}
+        <label className="flex min-h-12 items-start gap-3">
+          <input
+            type="checkbox"
+            checked={settings.onlineAlerts}
+            onChange={(event) => update({ onlineAlerts: event.target.checked })}
+            className="mt-1 size-5 accent-[var(--color-accent)]"
+          />
+          <span>
+            <span className="type-body block">Online alerts on this device</span>
+            <span className="type-caption block text-muted">A chime and a banner when an online order or booking arrives.</span>
+          </span>
+        </label>
+        <label className="flex min-h-12 items-start gap-3">
+          <input
+            type="checkbox"
+            checked={settings.speakAlerts}
+            disabled={!settings.onlineAlerts}
+            onChange={(event) => update({ speakAlerts: event.target.checked })}
+            className="mt-1 size-5 accent-[var(--color-accent)] disabled:opacity-50"
+          />
+          <span>
+            <span className="type-body block">Speak alerts</span>
+            <span className="type-caption block text-muted">Reads the new order aloud, for example "New takeaway order, W 42, 3 items".</span>
+          </span>
+        </label>
+
         {isKitchen && (
           <label className="flex min-h-12 items-start gap-3">
             <input

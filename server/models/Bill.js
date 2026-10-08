@@ -25,6 +25,7 @@ import { MAX_PAISE } from '../utils/money.js';
 import { MAX_BASIS_POINTS } from '../validators/common.js';
 import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
+import { originSchema } from './Order.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 
 /**
@@ -380,6 +381,9 @@ const billSchema = new mongoose.Schema({
     default: null,
   },
   taxTreatment: { type: String, trim: true, default: 'NORMAL' },
+
+  /** P23. Copied from the order: an online takeaway or a booking, or null. */
+  origin: { type: originSchema, default: null },
 
   captainId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   captainName: { type: String, trim: true, default: null },

@@ -44,7 +44,30 @@ const branchSchema = new mongoose.Schema({
   contactPhone: { type: String, trim: true },
 
   isActive: { type: Boolean, required: true, default: true },
+
+  /**
+   * P23 (M14). The public page: its address, and whether takeaway is paused.
+   * The slug is unique across every restaurant, and looking a branch up by it
+   * is the one query across restaurants M14 adds, in
+   * services/publicSiteService.js and nowhere else.
+   */
+  online: {
+    type: new mongoose.Schema(
+      {
+        publicSlug: { type: String, trim: true, lowercase: true, default: null },
+        pausedUntil: { type: Date, default: null },
+        pausedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      },
+      { _id: false },
+    ),
+    default: () => ({}),
+  },
 });
+
+branchSchema.index(
+  { 'online.publicSlug': 1 },
+  { unique: true, partialFilterExpression: { 'online.publicSlug': { $type: 'string' } } },
+);
 
 // Adds restaurantId, timestamps and the toJSON transform. No branchId.
 branchSchema.plugin(baseSchemaTenantRootPlugin);

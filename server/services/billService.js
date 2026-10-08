@@ -195,6 +195,8 @@ export async function createBill(req, { orderId, version }) {
         // platform and knows which were billed at 0% for the platform.
         platform: order.platform ?? null,
         taxTreatment: order.taxTreatment ?? 'NORMAL',
+        // P23. Where the order came from, frozen like everything else here.
+        origin: order.origin ?? null,
         businessDate: businessDateFor(at, startMinutes),
         status: BILL_STATUSES.UNPAID,
         lines,

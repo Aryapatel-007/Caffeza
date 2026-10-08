@@ -44,6 +44,8 @@ export default function TableTile({
   onTap,
   ariaLabel,
   menu = null,
+  // P23. A free table with a confirmed booking soon: "Reserved 8:00 PM, 4".
+  reservedLabel = null,
 }) {
   const look = FLOOR_STATES[floorState] ?? FLOOR_STATES.FREE;
   const taken = floorState !== 'FREE';
@@ -64,7 +66,7 @@ export default function TableTile({
         ].join(' ')}
       >
         {fill ? (
-          <PlanFace name={name} look={look} taken={taken} isLong={isLong} />
+          <PlanFace name={name} look={look} taken={taken} isLong={isLong} reservedLabel={reservedLabel} />
         ) : (
           <>
             <span className={`flex w-full items-start justify-between gap-2 ${menu ? 'pr-8' : ''}`}>
@@ -73,7 +75,11 @@ export default function TableTile({
               </span>
             </span>
             <span className="flex flex-wrap items-center gap-2">
-              <StateChip state={look.state} word={look.word} size="sm" />
+              {!taken && reservedLabel ? (
+                <StateChip state="open" word={reservedLabel} size="sm" />
+              ) : (
+                <StateChip state={look.state} word={look.word} size="sm" />
+              )}
               {isLong && <StateChip state="alert" word="Long" size="sm" />}
             </span>
             {taken ? (
@@ -100,12 +106,12 @@ export default function TableTile({
 }
 
 /** The small face drawn on a floor plan, where a table may be a few centimetres wide. */
-function PlanFace({ name, look, taken, isLong }) {
+function PlanFace({ name, look, taken, isLong, reservedLabel }) {
   return (
     <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-center">
       <span className="font-anek text-[clamp(11px,1.6vw,20px)] font-[660] leading-tight [font-stretch:112%]">{name}</span>
-      <span className={`flex items-center gap-1 text-[clamp(9px,0.9vw,12px)] font-semibold ${taken ? STATE_TEXT[look.state] : 'text-muted'}`}>
-        {look.word}
+      <span className={`flex items-center gap-1 text-[clamp(9px,0.9vw,12px)] font-semibold ${taken ? STATE_TEXT[look.state] : reservedLabel ? 'text-open' : 'text-muted'}`}>
+        {!taken && reservedLabel ? reservedLabel : look.word}
         {isLong && <span className="text-alert">· Long</span>}
       </span>
     </span>

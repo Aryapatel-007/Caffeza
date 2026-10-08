@@ -5580,8 +5580,8 @@ DB-SCHEMA sections 26 to 28.
 A guest orders takeaway or requests a table from the restaurant's own public
 page. Every request waits for a staff member to accept it. Accepting a takeaway
 creates an ordinary `TAKEAWAY` order. Seating a reservation creates an ordinary
-`DINE_IN` order. Both go through the same `orderService.openOrder` that
-`POST /orders` uses, so nothing about numbering, snapshots, tax or tables is
+`DINE_IN` order. Both go through the same `openOrder`, in
+`services/orderOpenService.js`, that `POST /orders` uses, so nothing about numbering, snapshots, tax or tables is
 written twice.
 
 Not in M14 yet: the QR self-order at the table, delivery from the restaurant's
@@ -5793,10 +5793,14 @@ Decline reason codes, from `server/config/onlineReasons.js`:
 | Code | Staff label | Guest label |
 |---|---|---|
 | `ITEM_UNAVAILABLE` | An item is not available | Something you ordered is not available right now |
-| `TOO_BUSY` | Too busy right now | The cafe is too busy to take this order right now |
+| `TOO_BUSY` | Too busy right now | The cafe is too busy to take this right now |
 | `CLOSING_SOON` | Closing soon | The cafe is closing soon |
-| `SUSPECTED_FAKE` | Looks like a fake order | The cafe could not confirm this order |
-| `OTHER` | Other (note required) | The cafe could not take this order |
+| `FULLY_BOOKED` | No table free then | There is no table free at that time |
+| `SUSPECTED_FAKE` | Looks like a fake request | The cafe could not confirm this |
+| `OTHER` | Other (note required) | The cafe could not take this |
+
+The same list serves bookings. The staff screens leave `FULLY_BOOKED` off a
+takeaway and `ITEM_UNAVAILABLE` off a booking.
 
 ### 3.3 Reservations
 
@@ -5814,7 +5818,7 @@ Decline reason codes, from `server/config/onlineReasons.js`:
 - Confirm with a table: another `CONFIRMED` reservation on that table whose
   time is within `reservationHoldMinutes` either side gives 409
   `RESERVATION_CLASH`, with `clashes: [{ reference, at }]`.
-- Seat opens a `DINE_IN` order through `orderService.openOrder`, with
+- Seat opens a `DINE_IN` order through `openOrder`, with
   `origin: { kind: "RESERVATION", id, reference }`. Every rule of 12.1
   applies, including `TABLE_OCCUPIED` with `existingOrderId`. Response:
   `{ reservation, order }`.
@@ -5881,9 +5885,45 @@ RESERVATION_CLASH         409  the table has another confirmed booking inside th
 |---|---|
 | Every request waits for a person to accept it | It is the protection against fake orders without an SMS provider, and a cafe already confirms phone orders this way. |
 | Accept creates the order, and snapshots prices then | CLAUDE.md copies prices when the order is created. The guest's quote is a display record, and a change between quote and accept is shown, never absorbed silently. |
-| One shared `orderService.openOrder` | A second way of creating an order would drift from the first. |
+| One shared `openOrder`, in `services/orderOpenService.js` | A second way of creating an order would drift from the first. |
 | Expiry is derived on read | The server has no scheduler, and adding one for this would be the only one. |
 | The slug lives on the branch | An online page is one outlet's: its address, its hours, its pause. `branchId` is already on every record. |
 | No capacity engine in v1 | A person confirms every booking, and Caffeza's room is still TO CONFIRM. A rule that refused bookings automatically would be wrong more often than a manager. |
 | Public routes are outside the general limiter | Guests on mobile networks share addresses with strangers, and must never use up the cafe's own staff budget. |
 | No audit lines for accept and decline | They are not money events. The request records who decided and when. The order and bill that follow carry their usual audit trail. |
+
+## Settled while building P23
+
+**The accept path claims, then releases.** It is not one transaction. Opening
+an order and firing it are not session-aware, and threading a session through
+both would have changed M2's two busiest paths for one caller. Instead the
+request is claimed with a write filtered on `status: WAITING` and
+`answerBy > now`, so exactly one person wins. If the quote check or the order
+fails, the claim is put back to `WAITING`. Once the order exists it is never
+undone. A failed fire is reported as `fireError` beside `{ onlineOrder, order,
+kots }`, and the order can be sent from its own screen. A test removes the
+status filter and watches the two-cashier test fail.
+
+**`GET /public/:slug`, the fields as built.** `takeaway` also carries
+`latestPickupAt` (closing time) and `message`, the sentence the page shows when
+takeaway is closed or paused. `hours` also carries `todayOpensAt` and
+`todayClosesAt`. `appearance` is `{ accent, accentNight, neutralTone, brandHex,
+onBrandHex }`, as `/auth/me` resolves them. `consentText` is the offers sentence
+with the restaurant's name filled in. The page draws the wordmark, not the logo
+image, because only `BrandLogo` draws an image, and it reads the device's saved
+brand.
+
+**Bookings.** Seating is allowed from `REQUESTED` (not expired) as well as
+`CONFIRMED`, so a guest who walks in before anyone confirmed is not turned
+away. Confirm also changes the time or table of a `CONFIRMED` booking. A phone
+booking may be for any later time, not only an offered slot. The floor's
+`upcomingReservation` runs from 15 minutes before now, for guests running late,
+to `reservationHoldMinutes` ahead.
+
+**Limits.** Placing has a third limiter, per phone number hashed, 6 per 15
+minutes, across addresses.
+
+**Not built.** The QR code for the page address, which needs a client library
+nobody has chosen yet; the link has a Copy button. Hindi and Gujarati on the
+public page.
+

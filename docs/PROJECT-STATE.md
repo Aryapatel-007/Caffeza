@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-08 by Rishi
+Last updated: 2026-10-08 by Rishi (P23 built)
 
 ---
 
@@ -43,7 +43,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M7 | Restaurant Settings | Rishi | DONE | Phase 1B's first module. Two endpoints, no new collection: `restaurants.settings` gains `tax`, `receipt` and `inventory`, every field with a schema default so there is no migration. `settingsService` is now the only way any module reads configuration. 27 new tests. Verified live against the Atlas cluster, including a genuine pre-M7 document reading back complete. Not done under BUILD-PLAN section 13: Arya has not read it. P02 added `settings.features` (inventory and attendance switches, enforced by `requireFeature`) and `settings.invoice` (financial-year or prefix numbering). |
 | M8 | Audit Trail | Rishi | DONE | Built in P17, with the manager restriction extended to every new action. `GET /audit`, `/audit/entity/:entityType/:entityId`, `/audit/summary`; append-only by construction; attendance corrections merged at read time. Seven new actions written: user role, deactivate, reactivate, password and PIN resets, menu price changes, recipe changes. Arya's read outstanding. |
 | M10 | Payments | Rishi | IN PROGRESS | Specified in P07. Built in P08: configurable payment methods, frozen payment details, method corrections, discount reasons and funding. Arya's read outstanding. |
-| M14 | Online Ordering and Reservations | Rishi | NOT STARTED | Spec committed 2026-10-08: API-CONTRACT M14, DB-SCHEMA sections 26 to 28, GLOSSARY section 15, prompt P23. Takeaway and table bookings from the restaurant's own page, every request accepted by a person, with a spoken alert. The QR self-order and delivery from the page are still later M14 work. |
+| M14 | Online Ordering and Reservations | Rishi | IN PROGRESS | P23 built 2026-10-08: the public page `/r/:slug` (takeaway and table bookings), the staff inbox and booking book, the spoken alert, Reserved on the floor, Online in Settings. 33 server tests, a browser test (`e2e/online.spec.js`). Not done under BUILD-PLAN section 13: Arya has not read it, and the sound has not been heard on a real tablet or phone. Switched off by default (`settings.features.online`). The QR self-order and delivery from the page are still later M14 work. |
 | M16 | Settlement and Day Close | Rishi | DONE | Day Close proven against the golden day in `tests/goldenDay.test.js`. No Charge (P08), On Hold accounts (P09), cash drawer, day figures, checks C1 C3 C4 C6 C8 C9, Day Close with the blind count, and the day lock (P10). Built by Rishi. Arya's read outstanding. |
 | M17 | Delivery and Platform Orders | Arya | IN PROGRESS | Delivery orders in P06, payouts in P09. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
@@ -62,7 +62,7 @@ modules M16 to M20, and the Phase 2 work from `docs/BUILD-PLAN.md` section 7.
 
 M4 Inventory is switched on in Caffeza's setup file as of 2026-10-08. M5 Attendance stays built and switched off.
 
-P23, online takeaway and table bookings (M14), was added on 2026-10-08 at Rishi's request. Its spec is committed and its code is not written. It does not block go-live.
+P23, online takeaway and table bookings (M14), was added on 2026-10-08 at Rishi's request and built the same day. It is switched off by default and does not block go-live.
 
 M9, M11, M12, M13, M14 and M15 are deferred until after Caffeza is live.
 
@@ -423,6 +423,10 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-08 | Every online request waits for a person to accept it. Accepting creates an ordinary order through one shared `orderService.openOrder`, with prices copied at that moment. There is no OTP in v1. | Without an SMS provider, the only reliable protection against fake orders is that nothing reaches the kitchen without a staff member's tap. The quote the guest saw is a display record. |
 | 2026-10-08 | The page address lives on the branch (`branches.online.publicSlug`). The slug lookup is the one new `skipTenantGuard` use. Public routes sit outside the general limiter and have their own. | An online page is one outlet's. Guests on mobile networks must never use up the cafe's own request budget. |
 | 2026-10-08 | The online alert is a chime, a spoken line and a still banner, repeated every minute while anything is waiting. It never animates. | A request missed during a rush is a lost guest. The design system forbids looping animation, and sound carries better across a cafe than movement does. |
+| 2026-10-08 | The general rate limit is 5,000 per 15 minutes per address, counts API calls only, and skips `/api/v1/public`. A per-user limit of 1,000 per 15 minutes runs inside `authenticate`. | At 600 per address, the floor, kitchen and dashboard polls alone came to about 555 at Caffeza's staff numbers. Static files were counted too. The per-user limit is keyed on a verified user id, so a client cannot choose its own bucket. |
+| 2026-10-08 | Creating an order moved from `orderController.createOrder` into `services/orderOpenService.js` `openOrder`. The contract's `orderService.openOrder` is corrected to name the file. | Accepting an online order and seating a booking open orders too, through the same code. The controller is now a thin caller. |
+| 2026-10-08 | Accepting an online order claims the request with a status-filtered write, then releases it if the quote check or the order fails. It is not one transaction. | Order opening and firing are not session-aware, and changing M2's two busiest paths for one caller was the larger risk. Exactly one of two people accepting at once wins, and a test breaks the filter to prove the test catches it. |
+| 2026-10-08 | The public page draws the wordmark, not the logo image. | Only `BrandLogo` may draw an `<img>`, and it reads the logo this device saved after a staff sign-in, which a guest's phone never has. A public logo needs its own small component, for a later prompt. |
 
 ---
 
@@ -445,6 +449,25 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-08 Rishi, rate limit fix and P23 built
+
+What was built or decided:
+1. Rate limit (go-live gate, now closed): the per-address ceiling is 5,000 per 15 minutes on the API only, static files are no longer counted, public pages have their own limits, and each signed-in user has 1,000 per 15 minutes. Checked by hand that `/api/v1/x` is limited and `/assets/*` and `/api/v1/public/*` are not.
+2. P23, M14 online takeaway and table bookings, end to end. Server: `onlineorders` and `reservations`, `branches.online`, `settings.features.online` (off by default) and `settings.online`, `orders.origin` and `bills.origin`, the public routes under `/api/v1/public/:slug` and the staff routes under `/api/v1/online`, three public limiters, the slug lookup as the one new tenant-guard hatch, opening hours in `openingHoursService.js`, expiry derived on read, the KOT line `ONLINE  W-42  PICKUP 7:30 PM`, `upcomingReservation` on the floor, and `/auth/me` `online`. Client: the guest page (`features/public/`, its own chunk), the inbox `/online`, the booking book `/online/bookings`, the alert (chime, spoken line, still banner, count on the Online tab and in the browser tab), Reserved on floor tiles with one-tap seating, Online in Settings with the page address and Copy link, and two switches on This device.
+
+Tests: 1,025 in the full run, 1,023 passing. Two failures. The fourth `skipTenantGuard` tripwire copy, in `reports.test.js`, which is now updated and passes. And `reports.test.js` "a voided attendance entry contributes no minutes", which fails before 9:00 AM India time whatever the code: its shift starts four hours before the real clock, so between 5:00 and 9:00 AM the shift falls on yesterday. It fails the same way on `ea76a46`, the commit before today. See the known problems table. New since that run: `onlineClient.test.js` (3), passing. `npm run e2e`: the golden day passes, and `e2e/online.spec.js` passes. Lint and build pass.
+Checked by hand in headless Chrome against the in-memory server: the public home, menu, review and status pages at 380 wide, and the floor with the banner and the inbox at 768 wide.
+
+Files or endpoints touched:
+New server: `models/OnlineOrder.js`, `models/Reservation.js`, `config/onlineReasons.js`, `config/consentText.js`, `services/orderOpenService.js`, `publicSiteService.js`, `onlineCommon.js`, `onlineOrderService.js`, `reservationService.js`, `openingHoursService.js`, `controllers/publicController.js`, `onlineController.js`, `routes/publicRoutes.js`, `onlineRoutes.js`, `validators/onlineValidators.js`, tests `onlineOrders.test.js`, `reservations.test.js`, `onlineClient.test.js`. New client: `api/online.js`, `api/publicSite.js`, `features/online/`, `features/public/`, `features/settings/OnlineSettingsSection.jsx`, `settingsParts.jsx`; `e2e/online.spec.js`. Changed: the rate limiter, `authenticate`, `server.js`, the Order, Bill, Branch, Counter and Restaurant models, `orderController` (create moved out), `tableController`, `kotController`, `kotTicketService`, `billService`, settings model, service and validators, `authController`, `requireFeature`, `errors.js`, `time.js`; client `App.jsx`, `AppShell.jsx`, `AuthContext.jsx`, `TableTile.jsx`, the icon set, `FloorViewPage.jsx`, `SeatTablePanel.jsx`, This device, `SettingsPage.jsx`, `formatDate.js`. Seven existing tests updated on purpose for the additive `online` fields and the new tripwire count.
+Endpoints: everything in API-CONTRACT M14.
+
+Anything the other developer needs to know:
+Deploy runs `npm run db:indexes`, which builds the two new collections' indexes and the unique page-address index. Production refuses to start without them. Arya: please read M14, especially the accept path and `publicSiteService.js`.
+
+Anything now blocked or unblocked:
+Unblocked: CRM. Online requests store offers consent with the exact sentence's version.
 
 ### 2026-10-08 Rishi, online orders and bookings spec, inventory on
 
@@ -788,5 +811,8 @@ Things that are broken or half done, so nobody rediscovers them.
 | `scripts/seedDemo.js` can run against a production database | Audit, 2026-09-29 | NOT A PROBLEM. `assertSafeToSeed` already refuses outside development and test, before connecting. Confirmed in P01. |
 | The database-backed tests were not run during the audit. Only the money, tax and unit tests were. | Audit, 2026-09-29 | DONE in P01: 578 passing, 0 failing. Before P01 changed anything: 551 passing, 0 failing. |
 | `npm run seed:golden` and the e2e config's webServer command started with `NODE_ENV=test`, which Windows `cmd` cannot run. | Arya, P22 | FIXED 2026-10-02: both use the `scripts/lib/asTest.js` preload. |
-| **The general rate limit will likely trip during a normal Caffeza service.** `generalLimiter` allows 600 requests per 15 minutes per address. Every device in the cafe shares one address. It runs before static files too. Polling alone, before anyone taps anything: five captain phones on the floor at 15 seconds is 300, two kitchen tablets at 10 seconds is 180, and the dashboard at 15 and 60 seconds is 75. That is about 555. Once the limit is reached, every device in the cafe gets 429 until the window passes. `npm run e2e:cloud` uses one device per role, so it cannot catch this. | Rishi, 2026-10-08, while specifying P23 | OPEN, and a go-live gate. Recommendation: raise the per-address ceiling well above the measured budget, for example 5,000; add a per-user limit after `authenticate`; and keep static files out of it. Needs a decision before go-live, and before P23 adds its 15-second poll. |
+| The general rate limit would likely trip during a normal Caffeza service. `generalLimiter` allows 600 requests per 15 minutes per address. Every device in the cafe shares one address. It runs before static files too. Polling alone, before anyone taps anything: five captain phones on the floor at 15 seconds is 300, two kitchen tablets at 10 seconds is 180, and the dashboard at 15 and 60 seconds is 75. That is about 555. Once the limit is reached, every device in the cafe gets 429 until the window passes. `npm run e2e:cloud` uses one device per role, so it cannot catch this. | Rishi, 2026-10-08, while specifying P23 | FIXED 2026-10-08: 5,000 per address on the API only, 1,000 per signed-in user, public pages apart. |
+| `reports.test.js` "a voided attendance entry contributes no minutes" fails when run between 5:00 and 9:00 AM India time. Its shift starts four hours before the real clock, so in that window it lands on yesterday's business date. | Rishi, 2026-10-08 | OPEN. A test problem, not a product one: fails the same way on `ea76a46`. Fix by setting the clock with `setClockForTests` like the newer tests. |
+| A guest opening the public page downloads the whole staff app bundle (about 1.2 MB, 270 KB compressed) as well as the page's own 52 KB chunk, because the staff screens are not lazy-loaded. | Rishi, 2026-10-08 | OPEN. Fine on 4G, slow on a weak signal. Fix by lazy-loading the staff routes in `App.jsx`. |
+| The online page address has no printable QR code yet, only a link with Copy. | Rishi, 2026-10-08 | OPEN. Needs a small client QR library, which is a dependency decision. |
 | Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |
