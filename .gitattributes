@@ -1,0 +1,2 @@
+# P29: the Tally XML snapshots are compared byte for byte, so they keep LF on every checkout, Windows included.
+server/tests/fixtures/tally/*.xml text eol=lf

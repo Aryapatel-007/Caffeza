@@ -112,8 +112,9 @@ describe('R2 Day Close', () => {
     assert.equal(line(cash, 'Opening float').amountInPaise, 200000);
     assert.equal(line(cash, 'Cash from bills').amountInPaise, 175400);
     assert.equal(line(cash, 'Cash collections').amountInPaise, 0);
-    assert.equal(line(cash, 'Paid in').amountInPaise, 0);
-    assert.equal(line(cash, 'Paid out').amountInPaise, 35000);
+    // P29: paid in reads Top-ups and paid out Expenses, the same figures.
+    assert.equal(line(cash, 'Top-ups').amountInPaise, 0);
+    assert.equal(line(cash, 'Expenses').amountInPaise, 35000);
     assert.equal(line(cash, 'Expected cash').amountInPaise, 340400);
     assert.equal(line(cash, 'Counted cash').amountInPaise, 340000);
     assert.equal(line(cash, 'Cash difference').amountInPaise, -400);
@@ -292,7 +293,8 @@ describe('R6 Platform Money', () => {
 describe('R7 Cash Till', () => {
   it('26 September from the stored close', async () => {
     const data = (await report('cash-till', day)).body.data;
-    const [row] = data.rows;
+    // P29: R7 is two sections, the days and expenses by category.
+    const [row] = data.sections.find((section) => section.key === 'days').rows;
     assert.deepEqual(
       [row.openingFloatInPaise, row.cashFromBillsInPaise, row.cashCollectionsInPaise, row.paidInInPaise, row.paidOutInPaise, row.expectedCashInPaise, row.countedCashInPaise, row.differenceInPaise, row.closedByName],
       [200000, 175400, 0, 0, 35000, 340400, 340000, -400, 'Manager'],

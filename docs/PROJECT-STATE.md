@@ -497,7 +497,7 @@ P29 progress
 - [x] C Ready means served
 - [x] D Print before payment
 - [x] E Undo in the kitchen
-- [ ] F The cash book
+- [x] F The cash book
 - [ ] G Full check
 ```
 

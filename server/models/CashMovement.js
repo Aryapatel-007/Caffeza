@@ -15,9 +15,19 @@ import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 
 export const CASH_MOVEMENT_TYPES = Object.freeze({
   OPENING_FLOAT: 'OPENING_FLOAT',
+  // P29 Part F. Shown as a top-up on every screen.
   PAID_IN: 'PAID_IN',
+  // P29 Part F. Shown as an expense on every screen.
   PAID_OUT: 'PAID_OUT',
+  // P29 Part F. Cash removed that is not an expense: a bank deposit, or given to the owner.
+  CASH_TAKEN_OUT: 'CASH_TAKEN_OUT',
+  // P29 Part F. A count during the day. Moves no money.
+  CASH_CHECK: 'CASH_CHECK',
 });
+
+/** P29 Part F. Where a top-up came from, and where cash taken out went. */
+export const TOP_UP_SOURCES = Object.freeze(['OWNER', 'BANK', 'CHANGE', 'OTHER']);
+export const TAKEN_OUT_DESTINATIONS = Object.freeze(['BANK_DEPOSIT', 'OWNER', 'OTHER']);
 export const CASH_MOVEMENT_TYPE_VALUES = Object.freeze(Object.values(CASH_MOVEMENT_TYPES));
 
 /** One row of a count by notes and coins. P25 Part F. Shared with dayclosures. */
@@ -32,12 +42,21 @@ export const cashCountRowSchema = new mongoose.Schema(
 
 const cashMovementSchema = new mongoose.Schema({
   type: { type: String, required: true, enum: CASH_MOVEMENT_TYPE_VALUES },
+  /** P29: 0 is allowed on a cash check only, an empty drawer counted; every other entry is at least 1. */
   amountInPaise: {
     type: Number,
     required: true,
-    min: 1,
+    min: 0,
     max: MAX_PAISE,
-    validate: { validator: Number.isInteger, message: 'Must be a whole number of paise.' },
+    validate: [
+      { validator: Number.isInteger, message: 'Must be a whole number of paise.' },
+      {
+        validator(value) {
+          return value >= 1 || this.type === CASH_MOVEMENT_TYPES.CASH_CHECK;
+        },
+        message: 'Must be more than zero.',
+      },
+    ],
   },
   reason: { type: String, trim: true, maxlength: 200, default: null },
   businessDate: { type: String, required: true },
@@ -53,6 +72,17 @@ const cashMovementSchema = new mongoose.Schema({
 
   /** P25 Part F. An opening float counted by notes and coins: [{ valueInPaise, kind, count }]. */
   cashCount: { type: [cashCountRowSchema], default: undefined },
+
+  /** P29 Part F. docs/DB-SCHEMA.md section 43. */
+  source: { type: String, enum: [...TOP_UP_SOURCES, null], default: null },
+  category: { type: String, trim: true, maxlength: 30, default: null },
+  categoryLabel: { type: String, trim: true, maxlength: 40, default: null },
+  destination: { type: String, enum: [...TAKEN_OUT_DESTINATIONS, null], default: null },
+  takenBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  broughtForwardFrom: { type: String, default: null },
+  openingDifferenceInPaise: { type: Number, default: null },
+  expectedCashInPaise: { type: Number, default: null },
+  differenceInPaise: { type: Number, default: null },
 });
 
 cashMovementSchema.plugin(baseSchemaPlugin);

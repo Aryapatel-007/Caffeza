@@ -24,7 +24,7 @@ import TallyPage from './features/integrations/TallyPage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
 import AccountsPage from './features/settlement/AccountsPage.jsx';
 import PayoutsPage from './features/settlement/PayoutsPage.jsx';
-import CashDrawerPage from './features/settlement/CashDrawerPage.jsx';
+import CashBookPage from './features/settlement/CashBookPage.jsx';
 import DayClosePage from './features/settlement/DayClosePage.jsx';
 import DeviceSettingsPage from './features/printing/DeviceSettingsPage.jsx';
 import StationsPage from './features/stations/StationsPage.jsx';
@@ -317,17 +317,18 @@ export default function App() {
         }
       />
 
-      {/* P10. The cash drawer, for the till. */}
+      {/* P29 Part F. The cash book, for the till. It replaced P10's cash drawer, whose address opens it. */}
       <Route
-        path="/cash"
+        path="/cash-book"
         element={
           <ProtectedRoute>
             <RequireRole roles={BILLING_ROLES}>
-              <CashDrawerPage />
+              <CashBookPage />
             </RequireRole>
           </ProtectedRoute>
         }
       />
+      <Route path="/cash" element={<Navigate to="/cash-book" replace />} />
 
       {/* P10. Day Close, for the owner and manager. */}
       <Route

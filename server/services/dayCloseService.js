@@ -141,6 +141,11 @@ function presentClosure(closure) {
     countedCashInPaise: plain.countedCashInPaise,
     // P25 Part F. The manager's own count by notes; the blind count never hides it.
     cashCount: plain.cashCount ?? null,
+    // P29 Part F. The manager's own split of the count: never hidden, it is what they decided.
+    keptForTomorrowInPaise: plain.keptForTomorrowInPaise ?? null,
+    keptForTomorrowCount: plain.keptForTomorrowCount ?? null,
+    takenOutAtCloseInPaise: plain.takenOutAtCloseInPaise ?? null,
+    takenOutTo: plain.takenOutTo ?? null,
     expectedCashInPaise: plain.expectedCashInPaise,
     differenceInPaise: plain.differenceInPaise,
     note: plain.note,
@@ -153,8 +158,44 @@ function presentClosure(closure) {
   };
 }
 
+/**
+ * P29 Part F. What stays in the drawer for tomorrow, and the rest taken out
+ * after the count. Nothing sent is a close as before P29: no kept cash, so no
+ * float to propose tomorrow. Kept is never more than the count.
+ */
+async function keptAtClose(req, countedCashInPaise, { keptForTomorrowInPaise, keptForTomorrowCount, takenOutTo, takenOutBy }) {
+  if (keptForTomorrowInPaise === undefined && !keptForTomorrowCount) return {};
+  let kept = keptForTomorrowInPaise;
+  let keptCount;
+  if (keptForTomorrowCount) {
+    const counted = await countCash(req, keptForTomorrowCount);
+    if (kept !== undefined && kept !== counted.totalInPaise) throw new CashCountMismatchError(counted.totalInPaise, kept);
+    kept = counted.totalInPaise;
+    keptCount = counted.cashCount;
+  }
+  if (kept > countedCashInPaise) throw new BusinessRuleError('You cannot keep more than you counted.');
+  const takenOut = countedCashInPaise - kept;
+  if (takenOut > 0 && !takenOutTo) throw new BusinessRuleError('Say where the rest of the cash went: the bank, or the owner.');
+  let taker = null;
+  if (takenOut > 0) {
+    taker = req.user.id;
+    if (takenOutBy && String(takenOutBy) !== String(req.user.id)) {
+      const person = await User.findOne({ restaurantId: req.restaurantId, _id: takenOutBy, isActive: true }).select('_id').lean();
+      if (!person) throw new BusinessRuleError('That person is not on the staff list. Pick someone who is.');
+      taker = person._id;
+    }
+  }
+  return {
+    keptForTomorrowInPaise: kept,
+    ...(keptCount ? { keptForTomorrowCount: keptCount } : {}),
+    takenOutAtCloseInPaise: takenOut,
+    takenOutTo: takenOut > 0 ? takenOutTo : null,
+    takenOutBy: taker,
+  };
+}
+
 /** POST /day-close. OWNER and MANAGER. */
-export async function closeDay(req, { businessDate, countedCashInPaise, cashCount = null, note = null }) {
+export async function closeDay(req, { businessDate, countedCashInPaise, cashCount = null, note = null, ...keptRequest }) {
   // P25 Part F. A count by notes and coins: the server totals it, and a total sent beside it must agree.
   let counted = null;
   if (cashCount) {
@@ -164,6 +205,8 @@ export async function closeDay(req, { businessDate, countedCashInPaise, cashCoun
     }
     countedCashInPaise = counted.totalInPaise;
   }
+  // P29 Part F. Checked before anything is written; recorded after the count, so it never moves the difference.
+  const keptFields = await keptAtClose(req, countedCashInPaise, keptRequest);
 
   const today = await todayBusinessDate(req);
   if (businessDate > today) {
@@ -205,6 +248,11 @@ export async function closeDay(req, { businessDate, countedCashInPaise, cashCoun
       closedBy: req.user.id,
       closedAt: at,
       cashCount: counted ? counted.cashCount : undefined,
+      keptForTomorrowInPaise: keptFields.keptForTomorrowInPaise ?? null,
+      keptForTomorrowCount: keptFields.keptForTomorrowCount,
+      takenOutAtCloseInPaise: keptFields.takenOutAtCloseInPaise ?? null,
+      takenOutTo: keptFields.takenOutTo ?? null,
+      takenOutBy: keptFields.takenOutBy ?? null,
     });
     record.history.push({
       action: 'CLOSED',
@@ -215,6 +263,8 @@ export async function closeDay(req, { businessDate, countedCashInPaise, cashCoun
       expectedCashInPaise,
       differenceInPaise,
       ...(counted ? { cashCount: counted.cashCount } : {}),
+      keptForTomorrowInPaise: keptFields.keptForTomorrowInPaise ?? null,
+      takenOutAtCloseInPaise: keptFields.takenOutAtCloseInPaise ?? null,
     });
     record.markModified('snapshot');
     record.markModified('checks');
@@ -229,7 +279,7 @@ export async function closeDay(req, { businessDate, countedCashInPaise, cashCoun
         entityLabel: businessDate,
         reason: note ?? 'Day closed',
         amountInPaise: figures.sales.billTotalInPaise,
-        details: { countedCashInPaise, differenceInPaise },
+        details: { countedCashInPaise, differenceInPaise, keptForTomorrowInPaise: keptFields.keptForTomorrowInPaise ?? null, takenOutAtCloseInPaise: keptFields.takenOutAtCloseInPaise ?? null },
       },
       session,
     );
@@ -256,6 +306,10 @@ export async function readDay(req, businessDate) {
       isClosed: false,
       countedCashInPaise: null,
       cashCount: null,
+      keptForTomorrowInPaise: null,
+      keptForTomorrowCount: null,
+      takenOutAtCloseInPaise: null,
+      takenOutTo: null,
       expectedCashInPaise: figures.cash.expectedCashInPaise,
       differenceInPaise: null,
       note: null,
@@ -375,13 +429,16 @@ export async function printDay(req, businessDate, width) {
   push(row('Unpaid', money(figures.money.unpaidInPaise), width));
   push(row('Total', money(figures.money.totalInPaise), width));
 
-  heading('Cash drawer');
+  heading('Cash book');
   const c = figures.cash;
+  if (c.broughtForward) push(row(`Brought forward from ${c.broughtForward.fromDate}`, money(c.broughtForward.keptInPaise ?? 0), width));
   push(row('Opening float', money(c.openingFloatInPaise), width));
+  push(row('Top-ups', money(c.paidInInPaise), width));
   push(row('Cash from bills', money(c.cashFromBillsInPaise), width));
   push(row('Cash collections', money(c.cashCollectionsInPaise), width));
-  push(row('Paid in', money(c.paidInInPaise), width));
-  push(row('Paid out', money(c.paidOutInPaise), width));
+  push(row('Expenses', money(c.paidOutInPaise), width));
+  for (const category of c.expensesByCategory ?? []) push(row(`  ${category.label}`, money(category.amountInPaise), width));
+  if (c.cashTakenOutInPaise !== undefined) push(row('Cash taken out', money(c.cashTakenOutInPaise), width));
   if (c.expectedCashInPaise !== undefined) push(row('Expected cash', money(c.expectedCashInPaise), width));
   if (day.countedCashInPaise !== null) push(row('Counted cash', money(day.countedCashInPaise), width));
   // P25 Part F. Each note and coin counted, its count and its value.
@@ -391,6 +448,11 @@ export async function printDay(req, businessDate, width) {
   }
   if (day.differenceInPaise !== undefined && day.differenceInPaise !== null) {
     push(row('Cash difference', money(day.differenceInPaise), width));
+  }
+  // P29 Part F. What the counter kept and what went out after the count.
+  if (day.keptForTomorrowInPaise !== null && day.keptForTomorrowInPaise !== undefined) {
+    push(row('Kept for tomorrow', money(day.keptForTomorrowInPaise), width));
+    push(row('Taken out at close', money(day.takenOutAtCloseInPaise ?? 0), width));
   }
 
   heading('Controls');

@@ -123,9 +123,11 @@ const PROVIDERS = {
             receipt: z.string().trim().min(1).max(50).default('Receipt'),
             payment: z.string().trim().min(1).max(50).default('Payment'),
             journal: z.string().trim().min(1).max(50).default('Journal'),
+            // P29 Part F. Cash to the bank is a contra entry.
+            contra: z.string().trim().min(1).max(50).default('Contra'),
           })
           .strict()
-          .default({ sales: 'Sales', receipt: 'Receipt', payment: 'Payment', journal: 'Journal' }),
+          .default({ sales: 'Sales', receipt: 'Receipt', payment: 'Payment', journal: 'Journal', contra: 'Contra' }),
         // Checked head by head before an export: Part J.
         ledgers: z.record(z.string(), z.any()).default({}),
         exportPayouts: z.boolean().default(false),

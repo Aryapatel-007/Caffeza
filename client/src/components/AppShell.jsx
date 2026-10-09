@@ -50,7 +50,7 @@ const PLACES = {
   delivery: { to: '/orders/delivery', label: 'Delivery', Icon: ScooterIcon },
   kitchen: { to: '/kitchen', label: 'Kitchen', Icon: KitchenIcon },
   bills: { to: '/bills', label: 'Bills', Icon: ReceiptIcon },
-  cash: { to: '/cash', label: 'Cash', Icon: CashIcon },
+  cash: { to: '/cash-book', label: 'Cash book', Icon: CashIcon },
   dayClose: { to: '/day-close', label: 'Day Close', Icon: LockIcon },
   reports: { to: '/reports', label: 'Reports', Icon: ChartIcon },
   availability: { to: '/menu/availability', label: 'Availability', Icon: MenuBookIcon },
@@ -98,7 +98,7 @@ function useMoreGroups() {
       title: 'Money',
       items: [
         { to: '/accounts', label: 'On Hold', show: till },
-        { to: '/cash', label: 'Cash drawer', show: till },
+        { to: '/cash-book', label: 'Cash book', show: till },
         { to: '/day-close', label: 'Day Close', show: manager },
         { to: '/payouts', label: 'Payouts', show: manager },
         { to: '/reports', label: 'Reports', show: manager },

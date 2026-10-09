@@ -206,12 +206,14 @@ export function checkC8(bills, startMinutes) {
  * it is a WARNING. Without a count, only the arithmetic is checked.
  */
 export function checkC9(cash, countedCashInPaise = null) {
+  // P29 Part F: cash taken out comes off too. A snapshot from before P29 has none.
   const parts = sumPaise(
     cash.openingFloatInPaise,
     cash.cashFromBillsInPaise,
     cash.cashCollectionsInPaise,
     cash.paidInInPaise,
     -cash.paidOutInPaise,
+    -(cash.cashTakenOutInPaise ?? 0),
   );
   if (parts !== cash.expectedCashInPaise) {
     return result('C9', SEVERITY.ERROR, {
@@ -402,6 +404,33 @@ export function checkC11(payouts) {
     expected: first.expectedInPaise,
     actual: first.amountReceivedInPaise,
     refs: flagged.map((payout) => String(payout._id)),
+  });
+}
+
+/**
+ * C14 Brought forward. P29 Part F, WARNING. A float brought forward from a
+ * closed day is what that day kept for tomorrow. The drawer can change
+ * overnight, so a difference is shown, never an error.
+ */
+export function checkC14(cash, businessDate) {
+  const forward = cash?.broughtForward;
+  if (!forward || forward.keptInPaise === null || forward.keptInPaise === undefined) {
+    return result('C14', SEVERITY.WARNING, { passed: true, message: 'C14 Brought forward: nothing was brought forward.' });
+  }
+  if (forward.keptInPaise === cash.openingFloatInPaise) {
+    return result('C14', SEVERITY.WARNING, {
+      passed: true,
+      message: `C14 Brought forward: ${businessDate} opened with the ${rupees(forward.keptInPaise)} kept on ${forward.fromDate}.`,
+      expected: forward.keptInPaise,
+      actual: cash.openingFloatInPaise,
+    });
+  }
+  return result('C14', SEVERITY.WARNING, {
+    passed: false,
+    message: `C14 Brought forward: ${businessDate} opened with ${rupees(cash.openingFloatInPaise)}, but ${forward.fromDate} kept ${rupees(forward.keptInPaise)}.${forward.note ? ` Note: ${forward.note}` : ''}`,
+    expected: forward.keptInPaise,
+    actual: cash.openingFloatInPaise,
+    refs: [businessDate],
   });
 }
 
@@ -631,6 +660,7 @@ export async function runDayChecks(req, businessDate, figures, { countedCashInPa
     byId.C11,
     // P29.
     byId.C13,
+    checkC14(figures.cash, businessDate),
     // P25 Part E. A warning while money is owed back to guests; never a blocker.
     ...(figures.refunds?.owedInPaise > 0 ? [checkRefundsOwed(figures.refunds)] : []),
   ];
@@ -660,6 +690,7 @@ export default {
   checkC11,
   checkC12,
   checkC13,
+  checkC14,
   datesBetween,
   runDayChecks,
   runRangeChecks,

@@ -28,6 +28,9 @@ const historySchema = new mongoose.Schema(
     differenceInPaise: { type: Number, default: null },
     // P25 Part F. The count by notes and coins behind this close, when it was counted that way.
     cashCount: { type: [cashCountRowSchema], default: undefined },
+    // P29 Part F. What stayed in the drawer, and what was taken out after the count.
+    keptForTomorrowInPaise: { type: Number, default: null },
+    takenOutAtCloseInPaise: { type: Number, default: null },
   },
   { _id: false },
 );
@@ -54,6 +57,18 @@ const dayClosureSchema = new mongoose.Schema({
 
   /** P25 Part F. The latest close's count by notes and coins, or absent when counted as a total. */
   cashCount: { type: [cashCountRowSchema], default: undefined },
+
+  /**
+   * P29 Part F. Cash left in the drawer for the next day, which the next
+   * business date's opening float is proposed from, and the rest taken out
+   * after the count: it never changes expected cash or the difference. Null
+   * on a close from before P29, or when nothing was said.
+   */
+  keptForTomorrowInPaise: { type: Number, min: 0, default: null, validate: { validator: (value) => value === null || Number.isInteger(value), message: wholeNumber.message } },
+  keptForTomorrowCount: { type: [cashCountRowSchema], default: undefined },
+  takenOutAtCloseInPaise: { type: Number, min: 0, default: null },
+  takenOutTo: { type: String, enum: ['BANK_DEPOSIT', 'OWNER', 'OTHER', null], default: null },
+  takenOutBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 });
 
 dayClosureSchema.plugin(baseSchemaPlugin);

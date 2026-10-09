@@ -405,7 +405,11 @@ export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}
  * Where an order must be made, marked ready or served before it is billed, that
  * happens at its billing time. Fills in `golden.ids` and returns `golden`.
  */
-export async function playGoldenDay(golden) {
+/**
+ * `broughtForward` (P29 Part F): the opening float is confirmed from the cash a
+ * closed day kept, instead of being counted. The caller closes that day first.
+ */
+export async function playGoldenDay(golden, { broughtForward = false } = {}) {
   const { tokens, people, ids } = golden;
   const { items, tables, accounts, bills, orders } = ids;
   const manager = tokens.MANAGER;
@@ -472,7 +476,10 @@ export async function playGoldenDay(golden) {
   try {
     at('11:00');
     ok(
-      await request('POST', '/api/v1/cash-movements', { token: manager, body: { type: 'OPENING_FLOAT', amountInPaise: 200000 } }),
+      await request('POST', '/api/v1/cash-movements', {
+        token: manager,
+        body: broughtForward ? { type: 'OPENING_FLOAT', broughtForward: true } : { type: 'OPENING_FLOAT', amountInPaise: 200000 },
+      }),
       'opening float',
     );
 
@@ -563,7 +570,8 @@ export async function playGoldenDay(golden) {
     const paidOut = ok(
       await request('POST', '/api/v1/cash-movements', {
         token: manager,
-        body: { type: 'PAID_OUT', amountInPaise: 35000, reason: 'Milk from the dairy' },
+        // P29 Part F: an expense in the Milk and dairy category, with its note.
+        body: { type: 'PAID_OUT', amountInPaise: 35000, reason: 'Milk from the dairy', category: 'MILK' },
       }),
       'paid out',
     );

@@ -2,12 +2,17 @@
  * Cash drawer and Day Close. P10. Every rule is in services/cashService.js and
  * services/dayCloseService.js, including the blind count.
  */
-import { listCashMovements, recordCashMovement, voidCashMovement } from '../services/cashService.js';
+import { listCashMovements, readCashBook, recordCashMovement, voidCashMovement } from '../services/cashService.js';
 import { closeDay, listDays, printDay, readDay, reopenDay } from '../services/dayCloseService.js';
 import { sendSuccess } from '../utils/response.js';
 
 export async function getCash(req, res) {
   return sendSuccess(res, await listCashMovements(req, req.query));
+}
+
+/** GET /cash-book. P29 Part F. The day's cash as one flow; the total only for those who may see it. */
+export async function getCashBook(req, res) {
+  return sendSuccess(res, await readCashBook(req, req.query));
 }
 
 export async function postCash(req, res) {

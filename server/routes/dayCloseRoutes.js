@@ -11,6 +11,7 @@ import { Router } from 'express';
 import { ROLES } from '../config/roles.js';
 import {
   getCash,
+  getCashBook,
   getDay,
   getDayPrint,
   getDays,
@@ -24,6 +25,7 @@ import { requireRole } from '../middleware/permission.js';
 import { tenant } from '../middleware/tenant.js';
 import { validate } from '../middleware/validate.js';
 import {
+  cashBookSchema,
   closeDaySchema,
   listCashSchema,
   listDaysSchema,
@@ -42,6 +44,8 @@ const managers = [...base, requireRole(ROLES.OWNER, ROLES.MANAGER)];
 const till = [...base, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER)];
 
 router.get('/cash-movements', ...till, validate(listCashSchema), getCash);
+// P29 Part F. The cash book: the till reads it; the server leaves out what a role may not see.
+router.get('/cash-book', ...till, validate(cashBookSchema), getCashBook);
 router.post('/cash-movements', ...till, validate(recordCashSchema), postCash);
 router.post('/cash-movements/:movementId/void', ...managers, validate(voidCashSchema), postVoidCash);
 

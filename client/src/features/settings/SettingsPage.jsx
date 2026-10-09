@@ -13,6 +13,7 @@ import { businessDateToday } from '../../utils/formatDate.js';
 import { errorMessage } from './errorCopy.js';
 import PaymentMethodsSection from './PaymentMethodsSection.jsx';
 import OnlineSettingsSection from './OnlineSettingsSection.jsx';
+import ExpenseCategoriesEditor, { RupeesInput } from './ExpenseCategoriesEditor.jsx';
 import { Checkbox, Section } from './settingsParts.jsx';
 import { clockToMinutes, minutesToClock } from './timeOfDay.js';
 
@@ -329,8 +330,58 @@ export default function SettingsPage() {
               checked={form.approvals.managerTasks}
               onChange={set('approvals', 'managerTasks')}
             />
+            {/* P29 Part B. */}
+            <Checkbox
+              label="Removing an item from a bill already printed"
+              hint="The guest has seen the printed bill. Lowering it after the guest paid in cash is the commonest till fraud, and the cash count cannot catch it."
+              checked={form.approvals.revisePrintedBill}
+              onChange={set('approvals', 'revisePrintedBill')}
+            />
           </Section>
         )}
+
+        {/* P29 Parts B and D. */}
+        {form.billing && (
+          <Section title="Bills" description="How a bill changes before it is paid, and what the bill screen asks first.">
+            <Checkbox
+              label="Change an unpaid bill instead of voiding it"
+              hint="An item removed or added on a bill nothing is paid on keeps the same invoice number, and is shown as a revision. Off: the bill is voided and a new one made, as before."
+              checked={form.billing.reviseUnpaidBills}
+              onChange={set('billing', 'reviseUnpaidBills')}
+            />
+            <Checkbox
+              label="Print the bill before taking payment"
+              hint="The bill screen asks for the print first, then the payment. A payment can still be taken without printing, and is shown in the reports."
+              checked={form.billing.printBeforePayment}
+              onChange={set('billing', 'printBeforePayment')}
+            />
+          </Section>
+        )}
+
+        {/* P29 Part C. */}
+        {form.kitchen && (
+          <Section title="Kitchen" description="What the kitchen's tick means.">
+            <Checkbox
+              label="Ready means served"
+              hint="When the kitchen marks a dish ready, it is served: captains have no Mark served step. Off: a captain marks each dish served."
+              checked={form.kitchen.readyMeansServed}
+              onChange={set('kitchen', 'readyMeansServed')}
+            />
+          </Section>
+        )}
+
+        {/* P29 Part F. */}
+        <Section title="Cash book" description="The float kept for tomorrow, who sees the cash in the drawer, and what expenses are for.">
+          <RupeesInput label="Usual float, kept in the drawer for tomorrow" paise={form.cash.usualFloatInPaise} onChange={set('cash', 'usualFloatInPaise')} />
+          <Checkbox
+            label="Show staff the cash in the drawer"
+            hint="Leave this off for a blind count. The owner always sees it."
+            checked={form.cash.showDrawerTotalToStaff}
+            onChange={set('cash', 'showDrawerTotalToStaff')}
+          />
+          <h3 className="type-heading mt-2">Expense categories</h3>
+          <ExpenseCategoriesEditor categories={form.cash.expenseCategories} onChange={set('cash', 'expenseCategories')} />
+        </Section>
 
         <Section
           title="Day Close"

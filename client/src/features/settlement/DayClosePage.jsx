@@ -6,16 +6,12 @@ import Button from '../../components/ui/Button.jsx';
 import { DotIcon, PrintIcon, TickIcon, TriangleIcon } from '../../components/ui/icons/index.jsx';
 import Input from '../../components/ui/Input.jsx';
 import Money from '../../components/ui/Money.jsx';
-import NumericKeypad from '../../components/ui/NumericKeypad.jsx';
-import CashCounter from '../cash/CashCounter.jsx';
-import { countedTotal, toCashCount } from '../cash/cashCount.js';
 import Spinner from '../../components/ui/Spinner.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
-import { closeDay, getDay, getDayPrint, reopenDay } from '../../api/dayClose.js';
+import { getDay, getDayPrint, reopenDay } from '../../api/dayClose.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { businessDateBefore, businessDateToday, formatBusinessDate } from '../../utils/formatDate.js';
-import { parseRupeesToPaise } from '../../utils/formatMoney.js';
 import { errorMessage } from '../billing/errorCopy.js';
 import { charactersFor, printText } from '../printing/printText.js';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
@@ -73,13 +69,21 @@ function Figures({ day }) {
         </dl>
       </section>
       <section>
-        <h2 className="type-heading mb-1">Cash drawer</h2>
+        <h2 className="type-heading mb-1">
+          <Link to={`/cash-book?date=${day.businessDate}`} className="inline-flex min-h-12 items-center underline-offset-4 hover:underline">
+            Cash book
+          </Link>
+        </h2>
         <dl>
+          {cash.broughtForward && (
+            <Row label={`Brought forward from ${formatBusinessDate(cash.broughtForward.fromDate)}`} value={<Money paise={cash.broughtForward.keptInPaise ?? 0} />} />
+          )}
           <Row label="Opening float" value={<Money paise={cash.openingFloatInPaise} />} />
+          <Row label="Top-ups" value={<Money paise={cash.paidInInPaise} />} />
           <Row label="Cash from bills" value={<Money paise={cash.cashFromBillsInPaise} />} />
           <Row label="Cash collections" value={<Money paise={cash.cashCollectionsInPaise} />} />
-          <Row label="Paid in" value={<Money paise={cash.paidInInPaise} />} />
-          <Row label="Paid out" value={<Money paise={cash.paidOutInPaise} />} />
+          <Row label="Expenses" value={<Money paise={cash.paidOutInPaise} />} />
+          {cash.cashTakenOutInPaise !== undefined && <Row label="Cash taken out" value={<Money paise={cash.cashTakenOutInPaise} />} />}
           {cash.expectedCashInPaise !== undefined && (
             <Row label="Expected cash" value={<Money paise={cash.expectedCashInPaise} />} strong />
           )}
@@ -92,6 +96,12 @@ function Figures({ day }) {
               value={<Money paise={day.differenceInPaise} />}
               tone={day.differenceInPaise < 0 ? 'text-alert' : ''}
             />
+          )}
+          {day.keptForTomorrowInPaise !== null && day.keptForTomorrowInPaise !== undefined && (
+            <>
+              <Row label="Kept for tomorrow" value={<Money paise={day.keptForTomorrowInPaise} />} />
+              <Row label="Taken out at close" value={<Money paise={day.takenOutAtCloseInPaise ?? 0} />} />
+            </>
           )}
         </dl>
       </section>
@@ -131,46 +141,18 @@ const STATE_TEXT = { ok: 'text-ok', alert: 'text-alert', open: 'text-open' };
 
 export default function DayClosePage() {
   const queryClient = useQueryClient();
-  const { user, features } = useAuth();
-  const denominations = features?.cash?.denominations ?? [];
+  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const today = businessDateToday();
   const businessDate = params.get('date') ?? businessDateBefore(today);
   const isOwner = user?.role === ROLES.OWNER;
 
-  const [counted, setCounted] = useState('');
-  // P25 Part F. Count by notes and coins (the default), or type the total.
-  const [byNotes, setByNotes] = useState(true);
-  const [counts, setCounts] = useState({});
-  const [note, setNote] = useState('');
-  const [noteRequired, setNoteRequired] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
   const [toast, setToast] = useState(null);
   const [device] = useDeviceSettings();
 
   const query = useQuery({ queryKey: ['day-close', businessDate], queryFn: () => getDay(businessDate) });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['day-close'] });
-
-  const close = useMutation({
-    mutationFn: () =>
-      closeDay(
-        byNotes
-          ? { businessDate, cashCount: toCashCount(counts, denominations), note: note.trim() }
-          : { businessDate, countedCashInPaise: parseRupeesToPaise(counted), note: note.trim() },
-      ),
-    onSuccess: () => {
-      setCounted('');
-      setCounts({});
-      setNote('');
-      setNoteRequired(false);
-      refresh();
-      setToast({ tone: 'success', message: `${formatBusinessDate(businessDate)} is closed.` });
-    },
-    onError: (error) => {
-      if (error?.details?.noteRequired || error?.noteRequired) setNoteRequired(true);
-      setToast({ tone: 'error', message: errorMessage(error) });
-    },
-  });
 
   const reopen = useMutation({
     mutationFn: () => reopenDay(businessDate, reopenReason.trim()),
@@ -192,7 +174,6 @@ export default function DayClosePage() {
   };
 
   const day = query.data;
-  const countedInPaise = byNotes ? countedTotal(counts, denominations) : parseRupeesToPaise(counted);
 
   return (
     <main className="v2 text-ink min-h-full bg-ground">
@@ -246,53 +227,16 @@ export default function DayClosePage() {
               </section>
             )}
 
+            {/* P29 Part F. The count, the cash kept for tomorrow and the rest taken out are the cash book's last step. */}
             {!day.isClosed && (
-              <section className="grid gap-4 rounded-[10px] border border-line bg-surface p-4">
-                <div className="grid grid-cols-2 gap-1 rounded-lg bg-sunken p-1">
-                  {[
-                    [true, 'Count by notes and coins'],
-                    [false, 'Type the total'],
-                  ].map(([value, label]) => (
-                    <button
-                      key={label}
-                      type="button"
-                      aria-pressed={byNotes === value}
-                      onClick={() => setByNotes(value)}
-                      className={['min-h-12 rounded-lg type-label', byNotes === value ? 'border border-line bg-surface' : 'text-muted'].join(' ')}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {byNotes ? (
-                  <CashCounter title="Cash counted in the drawer" denominations={denominations} counts={counts} onChange={setCounts} />
-                ) : (
-                  <NumericKeypad
-                    key={`${businessDate}-${day.status}`}
-                    title="Cash counted in the drawer"
-                    prefix="₹"
-                    allowDecimal
-                    initialValue={counted}
-                    onChange={setCounted}
-                    hideActions
-                  />
-                )}
-                <Input
-                  label={noteRequired ? 'Note, required: the count is not what the drawer should hold' : 'Note, optional'}
-                  maxLength={500}
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                />
-                <div>
-                  <Button
-                    type="button"
-                    disabled={countedInPaise === null || countedInPaise < 0 || (noteRequired && !note.trim())}
-                    isLoading={close.isPending}
-                    onClick={() => close.mutate()}
-                  >
-                    Close {formatBusinessDate(businessDate)}
-                  </Button>
-                </div>
+              <section className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-line bg-surface p-4">
+                <p className="type-body">Count the drawer, keep the float for tomorrow, and close, in the cash book.</p>
+                <Link
+                  to={`/cash-book?date=${businessDate}&close=1`}
+                  className="type-button inline-flex min-h-12 items-center rounded-lg bg-accent px-4 text-on-accent hover:brightness-110"
+                >
+                  Count and close {formatBusinessDate(businessDate)}
+                </Link>
               </section>
             )}
 

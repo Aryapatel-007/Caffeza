@@ -12,6 +12,10 @@
  *   each On Hold charge. One voucher for the day, or one per bill.
  *   Receipt: each On Hold collection: the method, against the account.
  *   Payment: each cash paid out against Cash; a paid in the other way round.
+ *   P29 Part F: an expense goes to its category's ledger (or the paid-out
+ *   one), a top-up by its source (or the paid-in one); cash taken out to the
+ *   bank, during the day or at close, is a contra entry, the bank against Cash,
+ *   never an expense; cash given to the owner is the owner's drawings.
  *   Payout, only when asked: the bank and the commission against the
  *   platform's receivable for the gross the payout covers.
  *
@@ -78,6 +82,28 @@ class Heads {
 
   paidIn() {
     return this.pick(this.ledgers.paidIn, 'Cash paid in');
+  }
+
+  /** P29 Part F. An expense's category ledger, or the paid-out ledger when the category has none. */
+  expense(category) {
+    const own = category ? this.ledgers.expenseByCategory?.[category] : null;
+    return typeof own === 'string' && own.trim() ? own.trim() : this.paidOut();
+  }
+
+  /** P29 Part F. A top-up's source ledger, or the paid-in ledger. */
+  topUp(source) {
+    const own = source ? this.ledgers.topUpBySource?.[source] : null;
+    return typeof own === 'string' && own.trim() ? own.trim() : this.paidIn();
+  }
+
+  /** P29 Part F. Cash given to the owner. A new head. */
+  ownerDrawings() {
+    return this.pick(this.ledgers.ownerDrawings, "Owner's drawings");
+  }
+
+  /** P29 Part F. Cash taken out for something else. A new head. */
+  cashTakenOutOther() {
+    return this.pick(this.ledgers.cashTakenOutOther, 'Cash taken out, other');
   }
 
   bank() {
@@ -160,14 +186,40 @@ export function vouchersFromRecords(records, { businessDate, ledgers, voucherTyp
       const entries = [];
       const cash = heads.method('CASH', 'Cash');
       if (movement.type === 'PAID_OUT') {
-        add(entries, heads.paidOut(), SIDES.DEBIT, movement.amountInPaise);
+        add(entries, heads.expense(movement.category), SIDES.DEBIT, movement.amountInPaise);
         add(entries, cash, SIDES.CREDIT, movement.amountInPaise);
       } else {
         add(entries, cash, SIDES.DEBIT, movement.amountInPaise);
-        add(entries, heads.paidIn(), SIDES.CREDIT, movement.amountInPaise);
+        add(entries, heads.topUp(movement.source), SIDES.CREDIT, movement.amountInPaise);
       }
-      vouchers.push({ kind: 'PAYMENT', voucherTypeName: movement.type === 'PAID_OUT' ? voucherTypes.payment : voucherTypes.receipt, date: businessDate, number: `ERP-${businessDate}-P${index + 1}`, narration: narration(movement.reason ?? (movement.type === 'PAID_OUT' ? 'Paid out' : 'Paid in')), entries });
+      const words = movement.reason ?? movement.categoryLabel ?? (movement.type === 'PAID_OUT' ? 'Expense' : 'Top-up');
+      vouchers.push({ kind: 'PAYMENT', voucherTypeName: movement.type === 'PAID_OUT' ? voucherTypes.payment : voucherTypes.receipt, date: businessDate, number: `ERP-${businessDate}-P${index + 1}`, narration: narration(words), entries });
     });
+
+  /**
+   * P29 Part F. Cash taken out, during the day and at close. To the bank it is
+   * a contra entry, never an expense; to the owner, drawings.
+   */
+  const takenOut = [
+    ...(records.cashMovements ?? []).filter((movement) => !movement.isVoided && movement.type === 'CASH_TAKEN_OUT'),
+    ...(records.takenOutAtClose?.amountInPaise > 0 ? [{ ...records.takenOutAtClose, atClose: true }] : []),
+  ];
+  takenOut.forEach((movement, index) => {
+    const entries = [];
+    const toBank = movement.destination === 'BANK_DEPOSIT';
+    const debit = toBank ? heads.bank() : movement.destination === 'OWNER' ? heads.ownerDrawings() : heads.cashTakenOutOther();
+    add(entries, debit, SIDES.DEBIT, movement.amountInPaise);
+    add(entries, heads.method('CASH', 'Cash'), SIDES.CREDIT, movement.amountInPaise);
+    const words = movement.atClose ? (toBank ? 'Cash to the bank at close' : 'Cash taken out at close') : movement.reason ?? (toBank ? 'Cash to the bank' : 'Cash given to the owner');
+    vouchers.push({
+      kind: toBank ? 'CONTRA' : 'PAYMENT',
+      voucherTypeName: toBank ? voucherTypes.contra ?? 'Contra' : voucherTypes.payment,
+      date: businessDate,
+      number: `ERP-${businessDate}-C${index + 1}`,
+      narration: narration(words),
+      entries,
+    });
+  });
 
   if (exportPayouts) {
     (records.payouts ?? []).forEach((payout, index) => {

@@ -61,7 +61,8 @@ async function recordsFor(req, connection, businessDate) {
   const [bills, entries, cashMovements, payouts] = await Promise.all([
     Bill.find({ ...scoped(req), businessDate, isVoided: false }).sort({ billedAt: 1, _id: 1 }).lean(),
     AccountEntry.find({ ...scoped(req), businessDate, type: 'COLLECTION' }).sort({ at: 1, _id: 1 }).lean(),
-    CashMovement.find({ ...scoped(req), businessDate, isVoided: false, type: { $in: ['PAID_OUT', 'PAID_IN'] } }).sort({ at: 1, _id: 1 }).lean(),
+    // P29 Part F: cash taken out too. A cash check and the float move no money and make no voucher.
+    CashMovement.find({ ...scoped(req), businessDate, isVoided: false, type: { $in: ['PAID_OUT', 'PAID_IN', 'CASH_TAKEN_OUT'] } }).sort({ at: 1, _id: 1 }).lean(),
     connection.config.exportPayouts ? PlatformPayout.find({ ...scoped(req), receivedOn: businessDate, isVoided: false }).sort({ recordedAt: 1, _id: 1 }).lean() : [],
   ]);
   const accountIds = [...new Set(entries.map((entry) => String(entry.accountId)))];
@@ -71,7 +72,10 @@ async function recordsFor(req, connection, businessDate) {
   const withGross = await Promise.all(
     payouts.map(async (payout) => ({ ...payout, grossInPaise: sumPaise(0, ...(await coveredPayments(req, payout)).map((payment) => payment.amountInPaise)) })),
   );
-  return { bills, collections, cashMovements, payouts: withGross };
+  // P29 Part F. What the close took out of the drawer after the count.
+  const closure = await DayClosure.findOne({ ...scoped(req), businessDate }).select('takenOutAtCloseInPaise takenOutTo').lean();
+  const takenOutAtClose = closure?.takenOutAtCloseInPaise > 0 ? { amountInPaise: closure.takenOutAtCloseInPaise, destination: closure.takenOutTo } : null;
+  return { bills, collections, cashMovements, payouts: withGross, takenOutAtClose };
 }
 
 /**
@@ -249,6 +253,8 @@ const DEFAULT_GROUPS = Object.freeze({
   expense: 'Indirect Expenses',
   income: 'Indirect Incomes',
   bank: 'Bank Accounts',
+  // P29 Part F. Cash given to the owner.
+  drawings: 'Capital Account',
 });
 
 /** Every mapped ledger with the parent group chosen for its head. */
@@ -268,6 +274,11 @@ export function ledgersOf(mapping = {}) {
   for (const name of Object.values(mapping.onHold?.byAccount ?? {})) add(name, groups.onHold);
   add(mapping.paidOut, groups.expense);
   add(mapping.paidIn, groups.income);
+  // P29 Part F.
+  for (const name of Object.values(mapping.expenseByCategory ?? {})) add(name, groups.expense);
+  for (const name of Object.values(mapping.topUpBySource ?? {})) add(name, groups.income);
+  add(mapping.ownerDrawings, groups.drawings);
+  add(mapping.cashTakenOutOther, groups.expense);
   add(mapping.bank, groups.bank);
   for (const name of Object.values(mapping.commissionByMethod ?? {})) add(name, groups.expense);
   return [...out.entries()].map(([name, parent]) => ({ name, parent }));

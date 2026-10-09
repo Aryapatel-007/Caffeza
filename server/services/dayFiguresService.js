@@ -26,6 +26,7 @@ import { Account } from '../models/Account.js';
 import { ACCOUNT_ENTRY_TYPES, AccountEntry } from '../models/AccountEntry.js';
 import { Bill, BILL_STATUSES } from '../models/Bill.js';
 import { CASH_MOVEMENT_TYPES, CashMovement } from '../models/CashMovement.js';
+import { DayClosure } from '../models/DayClosure.js';
 import { ORDER_LINE_STATUSES, ORDER_STATUSES, ORDER_TYPES, Order } from '../models/Order.js';
 import { PaymentMethod } from '../models/PaymentMethod.js';
 import { Refund, REFUND_STATUSES } from '../models/Refund.js';
@@ -139,14 +140,38 @@ function moneySection(bills, methodList) {
   };
 }
 
-/** Section D. The drawer. `cashFromBills` counts cash by the payment's own date, on any live bill. */
-function cashSection(movements, cashFromBillsInPaise, cashCollectionsInPaise) {
+/** Groups entries by a key, adding their amounts, in the order first met. */
+function grouped(entries, keyOf, labelOf) {
+  const rows = new Map();
+  for (const entry of entries) {
+    const key = keyOf(entry);
+    const row = rows.get(key) ?? { code: key, label: labelOf(entry), amountInPaise: 0, count: 0 };
+    row.amountInPaise = sumPaise(row.amountInPaise, entry.amountInPaise);
+    row.count += 1;
+    rows.set(key, row);
+  }
+  return [...rows.values()];
+}
+
+const SOURCE_WORDS = { OWNER: 'From the owner', BANK: 'From the bank', CHANGE: 'Change', OTHER: 'Other' };
+const DESTINATION_WORDS = { BANK_DEPOSIT: 'Bank deposit', OWNER: 'Given to the owner', OTHER: 'Other' };
+
+/**
+ * Section D. The drawer, the cash book's flow (P29 Part F): opening float
+ * (brought forward or counted) + top-ups + cash sales + cash collections -
+ * expenses - cash taken out. `cashFromBills` counts cash by the payment's own
+ * date, on any live bill. A cash check moves no money and is listed only.
+ * `broughtForward` is the closed day the float came from and what it kept.
+ */
+function cashSection(movements, cashFromBillsInPaise, cashCollectionsInPaise, broughtForward = null) {
   const live = movements.filter((movement) => !movement.isVoided);
   const ofType = (type) => live.filter((movement) => movement.type === type);
   const openingFloatInPaise = sum(ofType(CASH_MOVEMENT_TYPES.OPENING_FLOAT), (m) => m.amountInPaise);
   const paidInInPaise = sum(ofType(CASH_MOVEMENT_TYPES.PAID_IN), (m) => m.amountInPaise);
   const paidOutInPaise = sum(ofType(CASH_MOVEMENT_TYPES.PAID_OUT), (m) => m.amountInPaise);
+  const cashTakenOutInPaise = sum(ofType(CASH_MOVEMENT_TYPES.CASH_TAKEN_OUT), (m) => m.amountInPaise);
   const brief = (movement) => ({ amountInPaise: movement.amountInPaise, reason: movement.reason, at: movement.at });
+  const float = ofType(CASH_MOVEMENT_TYPES.OPENING_FLOAT)[0] ?? null;
 
   return {
     openingFloatInPaise,
@@ -154,15 +179,39 @@ function cashSection(movements, cashFromBillsInPaise, cashCollectionsInPaise) {
     cashCollectionsInPaise,
     paidInInPaise,
     paidOutInPaise,
+    cashTakenOutInPaise,
     expectedCashInPaise: sumPaise(
       openingFloatInPaise,
       cashFromBillsInPaise,
       cashCollectionsInPaise,
       paidInInPaise,
       -paidOutInPaise,
+      -cashTakenOutInPaise,
     ),
     paidIn: ofType(CASH_MOVEMENT_TYPES.PAID_IN).map(brief),
     paidOut: ofType(CASH_MOVEMENT_TYPES.PAID_OUT).map(brief),
+    // P29 Part F.
+    broughtForward: float?.broughtForwardFrom
+      ? {
+          fromDate: float.broughtForwardFrom,
+          keptInPaise: broughtForward?.keptForTomorrowInPaise ?? null,
+          openingDifferenceInPaise: float.openingDifferenceInPaise ?? null,
+          note: float.openingDifferenceInPaise ? float.reason ?? null : null,
+        }
+      : null,
+    topUpsBySource: grouped(ofType(CASH_MOVEMENT_TYPES.PAID_IN), (m) => m.source ?? 'NOT_RECORDED', (m) => SOURCE_WORDS[m.source] ?? 'Not recorded'),
+    expensesByCategory: grouped(ofType(CASH_MOVEMENT_TYPES.PAID_OUT), (m) => m.category ?? 'NOT_RECORDED', (m) => m.categoryLabel ?? 'Not recorded'),
+    takenOut: ofType(CASH_MOVEMENT_TYPES.CASH_TAKEN_OUT).map((movement) => ({
+      ...brief(movement),
+      destination: movement.destination,
+      destinationLabel: DESTINATION_WORDS[movement.destination] ?? movement.destination,
+    })),
+    checks: ofType(CASH_MOVEMENT_TYPES.CASH_CHECK).map((movement) => ({
+      at: movement.at,
+      countedInPaise: movement.amountInPaise,
+      expectedCashInPaise: movement.expectedCashInPaise ?? null,
+      differenceInPaise: movement.differenceInPaise ?? null,
+    })),
   };
 }
 
@@ -409,6 +458,12 @@ export async function computeDayFigures(req, businessDate, { session = null, upT
   // P25 Part E. Money owed back to guests, created on this business date. Moves no money here.
   const refundRows = await Refund.find({ ...tenant, businessDate }).sort({ createdAt: 1 }).setOptions(opts(session)).lean();
 
+  // P29 Part F. The closed day a brought-forward float came from, for what it kept.
+  const float = loadedMovements.find((movement) => movement.type === CASH_MOVEMENT_TYPES.OPENING_FLOAT && !movement.isVoided && movement.broughtForwardFrom);
+  const broughtForward = float
+    ? await DayClosure.findOne({ ...tenant, businessDate: float.broughtForwardFrom }).select('keptForTomorrowInPaise').setOptions(opts(session)).lean()
+    : null;
+
   // P29. Bills revised during the day's hours, whichever day they were issued on.
   const revisedBills = await Bill.find({ ...tenant, 'revisions.at': { $gte: start, $lt: end } })
     .select('revisions')
@@ -486,7 +541,7 @@ export async function computeDayFigures(req, businessDate, { session = null, upT
       totalInPaise: sum(collectionRows, (row) => row.amountInPaise),
       cashInPaise: cashCollectionsInPaise,
     },
-    cash: cashSection(movements, cashFromBillsInPaise, cashCollectionsInPaise),
+    cash: cashSection(movements, cashFromBillsInPaise, cashCollectionsInPaise, broughtForward),
     orderTypes: orderTypeSection(liveBills),
     gst: gstSection(liveBills),
     controls: controlsSection({ bills: liveBills, voidedBills, noChargeOrders, cancelledLines, cancelledOrders, revisions: dayRevisions }),

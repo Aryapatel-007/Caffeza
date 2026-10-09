@@ -23,19 +23,24 @@ export async function countNotes(scope, notes) {
   }
 }
 
-/** Day Close, blind: the manager counts by notes, and a note when the count is off. */
+/**
+ * Day Close, blind, from the cash book (P29 Part F): the manager counts by
+ * notes, keeps the usual float for tomorrow, the rest goes to the bank, and a
+ * note when the count is off. Nothing on screen says what the drawer should hold.
+ */
 export async function closeDay(page, businessDate, notes, note) {
-  await page.goto(`/day-close?date=${businessDate}`);
-  await expect(page.getByRole('heading', { name: 'Day Close', level: 1 })).toBeVisible();
+  await page.goto(`/cash-book?date=${businessDate}&close=1`);
+  const sheet = page.getByRole('dialog', { name: /^Close / });
+  await expect(sheet).toBeVisible();
   await expect(page.getByText('Expected cash')).toHaveCount(0);
-  await countNotes(page.getByRole('region', { name: 'Cash counted in the drawer' }), notes);
-  const close = page.getByRole('button', { name: /^Close / });
+  await countNotes(sheet.getByRole('region', { name: 'Cash counted in the drawer' }), notes);
+  const close = sheet.getByRole('button', { name: 'Close the day' });
   await close.click();
-  const noteField = page.getByLabel(/^Note, required/);
+  const noteField = sheet.getByLabel(/^Note, required/);
   await expect(noteField).toBeVisible();
   await expect(page.getByText('Expected cash')).toHaveCount(0);
   await noteField.fill(note);
   await close.click();
-  await expect(page.getByText('Closed', { exact: true })).toBeVisible();
+  await expect(page.getByText(/is closed\.$/)).toBeVisible();
   await expect(page.getByText('Expected cash')).toHaveCount(0);
 }

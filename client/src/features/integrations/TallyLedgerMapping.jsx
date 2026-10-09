@@ -9,6 +9,7 @@ import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
 import Select from '../../components/ui/Select.jsx';
 import { errorText } from '../online/OnlineSheets.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const GROUPS = [
   ['sales', 'Sales'],
@@ -16,8 +17,18 @@ const GROUPS = [
   ['payment', 'Payment methods'],
   ['onHold', 'On Hold'],
   ['expense', 'Expenses and round-off'],
-  ['income', 'Paid in'],
+  ['income', 'Top-ups'],
   ['bank', 'Bank'],
+  // P29 Part F. Cash given to the owner.
+  ['drawings', "Owner's drawings"],
+];
+
+/** P29 Part F. Where a top-up came from. */
+const TOP_UP_SOURCES = [
+  ['OWNER', 'From the owner'],
+  ['BANK', 'From the bank'],
+  ['CHANGE', 'Change'],
+  ['OTHER', 'Other'],
 ];
 
 function Row({ label, value, onChange, disabled }) {
@@ -31,6 +42,9 @@ function Row({ label, value, onChange, disabled }) {
  */
 export default function TallyLedgerMapping({ connection, canEdit, onToast }) {
   const queryClient = useQueryClient();
+  // P29 Part F. The restaurant's expense categories, each with its own ledger or the expense one.
+  const { features } = useAuth();
+  const categories = features?.cash?.expenseCategories ?? [];
   const [ledgers, setLedgers] = useState(() => ({ onHold: { mode: 'ONE', byAccount: {} }, ...(connection.config.ledgers ?? {}) }));
   const methods = useQuery({ queryKey: ['payment-methods', 'all'], queryFn: () => listPaymentMethods({ includeInactive: false }) });
   const accounts = useQuery({ queryKey: ['accounts', 'list'], queryFn: () => listAccounts() });
@@ -96,10 +110,24 @@ export default function TallyLedgerMapping({ connection, canEdit, onToast }) {
         )}
       </fieldset>
       <fieldset className="grid gap-3">
-        <legend className="type-heading">Cash drawer and payouts</legend>
-        <Row label="Paid out" value={ledgers.paidOut} disabled={off} onChange={set('paidOut')} />
-        <Row label="Paid in" value={ledgers.paidIn} disabled={off} onChange={set('paidIn')} />
-        <Row label="Bank, for platform payouts" value={ledgers.bank} disabled={off} onChange={set('bank')} />
+        <legend className="type-heading">Cash book and payouts</legend>
+        <Row label="Expenses" value={ledgers.paidOut} disabled={off} onChange={set('paidOut')} />
+        {categories.map((category) => (
+          <Row
+            key={category.code}
+            label={`Expenses: ${category.label}, or the Expenses ledger`}
+            value={ledgers.expenseByCategory?.[category.code]}
+            disabled={off}
+            onChange={setIn('expenseByCategory', category.code)}
+          />
+        ))}
+        <Row label="Top-ups" value={ledgers.paidIn} disabled={off} onChange={set('paidIn')} />
+        {TOP_UP_SOURCES.map(([code, label]) => (
+          <Row key={code} label={`Top-ups: ${label}, or the Top-ups ledger`} value={ledgers.topUpBySource?.[code]} disabled={off} onChange={setIn('topUpBySource', code)} />
+        ))}
+        <Row label="Bank, for platform payouts and cash taken to the bank" value={ledgers.bank} disabled={off} onChange={set('bank')} />
+        <Row label="Owner's drawings, for cash given to the owner" value={ledgers.ownerDrawings} disabled={off} onChange={set('ownerDrawings')} />
+        <Row label="Cash taken out, other" value={ledgers.cashTakenOutOther} disabled={off} onChange={set('cashTakenOutOther')} />
         {methodRows
           .filter((method) => method.kind === 'PLATFORM')
           .map((method) => (

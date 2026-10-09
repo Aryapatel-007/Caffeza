@@ -26,22 +26,33 @@ export async function newTakeaway(page, items) {
   return page.url();
 }
 
-/** Opening float, paid in or paid out, on the cash drawer. */
-export async function recordCash(page, type, amount, reason = null) {
-  await page.goto('/cash');
-  const form = page.getByRole('heading', { name: 'Record cash' }).locator('xpath=..');
-  await form.getByRole('button', { name: type, exact: true }).click();
-  if (Array.isArray(amount)) {
-    // P25 Part F. The opening float is counted by notes.
-    const { countNotes } = await import('./manager.js');
-    await countNotes(form, amount);
-  } else {
-    const { typeOnKeypad } = await import('./keypad.js');
-    await typeOnKeypad(form, amount);
+/**
+ * The opening float, an expense or a top-up, on the cash book. P29 Part F.
+ * `amount` is `[[rupees, count], ...]` notes for the float, or a typed amount.
+ * An expense (P29's word for a paid out) goes in `category`, default Milk and
+ * dairy, with `reason` as its note.
+ */
+export async function recordCash(page, type, amount, reason = null, { category = 'Milk and dairy', source = 'From the owner' } = {}) {
+  const { countNotes } = await import('./manager.js');
+  const { typeOnKeypad } = await import('./keypad.js');
+  await page.goto('/cash-book');
+  await expect(page.getByRole('heading', { name: 'Cash book', level: 1 })).toBeVisible();
+  if (type === 'Opening float') {
+    await page.getByRole('button', { name: 'Count the float' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Opening float' });
+    await countNotes(sheet, amount);
+    await sheet.getByRole('button', { name: /^Start with/ }).click();
+    await expect(page.getByText('Opening float recorded.')).toBeVisible();
+    return;
   }
-  if (reason) await form.getByLabel('What for, required').fill(reason);
-  await form.getByRole('button', { name: `Record ${type.toLowerCase()}` }).click();
-  await expect(page.getByText(`${type} recorded.`)).toBeVisible();
+  const isExpense = type === 'Paid out' || type === 'Expense';
+  await page.getByRole('button', { name: isExpense ? '− Expense' : '+ Top-up' }).click();
+  const sheet = page.getByRole('dialog', { name: isExpense ? 'Expense' : 'Top-up' });
+  await sheet.getByRole('button', { name: isExpense ? category : source, exact: true }).click();
+  await typeOnKeypad(sheet, amount);
+  if (reason) await sheet.getByLabel(/^Note/).fill(reason);
+  await sheet.getByRole('button', { name: isExpense ? /^Record ₹/ : /^Add ₹/ }).click();
+  await expect(page.getByText(isExpense ? 'Expense recorded.' : 'Top-up recorded.')).toBeVisible();
 }
 
 /** A collection against an On Hold account. */

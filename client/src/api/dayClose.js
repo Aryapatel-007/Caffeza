@@ -9,16 +9,30 @@ export function listCashMovements(date) {
   return api.get(`/cash-movements${date ? `?date=${date}` : ''}`);
 }
 
-/** `type` is OPENING_FLOAT, PAID_IN or PAID_OUT. The server dates it today. */
-export function recordCashMovement({ type, amountInPaise, reason, cashCount, approval }) {
-  // P25 Part F. A float counted by notes sends the count; the server works out the amount.
+/**
+ * `type` is OPENING_FLOAT, PAID_IN (a top-up), PAID_OUT (an expense), and from
+ * P29 CASH_TAKEN_OUT or CASH_CHECK. The server dates it today.
+ */
+export function recordCashMovement({ type, amountInPaise, reason, cashCount, approval, source, category, destination, takenBy, broughtForward }) {
+  // P25 Part F. A count by notes sends the count; the server works out the amount.
   return api.post('/cash-movements', {
     type,
-    ...(cashCount ? { cashCount } : { amountInPaise }),
+    ...(cashCount ? { cashCount } : amountInPaise !== undefined && amountInPaise !== null ? { amountInPaise } : {}),
     ...(reason ? { reason } : {}),
     // P28. An owner's or manager's PIN, for a cashier's paid in or paid out.
     ...(approval ? { approval } : {}),
+    // P29 Part F.
+    ...(source ? { source } : {}),
+    ...(category ? { category } : {}),
+    ...(destination ? { destination } : {}),
+    ...(takenBy ? { takenBy } : {}),
+    ...(broughtForward ? { broughtForward: true } : {}),
   });
+}
+
+/** P29 Part F. The day's cash as one flow. The server leaves out what this role may not see. */
+export function getCashBook(date) {
+  return api.get(`/cash-book${date ? `?date=${date}` : ''}`);
 }
 
 export function voidCashMovement(movementId, reason) {
@@ -38,12 +52,16 @@ export function listDays({ from, to } = {}) {
   return api.get(`/day-close${query ? `?${query}` : ''}`);
 }
 
-export function closeDay({ businessDate, countedCashInPaise, cashCount, note }) {
+export function closeDay({ businessDate, countedCashInPaise, cashCount, note, keptForTomorrowInPaise, keptForTomorrowCount, takenOutTo, takenOutBy }) {
   // P25 Part F. A count by notes and coins, totalled on the server, or the counted total.
   return api.post('/day-close', {
     businessDate,
     ...(cashCount ? { cashCount } : { countedCashInPaise }),
     note: note || null,
+    // P29 Part F. What stays for tomorrow, and where the rest goes.
+    ...(keptForTomorrowCount ? { keptForTomorrowCount } : keptForTomorrowInPaise !== undefined && keptForTomorrowInPaise !== null ? { keptForTomorrowInPaise } : {}),
+    ...(takenOutTo ? { takenOutTo } : {}),
+    ...(takenOutBy ? { takenOutBy } : {}),
   });
 }
 

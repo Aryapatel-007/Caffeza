@@ -46,17 +46,26 @@ function sections(day, date) {
   ];
 
   const c = f.cash;
+  // P29 Part F. The cash book's lines: paid in reads Top-ups and paid out Expenses, the same figures.
   const cash = [
+    ...(c.broughtForward ? [money(`Brought forward from ${c.broughtForward.fromDate}`, c.broughtForward.keptInPaise ?? 0)] : []),
     money('Opening float', c.openingFloatInPaise),
+    ...(c.broughtForward?.openingDifferenceInPaise ? [money('Opening difference', c.broughtForward.openingDifferenceInPaise)] : []),
+    money('Top-ups', c.paidInInPaise),
     money('Cash from bills', c.cashFromBillsInPaise, toBills({ ...day1, method: 'CASH' })),
     money('Cash collections', c.cashCollectionsInPaise),
-    money('Paid in', c.paidInInPaise),
-    money('Paid out', c.paidOutInPaise),
+    money('Expenses', c.paidOutInPaise),
+    ...(c.expensesByCategory ?? []).map((row) => money(`Expenses: ${row.label}`, row.amountInPaise)),
+    ...(c.cashTakenOutInPaise !== undefined ? [money('Cash taken out', c.cashTakenOutInPaise)] : []),
     ...(c.expectedCashInPaise !== undefined ? [money('Expected cash', c.expectedCashInPaise)] : []),
     ...(day.countedCashInPaise !== null && day.countedCashInPaise !== undefined ? [money('Counted cash', day.countedCashInPaise)] : []),
     // P25 Part F. Each note and coin counted, for a day closed with a count by notes.
     ...(day.cashCount ?? []).map((row) => money(`${row.count} × ${paiseToRupees(row.valueInPaise, { symbol: true })} ${row.kind === 'COIN' ? 'coin' : 'note'}`, row.valueInPaise * row.count)),
     ...(day.differenceInPaise !== null && day.differenceInPaise !== undefined ? [money('Cash difference', day.differenceInPaise)] : []),
+    // P29 Part F. The split of the count at close.
+    ...(day.keptForTomorrowInPaise !== null && day.keptForTomorrowInPaise !== undefined
+      ? [money('Kept for tomorrow', day.keptForTomorrowInPaise), money('Taken out at close', day.takenOutAtCloseInPaise ?? 0)]
+      : []),
   ];
 
   const orderTypes = f.orderTypes.map((row) => ({

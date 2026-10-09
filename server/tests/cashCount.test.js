@@ -93,7 +93,8 @@ describe('the golden day closed with a count by notes', () => {
       assert.match(print.text, /200\.00 note x 2\s+400\.00/);
 
       const r7 = (await request('GET', `/api/v1/reports/v2/cash-till?from=${GOLDEN_DATE}&to=${GOLDEN_DATE}`, { token: golden.tokens.OWNER })).body.data;
-      assert.equal(r7.rows[0].cashCountText, '6 × ₹500.00 note, 2 × ₹200.00 note');
+      // P29: R7's days are its first section.
+      assert.equal(r7.sections.find((section) => section.key === 'days').rows[0].cashCountText, '6 × ₹500.00 note, 2 × ₹200.00 note');
       const r2 = (await request('GET', `/api/v1/reports/v2/day-close?date=${GOLDEN_DATE}`, { token: golden.tokens.OWNER })).body.data;
       const cash = r2.sections.find((section) => section.key === 'cash');
       assert.ok(cash.rows.some((row) => row.line === '6 × ₹500.00 note' && row.amountInPaise === 300000), JSON.stringify(cash.rows));

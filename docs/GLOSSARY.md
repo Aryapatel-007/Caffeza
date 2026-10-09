@@ -453,6 +453,7 @@ Added by P29.
 | **Opening difference** | A brought-forward float counted again in the morning: counted minus kept |
 | **Top-up** | Cash added to the drawer that is not a sale: from the owner, from the bank, or change. The record type is paid in. |
 | **Source** | Where a top-up came from: Owner, Bank, Change or Other |
+| **Cash sales** | Cash from bills, in the cash book's words, with any On Hold cash collected beside it |
 | **Expense** | Cash spent from the drawer, like buying milk. The record type is paid out. |
 | **Expense category** | What an expense was for, from the restaurant's list, like Milk and dairy |
 | **Cash taken out** | Cash removed from the drawer that is not an expense: a bank deposit, or cash given to the owner |
