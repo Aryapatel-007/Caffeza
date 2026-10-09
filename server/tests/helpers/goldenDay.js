@@ -209,7 +209,11 @@ async function login(phone, password = DEFAULT_PASSWORD) {
   ).accessToken;
 }
 
-/** Fires every pending line, marks the tickets ready, and serves every live line. */
+/**
+ * Fires every pending line, marks the tickets ready, and serves every live line.
+ * P29: with `kitchen.readyMeansServed` on, the ready already served them, so
+ * readyAndServe finds no READY line left to serve; with it off, it serves them.
+ */
 async function fireReadyServe(token, orderId, version) {
   const fired = ok(await request('POST', `/api/v1/orders/${orderId}/fire`, { token, body: { version } }), 'fire');
   return fired;
@@ -257,7 +261,7 @@ const STAFF = [
  * Returns the tokens by role and by person, every person's phone and the one
  * password they share, and the ids of everything created.
  */
-export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}, invoiceSeries = true, phoneBase = null, password = DEFAULT_PASSWORD } = {}) {
+export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}, invoiceSeries = true, phoneBase = null, password = DEFAULT_PASSWORD, readyMeansServed = true } = {}) {
   setClockForTests(ist('09:00'));
   try {
     // `phoneBase` gives every person a fixed phone (base, then 1 to 7), for a shared database where
@@ -302,6 +306,8 @@ export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}
           floor: { requireGuestCount: true, longOpenMinutes: 90 },
           // P25 Part J: Caffeza's Tally code for On Hold, a setting since the constant P03 retired.
           reports: { onHoldTallyCode: 'P03' },
+          // P29 Part C. On by default: the kitchen's ready serves the line. A test plays the day with it off too.
+          kitchen: { readyMeansServed },
         },
       }),
       'settings',

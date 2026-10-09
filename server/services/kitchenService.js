@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
 
 import { COUNTER_NAMES } from '../models/Counter.js';
 import { Kot, KOT_LINE_STATUSES } from '../models/Kot.js';
-import { Order, ORDER_LINE_STATUSES } from '../models/Order.js';
+import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
 import { BusinessRuleError, NotFoundError } from '../utils/errors.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { nowUtc } from '../utils/time.js';
@@ -19,7 +19,9 @@ import { nextNumber } from './counterService.js';
 import {
   applyVersionedUpdate,
   assertOrderIsOpen,
+  isReadyToBill,
   loadOrderInTenant,
+  readyToBillChange,
   serialiseOrder,
 } from './orderService.js';
 // M4. Firing is the moment ingredients physically leave the shelf, so this is
@@ -28,7 +30,7 @@ import {
 // one, because a KOT that exists with no matching deduction (or the reverse)
 // is exactly the kind of drift a transaction exists to prevent.
 import { deductForFiredLines } from './stockMovementService.js';
-import { isFeatureOn } from './settingsService.js';
+import { getSetting, isFeatureOn } from './settingsService.js';
 import { routeLinesToStations } from './stationService.js';
 
 export const KOT_STATUSES = Object.freeze({
@@ -246,6 +248,12 @@ export async function fireOrder(req, { orderId, version }) {
  * The matching order line is found by `orderLineId` and only moved if it is
  * still FIRED. A line that has already been served must not be dragged back to
  * READY by someone tidying up the pass.
+ *
+ * P29 Part C. With `kitchen.readyMeansServed` on, the kitchen's ready is the
+ * serve: the order line goes straight from FIRED to SERVED, `readyAt` and
+ * `servedAt` the same moment, and when every live line is then served the
+ * order moves to READY_TO_BILL through the same readyToBillChange as a waiter's
+ * serve, in the same transaction.
  */
 export async function markKotLinesReady(req, { kotId, lineId }) {
   const kot = await loadKotInTenant(req, kotId);
@@ -268,6 +276,7 @@ export async function markKotLinesReady(req, { kotId, lineId }) {
 
   const readyAt = nowUtc();
   const orderLineIds = targets.map((line) => line.orderLineId);
+  const readyMeansServed = Boolean(await getSetting(req.restaurantId, 'kitchen.readyMeansServed', { req }));
 
   const updated = await withOptionalTransaction(async (session) => {
     const options = session ? { session } : {};
@@ -295,10 +304,16 @@ export async function markKotLinesReady(req, { kotId, lineId }) {
       await Order.updateOne(
         { ...scoped(req), _id: kot.orderId },
         {
-          $set: {
-            'lines.$[line].status': ORDER_LINE_STATUSES.READY,
-            'lines.$[line].readyAt': readyAt,
-          },
+          $set: readyMeansServed
+            ? {
+                'lines.$[line].status': ORDER_LINE_STATUSES.SERVED,
+                'lines.$[line].readyAt': readyAt,
+                'lines.$[line].servedAt': readyAt,
+              }
+            : {
+                'lines.$[line].status': ORDER_LINE_STATUSES.READY,
+                'lines.$[line].readyAt': readyAt,
+              },
           // The order changed, so anyone holding it has a stale copy.
           $inc: { version: 1 },
         },
@@ -309,6 +324,8 @@ export async function markKotLinesReady(req, { kotId, lineId }) {
           ...options,
         },
       );
+
+      if (readyMeansServed) await moveToReadyToBillIfServed(req, kot.orderId, readyAt, session);
     }
 
     return Kot.findOne({ ...scoped(req), _id: kot._id }).setOptions(options);
@@ -332,6 +349,20 @@ export async function markKotLinesReady(req, { kotId, lineId }) {
   }
 
   return serialiseKot(updated);
+}
+
+/**
+ * P29 Part C. An OPEN order whose every live line is now served moves to
+ * READY_TO_BILL, filtered on OPEN so a concurrent change is never overwritten.
+ */
+async function moveToReadyToBillIfServed(req, orderId, at, session) {
+  const order = await Order.findOne({ ...scoped(req), _id: orderId }).select('status lines.status').setOptions(session ? { session } : {}).lean();
+  if (order?.status !== ORDER_STATUSES.OPEN || !isReadyToBill(order.lines)) return;
+  await Order.updateOne(
+    { ...scoped(req), _id: orderId, status: ORDER_STATUSES.OPEN },
+    { $set: readyToBillChange(at), $inc: { version: 1 } },
+    session ? { session } : {},
+  );
 }
 
 /**

@@ -494,7 +494,7 @@ In progress. The prompt is `docs/prompts/P29-bill-edits-ready-means-served-print
 P29 progress
 - [x] A Spec
 - [x] B Change an unpaid bill without voiding it
-- [ ] C Ready means served
+- [x] C Ready means served
 - [ ] D Print before payment
 - [ ] E Undo in the kitchen
 - [ ] F The cash book

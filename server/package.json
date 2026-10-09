@@ -15,6 +15,7 @@
     "db:restaurants": "node scripts/listRestaurants.js",
     "purge:restaurant": "node scripts/purgeRestaurant.js",
     "sandbox:order": "node scripts/sandboxOrder.js",
+    "migrate:ready-to-served": "node scripts/migrateReadyToServed.js",
     "db:indexes": "node scripts/buildIndexes.js",
     "setup:restaurant": "node scripts/setupRestaurant.js",
     "import:menu": "node scripts/importMenu.js",

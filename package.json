@@ -25,6 +25,7 @@
     "db:restaurants": "npm run db:restaurants --workspace=server",
     "purge:restaurant": "npm run purge:restaurant --workspace=server --",
     "sandbox:order": "npm run sandbox:order --workspace=server --",
+    "migrate:ready-to-served": "npm run migrate:ready-to-served --workspace=server --",
     "db:indexes": "npm run db:indexes --workspace=server",
     "setup:restaurant": "npm run setup:restaurant --workspace=server --",
     "import:menu": "npm run import:menu --workspace=server --",

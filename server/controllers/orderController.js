@@ -31,7 +31,7 @@ import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/
 import { cancelLineInSession } from '../services/lineCancelService.js';
 import { giveNoCharge } from '../services/noChargeService.js';
 import { returnStockForCancelledLine } from '../services/stockMovementService.js';
-import { getSettings, isFeatureOn } from '../services/settingsService.js';
+import { getSetting, getSettings, isFeatureOn } from '../services/settingsService.js';
 import { approverForManagerTask, approverIfNeeded } from '../services/approvalService.js';
 import {
   applyVersionedUpdate,
@@ -43,6 +43,7 @@ import {
   findLine,
   isReadyToBill,
   loadOrderInTenant,
+  readyToBillChange,
   serialiseOrder,
 } from '../services/orderService.js';
 import { BusinessRuleError } from '../utils/errors.js';
@@ -307,6 +308,17 @@ export async function markLineServed(req, res) {
   const { version } = req.body;
 
   const order = await loadOrderInTenant(req, orderId);
+
+  /**
+   * P29 Part C. With the kitchen's ready serving the line, a screen written
+   * before P29 may still send this for a line already served, on an order that
+   * is already waiting for the cashier: that is not an error worth stopping a
+   * waiter for, so the order comes back as it is.
+   */
+  const already = order.lines.id(lineId);
+  if (already?.status === ORDER_LINE_STATUSES.SERVED && (await getSetting(req.restaurantId, 'kitchen.readyMeansServed', { req }))) {
+    return sendSuccess(res, serialiseOrder(order));
+  }
   assertOrderIsOpen(order);
 
   const line = findLine(order, lineId);
@@ -338,9 +350,7 @@ export async function markLineServed(req, res) {
     $set: {
       'lines.$[line].status': ORDER_LINE_STATUSES.SERVED,
       'lines.$[line].servedAt': servedAt,
-      ...(closesTheOrder
-        ? { status: ORDER_STATUSES.READY_TO_BILL, readyToBillAt: servedAt }
-        : {}),
+      ...(closesTheOrder ? readyToBillChange(servedAt) : {}),
     },
   };
 

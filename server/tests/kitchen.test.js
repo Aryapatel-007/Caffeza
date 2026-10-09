@@ -42,6 +42,14 @@ const markLineReady = (token, kotId, lineId) =>
 
 const markKotReady = (token, kotId) => request('PATCH', `/api/v1/kots/${kotId}/ready`, { token });
 
+/**
+ * P29 Part C. These tests are about the two-step flow, ready then served, so
+ * they switch the kitchen's ready-means-served off; tests/readyMeansServed
+ * covers it on.
+ */
+const twoStep = (tokens) =>
+  request('PATCH', '/api/v1/settings', { token: tokens.OWNER, body: { reason: 'Two-step kitchen', kitchen: { readyMeansServed: false } } });
+
 const markServed = (token, orderId, lineId, version) =>
   request('PATCH', `/api/v1/orders/${orderId}/lines/${lineId}/served`, {
     token,
@@ -277,6 +285,7 @@ describe('the kitchen display', () => {
 describe('marking food ready', () => {
   it('moves the matching order line to READY, found by orderLineId', async () => {
     const { tokens, order } = await orderWithTwoLines();
+    await twoStep(tokens);
     const { kot } = (await fireOrder(tokens.WAITER, order.id, order.version)).body.data;
 
     const kotLine = kot.lines[0];
@@ -321,6 +330,7 @@ describe('marking food ready', () => {
 
   it('marks a whole ticket ready in one action', async () => {
     const { tokens, order } = await orderWithTwoLines();
+    await twoStep(tokens);
     const { kot } = (await fireOrder(tokens.WAITER, order.id, order.version)).body.data;
 
     const response = await markKotReady(tokens.KITCHEN, kot.id);
@@ -428,6 +438,7 @@ describe('cancelling something the kitchen already has', () => {
 describe('the whole lifecycle', () => {
   it('runs an order from an empty table to READY_TO_BILL', async () => {
     const { tokens, table, item } = await seedFloor();
+    await twoStep(tokens);
     const mains = (await createMenuItem(tokens.OWNER, { name: 'Dal Fry', priceInPaise: 18000 })).body
       .data;
 

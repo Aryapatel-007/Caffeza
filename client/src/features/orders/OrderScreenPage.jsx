@@ -211,6 +211,7 @@ export default function OrderScreenPage() {
       order={order}
       isOpen={isOpen}
       locked={hasBill}
+      readyMeansServed={features.kitchen?.readyMeansServed ?? true}
       isBusy={write.isPending}
       pendingCount={pendingCount}
       canCancelOrder={canCancelOrder}
@@ -501,6 +502,7 @@ function OrderDetails({
   order,
   isOpen,
   locked = false,
+  readyMeansServed = false,
   isBusy,
   pendingCount,
   canCancelOrder,
@@ -520,6 +522,7 @@ function OrderDetails({
         <OrderLineList
           lines={order.lines}
           locked={locked}
+          readyMeansServed={readyMeansServed}
           isBusy={isBusy}
           onChangeQuantity={onChangeQuantity}
           onServeLine={onServeLine}

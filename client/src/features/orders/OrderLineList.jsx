@@ -16,6 +16,9 @@ const LINE_STATES = {
   CANCELLED: { state: 'alert', word: 'Cancelled' },
 };
 
+/** P29 Part C. Served by the kitchen's ready: the served state's colour, with the kitchen's word. */
+const READY_SERVED = { state: 'served', word: 'Ready' };
+
 /**
  * The lines on an order, densest thing on the screen.
  *
@@ -31,6 +34,8 @@ export default function OrderLineList({
   onServeLine,
   // P29. The order has a bill: its lines change only through the bill.
   locked = false,
+  // P29 Part C. The kitchen's ready serves the line: no served step, and a served line reads "Ready".
+  readyMeansServed = false,
 }) {
   if (lines.length === 0) {
     return (
@@ -74,7 +79,10 @@ export default function OrderLineList({
                 )}
 
                 <p className="mt-1 flex flex-wrap items-center gap-2">
-                  <StateChip {...(LINE_STATES[line.status] ?? LINE_STATES.PENDING)} size="sm" />
+                  <StateChip
+                    {...(readyMeansServed && line.status === 'SERVED' ? READY_SERVED : (LINE_STATES[line.status] ?? LINE_STATES.PENDING))}
+                    size="sm"
+                  />
                   {isCancelled && line.wasPrepared === true && <span className="type-caption text-muted">was made</span>}
                   {isCancelled && line.wasPrepared === false && <span className="type-caption text-muted">not made</span>}
                 </p>
@@ -106,7 +114,7 @@ export default function OrderLineList({
                   />
                 )}
 
-                {line.status === 'READY' && (
+                {line.status === 'READY' && !readyMeansServed && (
                   <button
                     type="button"
                     disabled={isBusy}
