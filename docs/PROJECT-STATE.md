@@ -523,11 +523,11 @@ P29 progress
 - [x] D Print before payment
 - [x] E Undo in the kitchen
 - [x] F The cash book
-- [ ] G Full check: suite, lint, build, e2e and indexes done; the hand check at 380, 768 and 1280 not done
+- [ ] G Full check: suite (1,218 passing), lint, build, e2e and indexes done; the hand check at 380, 768 and 1280 not done
 ```
 
 Tests before Part A: 1,173, 1,172 passing, 1 failing (`tallyVouchers.test.js`, the stored XML: the fixtures check out with Windows line endings; fixed with `.gitattributes`).
-Tests after Part F: 1,216, all passing. Lint and build pass. Two server tests were added in Part G (below); the full rerun with them was still running when the session paused, and those four files (98 tests) pass.
+Tests after Part F: 1,216, all passing. Lint and build pass. After Part G: 1,218, all passing, with the two server tests added below.
 `npm run e2e`: all 13 specs pass, with three new ones: `e2e/billRevision.spec.js` (a water bottle removed from a printed bill with the manager's PIN, the revised bill printed, paid in cash, one bill and no void), `e2e/kitchenUndo.spec.js` (a wrong tick undone from the bar), `e2e/cashBook.spec.js` (float brought forward, a top-up and an expense with the PIN, cash to the bank, the day closed keeping ₹2,000.00, and the next day proposing it).
 
 The first e2e run found five things, all fixed in Part G:
