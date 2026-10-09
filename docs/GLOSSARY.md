@@ -397,3 +397,17 @@ Added by P27.
 | **Agreed to offers** | The guest said yes to offers and news by SMS or WhatsApp. Shown with when, how and the wording they agreed to. |
 | **Withdrawn** | The guest asked not to get offers any more |
 
+
+---
+
+## 18. Approval words
+
+Added by P28.
+
+| Term | Meaning |
+|---|---|
+| **PIN** | A 4 to 6 digit number an owner or manager types to approve something on someone else's screen. It never signs anyone in. |
+| **A manager approves** | The step where an owner or manager picks their name and types their PIN |
+| **Set PIN** | Give a person a new PIN, on the Staff screen |
+| **Approvals** | The settings that decide what needs a manager's PIN |
+| **Approved by** | Defined in section 9. From P28 it is also stored on a cancelled line, a cancelled order, a voided bill and a cash entry. |

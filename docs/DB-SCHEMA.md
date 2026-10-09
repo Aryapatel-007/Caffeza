@@ -2702,3 +2702,21 @@ Index: `{ restaurantId: 1, phone: 1 }` unique; `{ restaurantId: 1, lastVisitAt: 
 for the list. Orders already store `customerName` and `customerPhone`; a
 dine-in order may now carry them too.
 
+
+## 42. Additions for manager approval by PIN (P28)
+
+Every new field has a default, so nothing is migrated.
+
+| Collection | Field | Type | Default | Notes |
+|---|---|---|---|---|
+| `orders` | `lines[].cancelApprovedBy` | ObjectId or null | null | The OWNER or MANAGER who approved a cashier's or captain's cancel |
+| `orders` | `cancelApprovedBy` | ObjectId or null | null | The same, for a whole-order cancel |
+| `bills` | `voidApprovedBy` | ObjectId or null | null | The same, for a void |
+| `cashmovements` | `approvedBy` | ObjectId or null | null | The same, for a paid in or paid out |
+| `restaurants` | `settings.approvals.lineCancel` | Boolean | true | |
+| `restaurants` | `settings.approvals.paidIn` | Boolean | true | |
+| `restaurants` | `settings.approvals.managerTasks` | Boolean | true | |
+| `auditlogs` | `action` | enum | | Gains `LINE_CANCELLED_APPROVED` and `CASH_PAID_IN` |
+
+`orders.noCharge.approvedBy` already exists; from P28 it is the approver when a
+cashier asked.

@@ -3682,6 +3682,7 @@ schema default, so a restaurant saved before P25 reads back complete.
 | `billing.captainsMayTakePayment` | Boolean | false | M3 section 16.2 |
 | `cash.denominations` | List | India, M16 section 8.1 | Notes and coins to count. A PATCH replaces the list. |
 | `payments.requireTerminalForLinkedMethods` | Boolean | true | M10 section 5.2 |
+| `approvals.*` | Booleans | true | Added by P28, see the P28 section at the end of this file |
 | `reports.onHoldTallyCode` | String or null | null | Up to 20 characters. The Tally code R9 prints on its On Hold row. Null prints "On Hold" with no code. Was the constant `P03` before P25. |
 
 `GET /auth/me` gains `billing` (both fields) and `cash.denominations`, because
@@ -7190,3 +7191,84 @@ lastVisitAt, offers: { given, textVersion, at, source }, offersHistory }`.
 
 None new: 400 `VALIDATION_FAILED`, 403, 404 as usual.
 
+
+# P28 Manager approval by PIN
+
+Extends the approval P25 Part E built for cancelling after billing (M3 16.4)
+and P26 used for reopening a bill (M3 16.7) to the other sensitive actions. The
+prompt is `docs/prompts/P28-manager-approval-by-pin.md`.
+
+## 1. The approval
+
+```json
+"approval": { "approverId": "652c…", "pin": "1234" }
+```
+
+`approverId` is an active OWNER or MANAGER of the caller's restaurant, from
+`GET /users/approvers`. `pin` is 4 to 6 digits, checked by `verifyPin`, which
+issues no session and locks after five wrong tries. One function,
+`approvalService.approverFor`, decides every approval. An OWNER or MANAGER
+approves themselves and their `approval` is ignored. A missing approval, an
+unknown or inactive approver, and an approver who is not an owner or manager
+are 403 with the same message, "A manager has to approve this. Pick their name
+and type their PIN." A wrong PIN, and an approver with no PIN, are 401
+`INVALID_PIN`, indistinguishable, as M0-D. A locked PIN is 429 `PIN_LOCKED`.
+This is how P25 Part E already answers.
+
+## 2. `settings.approvals`
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `approvals.lineCancel` | Boolean | true | A CASHIER or WAITER cancelling a line the kitchen has (FIRED, READY or SERVED) needs an approval |
+| `approvals.paidIn` | Boolean | true | A CASHIER's `PAID_IN` needs an approval |
+| `approvals.managerTasks` | Boolean | true | A CASHIER may void a bill, cancel a whole order, give No Charge and record a `PAID_OUT` with an approval. Off: OWNER and MANAGER only, as before P28. |
+
+Read and written through `GET` and `PATCH /settings`, OWNER to change, audited
+as `SETTINGS_CHANGED`. `GET /auth/me` gains `approvals`, all three fields.
+
+## 3. Endpoints that take `approval`
+
+Every one takes `approval` as an optional field beside its existing body.
+
+| Endpoint | Roles before P28 | Roles from P28 | Needs an approval when |
+|---|---|---|---|
+| `POST /orders/:orderId/lines/:lineId/cancel` (12.6) | OWNER, MANAGER, CASHIER, WAITER | the same | The caller is a CASHIER or WAITER, the line is FIRED, READY or SERVED, and `lineCancel` is on |
+| `POST /cash-movements` (M16) | `PAID_OUT` OWNER, MANAGER; others also CASHIER | the same, plus a CASHIER's `PAID_OUT` | A CASHIER's `PAID_IN` with `paidIn` on; a CASHIER's `PAID_OUT` always (refused when `managerTasks` is off). `OPENING_FLOAT` never. |
+| `POST /bills/:billId/void` (14.6) | OWNER, MANAGER | plus CASHIER | A CASHIER, always; refused when `managerTasks` is off |
+| `POST /orders/:orderId/cancel` (12.10) | OWNER, MANAGER | plus CASHIER | A CASHIER, always; refused when `managerTasks` is off |
+| `POST /orders/:orderId/no-charge` (M16 1) | OWNER, MANAGER | plus CASHIER | A CASHIER, always; refused when `managerTasks` is off |
+
+A CASHIER refused because `managerTasks` is off gets the 403 these endpoints
+gave before P28. A WAITER is refused the last three as before.
+
+## 4. What is stored
+
+The person who acted is stored as before (`cancelledBy`, `voidedBy`, `by`).
+The approver is stored beside it, null when the actor approved themselves:
+
+| Record | Field |
+|---|---|
+| Order line | `cancelApprovedBy` |
+| Order | `cancelApprovedBy` |
+| Bill | `voidApprovedBy` |
+| Cash movement | `approvedBy` |
+| Order, No Charge | `noCharge.approvedBy`, which already exists: the approver when a cashier asked, the actor otherwise |
+
+`BILL_VOIDED`, `ORDER_CANCELLED`, `NO_CHARGE_GIVEN`, `CASH_PAID_OUT` and
+`LINE_CANCELLED_AFTER_PREP` add `details.approvedBy` when someone else
+approved. Two new audit actions:
+
+| Action | Entity | Written when | MANAGER may read |
+|---|---|---|---|
+| `LINE_CANCELLED_APPROVED` | `ORDER` | A line is cancelled with someone else's approval and was not prepared (a prepared one writes `LINE_CANCELLED_AFTER_PREP`) | Yes |
+| `CASH_PAID_IN` | `CASH` | A paid in is recorded with someone else's approval | No |
+
+## 5. PINs
+
+`PATCH /users/:userId/pin` (M0-D) is unchanged; the Staff screen now calls it.
+Its audit reason becomes "PIN set." `GET /users/approvers` gains `hasPin`
+(boolean): `{ id, name, role, hasPin }`.
+
+## Error codes
+
+None new.
