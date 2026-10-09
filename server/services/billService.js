@@ -667,7 +667,7 @@ export async function correctPayment(req, billId, paymentId, { method, reason })
  * restock on void turns a dishonest void into free inventory. If it genuinely
  * was not consumed, a storekeeper writes a visible manual adjustment.
  */
-export async function voidBill(req, billId, { reasonCode, note = null }) {
+export async function voidBill(req, billId, { reasonCode, note = null, approvedBy = null }) {
   const existing = await readBill(req, billId);
   assertNotVoided(existing);
 
@@ -678,14 +678,14 @@ export async function voidBill(req, billId, { reasonCode, note = null }) {
    * account also takes the charge off the account's ledger, and the two must
    * land together or not at all.
    */
-  return withOptionalTransaction((session) => voidBillInSession(req, billId, { reasonCode, note, at }, session));
+  return withOptionalTransaction((session) => voidBillInSession(req, billId, { reasonCode, note, at, approvedBy }, session));
 }
 
 /**
  * The core of voiding, inside the transaction it is given. P25 Part E voids a
  * bill and re-issues it in one transaction through here.
  */
-export async function voidBillInSession(req, billId, { reasonCode, note = null, at = nowUtc() }, session) {
+export async function voidBillInSession(req, billId, { reasonCode, note = null, at = nowUtc(), approvedBy = null }, session) {
   const bill = await readBill(req, billId, session);
   assertNotVoided(bill);
   // P10: a closed day's bills stay as they are.
@@ -694,6 +694,8 @@ export async function voidBillInSession(req, billId, { reasonCode, note = null, 
   bill.isVoided = true;
   bill.voidedAt = at;
   bill.voidedBy = req.user.id;
+  // P28. The owner or manager who typed their PIN for a cashier's void.
+  bill.voidApprovedBy = approvedBy;
   // P04: a fixed code, and the free-text field now holds the optional note.
   bill.voidReasonCode = reasonCode;
   bill.voidReason = note ?? null;
@@ -725,6 +727,7 @@ export async function voidBillInSession(req, billId, { reasonCode, note = null, 
         wasPaid: bill.amountPaidInPaise > 0,
         wasOnAccount: bill.status === BILL_STATUSES.ON_ACCOUNT,
         reasonCode,
+        ...(approvedBy ? { approvedBy: String(approvedBy) } : {}),
       },
     },
     session,

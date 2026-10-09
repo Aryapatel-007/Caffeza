@@ -230,7 +230,8 @@ export default function BillScreenPage() {
     bill.status === 'UNPAID' &&
     bill.amountPaidInPaise === 0;
   const canCorrect = canManage && !bill.isVoided && bill.status === 'PAID';
-  const canVoid = canManage && !bill.isVoided;
+  // P28. A cashier may void with an owner's or manager's PIN, when the owner allows it.
+  const canVoid = (canManage || (user?.role === ROLES.CASHIER && (features.approvals?.managerTasks ?? true))) && !bill.isVoided;
   // P25 Part E. The till, and a captain when captains may bill; a cashier or captain needs a manager's PIN.
   const canCancelItems =
     !bill.isVoided &&
@@ -569,6 +570,7 @@ export default function BillScreenPage() {
       {panel === 'void' && (
         <VoidBillPanel
           bill={bill}
+          needsApproval={!canManage}
           isBusy={voidMutation.isPending}
           error={voidMutation.isError ? errorMessage(voidMutation.error) : null}
           onCancel={() => setPanel(null)}

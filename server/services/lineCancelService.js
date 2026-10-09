@@ -20,7 +20,11 @@ import { returnStockForCancelledLine } from './stockMovementService.js';
  * Cancels `line` of `order` at `version`. Returns the updated order. The
  * caller has already checked the order may change and the wasPrepared rule.
  */
-export async function cancelLineInSession(req, { order, line, version, reasonCode, note = null, wasPrepared, inventoryOn }, session) {
+export async function cancelLineInSession(
+  req,
+  { order, line, version, reasonCode, note = null, wasPrepared, inventoryOn, approvedBy = null, auditApproval = true },
+  session,
+) {
   // P26. When what is left is all served, the order is ready to bill, as when the last dish is served.
   const linesAfter = order.lines.map((entry) => (String(entry._id) === String(line._id) ? { status: ORDER_LINE_STATUSES.CANCELLED } : entry));
   const nowReady = order.status === ORDER_STATUSES.OPEN && isReadyToBill(linesAfter);
@@ -36,6 +40,8 @@ export async function cancelLineInSession(req, { order, line, version, reasonCod
         // P04: the free-text field now holds the optional note.
         'lines.$[line].cancelReason': note ?? null,
         'lines.$[line].wasPrepared': wasPrepared ?? null,
+        // P28. The owner or manager who typed their PIN, when the canceller was not one.
+        'lines.$[line].cancelApprovedBy': approvedBy,
         ...(nowReady ? { status: ORDER_STATUSES.READY_TO_BILL, readyToBillAt: nowUtc() } : {}),
       },
     },
@@ -67,6 +73,34 @@ export async function cancelLineInSession(req, { order, line, version, reasonCod
           quantity: line.quantity,
           reasonCode,
           tableName: order.tableName ?? null,
+          ...(approvedBy ? { approvedBy: String(approvedBy) } : {}),
+        },
+      },
+      session,
+    );
+  } else if (approvedBy && auditApproval) {
+    /**
+     * P28. A cancel someone else had to approve is never silent, even when
+     * nothing was made. Cancelling after billing passes `auditApproval: false`,
+     * because its own BILL_LINES_CANCELLED_AFTER_BILLING line names the approver.
+     */
+    await recordAudit(
+      req,
+      {
+        action: AUDIT_ACTIONS.LINE_CANCELLED_APPROVED,
+        entityType: AUDIT_ENTITY_TYPES.ORDER,
+        entityId: order._id,
+        entityLabel: `Order ${order.orderNumber}`,
+        reason: reasonText(LINE_CANCEL_REASONS, reasonCode, note),
+        amountInPaise: computeLineTotalInPaise(line),
+        details: {
+          lineId: String(line._id),
+          itemName: line.itemName,
+          variantName: line.variantName ?? null,
+          quantity: line.quantity,
+          reasonCode,
+          tableName: order.tableName ?? null,
+          approvedBy: String(approvedBy),
         },
       },
       session,

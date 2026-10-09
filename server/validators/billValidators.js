@@ -33,6 +33,7 @@ import {
   queryBoolean,
   reasonFields,
   requireNoteForOther,
+  approval,
 } from './common.js';
 
 const billIdParam = z.object({ billId: objectId });
@@ -190,7 +191,7 @@ export const correctPaymentSchema = z.object({
 export const voidBillSchema = z.object({
   params: billIdParam,
   body: z
-    .object(reasonFields(BILL_VOID_REASON_CODES, VOID_NOTE_MAX_LENGTH))
+    .object({ ...reasonFields(BILL_VOID_REASON_CODES, VOID_NOTE_MAX_LENGTH), approval: approval.optional() })
     .strict('Is not a field you can set here.')
     .superRefine(requireNoteForOther),
 });
@@ -220,10 +221,7 @@ export const cancelLinesSchema = z.object({
         .max(100)
         .refine((lines) => new Set(lines.map((line) => line.lineId)).size === lines.length, 'Each item can be picked once.'),
       ...reasonFields(LINE_CANCEL_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
-      approval: z
-        .object({ approverId: objectId, pin: z.string({ error: 'Must be text.' }).regex(/^\d{4,6}$/, 'A PIN is 4 to 6 digits.') })
-        .strict('Is not a field you can set here.')
-        .optional(),
+      approval: approval.optional(),
       // The same numbers, with nothing written: for the confirmation's sentence.
       preview: z.boolean({ error: 'Must be true or false.' }).optional(),
     })
@@ -272,10 +270,7 @@ export const reopenBillSchema = z.object({
   params: billIdParam,
   body: z
     .object({
-      approval: z
-        .object({ approverId: objectId, pin: z.string().trim().regex(/^\d{4,6}$/, 'A PIN is 4 to 6 digits.') })
-        .strict('Is not a field you can set here.')
-        .optional(),
+      approval: approval.optional(),
     })
     .strict('Is not a field you can set here.')
     .default({}),

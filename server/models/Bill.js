@@ -400,6 +400,8 @@ const billSchema = new mongoose.Schema({
   isVoided: { type: Boolean, required: true, default: false },
   voidedAt: { type: Date, default: null },
   voidedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  // P28. The owner or manager who typed their PIN for a cashier's void.
+  voidApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   /** From P04 the optional note. Older bills keep their free-text reason here. */
   voidReason: { type: String, trim: true, maxlength: VOID_REASON_MAX_LENGTH, default: null },
   /** P04. The fixed reason, from BILL_VOID_REASONS. Null before P04. */

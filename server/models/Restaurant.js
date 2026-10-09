@@ -249,6 +249,19 @@ const billingSettingsSchema = new mongoose.Schema(
 );
 
 /**
+ * Approvals. P28. What a cashier or captain needs an owner's or manager's PIN
+ * for. Every field defaults on, so a restaurant saved before P28 asks.
+ */
+const approvalSettingsSchema = new mongoose.Schema(
+  {
+    lineCancel: { type: Boolean, required: true, default: true },
+    paidIn: { type: Boolean, required: true, default: true },
+    managerTasks: { type: Boolean, required: true, default: true },
+  },
+  { _id: false },
+);
+
+/**
  * Cash. P25 Part F. The notes and coins counted for the opening float, at Day
  * Close, and on a cash payment. India by default, largest first; ₹2,000 is
  * listed and off, because it is withdrawn from circulation.
@@ -476,6 +489,7 @@ const settingsSchema = new mongoose.Schema(
     delivery: { type: deliverySettingsSchema, default: () => ({}) },
     discounts: { type: discountSettingsSchema, default: () => ({}) },
     billing: { type: billingSettingsSchema, default: () => ({}) },
+    approvals: { type: approvalSettingsSchema, default: () => ({}) },
     dayClose: { type: dayCloseSettingsSchema, default: () => ({}) },
     cash: { type: cashSettingsSchema, default: () => ({}) },
     payments: { type: paymentSettingsSchema, default: () => ({}) },

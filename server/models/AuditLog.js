@@ -82,6 +82,9 @@ export const AUDIT_ACTIONS = Object.freeze({
   // P25 Part K. A computer given, or refused, the right to post into Tally.
   TALLY_BRIDGE_PAIRED: 'TALLY_BRIDGE_PAIRED',
   TALLY_BRIDGE_REVOKED: 'TALLY_BRIDGE_REVOKED',
+  // P28. A cancel or a paid in a manager approved by PIN on someone else's screen.
+  LINE_CANCELLED_APPROVED: 'LINE_CANCELLED_APPROVED',
+  CASH_PAID_IN: 'CASH_PAID_IN',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 
@@ -128,6 +131,7 @@ export const MANAGER_VISIBLE_ACTIONS = Object.freeze([
   AUDIT_ACTIONS.ORDER_CANCELLED,
   AUDIT_ACTIONS.STOCK_ADJUSTED,
   AUDIT_ACTIONS.LINE_CANCELLED_AFTER_PREP,
+  AUDIT_ACTIONS.LINE_CANCELLED_APPROVED,
 ]);
 
 export const AUDIT_REASON_MAX_LENGTH = 500;

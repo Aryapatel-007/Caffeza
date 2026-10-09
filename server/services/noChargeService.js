@@ -22,7 +22,8 @@ import { withOptionalTransaction } from '../utils/transaction.js';
 import { recordAudit } from './auditService.js';
 import { assertDayOpen } from './dayLockService.js';
 import { applyVersionedUpdate, computeLineTotalInPaise, loadOrderInTenant } from './orderService.js';
-import { getSetting } from './settingsService.js';
+import { approverForManagerTask } from './approvalService.js';
+import { getSetting, getSettings } from './settingsService.js';
 
 /** The four rules, each a 422 with its own sentence. */
 async function assertNoChargeAllowed(req, order) {
@@ -44,8 +45,14 @@ async function assertNoChargeAllowed(req, order) {
   }
 }
 
-/** POST /orders/:orderId/no-charge. OWNER and MANAGER, gated on the route. */
-export async function giveNoCharge(req, orderId, { version, reasonCode, note = null }) {
+/**
+ * POST /orders/:orderId/no-charge. An owner or manager; a cashier with an
+ * owner's or manager's PIN when the owner allows it (P28). `approvedBy` keeps
+ * its meaning: whoever allowed the food to go free.
+ */
+export async function giveNoCharge(req, orderId, { version, reasonCode, note = null, approval = null }) {
+  const { approvals } = await getSettings(req.restaurantId, { req });
+  const approver = await approverForManagerTask(req, approval, approvals, 'Only an owner or a manager can give No Charge.');
   const order = await loadOrderInTenant(req, orderId);
   await assertNoChargeAllowed(req, order);
 
@@ -69,7 +76,7 @@ export async function giveNoCharge(req, orderId, { version, reasonCode, note = n
           noCharge: {
             reasonCode,
             note: note ?? null,
-            approvedBy: req.user.id,
+            approvedBy: approver ?? req.user.id,
             at,
             businessDate: today,
             valueInPaise,
@@ -93,6 +100,7 @@ export async function giveNoCharge(req, orderId, { version, reasonCode, note = n
           tableName: order.tableName ?? null,
           reasonCode,
           lineCount: liveLines.length,
+          ...(approver ? { approvedBy: String(approver) } : {}),
         },
       },
       session,

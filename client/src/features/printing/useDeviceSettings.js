@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { DEFAULT_PRINTER, printerFor } from './printers.js';
+import {
+  BILL_TEXT_SIZES,
+  DEFAULT_BILL_TEXT_SIZE,
+  DEFAULT_EDGE_MARGIN,
+  DEFAULT_PAPER_LENGTH,
+  DEFAULT_PRINTER,
+  EDGE_MARGINS,
+  PAPER_LENGTHS,
+  printerFor,
+} from './printers.js';
 
 /**
  * Settings that belong to this device, not to a user or the restaurant. P05.
@@ -28,6 +37,12 @@ const DEFAULTS = Object.freeze({
   // P25. THERMAL_80, THERMAL_58, A4 or A5. Replaced P05's `paperMm`, which a
   // device that saved one is moved from on its next load.
   printer: DEFAULT_PRINTER,
+  // 2026-10-09. BILL or ROLL: how long a thermal page is. printers.js says why.
+  paperLength: DEFAULT_PAPER_LENGTH,
+  // 2026-10-09. SMALL, NORMAL or LARGE: the thermal bill's text, from invoiceHtml.js.
+  billTextSize: DEFAULT_BILL_TEXT_SIZE,
+  // 2026-10-09. NONE, SMALL or MORE: space kept clear at each side of a roll, from printers.js.
+  edgeMargin: DEFAULT_EDGE_MARGIN,
   autoPrintKots: false,
   // P25 Part D. A counter computer prints the bills captains send it.
   printCaptainBills: false,
@@ -60,7 +75,10 @@ let lastWritten = null;
 /** Fills in defaults, and moves a device saved before P25 from paper width to a printer. */
 function withDefaults(stored) {
   const { paperMm: _legacy, ...rest } = { ...DEFAULTS, ...stored };
-  return { ...rest, printer: printerFor(stored) };
+  const paperLength = PAPER_LENGTHS[rest.paperLength] ? rest.paperLength : DEFAULT_PAPER_LENGTH;
+  const billTextSize = BILL_TEXT_SIZES[rest.billTextSize] ? rest.billTextSize : DEFAULT_BILL_TEXT_SIZE;
+  const edgeMargin = EDGE_MARGINS[rest.edgeMargin] ? rest.edgeMargin : DEFAULT_EDGE_MARGIN;
+  return { ...rest, printer: printerFor(stored), paperLength, billTextSize, edgeMargin };
 }
 
 function readStored() {
@@ -73,6 +91,11 @@ function readStored() {
 
 function read() {
   return withDefaults(readStored() ?? lastWritten ?? {});
+}
+
+/** This device's settings, outside React: the print frame reads the paper length here. */
+export function readDeviceSettings() {
+  return read();
 }
 
 function write(settings) {

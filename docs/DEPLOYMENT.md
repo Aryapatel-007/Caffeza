@@ -232,6 +232,17 @@ Staff open Chrome only through that shortcut.
 Paper width, 80 mm or 58 mm: `TO CONFIRM` from their printer model.
 If stations want paper KOTs, the station tablet gets the same setup with its own printer. P05 covers this.
 
+**The thermal printer.**
+On This device, choose the printer's roll: Thermal, 80 mm (a Rugtek RP326, for one) or Thermal, 58 mm. A bill is laid out at the width the print head reaches, 72 mm or 48 mm.
+
+Paper length, also on This device, is "As long as the bill" by default: the page is exactly the bill, so Chrome's preview shows only the bill and the printer cuts after it. If a printer then prints blank paper above the bill, its driver has no paper of that size and centres the page; choose "The printer's roll" instead, and set the driver:
+
+1. Paper size: the roll, for example "80 x 3276 mm" or "58 x 3276 mm", never A4. On Windows, Printers, the printer, Printing preferences; on a Mac, Printers & Scanners and the paper size in Chrome's print dialog.
+2. Blank space at the end: compress or skip it, and cut after the document, where the driver offers it.
+3. Print density or darkness: raise it if the bill prints light. Thermal paper also prints faint when it is old or kept in heat.
+
+If the right-hand edge of the bill is cut off on paper, first check the driver's paper size is the 80 mm roll, not 58 mm or A4. If it is and the last letters are still cut, choose Edge margin, 2 mm each side, on This device. Bill text size, also there, makes the text smaller or larger without changing the layout.
+
 ---
 
 ## 11. When something breaks during service

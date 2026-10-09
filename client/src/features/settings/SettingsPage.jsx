@@ -305,6 +305,33 @@ export default function SettingsPage() {
           />
         </Section>
 
+        {/* P28. What needs an owner's or manager's PIN on someone else's screen. */}
+        {form.approvals && (
+          <Section
+            title="Approvals"
+            description="When a cashier or captain needs an owner's or manager's PIN, typed on the same screen. Owners and managers never need one. Each person's PIN is set on the Staff screen."
+          >
+            <Checkbox
+              label="Cancelling an item the kitchen already has"
+              hint="A cashier or captain cancelling a dish that was sent to the kitchen. Taking back a dish never sent needs no PIN."
+              checked={form.approvals.lineCancel}
+              onChange={set('approvals', 'lineCancel')}
+            />
+            <Checkbox
+              label="Cash paid in"
+              hint="A cashier putting cash into the drawer that is not a sale."
+              checked={form.approvals.paidIn}
+              onChange={set('approvals', 'paidIn')}
+            />
+            <Checkbox
+              label="Let a cashier void, cancel an order, give No Charge and pay out, with a PIN"
+              hint="Off: only owners and managers can do these at all."
+              checked={form.approvals.managerTasks}
+              onChange={set('approvals', 'managerTasks')}
+            />
+          </Section>
+        )}
+
         <Section
           title="Day Close"
           description="By default a manager counts the drawer without seeing what it should hold, and only the owner sees the difference."

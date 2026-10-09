@@ -18,6 +18,7 @@ import {
   isPhoneRegistered,
   setPassword,
   setPin,
+  usersWithPin,
 } from '../services/authService.js';
 import { recordAudit } from '../services/auditService.js';
 import { revokeAllForUser } from '../services/tokenService.js';
@@ -350,7 +351,7 @@ export async function setUserPin(req, res) {
     action: AUDIT_ACTIONS.USER_PIN_RESET,
     entityType: AUDIT_ENTITY_TYPES.USER,
     entityId: user._id,
-    reason: 'Attendance PIN set by someone else.',
+    reason: 'PIN set.',
     details: { role: user.role },
   });
 
@@ -372,8 +373,10 @@ export async function listApprovers(req, res) {
     .select('name role')
     .sort({ name: 1 })
     .lean();
+  // P28. Whether a PIN is set, so the approval step can say the owner must set one first. Never the PIN.
+  const withPin = await usersWithPin({ restaurantId: req.restaurantId, userIds: approvers.map((user) => user._id) });
   return sendSuccess(
     res,
-    approvers.map((user) => ({ id: String(user._id), name: user.name, role: user.role })),
+    approvers.map((user) => ({ id: String(user._id), name: user.name, role: user.role, hasPin: withPin.has(String(user._id)) })),
   );
 }

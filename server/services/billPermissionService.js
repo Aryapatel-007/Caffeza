@@ -99,6 +99,7 @@ export function assertCanCorrectPayment(actor) {
 }
 
 /** Voiding a bill. Same reasoning as a discount, and the same roles. */
+/** Before P28 the void route's own rule; a cashier with a PIN now goes through approvalService. */
 export function assertCanVoid(actor) {
   if (!isManagerOrAbove(actor.role)) {
     throw new ForbiddenError('Only an owner or a manager can void a bill.');

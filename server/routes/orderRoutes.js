@@ -72,6 +72,9 @@ const router = Router();
 /** Setting up the floor, and cancelling a whole order. The people who run the place. */
 const managers = [authenticate, tenant, requireRole(ROLES.OWNER, ROLES.MANAGER)];
 
+/** P28. Manager work a cashier may do with an owner's or manager's PIN; the service decides. */
+const managersOrTill = [authenticate, tenant, requireRole(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER)];
+
 /**
  * Taking orders. Everyone on the floor.
  *
@@ -141,18 +144,22 @@ router.post('/orders/:orderId/fire', ...floor, validate(fireOrderSchema), fireOr
 router.patch('/orders/:orderId/table', ...floor, validate(moveOrderTableSchema), moveOrderToTable);
 
 /**
- * Cancelling a WHOLE order is OWNER and MANAGER only, unlike cancelling one
- * line, which any of the four floor roles may do.
+ * Cancelling a WHOLE order is manager work, unlike cancelling one line, which
+ * any of the four floor roles may do.
  *
  * This is deliberate and it is not a tidiness inconsistency. A whole-order
  * cancel is how a table disappears, and a table disappearing is how cash walks
  * out of a restaurant. Do not widen this to `floor` to make the file look
  * consistent.
+ *
+ * P28: the route lets a CASHIER through, and `approverForManagerTask` in the
+ * controller refuses them unless an owner or manager types their PIN and the
+ * owner allows it (`settings.approvals.managerTasks`). A WAITER never.
  */
-router.post('/orders/:orderId/cancel', ...managers, validate(cancelOrderSchema), cancelOrder);
+router.post('/orders/:orderId/cancel', ...managersOrTill, validate(cancelOrderSchema), cancelOrder);
 
-/** P08. Giving food away free is manager work, the same as cancelling a whole order. */
-router.post('/orders/:orderId/no-charge', ...managers, validate(noChargeSchema), postNoCharge);
+/** P08. Giving food away free is manager work, the same as cancelling a whole order. P28 as above. */
+router.post('/orders/:orderId/no-charge', ...managersOrTill, validate(noChargeSchema), postNoCharge);
 
 // ---------------------------------------------------------------------------
 // Kitchen tickets

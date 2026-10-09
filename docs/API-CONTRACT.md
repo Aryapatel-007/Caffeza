@@ -2561,13 +2561,26 @@ it through `Money`.
 
 404 for another restaurant's bill.
 
+**Added 2026-10-09, for the thermal bill's layout:** `cashierName`, the name of
+the person who made the bill (`billedBy`), read when the bill is printed, a
+label only, like the KOT's fired-by name; and `customer`, `{ name, mobileLast4 }`
+from the order's `customerName` and `customerPhone`, or null when the order has
+neither. Only the last four digits of a mobile ever leave the server here; the
+bill prints them as `XXXXXX1234`.
+
 **The printer belongs to the device** (P25 Part C). "This device" stores one
 printer setting, `THERMAL_80`, `THERMAL_58`, `A4` or `A5`, under the single
 device storage key from P05; a device that stored 80 or 58 becomes
-`THERMAL_80` or `THERMAL_58` on its next load. A thermal printer prints the
-receipt text from section 15 at 48 or 32 characters on a page exactly the
-receipt's height (`@page { size: <width>mm <height>mm }`, never `auto`, from
-the pure function `pageCss`). A4 and A5 print this endpoint's data as a full
+`THERMAL_80` or `THERMAL_58` on its next load. From 2026-10-09 a thermal
+printer prints a bill from this endpoint's data too, laid out in the
+restaurant's familiar thermal layout (logo, store block, guest, order details,
+Item, Qty., Price and Amount, totals), at the head's printable width, 48 mm or
+72 mm, less the device's edge margin (none, 2 or 4 mm each side), on a page
+exactly that wide and as long as the bill (`@page { size: 72mm <height>mm }`,
+never `auto`), or, when the device's paper length is
+`ROLL`, from the top of the driver's roll (`@page { margin: 0 }`), both from
+the pure function `pageCss`. The receipt text from section 15 is still what KOTs and the
+Day Close print, and what the receipt endpoint returns. A4 and A5 print this endpoint's data as a full
 tax invoice, black on white, 12 mm margins. KOTs and the Day Close print follow
 the same setting; on A4 or A5 they print as one large block at the top of the
 page. When `receipt.reviewLinkUrl` is set, every printed bill ends with its QR

@@ -22,6 +22,9 @@ import { markReady, openStation, tickets } from './pages/kitchen.js';
 import { closeDay, setInvoiceSeries } from './pages/manager.js';
 import { addItems, billOrder, cancelLine, giveNoCharge, removeUnsent, sendToKitchen, serveAll } from './pages/order.js';
 
+/** The golden manager's PIN, as MANAGER_PIN in server/tests/helpers/goldenDay.js. */
+const MANAGER_PIN = '2468';
+
 const SCREENSHOTS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'screenshots');
 const DAY = '2026-09-26';
 const NEXT = '2026-09-27';
@@ -337,11 +340,12 @@ test('the golden day, through the screens', async ({ browser }) => {
     await at('20:55');
     await markReady(liveKitchen.page, 'Live Kitchen', 'Table 11');
   });
-  await test.step('9:00 PM Khuman Singh cancels Thecha Paneer Chilli, made', async () => {
+  await test.step("9:00 PM Khuman Singh cancels Thecha Paneer Chilli, made, with the manager's PIN", async () => {
     await at('21:00');
     const { page } = captains['Khuman Singh'];
     await openTableOrder(page, 'Table 11');
-    await cancelLine(page, 'Thecha Paneer Chilli', 'Guest changed the order', true);
+    // P28: the dish was made, so a captain needs the manager to type their PIN on this phone.
+    await cancelLine(page, 'Thecha Paneer Chilli', 'Guest changed the order', true, { name: 'Manager', pin: MANAGER_PIN });
   });
   await test.step('9:01 PM the kitchen no longer shows Thecha Paneer Chilli', async () => {
     await at('21:01');

@@ -333,7 +333,8 @@ describe('the lock on a closed day', () => {
     setClockForTests(ist('12:00', '2026-09-27'));
     const paidIn = await request('POST', '/api/v1/cash-movements', {
       token: golden.tokens.CASHIER,
-      body: { type: 'PAID_IN', amountInPaise: 500, reason: 'Change from the bank' },
+      // P28: a cashier's paid in needs the manager's PIN.
+      body: { type: 'PAID_IN', amountInPaise: 500, reason: 'Change from the bank', approval: golden.managerApproval },
     });
     assert.equal(paidIn.status, 201, JSON.stringify(paidIn.body));
     assert.equal(paidIn.body.data.businessDate, '2026-09-27');

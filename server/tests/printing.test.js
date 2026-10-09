@@ -6,13 +6,16 @@ import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
 import {
+  BILL_TEXT_SIZES,
+  billFontPx,
   charactersFor,
+  contentWidthMm,
+  monospaceFontMm,
   pageCss,
-  PRINTER_KEYS,
   printerFor,
-  THERMAL_FEED_MM,
 } from '../../client/src/features/printing/printers.js';
 import { ALL_MODELS } from '../models/index.js';
+import { Order } from '../models/Order.js';
 import { paiseToRupees } from '../utils/money.js';
 import { buildGoldenDay } from './helpers/goldenDay.js';
 import { seedTeam } from './helpers/m2Fixtures.js';
@@ -34,26 +37,54 @@ after(async () => {
 });
 
 describe('the page a print gets', () => {
-  it('gives a thermal roll two lengths, the content height plus the feed, and never auto', () => {
+  it('gives a thermal bill a page exactly its printed width and measured height, never auto', () => {
+    assert.equal(pageCss({ printer: 'THERMAL_80', contentHeightMm: 143.2 }), '@page { size: 72mm 145mm; margin: 0; }');
+    assert.equal(pageCss({ printer: 'THERMAL_58', contentHeightMm: 143.2, paperLength: 'BILL' }), '@page { size: 48mm 145mm; margin: 0; }');
+    assert.doesNotMatch(pageCss({ printer: 'THERMAL_58', contentHeightMm: 50 }), /auto/);
+    assert.throws(() => pageCss({ printer: 'THERMAL_80' }), /measured height/);
+    assert.throws(() => pageCss({ printer: 'THERMAL_80', contentHeightMm: 0 }), /measured height/);
+  });
+
+  it('narrows the bill and its page together when the device keeps the edges clear', () => {
+    assert.equal(contentWidthMm('THERMAL_80', 'SMALL'), 68);
+    assert.equal(contentWidthMm('THERMAL_80', 'MORE'), 64);
+    assert.equal(contentWidthMm('THERMAL_58', 'SMALL'), 44);
+    assert.equal(contentWidthMm('THERMAL_80', 'UNKNOWN'), 72);
+    assert.equal(pageCss({ printer: 'THERMAL_80', contentHeightMm: 100, edgeMargin: 'SMALL' }), '@page { size: 68mm 101mm; margin: 0; }');
+    assert.equal(contentWidthMm('A4', 'MORE'), 186);
+  });
+
+  it("names no size on the printer's roll, so the bill starts at the top of the driver's paper", () => {
     for (const printer of ['THERMAL_80', 'THERMAL_58']) {
-      const css = pageCss({ printer, contentHeightMm: 143.2 });
-      const width = printer === 'THERMAL_80' ? 80 : 58;
-      assert.equal(css, `@page { size: ${width}mm ${144 + THERMAL_FEED_MM}mm; margin: 0; }`);
-      assert.doesNotMatch(css, /auto/);
-      assert.match(css, /size: \d+mm \d+mm;/);
+      assert.equal(pageCss({ printer, contentHeightMm: 120, paperLength: 'ROLL' }), '@page { margin: 0; }');
     }
+  });
+
+  it('lays a roll out to what the head prints, and fits its characters inside it', () => {
+    assert.equal(contentWidthMm('THERMAL_58'), 48);
+    assert.equal(contentWidthMm('THERMAL_80'), 72);
+    for (const printer of ['THERMAL_58', 'THERMAL_80']) {
+      const lineMm = monospaceFontMm(printer) * 0.6 * charactersFor(printer);
+      assert.ok(lineMm <= contentWidthMm(printer) - 2 + 1e-9, `${printer}: ${lineMm} mm`);
+    }
+  });
+
+  it("sizes the thermal bill's text per roll, Normal by default and for anything unknown", () => {
+    assert.equal(billFontPx('THERMAL_80'), 13.5);
+    assert.equal(billFontPx('THERMAL_58'), 10);
+    assert.equal(billFontPx('THERMAL_80', 'LARGE'), 15);
+    assert.equal(billFontPx('THERMAL_58', 'SMALL'), 9);
+    assert.equal(billFontPx('THERMAL_80', 'HUGE'), 13.5);
+    for (const size of Object.keys(BILL_TEXT_SIZES)) assert.ok(billFontPx('THERMAL_58', size) < billFontPx('THERMAL_80', size));
   });
 
   it('gives A4 and A5 their own paper with 12 mm margins', () => {
     assert.equal(pageCss({ printer: 'A4' }), '@page { size: A4; margin: 12mm; }');
     assert.equal(pageCss({ printer: 'A5' }), '@page { size: A5; margin: 12mm; }');
-    for (const printer of PRINTER_KEYS) assert.doesNotMatch(pageCss({ printer, contentHeightMm: 50 }), /auto/);
   });
 
-  it('refuses a thermal page with no measured height, and an unknown printer', () => {
-    assert.throws(() => pageCss({ printer: 'THERMAL_80' }), /measured height/);
-    assert.throws(() => pageCss({ printer: 'THERMAL_80', contentHeightMm: 0 }), /measured height/);
-    assert.throws(() => pageCss({ printer: 'LETTER', contentHeightMm: 50 }), /Unknown printer/);
+  it('refuses an unknown printer', () => {
+    assert.throws(() => pageCss({ printer: 'LETTER' }), /Unknown printer/);
   });
 
   it('moves a device that saved a paper width to the same paper, as a printer', () => {
@@ -102,6 +133,20 @@ describe('the receipt and the full-page invoice', () => {
       invoice.payments.forEach((payment) => onPaper(payment.amountInPaise));
       assert.ok(text.includes(invoice.billNumber), name);
     }
+  });
+
+  it('names the cashier, and shows a guest by name and the last four digits of their mobile only', async () => {
+    const plain = await request('GET', `/api/v1/bills/${golden.ids.bills.B01}/invoice`, { token: golden.tokens.OWNER });
+    assert.equal(plain.status, 200);
+    assert.equal(typeof plain.body.data.cashierName, 'string');
+    assert.ok(plain.body.data.cashierName.length > 0);
+
+    const orderId = golden.ids.orders.B01;
+    await Order.updateOne({ restaurantId: golden.restaurant._id, _id: orderId }, { $set: { customerName: 'Asha', customerPhone: '9876543210' } });
+    const named = await request('GET', `/api/v1/bills/${golden.ids.bills.B01}/invoice`, { token: golden.tokens.OWNER });
+    assert.deepEqual(named.body.data.customer, { name: 'Asha', mobileLast4: '3210' });
+    assert.doesNotMatch(JSON.stringify(named.body), /9876543210|987654/);
+    await Order.updateOne({ restaurantId: golden.restaurant._id, _id: orderId }, { $set: { customerName: null, customerPhone: null } });
   });
 
   it('is readable by the same six roles as the receipt, and by no other restaurant', async () => {

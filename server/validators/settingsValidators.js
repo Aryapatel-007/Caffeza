@@ -244,6 +244,15 @@ const billing = z
   })
   .strict();
 
+/** Approvals. P28. What needs an owner's or manager's PIN. */
+const approvals = z
+  .object({
+    lineCancel: z.boolean({ error: 'Must be true or false.' }).optional(),
+    paidIn: z.boolean({ error: 'Must be true or false.' }).optional(),
+    managerTasks: z.boolean({ error: 'Must be true or false.' }).optional(),
+  })
+  .strict();
+
 /**
  * Cash. P25 Part F. The whole list is sent and replaces the stored one. Values
  * are whole paise above 0, unique within a kind (₹20 may be a note and a
@@ -429,6 +438,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'delivery',
   'discounts',
   'billing',
+  'approvals',
   'dayClose',
   'cash',
   'payments',
@@ -478,6 +488,7 @@ export const updateSettingsSchema = z.object({
       delivery: delivery.optional(),
       discounts: discounts.optional(),
       billing: billing.optional(),
+      approvals: approvals.optional(),
       dayClose: dayClose.optional(),
       cash: cash.optional(),
       payments: payments.optional(),

@@ -5,9 +5,11 @@ import ReasonPicker, { isReasonComplete, reasonBody } from '../../components/ui/
 import { LABELS } from '../i18n/labels.js';
 import Sheet from '../../components/ui/Sheet.jsx';
 import Money from '../../components/ui/Money.jsx';
+import ApprovalStep, { useApproval } from '../../components/ui/ApprovalStep.jsx';
 
 /**
- * Voiding a bill. OWNER and MANAGER only, enforced on the server.
+ * Voiding a bill. OWNER and MANAGER, or a cashier with an owner's or manager's
+ * PIN (P28, `needsApproval`), enforced on the server.
  *
  * The confirmation states the consequence, not the question: "this bill will
  * be voided, the number stays used, this much comes off today's total" —
@@ -15,9 +17,10 @@ import Money from '../../components/ui/Money.jsx';
  * this and still means to void it has the information the sentence needed to
  * carry; one who does not can back out having actually learned what happens.
  */
-export default function VoidBillPanel({ bill, isBusy, error, onCancel, onConfirm }) {
+export default function VoidBillPanel({ bill, needsApproval = false, isBusy, error, onCancel, onConfirm }) {
   const [reason, setReason] = useState({ reasonCode: null, note: '' });
-  const canConfirm = isReasonComplete(reason) && !isBusy;
+  const approval = useApproval(needsApproval);
+  const canConfirm = isReasonComplete(reason) && approval.ready && !isBusy;
 
   return (
     <Sheet title={LABELS.voidBill} onCancel={onCancel}>
@@ -41,6 +44,8 @@ export default function VoidBillPanel({ bill, isBusy, error, onCancel, onConfirm
         noteMaxLength={500}
       />
 
+      <ApprovalStep approval={approval} />
+
       {error && <p className="mb-3 type-caption text-alert">{error}</p>}
 
       <div className="flex gap-2">
@@ -54,7 +59,7 @@ export default function VoidBillPanel({ bill, isBusy, error, onCancel, onConfirm
         <button
           type="button"
           disabled={!canConfirm}
-          onClick={() => onConfirm(reasonBody(reason))}
+          onClick={() => onConfirm({ ...reasonBody(reason), ...approval.body })}
           className="min-h-14 flex-[2] rounded-lg bg-alert type-button text-on-accent disabled:opacity-50"
         >
           {isBusy ? 'Voiding…' : LABELS.voidBill}

@@ -220,7 +220,7 @@ export async function me(req, res) {
   // the page address for the copy-link button. The server still decides.
   // P25. Whether a captain may bill and take payment, so the order screen knows. The server still decides.
   // P25 Part F. The active notes and coins, for the cash counter on the till.
-  const { features, discounts, billing, floor, appearance, online, cash } = await getSettings(req.restaurantId, { req });
+  const { features, discounts, billing, approvals, floor, appearance, online, cash } = await getSettings(req.restaurantId, { req });
   const now = nowUtc();
 
   return sendSuccess(res, {
@@ -234,6 +234,12 @@ export async function me(req, res) {
     billing: {
       captainsMayBill: billing.captainsMayBill,
       captainsMayTakePayment: billing.captainsMayTakePayment,
+    },
+    // P28. What needs a manager's PIN, so the till and the captain know when to ask. The server still decides.
+    approvals: {
+      lineCancel: approvals.lineCancel,
+      paidIn: approvals.paidIn,
+      managerTasks: approvals.managerTasks,
     },
     // P25 Part I. The card machines this device may send a payment to.
     terminals: await activeTerminals(req),

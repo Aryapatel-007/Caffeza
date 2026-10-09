@@ -16,20 +16,18 @@
 import mongoose from 'mongoose';
 
 import { LINE_CANCEL_REASONS } from '../config/cancelReasons.js';
-import { ROLES } from '../config/roles.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Bill } from '../models/Bill.js';
 import { OnlinePayment } from '../models/OnlinePayment.js';
 import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
 import { Refund, REFUND_STATUSES } from '../models/Refund.js';
-import { User } from '../models/User.js';
-import { BusinessRuleError, ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { BusinessRuleError, NotFoundError } from '../utils/errors.js';
 import { sumPaise } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { nowUtc } from '../utils/time.js';
 import { recordAudit } from './auditService.js';
+import { approverFor } from './approvalService.js';
 import { carryPayments, leftoversWithoutBill } from './billCarryService.js';
-import { verifyPin } from './authService.js';
 import { assertNotVoided } from './billPermissionService.js';
 import { billCreationErrorFor, createBillInSession, readBill, voidBillInSession } from './billService.js';
 import { assertDayOpen, todayBusinessDate } from './dayLockService.js';
@@ -38,43 +36,11 @@ import { refund as refundOnline } from './onlinePaymentService.js';
 import { applyVersionedUpdate, assertWasPreparedRule, computeLineTotalInPaise } from './orderService.js';
 import { getSettings, isFeatureOn } from './settingsService.js';
 
-const MANAGERS = Object.freeze([ROLES.OWNER, ROLES.MANAGER]);
-
 /** Thrown inside a preview's transaction so it rolls back. Never leaves this file. */
 class PreviewOnly extends Error {}
-const APPROVAL_NEEDED = 'A manager has to approve this. Pick their name and type their PIN.';
 
 /** Order reasons a line reason carries over to, when every item goes. */
 const ORDER_REASON_FOR = Object.freeze({ GUEST_LEFT: 'GUEST_LEFT', PLATFORM_CANCELLED: 'PLATFORM_CANCELLED' });
-
-/**
- * Who may, and who approved. OWNER and MANAGER approve themselves. A CASHIER,
- * or a WAITER when captains may bill, needs an OWNER or MANAGER of the same
- * restaurant to type their PIN on the same screen: checked by verifyPin, which
- * issues no session and locks after five wrong tries.
- */
-export async function approverFor(req, approval, billing, { preview = false } = {}) {
-  if (MANAGERS.includes(req.user.role)) return req.user.id;
-  const mayAsk = req.user.role === ROLES.CASHIER || (req.user.role === ROLES.WAITER && billing.captainsMayBill);
-  if (!mayAsk) throw new ForbiddenError('Only the counter can cancel an item on a bill.');
-  // A preview changes nothing, so it needs no manager yet: the screen shows the numbers, then asks for the PIN.
-  if (preview) return null;
-  if (!approval) throw new ForbiddenError(APPROVAL_NEEDED);
-
-  const approver = await User.findOne({
-    restaurantId: req.restaurantId,
-    _id: approval.approverId,
-    isActive: true,
-    role: { $in: MANAGERS },
-  })
-    .select('_id branchId')
-    .lean();
-  // The same answer whether the person does not exist or is not a manager.
-  if (!approver) throw new ForbiddenError(APPROVAL_NEEDED);
-
-  await verifyPin({ restaurantId: req.restaurantId, branchId: approver.branchId, userId: approver._id }, approval.pin);
-  return approver._id;
-}
 
 /**
  * POST /bills/:billId/cancel-lines. Returns `{ bill, voidedBillId,
@@ -169,7 +135,17 @@ async function runInSession(req, { billId, lines, reasonCode, note, names, appro
     cancelledValueInPaise += computeLineTotalInPaise(line);
     order = await cancelLineInSession(
       req,
-      { order, line, version: order.version, reasonCode, note, wasPrepared: entry.wasPrepared, inventoryOn },
+      {
+        order,
+        line,
+        version: order.version,
+        reasonCode,
+        note,
+        wasPrepared: entry.wasPrepared,
+        inventoryOn,
+        approvedBy: String(approvedBy) === String(req.user.id) ? null : approvedBy,
+        auditApproval: false,
+      },
       session,
     );
   }

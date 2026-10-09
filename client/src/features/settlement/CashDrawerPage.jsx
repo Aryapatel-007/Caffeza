@@ -10,6 +10,7 @@ import { countedTotal, toCashCount } from '../cash/cashCount.js';
 import Spinner from '../../components/ui/Spinner.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { listCashMovements, recordCashMovement, voidCashMovement } from '../../api/dayClose.js';
+import ApprovalStep, { useApproval } from '../../components/ui/ApprovalStep.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { formatBusinessDate, formatTimeIst } from '../../utils/formatDate.js';
 import { parseRupeesToPaise } from '../../utils/formatMoney.js';
@@ -31,8 +32,9 @@ const WORDS = { OPENING_FLOAT: 'Opening float', PAID_IN: 'Paid in', PAID_OUT: 'P
  * One form for every entry: pick what it is, type the amount on the keypad,
  * say what for. `types` is what this person may record, in the order they are
  * usually needed, so the opening float comes first until there is one.
+ * `needsApprovalFor` (P28) lists the types that need an owner's or manager's PIN.
  */
-function EntryForm({ types, denominations, onDone, onError }) {
+function EntryForm({ types, needsApprovalFor = [], denominations, onDone, onError }) {
   const [type, setType] = useState(types[0]);
   const [amount, setAmount] = useState('');
   // P25 Part F. The opening float is counted by notes and coins.
@@ -43,13 +45,14 @@ function EntryForm({ types, denominations, onDone, onError }) {
   const isFloat = chosen === 'OPENING_FLOAT';
   const amountInPaise = isFloat ? countedTotal(counts, denominations) : parseRupeesToPaise(amount);
   const needsReason = !isFloat;
+  const approval = useApproval(needsApprovalFor.includes(chosen));
 
   const save = useMutation({
     mutationFn: () =>
       recordCashMovement(
         isFloat
           ? { type: chosen, cashCount: toCashCount(counts, denominations) }
-          : { type: chosen, amountInPaise, reason: reason.trim() },
+          : { type: chosen, amountInPaise, reason: reason.trim(), ...approval.body },
       ),
     onSuccess: () => {
       setAmount('');
@@ -94,10 +97,11 @@ function EntryForm({ types, denominations, onDone, onError }) {
           placeholder={chosen === 'PAID_OUT' ? 'Milk from the dairy' : 'Change from the bank'}
         />
       )}
+      <ApprovalStep key={chosen} approval={approval} />
       <Button
         type="button"
         size="lg"
-        disabled={!amountInPaise || amountInPaise <= 0 || (needsReason && !reason.trim())}
+        disabled={!amountInPaise || amountInPaise <= 0 || (needsReason && !reason.trim()) || !approval.ready}
         isLoading={save.isPending}
         onClick={() => save.mutate()}
       >
@@ -112,6 +116,8 @@ export default function CashDrawerPage() {
   const { user, features } = useAuth();
   const [toast, setToast] = useState(null);
   const isManager = [ROLES.OWNER, ROLES.MANAGER].includes(user?.role);
+  // P28. A cashier's paid in, and a paid out, may need an owner's or manager's PIN.
+  const approvals = features?.approvals ?? { lineCancel: true, paidIn: true, managerTasks: true };
 
   const query = useQuery({ queryKey: ['cash-movements'], queryFn: () => listCashMovements() });
   const done = (message) => {
@@ -178,7 +184,8 @@ export default function CashDrawerPage() {
         )}
 
         <EntryForm
-          types={[!hasFloat && 'OPENING_FLOAT', 'PAID_IN', isManager && 'PAID_OUT'].filter(Boolean)}
+          types={[!hasFloat && 'OPENING_FLOAT', 'PAID_IN', (isManager || approvals.managerTasks) && 'PAID_OUT'].filter(Boolean)}
+          needsApprovalFor={isManager ? [] : [approvals.paidIn && 'PAID_IN', 'PAID_OUT'].filter(Boolean)}
           denominations={features?.cash?.denominations ?? []}
           onDone={done}
           onError={fail}

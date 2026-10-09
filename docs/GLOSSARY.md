@@ -411,3 +411,21 @@ Added by P28.
 | **Set PIN** | Give a person a new PIN, on the Staff screen |
 | **Approvals** | The settings that decide what needs a manager's PIN |
 | **Approved by** | Defined in section 9. From P28 it is also stored on a cancelled line, a cancelled order, a voided bill and a cash entry. |
+
+---
+
+## 19. Words on the printed thermal bill
+
+Added 2026-10-09. The thermal bill keeps the words Z Chaat's guests and staff
+already know from their old bill. They are printed words only; screens and
+reports keep the terms above.
+
+| Printed word | Our term |
+|---|---|
+| **Sub Total** | Item total |
+| **Grand Total** | Bill total |
+| **Total Qty** | Sum of the quantities on the bill |
+| **Price** | Rate, section 16: one of the item, add-ons included, before GST |
+| **Amount** | Line total |
+| **Cashier** | The person who made the bill |
+| **Bill No.** | Invoice number |

@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/AuthContext.jsx';
-import { PRINTER_KEYS, PRINTERS } from './printers.js';
+import { BILL_TEXT_SIZES, EDGE_MARGINS, PAPER_LENGTHS, PRINTER_KEYS, PRINTERS } from './printers.js';
 import { DENSITIES, TEXT_SIZES, THEMES, useDeviceSettings } from './useDeviceSettings.js';
 
 const THEME_LABELS = { AUTO: 'Automatic', DAY: 'Day', NIGHT: 'Night' };
@@ -65,11 +65,41 @@ export default function DeviceSettingsPage() {
 
         <Choice
           legend="Printer"
-          hint="Bills, kitchen tickets and the Day Close print on this. A thermal page is exactly as long as what it prints."
+          hint="Bills, kitchen tickets and the Day Close print on this. Choose the width of the roll in the printer at this device."
           options={PRINTER_KEYS.map((value) => ({ value, label: PRINTERS[value].label, detail: PRINTERS[value].hint }))}
           value={settings.printer}
           onChange={(printer) => update({ printer })}
         />
+
+        {PRINTERS[settings.printer]?.thermal && (
+          <Choice
+            legend="Paper length"
+            hint="How long each thermal print is."
+            options={Object.entries(PAPER_LENGTHS).map(([value, entry]) => ({ value, label: entry.label, detail: entry.hint }))}
+            value={settings.paperLength}
+            onChange={(paperLength) => update({ paperLength })}
+          />
+        )}
+
+        {PRINTERS[settings.printer]?.thermal && (
+          <Choice
+            legend="Bill text size"
+            hint="Normal fills the roll like a usual restaurant bill. Long dish names wrap onto a second line."
+            options={Object.entries(BILL_TEXT_SIZES).map(([value, entry]) => ({ value, label: entry.label }))}
+            value={settings.billTextSize}
+            onChange={(billTextSize) => update({ billTextSize })}
+          />
+        )}
+
+        {PRINTERS[settings.printer]?.thermal && (
+          <Choice
+            legend="Edge margin"
+            hint="Space kept clear at each side of the bill."
+            options={Object.entries(EDGE_MARGINS).map(([value, entry]) => ({ value, label: entry.label, detail: entry.hint }))}
+            value={settings.edgeMargin}
+            onChange={(edgeMargin) => update({ edgeMargin })}
+          />
+        )}
 
         {/* P25 Part I. Which card machine sits beside this device. */}
         {(features.terminals ?? []).length > 0 && (

@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import { cancelBillLines } from '../../api/bills.js';
-import { listApprovers } from '../../api/users.js';
-import Input from '../../components/ui/Input.jsx';
 import { moneyText } from '../../components/ui/Money.jsx';
 import ReasonPicker, { isReasonComplete, reasonBody } from '../../components/ui/ReasonPicker.jsx';
+import ApprovalStep, { useApproval } from '../../components/ui/ApprovalStep.jsx';
 import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
 import { LINE_CANCEL_REASONS } from '../orders/cancelReasons.js';
 import { errorMessage } from './errorCopy.js';
@@ -24,8 +23,7 @@ import { errorMessage } from './errorCopy.js';
 export default function CancelItemsPanel({ bill, needsApproval, onCancel, onDone }) {
   const [picked, setPicked] = useState({});
   const [reason, setReason] = useState({ reasonCode: null, note: '' });
-  const [approverId, setApproverId] = useState('');
-  const [pin, setPin] = useState('');
+  const approval = useApproval(needsApproval);
 
   const chosen = bill.lines.filter((line) => picked[line.orderLineId] !== undefined);
   const request = (extra = {}) => ({
@@ -34,10 +32,9 @@ export default function CancelItemsPanel({ bill, needsApproval, onCancel, onDone
     ...extra,
   });
 
-  const approvers = useQuery({ queryKey: ['approvers'], queryFn: listApprovers, enabled: needsApproval });
   const preview = useMutation({ mutationFn: () => cancelBillLines(bill.id, request({ preview: true })) });
   const confirm = useMutation({
-    mutationFn: () => cancelBillLines(bill.id, request(needsApproval ? { approval: { approverId, pin } } : {})),
+    mutationFn: () => cancelBillLines(bill.id, request(approval.body)),
     onSuccess: onDone,
   });
 
@@ -50,7 +47,7 @@ export default function CancelItemsPanel({ bill, needsApproval, onCancel, onDone
     });
   const setMade = (line, made) => setPicked((current) => ({ ...current, [line.orderLineId]: made }));
   const ready = chosen.length > 0 && isReasonComplete(reason);
-  const approved = !needsApproval || (approverId && /^\d{4,6}$/.test(pin));
+  const approved = approval.ready;
 
   const sentence = preview.data && [
     `Bill ${preview.data.voidedBillNumber} for ${moneyText(preview.data.voidedBillTotalInPaise)} will be voided.`,
@@ -133,36 +130,7 @@ export default function CancelItemsPanel({ bill, needsApproval, onCancel, onDone
           <div className="rounded-lg border border-line border-l-[3px] border-l-alert bg-surface p-3">
             <p className="type-body text-ink">{sentence}</p>
           </div>
-          {needsApproval && (
-            <fieldset className="flex flex-col gap-3">
-              <legend className="type-heading mb-1">A manager approves</legend>
-              <div className="flex flex-wrap gap-2">
-                {(approvers.data ?? []).map((person) => (
-                  <button
-                    key={person.id}
-                    type="button"
-                    aria-pressed={approverId === person.id}
-                    onClick={() => setApproverId(person.id)}
-                    className={[
-                      'min-h-12 rounded-lg border px-4 type-label',
-                      approverId === person.id ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface',
-                    ].join(' ')}
-                  >
-                    {person.name}
-                  </button>
-                ))}
-              </div>
-              <Input
-                label="Their PIN"
-                type="password"
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={6}
-                value={pin}
-                onChange={(event) => setPin(event.target.value.replace(/\D/g, ''))}
-              />
-            </fieldset>
-          )}
+          <ApprovalStep approval={approval} />
           {confirm.isError && <p className="type-body text-alert">{errorMessage(confirm.error)}</p>}
         </div>
       )}

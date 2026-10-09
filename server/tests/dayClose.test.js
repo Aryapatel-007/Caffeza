@@ -65,6 +65,9 @@ describe('the cash drawer', () => {
   it('a cashier records a float and a paid in, and is refused a paid out and a void', async () => {
     const { tokens, restaurant } = await seedFloor();
     assert.equal((await cash(tokens.CASHIER, { type: 'OPENING_FLOAT', amountInPaise: 100000 })).status, 201);
+    // P28: a cashier's paid in needs a manager's PIN by default; with that approval switched off, it does not.
+    assert.equal((await cash(tokens.CASHIER, { type: 'PAID_IN', amountInPaise: 5000, reason: 'Change from the bank' })).status, 403);
+    await request('PATCH', '/api/v1/settings', { token: tokens.OWNER, body: { reason: 'No PIN for paid in', approvals: { paidIn: false } } });
     const paidIn = await cash(tokens.CASHIER, { type: 'PAID_IN', amountInPaise: 5000, reason: 'Change from the bank' });
     assert.equal(paidIn.status, 201);
     assert.equal((await cash(tokens.CASHIER, { type: 'PAID_OUT', amountInPaise: 3500, reason: 'Milk' })).status, 403);

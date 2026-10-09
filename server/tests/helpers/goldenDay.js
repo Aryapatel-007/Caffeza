@@ -231,6 +231,9 @@ async function readyAndServe(token, orderId, kots) {
   return order;
 }
 
+/** P28. The golden manager's PIN, for approvals on someone else's screen. */
+export const MANAGER_PIN = '2468';
+
 /** The staff, in TEST-DATA section 1's order. */
 const STAFF = [
   ['Manager', ROLES.MANAGER],
@@ -265,16 +268,24 @@ export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}
     const tokens = { OWNER: await login(base.phone, password) };
     const people = { Owner: tokens.OWNER };
     const phones = { Owner: base.phone };
+    const userIds = {};
     for (const [index, [personName, role]] of STAFF.entries()) {
       const seeded = await seedUser({ restaurant, branch, name: personName, role, phone: phoneFor(index + 2), password });
       people[personName] = await login(seeded.phone, password);
       phones[personName] = seeded.phone;
+      userIds[personName] = String(seeded.user._id);
     }
     tokens.MANAGER = people.Manager;
     tokens.CASHIER = people.Counter;
     tokens.WAITER = people['Khuman Singh'];
     const owner = tokens.OWNER;
     const manager = tokens.MANAGER;
+
+    // P28. The manager's PIN, typed on a captain's phone to approve cancelling a dish the kitchen made.
+    ok(
+      await request('PATCH', `/api/v1/users/${userIds.Manager}/pin`, { token: owner, body: { pin: MANAGER_PIN } }),
+      'manager pin',
+    );
 
     // Caffeza's GSTIN, from setup/archive/caffeza/caffeza.json, so a printed bill reads as a tax invoice.
     ok(await request('PATCH', '/api/v1/restaurant', { token: owner, body: { gstin: '24AARFT4546K1ZM' } }), 'gstin');
@@ -374,6 +385,7 @@ export async function setupGoldenRestaurant({ name = 'Caffeza', commissions = {}
       people,
       phones,
       password,
+      managerApproval: { approverId: userIds.Manager, pin: MANAGER_PIN },
       ids: { bills: {}, orders: {}, accounts, tables, items, stations: stationIds, categories: categoryIds },
     };
   } finally {
@@ -532,7 +544,7 @@ export async function playGoldenDay(golden) {
     ok(
       await request('POST', `/api/v1/orders/${orders.B13}/lines/${thecha.id}/cancel`, {
         token: khuman,
-        body: { version: b13.version, reasonCode: 'MODIFICATION', wasPrepared: true },
+        body: { version: b13.version, reasonCode: 'MODIFICATION', wasPrepared: true, approval: golden.managerApproval },
       }),
       'cancel Thecha',
     );

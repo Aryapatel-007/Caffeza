@@ -66,6 +66,9 @@ const SETTING_PATHS = Object.freeze({
   'discounts.cashierMayApplyPlatformDiscounts': 'settings.discounts.cashierMayApplyPlatformDiscounts',
   'billing.captainsMayBill': 'settings.billing.captainsMayBill',
   'billing.captainsMayTakePayment': 'settings.billing.captainsMayTakePayment',
+  'approvals.lineCancel': 'settings.approvals.lineCancel',
+  'approvals.paidIn': 'settings.approvals.paidIn',
+  'approvals.managerTasks': 'settings.approvals.managerTasks',
 
   'dayClose.showCashDifferenceToManager': 'settings.dayClose.showCashDifferenceToManager',
   'cash.denominations': 'settings.cash.denominations',

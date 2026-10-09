@@ -113,9 +113,11 @@ export function editOrderLine(orderId, lineId, { version, quantity, notes }) {
  * absent when it has not. The caller decides from the line's own status; the
  * server refuses the wrong shape either way.
  */
-export function cancelOrderLine(orderId, lineId, { version, reasonCode, note, wasPrepared }) {
+export function cancelOrderLine(orderId, lineId, { version, reasonCode, note, wasPrepared, approval }) {
   const body = { version, reasonCode, note: note || null };
   if (wasPrepared !== undefined) body.wasPrepared = wasPrepared;
+  // P28. An owner's or manager's PIN, when the server needs one.
+  if (approval) body.approval = approval;
   return api.post(`/orders/${orderId}/lines/${lineId}/cancel`, body);
 }
 
@@ -144,9 +146,10 @@ export function moveOrderToTable(orderId, { version, tableId }) {
  * refuses it, and it refuses it because a whole-order cancel is how a table
  * disappears.
  */
-export function cancelOrder(orderId, { version, reasonCode, note, wasPrepared }) {
+export function cancelOrder(orderId, { version, reasonCode, note, wasPrepared, approval }) {
   const body = { version, reasonCode, note: note || null };
   if (wasPrepared !== undefined) body.wasPrepared = wasPrepared;
+  if (approval) body.approval = approval;
   return api.post(`/orders/${orderId}/cancel`, body);
 }
 
@@ -154,6 +157,6 @@ export function cancelOrder(orderId, { version, reasonCode, note, wasPrepared })
  * P08. Closes the order with no bill and no invoice number: food given free.
  * OWNER and MANAGER. A fixed reason, and a note that is required for OTHER.
  */
-export function giveNoCharge(orderId, { version, reasonCode, note }) {
-  return api.post(`/orders/${orderId}/no-charge`, { version, reasonCode, note: note || null });
+export function giveNoCharge(orderId, { version, reasonCode, note, approval }) {
+  return api.post(`/orders/${orderId}/no-charge`, { version, reasonCode, note: note || null, ...(approval ? { approval } : {}) });
 }

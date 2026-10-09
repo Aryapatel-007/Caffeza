@@ -52,3 +52,8 @@ export function resetUserPassword(userId, newPassword) {
 export function listApprovers() {
   return api.get('/users/approvers');
 }
+
+/** P28. Sets someone's PIN, 4 to 6 digits, for approving on another person's screen and the attendance clock. */
+export function setUserPin(userId, pin) {
+  return api.patch(`/users/${userId}/pin`, { pin });
+}

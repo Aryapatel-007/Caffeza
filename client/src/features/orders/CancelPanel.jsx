@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import ApprovalStep, { useApproval } from '../../components/ui/ApprovalStep.jsx';
 import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
 import ReasonPicker, { isReasonComplete, reasonBody } from '../../components/ui/ReasonPicker.jsx';
 import Bilingual from '../i18n/Bilingual.jsx';
@@ -19,12 +20,15 @@ import { LABELS } from '../i18n/labels.js';
  * The question is asked plainly rather than as jargon, because whoever is
  * cancelling has to answer it honestly for M4's stock numbers to mean anything
  * later.
+ *
+ * `needsApproval` (P28) adds the owner's or manager's PIN step.
  */
 export default function CancelPanel({
   title,
   reasons,
   description,
   needsWasPrepared,
+  needsApproval = false,
   isBusy,
   error,
   onCancel,
@@ -32,9 +36,10 @@ export default function CancelPanel({
 }) {
   const [reason, setReason] = useState({ reasonCode: null, note: '' });
   const [wasPrepared, setWasPrepared] = useState(null);
+  const approval = useApproval(needsApproval);
 
   const canConfirm =
-    isReasonComplete(reason) && (!needsWasPrepared || wasPrepared !== null) && !isBusy;
+    isReasonComplete(reason) && (!needsWasPrepared || wasPrepared !== null) && approval.ready && !isBusy;
 
   return (
     <Sheet
@@ -47,7 +52,7 @@ export default function CancelPanel({
           onCancel={onCancel}
           danger
           disabled={!canConfirm}
-          onConfirm={() => onConfirm({ ...reasonBody(reason), ...(needsWasPrepared ? { wasPrepared } : {}) })}
+          onConfirm={() => onConfirm({ ...reasonBody(reason), ...(needsWasPrepared ? { wasPrepared } : {}), ...approval.body })}
         >
           {isBusy ? 'Cancelling…' : <Bilingual k="cancel" en="Cancel it" keep align="center" />}
         </SheetActions>
@@ -87,6 +92,8 @@ export default function CancelPanel({
           </div>
         </fieldset>
       )}
+
+      <ApprovalStep approval={approval} />
 
       {error && <p className="type-body mt-4 text-alert">{error}</p>}
     </Sheet>

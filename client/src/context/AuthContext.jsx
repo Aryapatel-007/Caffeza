@@ -67,6 +67,12 @@ const fromMe = (me) => ({
     captainsMayBill: me.billing?.captainsMayBill ?? true,
     captainsMayTakePayment: Boolean(me.billing?.captainsMayTakePayment),
   },
+  // P28. What needs an owner's or manager's PIN. The server still decides.
+  approvals: {
+    lineCancel: me.approvals?.lineCancel ?? true,
+    paidIn: me.approvals?.paidIn ?? true,
+    managerTasks: me.approvals?.managerTasks ?? true,
+  },
   // P25 Part F. The active notes and coins, for the cash counter.
   cash: { denominations: me.cash?.denominations ?? [] },
   // P25 Part I. The card machines this device may send a payment to.

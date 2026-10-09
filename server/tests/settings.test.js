@@ -60,6 +60,8 @@ const DEFAULTS = {
   delivery: { platformCollectsGst: true },
   discounts: { cashierMayApplyPlatformDiscounts: false },
   billing: { captainsMayBill: true, captainsMayTakePayment: false },
+  // P28.
+  approvals: { lineCancel: true, paidIn: true, managerTasks: true },
   dayClose: { showCashDifferenceToManager: false },
   cash: { denominations: DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })) },
   payments: { requireTerminalForLinkedMethods: true },

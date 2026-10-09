@@ -371,8 +371,9 @@ describe('cancelling something the kitchen already has', () => {
     assert.equal(without.status, 422, 'a fired line cannot be cancelled without an answer');
     assert.equal(without.body.error.code, 'BUSINESS_RULE_VIOLATED');
 
+    // P28: with the answer, a captain would also need a manager's PIN; the manager cancels here.
     const withAnswer = await request('POST', `/api/v1/orders/${order.id}/lines/${lineId}/cancel`, {
-      token: tokens.WAITER,
+      token: tokens.MANAGER,
       body: { version: afterFire.version, reasonCode: 'OTHER', note: 'Customer changed their mind', wasPrepared: true },
     });
 

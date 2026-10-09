@@ -236,7 +236,8 @@ describe('cancelling after billing', () => {
     const approvers = await request('GET', '/api/v1/users/approvers', { token: floor.tokens.CASHIER });
     assert.equal(approvers.status, 200);
     assert.ok(approvers.body.data.some((person) => person.id === manager.id));
-    assert.ok(approvers.body.data.every((person) => ['OWNER', 'MANAGER'].includes(person.role) && Object.keys(person).length === 3));
+    // P28 added hasPin, a fourth field, so the approval step can grey out a manager with no PIN.
+    assert.ok(approvers.body.data.every((person) => ['OWNER', 'MANAGER'].includes(person.role) && Object.keys(person).sort().join() === 'hasPin,id,name,role'));
     assert.equal((await request('GET', '/api/v1/users/approvers', { token: floor.tokens.KITCHEN })).status, 403);
 
     assert.equal((await cancelLines(floor.tokens.CASHIER, bill.id, body(null))).status, 403);

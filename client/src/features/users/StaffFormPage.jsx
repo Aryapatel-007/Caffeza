@@ -11,6 +11,7 @@ import Select from '../../components/ui/Select.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { ROLES, roleOptions } from './roles.js';
+import SetPinSection from './SetPinSection.jsx';
 
 const EMPTY = { name: '', phone: '', email: '', role: ROLES.CASHIER, password: '', stationId: '' };
 
@@ -164,6 +165,9 @@ export default function StaffFormPage() {
             </Button>
           </div>
         </form>
+
+        {/* P28. A manager cannot set an owner's PIN; the server says so too. */}
+        {isEditing && !(actor?.role === ROLES.MANAGER && form.role === ROLES.OWNER) && <SetPinSection userId={userId} />}
       </div>
     </main>
   );

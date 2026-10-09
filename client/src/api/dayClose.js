@@ -10,12 +10,14 @@ export function listCashMovements(date) {
 }
 
 /** `type` is OPENING_FLOAT, PAID_IN or PAID_OUT. The server dates it today. */
-export function recordCashMovement({ type, amountInPaise, reason, cashCount }) {
+export function recordCashMovement({ type, amountInPaise, reason, cashCount, approval }) {
   // P25 Part F. A float counted by notes sends the count; the server works out the amount.
   return api.post('/cash-movements', {
     type,
     ...(cashCount ? { cashCount } : { amountInPaise }),
     ...(reason ? { reason } : {}),
+    // P28. An owner's or manager's PIN, for a cashier's paid in or paid out.
+    ...(approval ? { approval } : {}),
   });
 }
 

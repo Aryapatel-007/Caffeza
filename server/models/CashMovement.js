@@ -43,6 +43,8 @@ const cashMovementSchema = new mongoose.Schema({
   businessDate: { type: String, required: true },
   at: { type: Date, required: true },
   by: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
+  // P28. The owner or manager who typed their PIN for a cashier's paid in or paid out.
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 
   isVoided: { type: Boolean, required: true, default: false },
   voidedAt: { type: Date, default: null },

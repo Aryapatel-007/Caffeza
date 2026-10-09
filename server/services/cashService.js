@@ -8,18 +8,17 @@
  */
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { CASH_MOVEMENT_TYPES, CashMovement } from '../models/CashMovement.js';
-import { ROLES } from '../config/roles.js';
-import { BusinessRuleError, CashCountMismatchError, DuplicateError, ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { BusinessRuleError, CashCountMismatchError, DuplicateError, NotFoundError } from '../utils/errors.js';
 import { CashCountError, sumCashCount } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 import { recordAudit } from './auditService.js';
 import { assertDayOpen, todayBusinessDate } from './dayLockService.js';
-import { getSetting } from './settingsService.js';
+import { approverForManagerTask, approverIfNeeded } from './approvalService.js';
+import { getSetting, getSettings } from './settingsService.js';
 
 const DUPLICATE_KEY = 11000;
-const MANAGERS = [ROLES.OWNER, ROLES.MANAGER];
 
 /** GET /cash-movements?date=. Default today's business date. Voided ones included, marked. */
 export async function listCashMovements(req, { date } = {}) {
@@ -28,10 +27,19 @@ export async function listCashMovements(req, { date } = {}) {
   return { businessDate, movements: movements.map((movement) => movement.toJSON()) };
 }
 
-/** POST /cash-movements. A paid out is manager work and is audited. */
-export async function recordCashMovement(req, { type, amountInPaise, reason = null, cashCount = null }) {
-  if (type === CASH_MOVEMENT_TYPES.PAID_OUT && !MANAGERS.includes(req.user.role)) {
-    throw new ForbiddenError('Only an owner or a manager can take cash out of the drawer.');
+/**
+ * POST /cash-movements. A paid out is manager work and is audited. P28: a
+ * cashier may take one out with an owner's or manager's PIN when the owner
+ * allows it, and a cashier's paid in needs the PIN when `approvals.paidIn` is
+ * on. The opening float never needs one.
+ */
+export async function recordCashMovement(req, { type, amountInPaise, reason = null, cashCount = null, approval = null }) {
+  const { approvals } = await getSettings(req.restaurantId, { req });
+  let approvedBy = null;
+  if (type === CASH_MOVEMENT_TYPES.PAID_OUT) {
+    approvedBy = await approverForManagerTask(req, approval, approvals, 'Only an owner or a manager can take cash out of the drawer.');
+  } else if (type === CASH_MOVEMENT_TYPES.PAID_IN) {
+    approvedBy = await approverIfNeeded(req, approval, approvals.paidIn);
   }
 
   // P25 Part F. A float counted by notes: the server works out the amount itself.
@@ -52,7 +60,7 @@ export async function recordCashMovement(req, { type, amountInPaise, reason = nu
       await assertDayOpen(req, businessDate, { session });
 
       const [movement] = await CashMovement.create(
-        [{ ...scoped(req), type, amountInPaise, reason, businessDate, at: nowUtc(), by: req.user.id, ...(counted ? { cashCount: counted.cashCount } : {}) }],
+        [{ ...scoped(req), type, amountInPaise, reason, businessDate, at: nowUtc(), by: req.user.id, approvedBy, ...(counted ? { cashCount: counted.cashCount } : {}) }],
         session ? { session } : {},
       );
 
@@ -66,7 +74,23 @@ export async function recordCashMovement(req, { type, amountInPaise, reason = nu
             entityLabel: `Paid out ${businessDate}`,
             reason,
             amountInPaise,
-            details: { businessDate },
+            details: { businessDate, ...(approvedBy ? { approvedBy: String(approvedBy) } : {}) },
+          },
+          session,
+        );
+      }
+      // P28. A paid in someone else approved is never silent.
+      if (type === CASH_MOVEMENT_TYPES.PAID_IN && approvedBy) {
+        await recordAudit(
+          req,
+          {
+            action: AUDIT_ACTIONS.CASH_PAID_IN,
+            entityType: AUDIT_ENTITY_TYPES.CASH,
+            entityId: movement._id,
+            entityLabel: `Paid in ${businessDate}`,
+            reason,
+            amountInPaise,
+            details: { businessDate, approvedBy: String(approvedBy) },
           },
           session,
         );

@@ -30,12 +30,14 @@ const ACTION_WORDS = {
   USER_REACTIVATED: 'Staff switched back on',
   USER_ROLE_CHANGED: 'Staff role changed',
   USER_PASSWORD_RESET: 'Password reset',
-  USER_PIN_RESET: 'Attendance PIN set',
+  USER_PIN_RESET: 'PIN set',
   MENU_PRICE_CHANGED: 'Price changed',
   RECIPE_CHANGED: 'Recipe changed',
   BRAND_LOGO_SET: 'Logo set',
   BRAND_LOGO_REMOVED: 'Logo removed',
   ATTENDANCE_CORRECTED: 'Attendance corrected',
+  LINE_CANCELLED_APPROVED: 'Item cancelled, approved by PIN',
+  CASH_PAID_IN: 'Cash paid in',
 };
 
 /**

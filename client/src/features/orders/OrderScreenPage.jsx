@@ -37,6 +37,8 @@ import Spinner from '../../components/ui/Spinner.jsx';
 
 /** Only these two may cancel a whole order. The server is what enforces it. */
 const CAN_CANCEL_ORDER = ['OWNER', 'MANAGER'];
+/** P28. Owners and managers approve their own work; anyone else may need a PIN. */
+const APPROVES_OWN = ['OWNER', 'MANAGER'];
 
 /** A line that has been to the kitchen has to answer the wasPrepared question. */
 const REACHED_KITCHEN = ['FIRED', 'READY', 'SERVED'];
@@ -76,7 +78,9 @@ function orderChip(order) {
 export default function OrderScreenPage() {
   const { orderId } = useParams();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, features } = useAuth();
+  const approvals = features.approvals ?? { lineCancel: true, paidIn: true, managerTasks: true };
+  const approvesOwn = APPROVES_OWN.includes(user?.role);
 
   const [toast, setToast] = useState(null);
   const [search, setSearch] = useState('');
@@ -171,7 +175,8 @@ export default function OrderScreenPage() {
   // P26. A served table, with no bill yet, can order more: the menu shows again.
   const canAddMore = order.status === 'READY_TO_BILL' && !order.billId;
   const showMenu = isOpen || (canAddMore && addingMore);
-  const canCancelOrder = CAN_CANCEL_ORDER.includes(user?.role);
+  // P28. A cashier may too, with a PIN, when the owner allows it.
+  const canCancelOrder = CAN_CANCEL_ORDER.includes(user?.role) || (user?.role === 'CASHIER' && approvals.managerTasks);
   const canMove = isOpen && order.orderType === 'DINE_IN';
   // Takeaway and delivery have no table, so on a wide screen the order is a
   // ledger beside the menu rather than a bar and a slide-over.
@@ -412,6 +417,7 @@ export default function OrderScreenPage() {
           reasons={LINE_CANCEL_REASONS}
           description="It stays on the order, marked cancelled, with the reason."
           needsWasPrepared={REACHED_KITCHEN.includes(cancelling.line.status)}
+          needsApproval={!approvesOwn && approvals.lineCancel && REACHED_KITCHEN.includes(cancelling.line.status)}
           isBusy={write.isPending}
           onCancel={() => setCancelling(null)}
           onConfirm={(answers) =>
@@ -434,6 +440,7 @@ export default function OrderScreenPage() {
           reasons={ORDER_CANCEL_REASONS}
           description="Every line goes with it. Nothing is deleted."
           needsWasPrepared={order.lines.some((line) => REACHED_KITCHEN.includes(line.status))}
+          needsApproval={!approvesOwn}
           isBusy={write.isPending}
           onCancel={() => setCancelling(null)}
           onConfirm={(answers) =>
@@ -452,6 +459,7 @@ export default function OrderScreenPage() {
       {cancelling?.kind === 'noCharge' && (
         <NoChargePanel
           order={order}
+          needsApproval={!approvesOwn}
           isBusy={write.isPending}
           onCancel={() => setCancelling(null)}
           onConfirm={(answers) =>

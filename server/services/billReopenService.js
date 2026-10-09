@@ -14,7 +14,7 @@ import { Order } from '../models/Order.js';
 import { BusinessRuleError, TableOccupiedError } from '../utils/errors.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { recordAudit } from './auditService.js';
-import { approverFor } from './billCancelLinesService.js';
+import { approverFor } from './approvalService.js';
 import { assertNotVoided } from './billPermissionService.js';
 import { readBill, voidBillInSession } from './billService.js';
 import { assertDayOpen, todayBusinessDate } from './dayLockService.js';

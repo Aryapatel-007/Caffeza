@@ -224,3 +224,13 @@ export async function verifyPin({ restaurantId, branchId, userId }, pin) {
 
   return { userId: String(user._id) };
 }
+
+/**
+ * P28. Which of these users have a PIN set, for the approval step's list. It
+ * reads the stored PIN only to say whether there is one, and lives here so the
+ * PIN hash stays inside this file.
+ */
+export async function usersWithPin({ restaurantId, userIds }) {
+  const users = await User.find({ restaurantId, _id: { $in: userIds }, pinHash: { $ne: null } }).select('_id').lean();
+  return new Set(users.map((user) => String(user._id)));
+}

@@ -76,14 +76,23 @@ export async function serveAll(page) {
   }
 }
 
-/** Cancels one line, with its fixed reason, and says whether the kitchen made it. */
-export async function cancelLine(page, item, reason, wasPrepared = null) {
+/**
+ * Cancels one line, with its fixed reason, and says whether the kitchen made it.
+ * `approval` (P28), `{ name, pin }`: the manager picks their name and types their
+ * PIN on this same screen, for a dish the kitchen already has.
+ */
+export async function cancelLine(page, item, reason, wasPrepared = null, approval = null) {
   const area = await details(page);
   const line = area.locator('li').filter({ hasText: item }).filter({ hasNot: page.getByText('Cancelled', { exact: true }) });
   await line.getByRole('button', { name: /^Cancel/ }).first().click();
   const sheet = page.getByRole('dialog', { name: `Cancel ${item}` });
   await sheet.getByRole('button', { name: reason, exact: true }).click();
   if (wasPrepared !== null) await sheet.getByText(wasPrepared ? 'Yes, it was made' : 'No, it was not started').click();
+  if (approval) {
+    await expect(sheet.getByText('A manager approves')).toBeVisible();
+    await sheet.getByRole('button', { name: approval.name, exact: true }).click();
+    await sheet.getByLabel('Their PIN').fill(approval.pin);
+  }
   await sheet.getByRole('button', { name: /^Cancel it/ }).click();
   await expect(page.getByText('Line cancelled.')).toBeVisible();
 }

@@ -7,7 +7,7 @@
 import { z } from 'zod';
 
 import { CASH_MOVEMENT_TYPE_VALUES } from '../models/CashMovement.js';
-import { businessDate, nonEmptyString, objectId, paise } from './common.js';
+import { approval, businessDate, nonEmptyString, objectId, paise } from './common.js';
 
 /** P25 Part F. A count by notes and coins. The server totals it; kind is needed only for ₹20 and ₹10. */
 export const cashCount = z
@@ -35,6 +35,7 @@ export const recordCashSchema = z.object({
       amountInPaise: paise.refine((value) => value > 0, 'Must be more than zero.').optional(),
       reason: reason.optional(),
       cashCount: cashCount.optional(),
+      approval: approval.optional(),
     })
     .strict('Is not a field you can set here. The business date is always today.')
     .superRefine((body, context) => {

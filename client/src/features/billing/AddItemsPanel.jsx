@@ -1,9 +1,7 @@
-import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import { reopenBill } from '../../api/bills.js';
-import { listApprovers } from '../../api/users.js';
-import Input from '../../components/ui/Input.jsx';
+import ApprovalStep, { useApproval } from '../../components/ui/ApprovalStep.jsx';
 import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
 import { moneyText } from '../../components/ui/Money.jsx';
 
@@ -17,14 +15,12 @@ import { errorMessage } from './errorCopy.js';
  * cashier or captain asks a manager to pick their name and type their PIN.
  */
 export default function AddItemsPanel({ bill, needsApproval, onCancel, onDone }) {
-  const [approverId, setApproverId] = useState('');
-  const [pin, setPin] = useState('');
-  const approvers = useQuery({ queryKey: ['approvers'], queryFn: listApprovers, enabled: needsApproval });
+  const approval = useApproval(needsApproval);
   const reopen = useMutation({
-    mutationFn: () => reopenBill(bill.id, needsApproval ? { approval: { approverId, pin } } : {}),
+    mutationFn: () => reopenBill(bill.id, approval.body),
     onSuccess: onDone,
   });
-  const approved = !needsApproval || (approverId && /^\d{4,6}$/.test(pin));
+  const approved = approval.ready;
   const paid = bill.amountPaidInPaise ?? 0;
 
   return (
@@ -50,36 +46,7 @@ export default function AddItemsPanel({ bill, needsApproval, onCancel, onDone })
             {paid > 0 ? ` The ${moneyText(paid)} already paid moves onto the new bill.` : ''}
           </p>
         </div>
-        {needsApproval && (
-          <fieldset className="flex flex-col gap-3">
-            <legend className="type-heading mb-1">A manager approves</legend>
-            <div className="flex flex-wrap gap-2">
-              {(approvers.data ?? []).map((person) => (
-                <button
-                  key={person.id}
-                  type="button"
-                  aria-pressed={approverId === person.id}
-                  onClick={() => setApproverId(person.id)}
-                  className={[
-                    'min-h-12 rounded-lg border px-4 type-label',
-                    approverId === person.id ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface',
-                  ].join(' ')}
-                >
-                  {person.name}
-                </button>
-              ))}
-            </div>
-            <Input
-              label="Their PIN"
-              type="password"
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={6}
-              value={pin}
-              onChange={(event) => setPin(event.target.value.replace(/\D/g, ''))}
-            />
-          </fieldset>
-        )}
+        <ApprovalStep approval={approval} />
         {reopen.isError && <p className="type-body text-alert">{errorMessage(reopen.error)}</p>}
       </div>
     </Sheet>

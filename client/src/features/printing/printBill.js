@@ -1,24 +1,61 @@
 /**
  * Prints one bill on this device's printer. P25 Part C.
  *
- * A thermal printer prints the server's receipt text, with the review link's
- * QR code under it. A4 and A5 print the full-page tax invoice, laid out from
- * the same data. The bill screen, the receipt preview and the counter's
+ * A thermal printer prints the thermal bill and A4 and A5 the full-page tax
+ * invoice, both laid out from GET /bills/:billId/invoice, with the review
+ * link's QR code. The bill screen, the receipt preview and the counter's
  * print queue all print through here, so a bill looks the same whoever prints
  * it.
  */
 import QRCode from 'qrcode';
 
-import { getInvoice, getReceipt, markBillPrinted } from '../../api/bills.js';
+import { getInvoice, markBillPrinted } from '../../api/bills.js';
 
-import { INVOICE_STYLES, invoiceHtml } from './invoiceHtml.js';
-import { charactersFor, PRINTERS } from './printers.js';
-import { printDocument, printText } from './printText.js';
+import { INVOICE_STYLES, invoiceHtml, THERMAL_BILL_STYLES, thermalBillHtml } from './invoiceHtml.js';
+import { PRINTERS } from './printers.js';
+import { printDocument } from './printText.js';
+import { readDeviceSettings } from './useDeviceSettings.js';
 
 /** The review link as an SVG QR code, or null. Built here, never fetched. */
 export function reviewQrSvg(url) {
   if (!url) return Promise.resolve(null);
   return QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
+}
+
+/**
+ * The logo as pure black on white, for a thermal head, which prints each dot
+ * black or not at all: a coloured or grey logo otherwise comes out as a faint
+ * dither. Any pixel darker than mid-grey, once laid on white, is black. Null
+ * when there is no logo or it cannot be read, so the bill still prints.
+ */
+export async function thermalLogoDataUrl(dataUrl) {
+  if (!dataUrl) return null;
+  try {
+    const image = new Image();
+    image.src = dataUrl;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d');
+    context.fillStyle = 'white';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    const { data } = pixels;
+    for (let index = 0; index < data.length; index += 4) {
+      const luminance = 0.299 * data[index] + 0.587 * data[index + 1] + 0.114 * data[index + 2];
+      const value = luminance < 160 ? 0 : 255;
+      data[index] = value;
+      data[index + 1] = value;
+      data[index + 2] = value;
+      data[index + 3] = 255;
+    }
+    context.putImageData(pixels, 0, 0);
+    return canvas.toDataURL('image/png');
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -31,10 +68,10 @@ export async function printBill(billId, { printer, logoDataUrl = null }) {
     const qrSvg = await reviewQrSvg(data.reviewLinkUrl);
     await printDocument({ printer, bodyHtml: invoiceHtml(data, { qrSvg, logoDataUrl }), styles: INVOICE_STYLES });
   } else {
-    const receipt = await getReceipt(billId, charactersFor(printer));
-    // The text already ends "Scan to review us"; the code itself is drawn here.
-    const svg = await reviewQrSvg(receipt.reviewLinkUrl);
-    await printText(receipt.text, printer, { afterHtml: svg ? `<div class="review">${svg}</div>` : '' });
+    // 2026-10-09: a thermal bill is laid out from the invoice data too, in the layout guests know.
+    const data = await getInvoice(billId);
+    const [qrSvg, logo] = await Promise.all([reviewQrSvg(data.reviewLinkUrl), thermalLogoDataUrl(logoDataUrl)]);
+    await printDocument({ printer, bodyHtml: thermalBillHtml(data, { printer, logoDataUrl: logo, qrSvg, textSize: readDeviceSettings().billTextSize }), styles: THERMAL_BILL_STYLES });
   }
   return markBillPrinted(billId);
 }

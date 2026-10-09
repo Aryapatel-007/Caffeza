@@ -241,6 +241,8 @@ const orderLineSchema = new mongoose.Schema(
 
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    // P28. The owner or manager who typed their PIN, when the canceller was not one.
+    cancelApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     /** From P04 the optional note. Older lines keep their free-text reason here. */
     cancelReason: { type: String, trim: true, maxlength: CANCEL_REASON_MAX_LENGTH, default: null },
     /** P04. The fixed reason, from LINE_CANCEL_REASONS. Null before P04. */
@@ -362,6 +364,8 @@ const orderSchema = new mongoose.Schema({
   isCancelled: { type: Boolean, required: true, default: false },
   cancelledAt: { type: Date, default: null },
   cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  // P28. The owner or manager who typed their PIN for a cashier's whole-order cancel.
+  cancelApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   /** From P04 the optional note. Older orders keep their free-text reason here. */
   cancelReason: { type: String, trim: true, maxlength: CANCEL_REASON_MAX_LENGTH, default: null },
   /** P04. The fixed reason, from ORDER_CANCEL_REASONS. Null before P04. */

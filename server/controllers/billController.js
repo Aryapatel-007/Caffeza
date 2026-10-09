@@ -13,6 +13,7 @@ import { ROLES } from '../config/roles.js';
 import { Bill } from '../models/Bill.js';
 import { Order } from '../models/Order.js';
 import { Restaurant } from '../models/Restaurant.js';
+import { User } from '../models/User.js';
 import {
   advanceOnBill,
   applyDiscount,
@@ -27,7 +28,6 @@ import {
   assertCanCorrectPayment,
   assertCanDiscount,
   assertCanTakePayment,
-  assertCanVoid,
 } from '../services/billPermissionService.js';
 import { cancelLinesAfterBilling, listRefunds as findRefunds, markRefundDone } from '../services/billCancelLinesService.js';
 import { markPrinted, printQueue, requestPrint } from '../services/billPrintService.js';
@@ -37,6 +37,7 @@ import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped, scopedForAggregate } from '../utils/scopedQuery.js';
 import { businessDateFor, nowUtc } from '../utils/time.js';
 import { reopenBill } from '../services/billReopenService.js';
+import { approverForManagerTask } from '../services/approvalService.js';
 
 /**
  * The business-date range a list or summary covers.
@@ -173,8 +174,11 @@ export async function postCorrectPayment(req, res) {
 
 /** POST /bills/:billId/void */
 export async function postVoid(req, res) {
-  assertCanVoid(req.user);
-  return sendSuccess(res, await voidBill(req, req.params.billId, req.body));
+  // P28. An owner or manager voids; a cashier may with their PIN, when the owner allows it.
+  const { approvals } = await getSettings(req.restaurantId, { req });
+  const { approval, ...body } = req.body;
+  const approvedBy = await approverForManagerTask(req, approval, approvals, 'Only an owner or a manager can void a bill.');
+  return sendSuccess(res, await voidBill(req, req.params.billId, { ...body, approvedBy }));
 }
 
 /** GET /bills/:billId/receipt */
@@ -202,7 +206,23 @@ export async function getInvoice(req, res) {
   const bill = await readBill(req, req.params.billId);
   const restaurant = await Restaurant.findById(req.restaurantId);
   const { receipt } = await getSettings(req.restaurantId, { req });
-  return sendSuccess(res, buildInvoiceData({ restaurant, bill, receipt }));
+  /**
+   * 2026-10-09, for the thermal bill: who made the bill, read now as a label,
+   * and the guest from the order. Only the last four digits of a mobile leave
+   * the server. M3 section 16.1.
+   */
+  const [cashier, order] = await Promise.all([
+    bill.billedBy ? User.findOne({ restaurantId: req.restaurantId, _id: bill.billedBy }).select('name').lean() : null,
+    Order.findOne({ ...scoped(req), _id: bill.orderId }).select('customerName customerPhone').lean(),
+  ]);
+  return sendSuccess(res, {
+    ...buildInvoiceData({ restaurant, bill, receipt }),
+    cashierName: cashier?.name ?? null,
+    customer:
+      order?.customerName || order?.customerPhone
+        ? { name: order.customerName ?? null, mobileLast4: order.customerPhone ? String(order.customerPhone).slice(-4) : null }
+        : null,
+  });
 }
 
 /** POST /bills/:billId/print-request. P25 Part D. */

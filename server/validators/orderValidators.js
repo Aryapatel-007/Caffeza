@@ -44,6 +44,7 @@ import {
   phoneIndia,
   reasonFields,
   requireNoteForOther,
+  approval,
 } from './common.js';
 
 /**
@@ -411,6 +412,7 @@ export const cancelOrderLineSchema = z.object({
       version,
       ...reasonFields(LINE_CANCEL_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
       wasPrepared: z.boolean({ error: 'Must be true or false.' }).optional(),
+      approval: approval.optional(),
     })
     .strict('Is not a field you can set here.')
     .superRefine(requireNoteForOther),
@@ -438,6 +440,7 @@ export const cancelOrderSchema = z.object({
       version,
       ...reasonFields(ORDER_CANCEL_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
       wasPrepared: z.boolean({ error: 'Must be true or false.' }).optional(),
+      approval: approval.optional(),
     })
     .strict('Is not a field you can set here.')
     .superRefine(requireNoteForOther),
@@ -453,6 +456,7 @@ export const noChargeSchema = z.object({
     .object({
       version,
       ...reasonFields(NO_CHARGE_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
+      approval: approval.optional(),
     })
     .strict('Is not a field you can set here.')
     .superRefine(requireNoteForOther),

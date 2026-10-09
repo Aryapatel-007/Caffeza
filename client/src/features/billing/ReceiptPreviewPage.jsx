@@ -4,15 +4,15 @@ import { Link, useParams } from 'react-router-dom';
 
 import Spinner from '../../components/ui/Spinner.jsx';
 import Toast from '../../components/ui/Toast.jsx';
-import { getBill, getInvoice, getReceipt } from '../../api/bills.js';
+import { getBill, getInvoice } from '../../api/bills.js';
 import { useTheme } from '../../context/ThemeProvider.jsx';
 
 import BillStatusBadge from './BillStatusBadge.jsx';
 import { errorMessage } from './errorCopy.js';
 import { LABELS } from '../i18n/labels.js';
-import { INVOICE_STYLES, invoiceHtml } from '../printing/invoiceHtml.js';
-import { printBill, reviewQrSvg } from '../printing/printBill.js';
-import { charactersFor, PRINTER_KEYS, PRINTERS } from '../printing/printers.js';
+import { INVOICE_STYLES, invoiceHtml, THERMAL_BILL_STYLES, thermalBillHtml } from '../printing/invoiceHtml.js';
+import { printBill, reviewQrSvg, thermalLogoDataUrl } from '../printing/printBill.js';
+import { contentWidthMm, PRINTER_KEYS, PRINTERS, THERMAL_SIDE_MM } from '../printing/printers.js';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import { placeLabel } from '../orders/orderLabel.js';
 import Money, { moneyText } from '../../components/ui/Money.jsx';
@@ -20,11 +20,10 @@ import Money, { moneyText } from '../../components/ui/Money.jsx';
 /**
  * The receipt, exactly as it prints.
  *
- * On a thermal printer the slip is the server's own text from
- * GET /bills/:billId/receipt, laid out at the roll's width, shown in a
- * monospace block the same width as the paper. On A4 or A5 it is the full-page
- * tax invoice, drawn by the same `invoiceHtml` the printer gets, from
- * GET /bills/:billId/invoice (P25). Nothing on either is worked out here, so
+ * On a thermal printer the slip is the thermal bill, drawn by the same
+ * `thermalBillHtml` the printer gets, at the width the print head reaches. On
+ * A4 or A5 it is the full-page tax invoice, drawn by the same `invoiceHtml`.
+ * Both come from GET /bills/:billId/invoice (P25). Nothing on either is worked out here, so
  * the preview cannot disagree with the paper. Printing goes through the
  * browser like every other print in the product; the server never talks to a
  * printer.
@@ -41,17 +40,17 @@ export default function ReceiptPreviewPage() {
   const { brand } = useTheme();
   const printer = device.printer;
   const thermal = PRINTERS[printer].thermal;
-  const width = charactersFor(printer);
   const logoDataUrl = brand.logos?.LIGHT_GROUND?.dataUrl ?? null;
 
   const bill = useQuery({ queryKey: ['bill', billId], queryFn: () => getBill(billId) });
-  const receipt = useQuery({
-    queryKey: ['receipt', billId, width],
-    queryFn: () => getReceipt(billId, width),
-    enabled: thermal,
+  const invoice = useQuery({ queryKey: ['invoice', billId], queryFn: () => getInvoice(billId) });
+  const shown = invoice;
+  const thermalLogo = useQuery({
+    queryKey: ['thermal-logo', logoDataUrl],
+    queryFn: () => thermalLogoDataUrl(logoDataUrl),
+    enabled: thermal && Boolean(logoDataUrl),
   });
-  const invoice = useQuery({ queryKey: ['invoice', billId], queryFn: () => getInvoice(billId), enabled: !thermal });
-  const shown = thermal ? receipt : invoice;
+  const [slipHeight, setSlipHeight] = useState(600);
   const reviewLinkUrl = shown.data?.reviewLinkUrl ?? null;
   const qr = useQuery({ queryKey: ['review-qr', reviewLinkUrl], queryFn: () => reviewQrSvg(reviewLinkUrl), enabled: Boolean(reviewLinkUrl) });
 
@@ -149,7 +148,7 @@ export default function ReceiptPreviewPage() {
 
           <div className="col-span-12 flex flex-col items-center xl:col-span-5">
             <p className="mb-3 rounded-lg bg-sunken/70 px-4 py-2 type-num-meta">
-              As printed · {PRINTERS[printer].label}{thermal ? ` · ${width} characters per line` : ''}
+              As printed · {PRINTERS[printer].label}{thermal ? ` · ${contentWidthMm(printer, device.edgeMargin)} mm printed width` : ''}
             </p>
 
             {shown.isPending && <Spinner label="Laying out the receipt" />}
@@ -164,20 +163,14 @@ export default function ReceiptPreviewPage() {
               />
             )}
 
-            {thermal && receipt.data && (
-              <div className="w-fit max-w-full overflow-x-auto bg-surface px-6 py-8 shadow-float [clip-path:polygon(0_6px,3%_0,6%_6px,9%_0,12%_6px,15%_0,18%_6px,21%_0,24%_6px,27%_0,30%_6px,33%_0,36%_6px,39%_0,42%_6px,45%_0,48%_6px,51%_0,54%_6px,57%_0,60%_6px,63%_0,66%_6px,69%_0,72%_6px,75%_0,78%_6px,81%_0,84%_6px,87%_0,90%_6px,93%_0,96%_6px,100%_0,100%_calc(100%-6px),97%_100%,94%_calc(100%-6px),91%_100%,88%_calc(100%-6px),85%_100%,82%_calc(100%-6px),79%_100%,76%_calc(100%-6px),73%_100%,70%_calc(100%-6px),67%_100%,64%_calc(100%-6px),61%_100%,58%_calc(100%-6px),55%_100%,52%_calc(100%-6px),49%_100%,46%_calc(100%-6px),43%_100%,40%_calc(100%-6px),37%_100%,34%_calc(100%-6px),31%_100%,28%_calc(100%-6px),25%_100%,22%_calc(100%-6px),19%_100%,16%_calc(100%-6px),13%_100%,10%_calc(100%-6px),7%_100%,4%_calc(100%-6px),0_100%)]">
-                <pre
-                  aria-label="Receipt text"
-                  className="whitespace-pre type-num-meta text-black"
-                  style={{ width: `${width}ch` }}
-                >
-                  {receipt.data.text}
-                </pre>
-                {qr.data && (
-                  // The QR code from the qrcode package, an SVG string built on this device.
-                  <div className="mx-auto mt-2 size-28 text-black" dangerouslySetInnerHTML={{ __html: qr.data }} />
-                )}
-              </div>
+            {thermal && invoice.data && (
+              <iframe
+                title="Bill as printed"
+                className="bg-surface shadow-float"
+                style={{ width: `${contentWidthMm(printer, device.edgeMargin) + 8}mm`, height: `${slipHeight}px` }}
+                onLoad={(event) => setSlipHeight(event.currentTarget.contentDocument?.body?.scrollHeight ?? 600)}
+                srcDoc={`<!doctype html><html><head><meta charset="utf-8" /><style>html,body{margin:0;background:white;color:black}body{padding:4mm}#slip{width:${contentWidthMm(printer, device.edgeMargin)}mm;padding:0 ${THERMAL_SIDE_MM}mm;box-sizing:border-box}${THERMAL_BILL_STYLES}</style></head><body><div id="slip">${thermalBillHtml(invoice.data, { printer, logoDataUrl: thermalLogo.data ?? null, qrSvg: qr.data ?? null, textSize: device.billTextSize })}</div></body></html>`}
+              />
             )}
           </div>
 

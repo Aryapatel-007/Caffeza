@@ -31,7 +31,8 @@ import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/
 import { cancelLineInSession } from '../services/lineCancelService.js';
 import { giveNoCharge } from '../services/noChargeService.js';
 import { returnStockForCancelledLine } from '../services/stockMovementService.js';
-import { isFeatureOn } from '../services/settingsService.js';
+import { getSettings, isFeatureOn } from '../services/settingsService.js';
+import { approverForManagerTask, approverIfNeeded } from '../services/approvalService.js';
 import {
   applyVersionedUpdate,
   assertOrderIsOpen,
@@ -207,7 +208,7 @@ export async function editOrderLine(req, res) {
  */
 export async function cancelOrderLine(req, res) {
   const { orderId, lineId } = req.params;
-  const { version, reasonCode, note, wasPrepared } = req.body;
+  const { version, reasonCode, note, wasPrepared, approval } = req.body;
 
   const order = await loadOrderInTenant(req, orderId);
   assertOrderIsOpen(order);
@@ -221,10 +222,19 @@ export async function cancelOrderLine(req, res) {
   // answered. See the note on this function.
   assertWasPreparedRule(line.status, wasPrepared);
 
+  /**
+   * P28. A cashier or captain cancelling a dish the kitchen already has needs
+   * an owner's or manager's PIN. Taking back a line never sent costs nothing,
+   * so it needs none.
+   */
+  const { approvals } = await getSettings(req.restaurantId, { req });
+  const sentToKitchen = [...PREPARED_LINE_STATUSES].includes(line.status);
+  const approvedBy = await approverIfNeeded(req, approval, approvals.lineCancel && sentToKitchen);
+
   const inventoryOn = await isFeatureOn(req, 'inventory');
 
   const updated = await withOptionalTransaction((session) =>
-    cancelLineInSession(req, { order, line, version, reasonCode, note, wasPrepared, inventoryOn }, session),
+    cancelLineInSession(req, { order, line, version, reasonCode, note, wasPrepared, inventoryOn, approvedBy }, session),
   );
 
   req.log?.info(
@@ -380,7 +390,11 @@ export async function moveOrderToTable(req, res) {
  */
 export async function cancelOrder(req, res) {
   const { orderId } = req.params;
-  const { version, reasonCode, note, wasPrepared } = req.body;
+  const { version, reasonCode, note, wasPrepared, approval } = req.body;
+
+  // P28. A cashier may, with an owner's or manager's PIN, when the owner allows it.
+  const { approvals } = await getSettings(req.restaurantId, { req });
+  const approvedBy = await approverForManagerTask(req, approval, approvals, 'Only an owner or a manager can cancel a whole order.');
 
   const order = await loadOrderInTenant(req, orderId);
 
@@ -416,6 +430,7 @@ export async function cancelOrder(req, res) {
           isCancelled: true,
           cancelledAt: now,
           cancelledBy: req.user.id,
+          cancelApprovedBy: approvedBy,
           cancelReasonCode: reasonCode,
           // P04: the free-text field now holds the optional note.
           cancelReason: note ?? null,
@@ -477,6 +492,7 @@ export async function cancelOrder(req, res) {
           lineCount: stillLive.length,
           reasonCode,
           wasPrepared: wasPrepared ?? null,
+          ...(approvedBy ? { approvedBy: String(approvedBy) } : {}),
         },
       },
       session,

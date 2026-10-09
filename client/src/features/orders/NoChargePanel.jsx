@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { TriangleIcon } from '../../components/ui/icons/index.jsx';
+import ApprovalStep, { useApproval } from '../../components/ui/ApprovalStep.jsx';
 import Money from '../../components/ui/Money.jsx';
 import ReasonPicker, { isReasonComplete, reasonBody } from '../../components/ui/ReasonPicker.jsx';
 import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
@@ -8,7 +9,8 @@ import { LABELS } from '../i18n/labels.js';
 import { NO_CHARGE_REASONS } from './noChargeReasons.js';
 
 /**
- * Giving an order No Charge. P08. OWNER and MANAGER.
+ * Giving an order No Charge. P08. OWNER and MANAGER, or a cashier with an owner's
+ * or manager's PIN (P28, `needsApproval`).
  *
  * Shows what is being given away at menu price, before GST, the number the No
  * Charge report will print, then the fixed reasons. The order closes with no
@@ -16,17 +18,18 @@ import { NO_CHARGE_REASONS } from './noChargeReasons.js';
  * rules; the panel says the one a waiter most often trips over, unsent items,
  * before anyone taps confirm.
  */
-export default function NoChargePanel({ order, isBusy, onCancel, onConfirm }) {
+export default function NoChargePanel({ order, needsApproval = false, isBusy, onCancel, onConfirm }) {
   const [reason, setReason] = useState({ reasonCode: null, note: '' });
+  const approval = useApproval(needsApproval);
   const unsent = order.lines.filter((line) => line.status === 'PENDING').length;
-  const canConfirm = unsent === 0 && isReasonComplete(reason) && !isBusy;
+  const canConfirm = unsent === 0 && isReasonComplete(reason) && approval.ready && !isBusy;
 
   return (
     <Sheet
       title="No Charge"
       onClose={onCancel}
       footer={
-        <SheetActions cancelLabel={LABELS.keepIt} onCancel={onCancel} disabled={!canConfirm} onConfirm={() => onConfirm(reasonBody(reason))}>
+        <SheetActions cancelLabel={LABELS.keepIt} onCancel={onCancel} disabled={!canConfirm} onConfirm={() => onConfirm({ ...reasonBody(reason), ...approval.body })}>
           {isBusy ? 'Saving…' : 'Give No Charge'}
         </SheetActions>
       }
@@ -46,6 +49,8 @@ export default function NoChargePanel({ order, isBusy, onCancel, onConfirm }) {
       )}
 
       <ReasonPicker reasons={NO_CHARGE_REASONS} value={reason} onChange={setReason} />
+
+      <ApprovalStep approval={approval} />
     </Sheet>
   );
 }

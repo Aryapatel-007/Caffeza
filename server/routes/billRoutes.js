@@ -121,7 +121,8 @@ router.post(
  * and refuses a cashier everything else.
  */
 router.post('/bills/:billId/discount', ...till, validate(applyDiscountSchema), postDiscount);
-router.post('/bills/:billId/void', ...managers, validate(voidBillSchema), postVoid);
+// P28. A cashier may void with an owner's or manager's PIN; the controller decides.
+router.post('/bills/:billId/void', ...till, validate(voidBillSchema), postVoid);
 
 // P25 Part E. The till and captains reach it; a CASHIER or WAITER needs a manager's PIN, checked in the service.
 router.post('/bills/:billId/cancel-lines', ...tillAndCaptains, validate(cancelLinesSchema), postCancelLines);

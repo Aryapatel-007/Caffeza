@@ -6,16 +6,17 @@
  * no wrapping, padding or column arithmetic of its own.
  *
  * Everything prints from a hidden iframe, never the whole page. The frame is
- * given the paper's real width so the content lays out exactly as it will
- * print, then its height is measured, and only then is the `@page` rule
- * written, from `pageCss` in printers.js: a thermal page exactly the
- * receipt's height, or a full A4 or A5 page. With Chrome started with
+ * given the width the printer actually prints, so the content lays out
+ * exactly as it will print, then its height is measured, and only then is
+ * the `@page` rule written, from `pageCss` in printers.js: a page exactly the
+ * bill's size, the driver's own roll from its top, or a full A4 or A5 page. With Chrome started with
  * --kiosk-printing (docs/DEPLOYMENT.md section 10) the print goes straight to
  * the default printer with no dialog; without it the print dialog opens.
  *
  * The server never talks to a printer. This is the only path to paper.
  */
-import { charactersFor, monospaceFontMm, PAGE_MARGIN_MM, pageCss, PRINTERS, pxToMm } from './printers.js';
+import { charactersFor, contentWidthMm, monospaceFontMm, pageCss, PRINTERS, pxToMm, THERMAL_FEED_MM, THERMAL_SIDE_MM } from './printers.js';
+import { readDeviceSettings } from './useDeviceSettings.js';
 
 export { charactersFor };
 
@@ -33,9 +34,24 @@ const nextFrame = (win) => new Promise((resolve) => win.requestAnimationFrame(()
  * caller can say "Not printed" rather than believing it worked.
  */
 export async function printDocument({ printer: chosen, bodyHtml, styles = '' }) {
+  // P21. The browser tests record the words that would print. Only a test's init script sets this.
+  if (typeof window.__E2E_PRINT__ === 'function') {
+    const holder = document.createElement('div');
+    holder.innerHTML = bodyHtml;
+    window.__E2E_PRINT__(holder.textContent.replace(/\s+/g, ' ').trim(), chosen);
+    return;
+  }
   const printer = PRINTERS[chosen] ? chosen : 'THERMAL_80';
-  const paper = PRINTERS[printer];
-  const contentWidthMm = paper.thermal ? paper.widthMm : paper.widthMm - 2 * PAGE_MARGIN_MM;
+  const { paperLength, edgeMargin } = readDeviceSettings();
+  const widthMm = contentWidthMm(printer, edgeMargin);
+  /**
+   * The content gets its width in millimetres, not the page's. Without it,
+   * whatever paper Chrome prints on, A4 in the preview, stretched every block
+   * and centred the logo across the whole sheet (Z Chaat, 2026-10-09).
+   */
+  const rootStyle = PRINTERS[printer].thermal
+    ? `width: ${widthMm}mm; padding: 0 ${THERMAL_SIDE_MM}mm; box-sizing: border-box;`
+    : `width: ${widthMm}mm;`;
 
   const frame = document.createElement('iframe');
   frame.setAttribute('aria-hidden', 'true');
@@ -44,7 +60,7 @@ export async function printDocument({ printer: chosen, bodyHtml, styles = '' }) 
     position: 'fixed',
     left: '-10000px',
     top: '0',
-    width: `${contentWidthMm}mm`,
+    width: `${widthMm}mm`,
     height: '2000mm',
     border: '0',
     visibility: 'hidden',
@@ -60,13 +76,14 @@ export async function printDocument({ printer: chosen, bodyHtml, styles = '' }) 
   html, body { margin: 0; padding: 0; background: white; color: black; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   ${styles}
-</style></head><body><div id="print-root">${bodyHtml}</div></body></html>`);
+</style></head><body><div id="print-root" style="${rootStyle}">${bodyHtml}</div></body></html>`);
     doc.close();
     await nextFrame(frame.contentWindow);
 
+    // Measured after layout at the printed width, then the page is written: see pageCss.
     const heightMm = pxToMm(doc.getElementById('print-root').getBoundingClientRect().height);
     const page = doc.createElement('style');
-    page.textContent = pageCss({ printer, contentHeightMm: heightMm });
+    page.textContent = pageCss({ printer, contentHeightMm: heightMm, paperLength, edgeMargin });
     doc.head.appendChild(page);
     await nextFrame(frame.contentWindow);
 
@@ -83,10 +100,18 @@ export function textStyles(printer) {
   return `
   pre {
     margin: 0;
-    padding: ${paper.thermal ? '2mm' : '0'};
-    font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-    font-size: ${monospaceFontMm(printer).toFixed(2)}mm;
-    line-height: 1.25;
+    padding: ${paper.thermal ? `0 0 ${THERMAL_FEED_MM}mm` : '0'};
+    /*
+     * The frame loads none of the app's fonts, so these are the computer's
+     * own. Consolas and Lucida Console are on every Windows computer; without
+     * them Chrome fell back to Courier New, whose thin strokes printed faint
+     * on thermal paper. Bold and pure black for the same reason.
+     */
+    font-family: Consolas, "Lucida Console", Menlo, "DejaVu Sans Mono", monospace;
+    font-weight: 700;
+    color: black;
+    font-size: ${monospaceFontMm(printer, readDeviceSettings().edgeMargin).toFixed(2)}mm;
+    line-height: 1.2;
     white-space: pre;
   }
   .review { display: flex; flex-direction: column; align-items: center; gap: 1mm; padding: 2mm 0 4mm; font: 3mm sans-serif; }

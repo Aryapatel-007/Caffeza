@@ -213,6 +213,17 @@ export function reasonFields(codes, noteMaxLength) {
   };
 }
 
+/**
+ * P28. An owner's or manager's approval, typed on someone else's screen. The
+ * server decides whether one is needed; sending one when it is not is harmless.
+ */
+export const approval = z
+  .object({
+    approverId: objectId,
+    pin: z.string({ error: 'Must be text.' }).trim().regex(/^\d{4,6}$/, 'A PIN is 4 to 6 digits.'),
+  })
+  .strict('Is not a field you can set here.');
+
 /** A note is required with OTHER. Added to a body schema with .superRefine. */
 export function requireNoteForOther(body, context) {
   if (body.reasonCode === OTHER_REASON_CODE && !body.note) {

@@ -271,7 +271,8 @@ describe('audit lines for cancellations', () => {
     const order = await orderWithFiredLine(floor);
     const line = order.lines[0];
 
-    const response = await cancelLine(floor.tokens.WAITER, order.id, line.id, {
+    // P28: a captain needs a manager's PIN to cancel a sent dish, so the manager cancels here; this test is about the audit line.
+    const response = await cancelLine(floor.tokens.MANAGER, order.id, line.id, {
       version: order.version,
       reasonCode: 'QUALITY',
       note: 'Too salty',
@@ -353,7 +354,7 @@ describe('audit lines for cancellations', () => {
     const floor = await seedFloor();
     const order = await orderWithFiredLine(floor);
 
-    const lineCancel = await cancelLine(floor.tokens.WAITER, order.id, order.lines[0].id, {
+    const lineCancel = await cancelLine(floor.tokens.MANAGER, order.id, order.lines[0].id, {
       version: order.version - 1,
       reasonCode: 'QUALITY',
       wasPrepared: true,
@@ -480,8 +481,9 @@ describe('golden day B13 and check C7', () => {
     order = fired.order;
 
     const thechaLine = order.lines.find((line) => line.itemName === 'Thecha Paneer Chilli');
+    // P28: a dish the kitchen made is cancelled by the manager, or by a captain with the manager's PIN.
     order = (
-      await cancelLine(tokens.WAITER, order.id, thechaLine.id, {
+      await cancelLine(tokens.MANAGER, order.id, thechaLine.id, {
         version: order.version,
         reasonCode: 'MODIFICATION',
         wasPrepared: true,
