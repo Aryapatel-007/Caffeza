@@ -8,7 +8,7 @@
 import { Kot, KOT_LINE_STATUSES } from '../models/Kot.js';
 import { Order } from '../models/Order.js';
 import { User } from '../models/User.js';
-import { KOT_STATUSES, loadKotInTenant, markKotLinesReady, serialiseKot } from '../services/kitchenService.js';
+import { KOT_STATUSES, loadKotInTenant, markKotLinesReady, serialiseKot, undoKotReady } from '../services/kitchenService.js';
 import { renderKotTicket } from '../services/kotTicketService.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
@@ -87,6 +87,16 @@ export async function markKotLineReady(req, res) {
 export async function markKotReady(req, res) {
   const kot = await markKotLinesReady(req, { kotId: req.params.kotId });
   return sendSuccess(res, kot);
+}
+
+/** POST /kots/:kotId/lines/:lineId/undo-ready. P29 Part E. All six roles, like marking ready. */
+export async function undoKotLineReady(req, res) {
+  return sendSuccess(res, await undoKotReady(req, { kotId: req.params.kotId, lineId: req.params.lineId }));
+}
+
+/** POST /kots/:kotId/undo-ready. P29 Part E. Every READY line on the ticket. */
+export async function undoKotTicketReady(req, res) {
+  return sendSuccess(res, await undoKotReady(req, { kotId: req.params.kotId }));
 }
 
 /**

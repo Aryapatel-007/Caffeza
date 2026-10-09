@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
-import { getKotTicket, listKots, markKotLineReady, markKotReady } from '../../api/kitchen.js';
+import { getKotTicket, listKots, markKotLineReady, markKotReady, undoKotLineReady, undoKotReady } from '../../api/kitchen.js';
 import { listStations } from '../../api/stations.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
@@ -21,6 +21,28 @@ const ALL_STATIONS = 'ALL';
 const DEFAULT_TARGET_MINUTES = 15;
 
 const ORDER_TYPE_LABELS = { DINE_IN: 'Dine-in', TAKEAWAY: 'Takeaway', DELIVERY: 'Delivery' };
+
+/** P29 Part E. How long the undo bar stays, and how many finished tickets the "Just done" row keeps, for how long. */
+const UNDO_BAR_MS = 10_000;
+const JUST_DONE_KEEP = 10;
+const JUST_DONE_MS = 10 * 60_000;
+const JUST_DONE_KEY = 'kitchen.justDone';
+
+/** The tickets finished on this screen, kept for the tab's life so a reload does not lose them. */
+function readJustDone() {
+  try {
+    return JSON.parse(sessionStorage.getItem(JUST_DONE_KEY) ?? '[]');
+  } catch {
+    return [];
+  }
+}
+function writeJustDone(list) {
+  try {
+    sessionStorage.setItem(JUST_DONE_KEY, JSON.stringify(list));
+  } catch {
+    // A browser that refuses storage still shows the row until the tab closes.
+  }
+}
 
 /**
  * The kitchen display.
@@ -62,16 +84,57 @@ export default function KitchenDisplayPage() {
     refetchIntervalInBackground: true,
   });
 
+  /**
+   * P29 Part E. The last tick, for the undo bar, and the tickets finished on
+   * this screen in the last ten minutes, for the "Just done" row. A wrong tick
+   * is easy to take back while the table is not yet billed.
+   */
+  const [lastTick, setLastTick] = useState(null);
+  const [justDone, setJustDone] = useState(readJustDone);
+  const [notice, setNotice] = useState(null);
+  useEffect(() => {
+    if (!lastTick) return undefined;
+    const timer = setTimeout(() => setLastTick(null), UNDO_BAR_MS);
+    return () => clearTimeout(timer);
+  }, [lastTick]);
+  const keepJustDone = (update) =>
+    setJustDone((current) => {
+      const next = update(current).slice(0, JUST_DONE_KEEP);
+      writeJustDone(next);
+      return next;
+    });
+
   const markReady = useMutation({
     mutationFn: ({ kotId, lineId }) =>
       lineId ? markKotLineReady(kotId, lineId) : markKotReady(kotId),
-    onSuccess: () => {
+    onSuccess: (kot, { lineId, label }) => {
       setError(null);
+      setNotice(null);
+      setLastTick({ kotId: kot.id, lineId: lineId ?? null, label, at: Date.now() });
+      if (kot.status === 'COMPLETED') {
+        keepJustDone((current) => [{ kot, doneAt: Date.now() }, ...current.filter((entry) => entry.kot.id !== kot.id)]);
+      }
       queryClient.invalidateQueries({ queryKey: ['kots'] });
       // A floor screen holding this order now has a stale copy.
       queryClient.invalidateQueries({ queryKey: ['order'] });
     },
     onError: (mutationError) => setError(errorMessage(mutationError)),
+  });
+
+  const undo = useMutation({
+    mutationFn: ({ kotId, lineId }) => (lineId ? undoKotLineReady(kotId, lineId) : undoKotReady(kotId)),
+    onSuccess: (kot) => {
+      setError(null);
+      setLastTick(null);
+      keepJustDone((current) => current.filter((entry) => entry.kot.id !== kot.id));
+      setNotice(kot.platformAlreadyTold ? 'Back with the kitchen. The platform was already told it was ready.' : 'Back with the kitchen.');
+      queryClient.invalidateQueries({ queryKey: ['kots'] });
+      queryClient.invalidateQueries({ queryKey: ['order'] });
+    },
+    onError: (mutationError) => {
+      setLastTick(null);
+      setError(errorMessage(mutationError));
+    },
   });
 
   /** Fetches the server-laid-out ticket and prints it. Never throws. */
@@ -140,6 +203,8 @@ export default function KitchenDisplayPage() {
     (a, b) => Number(isLate(b)) - Number(isLate(a)) || new Date(a.firedAt) - new Date(b.firedAt),
   );
   const lateCount = kots.filter(isLate).length;
+  const recentDone = justDone.filter((entry) => clock - entry.doneAt < JUST_DONE_MS && (!stationFilter || entry.kot.stationId === stationFilter));
+  const nameOf = (kot, lineId) => kot.lines.find((line) => line.id === lineId)?.itemName ?? 'That dish';
 
   return (
     <main className="v2 min-h-full bg-ground text-ink">
@@ -185,7 +250,33 @@ export default function KitchenDisplayPage() {
         )}
 
         {error && <p className="type-body w-full text-alert">{error}</p>}
+        {notice && <p className="type-body w-full text-muted">{notice}</p>}
       </header>
+
+      {/* P29 Part E. The tickets finished on this screen in the last ten minutes, each with Undo. */}
+      {recentDone.length > 0 && (
+        <section aria-label="Just done" className="border-b border-line bg-surface px-4 py-3 sm:px-6">
+          <h2 className="type-label mb-2 text-muted">Just done</h2>
+          <ul className="-mx-1 flex gap-2 overflow-x-auto px-1">
+            {recentDone.map(({ kot, doneAt }) => (
+              <li key={kot.id} className="flex flex-none items-center gap-3 rounded-lg border border-line px-3 py-1">
+                <span className="type-body whitespace-nowrap">
+                  <span className="type-num-meta">KOT {kot.kotNumber}</span> · {kot.tableName ?? `Order ${kot.orderNumber}`}
+                  <span className="type-caption text-muted"> · {formatTimeIst(new Date(doneAt))}</span>
+                </span>
+                <button
+                  type="button"
+                  disabled={undo.isPending}
+                  onClick={() => undo.mutate({ kotId: kot.id })}
+                  className="type-label min-h-12 rounded-lg border border-line px-3 hover:bg-sunken disabled:opacity-50"
+                >
+                  Undo
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="p-4 sm:p-6">
         {tickets.isPending && <Spinner label="Loading tickets" />}
@@ -210,14 +301,30 @@ export default function KitchenDisplayPage() {
                 lines={kot.lines}
                 notPrinted={notPrinted.has(kot.id)}
                 onReprint={() => printKot(kot.id, { reprint: true })}
-                isBusy={markReady.isPending}
-                onLineReady={(lineId) => markReady.mutate({ kotId: kot.id, lineId })}
-                onAllReady={() => markReady.mutate({ kotId: kot.id })}
+                isBusy={markReady.isPending || undo.isPending}
+                onLineReady={(lineId) => markReady.mutate({ kotId: kot.id, lineId, label: `${nameOf(kot, lineId)} marked ready.` })}
+                onLineUndo={(lineId) => undo.mutate({ kotId: kot.id, lineId })}
+                onAllReady={() => markReady.mutate({ kotId: kot.id, label: `KOT ${kot.kotNumber} marked ready.` })}
               />
             </li>
           ))}
         </ul>
       </div>
+
+      {/* P29 Part E. The last tick, with a large Undo, for ten seconds. */}
+      {lastTick && (
+        <div role="status" className="sticky bottom-0 z-20 flex items-center justify-between gap-3 border-t border-line bg-surface px-4 py-2 shadow-float sm:px-6">
+          <span className="type-body">{lastTick.label}</span>
+          <button
+            type="button"
+            disabled={undo.isPending}
+            onClick={() => undo.mutate({ kotId: lastTick.kotId, lineId: lastTick.lineId })}
+            className="type-button min-h-14 rounded-lg bg-accent px-6 text-on-accent hover:brightness-110 disabled:opacity-50"
+          >
+            Undo
+          </button>
+        </div>
+      )}
     </main>
   );
 }

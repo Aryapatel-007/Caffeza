@@ -11,7 +11,9 @@ import mongoose from 'mongoose';
 import { COUNTER_NAMES } from '../models/Counter.js';
 import { Kot, KOT_LINE_STATUSES } from '../models/Kot.js';
 import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
-import { BusinessRuleError, NotFoundError } from '../utils/errors.js';
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
+import { BusinessRuleError, NotFoundError, OrderAlreadyBilledError } from '../utils/errors.js';
+import { recordAudit } from './auditService.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
@@ -349,6 +351,91 @@ export async function markKotLinesReady(req, { kotId, lineId }) {
   }
 
   return serialiseKot(updated);
+}
+
+/**
+ * Takes back a ready tick made by mistake. P29 Part E, API-CONTRACT M2
+ * section 13.5. `lineId` undoes one line; without it, every READY line on the
+ * ticket.
+ *
+ * Only while the order has no live bill: once billed, what was served is on a
+ * bill, and the cashier changes the bill. In one transaction the ticket line
+ * goes back to PENDING, the order line back to FIRED (clearing `readyAt`, and
+ * `servedAt` when the ready had served it), and a READY_TO_BILL order back to
+ * OPEN. A platform's queued "food is ready" call is stopped while it still
+ * waits. Returns the ticket with `platformAlreadyTold`.
+ */
+export async function undoKotReady(req, { kotId, lineId }) {
+  const kot = await loadKotInTenant(req, kotId);
+  if (lineId) {
+    const line = kot.lines.id(lineId);
+    if (!line) throw new NotFoundError('That line is not on this ticket.');
+    if (line.status !== KOT_LINE_STATUSES.READY) throw new BusinessRuleError('That one is not marked ready.');
+  }
+  const targets = kot.lines.filter((line) => line.status === KOT_LINE_STATUSES.READY && (!lineId || String(line._id) === String(lineId)));
+  if (targets.length === 0) throw new BusinessRuleError('Nothing on this ticket is marked ready.');
+
+  const order = await Order.findOne({ ...scoped(req), _id: kot.orderId }).select('status billId orderNumber tableName').lean();
+  if (!order) throw new NotFoundError('Order not found.');
+  if (order.billId) throw new OrderAlreadyBilledError();
+  if (![ORDER_STATUSES.OPEN, ORDER_STATUSES.READY_TO_BILL].includes(order.status)) {
+    throw new BusinessRuleError('This order is closed. It cannot be changed.');
+  }
+
+  const orderLineIds = targets.map((line) => line.orderLineId);
+  const updated = await withOptionalTransaction(async (session) => {
+    const options = session ? { session } : {};
+    await Kot.updateOne(
+      { ...scoped(req), _id: kot._id },
+      { $set: { 'lines.$[target].status': KOT_LINE_STATUSES.PENDING, 'lines.$[target].readyAt': null } },
+      { arrayFilters: [{ 'target._id': { $in: targets.map((line) => line._id) }, 'target.status': KOT_LINE_STATUSES.READY }], ...options },
+    );
+    const reopens = order.status === ORDER_STATUSES.READY_TO_BILL;
+    const changed = await Order.updateOne(
+      { ...scoped(req), _id: kot.orderId, status: order.status, billId: null },
+      {
+        $set: {
+          'lines.$[line].status': ORDER_LINE_STATUSES.FIRED,
+          'lines.$[line].readyAt': null,
+          'lines.$[line].servedAt': null,
+          ...(reopens ? { status: ORDER_STATUSES.OPEN, readyToBillAt: null } : {}),
+        },
+        $inc: { version: 1 },
+      },
+      {
+        arrayFilters: [{ 'line._id': { $in: orderLineIds }, 'line.status': { $in: [ORDER_LINE_STATUSES.READY, ORDER_LINE_STATUSES.SERVED] } }],
+        ...options,
+      },
+    );
+    // The order was billed or moved on between the read and this write: nothing changes.
+    if (changed.matchedCount === 0) throw new OrderAlreadyBilledError();
+
+    await recordAudit(
+      req,
+      {
+        action: AUDIT_ACTIONS.KITCHEN_READY_UNDONE,
+        entityType: AUDIT_ENTITY_TYPES.ORDER,
+        entityId: kot.orderId,
+        entityLabel: `Order ${order.orderNumber}`,
+        reason: `Ready undone: ${targets.map((line) => line.itemName).join(', ')}`.slice(0, 500),
+        details: {
+          kotId: String(kot._id),
+          kotNumber: kot.kotNumber,
+          lineIds: targets.map((line) => String(line._id)),
+          itemNames: targets.map((line) => line.itemName),
+          tableName: order.tableName ?? null,
+        },
+      },
+      session,
+    );
+    return Kot.findOne({ ...scoped(req), _id: kot._id }).setOptions(options);
+  });
+
+  const { cancelFoodReadyIfQueued } = await import('./integrations/platformOrderService.js');
+  const { platformAlreadyTold } = await cancelFoodReadyIfQueued(req, kot.orderId);
+
+  req.log?.info({ actorId: req.user.id, kotId: String(kot._id), lineCount: targets.length }, 'Kitchen took back a ready tick.');
+  return { ...serialiseKot(updated), platformAlreadyTold };
 }
 
 /**

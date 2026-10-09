@@ -38,6 +38,7 @@ import {
 import { scoped } from '../../utils/scopedQuery.js';
 import { withOptionalTransaction } from '../../utils/transaction.js';
 import { nowUtc } from '../../utils/time.js';
+import { IntegrationJob, JOB_STATUSES } from '../../models/IntegrationJob.js';
 import { recordAudit } from '../auditService.js';
 import { applyDiscount, createBill, readBill, recordPayment, voidBill } from '../billService.js';
 import { assertDayOpen, isDayClosed, todayBusinessDate } from '../dayLockService.js';
@@ -528,8 +529,8 @@ export async function processWebhookEvent(job) {
 }
 
 /** Queues one outgoing call to an order channel, for the job runner. */
-export function queueChannelCall(ctx, connection, call, args, dedupeKey = null) {
-  return enqueueJob(ctx, { connectionId: connection._id, type: CHANNEL_CALL, payload: { call, args }, dedupeKey });
+export function queueChannelCall(ctx, connection, call, args, dedupeKey = null, { runAfter = undefined } = {}) {
+  return enqueueJob(ctx, { connectionId: connection._id, type: CHANNEL_CALL, payload: { call, args }, dedupeKey, ...(runAfter ? { runAfter } : {}) });
 }
 
 /** Runs one queued outgoing call. */
@@ -562,7 +563,36 @@ export async function notifyFoodReadyIfDone(req, orderId) {
   const record = await PlatformOrder.findOne({ ...scoped(req), _id: order.origin.id });
   if (!record) return null;
   const connection = await loadConnection(req, record.connectionId);
-  return queueChannelCall(req, connection, 'markFoodReady', { platformOrderId: record.platformOrderId }, `ready:${record._id}`);
+  // P29 Part E. A minute's wait, so a wrong tick undone in the kitchen never reaches the platform.
+  return queueChannelCall(req, connection, 'markFoodReady', { platformOrderId: record.platformOrderId }, foodReadyKey(record._id), {
+    runAfter: new Date(nowUtc().getTime() + FOOD_READY_DELAY_MS),
+  });
+}
+
+/** P29 Part E. How long a "food is ready" call waits, so an undo can stop it. */
+export const FOOD_READY_DELAY_MS = 60_000;
+const foodReadyKey = (platformOrderRecordId) => `ready:${platformOrderRecordId}`;
+
+/**
+ * P29 Part E. A kitchen undo on a platform order. Stops the queued "food is
+ * ready" call while it still waits, and frees its key so the next ready queues
+ * a fresh one. Returns `{ platformAlreadyTold }`: true when the call had
+ * already run, so the screen can say the platform was told.
+ */
+export async function cancelFoodReadyIfQueued(req, orderId) {
+  const order = await Order.findOne({ ...scoped(req), _id: orderId }).select('origin').lean();
+  if (order?.origin?.kind !== ORIGIN_KINDS.PLATFORM_ORDER) return { platformAlreadyTold: false };
+  const key = foodReadyKey(order.origin.id);
+  const job = await IntegrationJob.findOne({ ...scoped(req), dedupeKey: key });
+  if (!job) return { platformAlreadyTold: false };
+  if (job.status === JOB_STATUSES.QUEUED) {
+    const stopped = await IntegrationJob.updateOne(
+      { ...scoped(req), _id: job._id, status: JOB_STATUSES.QUEUED },
+      { $set: { status: JOB_STATUSES.CANCELLED, dedupeKey: `${key}:cancelled:${job._id}`, lastError: 'Stopped by a kitchen undo' } },
+    );
+    if (stopped.modifiedCount === 1) return { platformAlreadyTold: false };
+  }
+  return { platformAlreadyTold: true };
 }
 
 /**

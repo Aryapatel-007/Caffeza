@@ -29,6 +29,8 @@ import {
   listKots,
   markKotLineReady,
   markKotReady,
+  undoKotLineReady,
+  undoKotTicketReady,
 } from '../controllers/kotController.js';
 import {
   createTable,
@@ -187,6 +189,9 @@ router.patch(
   markKotLineReady,
 );
 router.patch('/kots/:kotId/ready', ...anySignedIn, validate(markKotReadySchema), markKotReady);
+// P29 Part E. A wrong tick taken back, by the same people who tick. Refused once the order is billed.
+router.post('/kots/:kotId/lines/:lineId/undo-ready', ...anySignedIn, validate(markKotLineReadySchema), undoKotLineReady);
+router.post('/kots/:kotId/undo-ready', ...anySignedIn, validate(markKotReadySchema), undoKotTicketReady);
 
 // There is no DELETE on any M2 collection. PATCH .../status is the delete, so a
 // bill from M3 and a recipe deduction from M4 keep something to point at.

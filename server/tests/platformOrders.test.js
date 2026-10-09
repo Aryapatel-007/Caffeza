@@ -301,6 +301,42 @@ describe('around a platform order', () => {
     assert.equal(ready.length, 1);
   });
 
+  it('waits a minute before telling the platform, so a kitchen undo inside it stops the call (P29 Part E)', async () => {
+    const w = await world();
+    const order = b08Order();
+    await placed(w, order);
+    await accept(w, String((await platformOrder(w, order.platformOrderId))._id));
+    const kots = await Kot.find({ restaurantId: w.restaurant._id, orderId: (await platformOrder(w, order.platformOrderId)).orderId }).lean();
+    for (const kot of kots) await request('PATCH', `/api/v1/kots/${kot._id}/ready`, { token: w.tokens.MANAGER });
+
+    const queued = await IntegrationJob.findOne({ restaurantId: w.restaurant._id, 'payload.call': 'markFoodReady' }).lean();
+    assert.equal(queued.status, 'QUEUED');
+    assert.ok(queued.runAfter.getTime() - Date.now() > 50_000, 'queued about a minute ahead');
+    await runDueJobs();
+    assert.equal((await IntegrationJob.findOne({ restaurantId: w.restaurant._id, _id: queued._id }).lean()).status, 'QUEUED', 'not run before its minute');
+
+    const undone = await request('POST', `/api/v1/kots/${kots[0]._id}/undo-ready`, { token: w.tokens.MANAGER });
+    assert.equal(undone.status, 200, JSON.stringify(undone.body));
+    assert.equal(undone.body.data.platformAlreadyTold, false);
+    const stopped = await IntegrationJob.findOne({ restaurantId: w.restaurant._id, _id: queued._id }).lean();
+    assert.equal(stopped.status, 'CANCELLED');
+    assert.match(stopped.dedupeKey, /:cancelled:/);
+
+    // Ready again: a fresh call is queued, and this time it runs.
+    await request('PATCH', `/api/v1/kots/${kots[0]._id}/ready`, { token: w.tokens.MANAGER });
+    const again = await IntegrationJob.find({ restaurantId: w.restaurant._id, 'payload.call': 'markFoodReady', status: 'QUEUED' }).lean();
+    assert.equal(again.length, 1);
+    await runDueJobs({ now: new Date(Date.now() + 120_000) });
+    assert.equal((await IntegrationJob.findOne({ restaurantId: w.restaurant._id, _id: again[0]._id }).lean()).status, 'DONE');
+
+    // After the call ran, an undo still works here, says so, and the call is not repeated.
+    const late = await request('POST', `/api/v1/kots/${kots[0]._id}/undo-ready`, { token: w.tokens.MANAGER });
+    assert.equal(late.status, 200);
+    assert.equal(late.body.data.platformAlreadyTold, true);
+    await request('PATCH', `/api/v1/kots/${kots[0]._id}/ready`, { token: w.tokens.MANAGER });
+    assert.equal(await IntegrationJob.countDocuments({ restaurantId: w.restaurant._id, 'payload.call': 'markFoodReady', status: { $ne: 'CANCELLED' } }), 1);
+  });
+
   it('blocks Day Close while an accepted order has not been picked up', async () => {
     const w = await world();
     const order = b08Order();

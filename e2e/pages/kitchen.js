@@ -13,12 +13,20 @@ export async function openStation(page, station) {
   await expect(page.locator('article').first().or(page.getByText('All caught up'))).toBeVisible();
 }
 
-/** Marks every ticket for a place ready, with one tap on each ticket's footer. */
+/**
+ * Marks every ticket for a place ready by holding each ticket's footer. P29
+ * Part E: the whole ticket needs the button held for half a second.
+ */
 export async function markReady(page, station, place) {
   await openStation(page, station);
   const list = tickets(page, place);
   for (let left = await list.count(); left > 0; left = await list.count()) {
-    await list.first().locator('footer button').click();
+    await list.first().locator('footer button').click({ delay: 700 });
     await expect(list).toHaveCount(left - 1);
   }
+}
+
+/** P29 Part E. Ticks one dish ready on a place's ticket, by tapping its row. */
+export async function tickDish(page, place, dish) {
+  await tickets(page, place).first().locator('li', { hasText: dish }).getByRole('button').first().click();
 }

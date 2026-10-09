@@ -58,3 +58,17 @@ export function markKotLineReady(kotId, lineId) {
 export function markKotReady(kotId) {
   return api.patch(`/kots/${kotId}/ready`, undefined);
 }
+
+/**
+ * P29 Part E. Takes back a ready tick made by mistake: the dish goes back to
+ * the kitchen. Refused once the table is billed. The answer carries
+ * `platformAlreadyTold` for a platform order told before the undo.
+ */
+export function undoKotLineReady(kotId, lineId) {
+  return api.post(`/kots/${kotId}/lines/${lineId}/undo-ready`, undefined);
+}
+
+/** P29 Part E. Every ready dish on the ticket, back to the kitchen. */
+export function undoKotReady(kotId) {
+  return api.post(`/kots/${kotId}/undo-ready`, undefined);
+}

@@ -496,7 +496,7 @@ P29 progress
 - [x] B Change an unpaid bill without voiding it
 - [x] C Ready means served
 - [x] D Print before payment
-- [ ] E Undo in the kitchen
+- [x] E Undo in the kitchen
 - [ ] F The cash book
 - [ ] G Full check
 ```

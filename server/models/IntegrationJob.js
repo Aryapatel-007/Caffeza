@@ -8,7 +8,8 @@ import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 
-export const JOB_STATUSES = Object.freeze({ QUEUED: 'QUEUED', RUNNING: 'RUNNING', DONE: 'DONE', FAILED: 'FAILED', DEAD: 'DEAD' });
+// P29. CANCELLED: a queued "food is ready" call a kitchen undo stopped before it ran. Never run.
+export const JOB_STATUSES = Object.freeze({ QUEUED: 'QUEUED', RUNNING: 'RUNNING', DONE: 'DONE', FAILED: 'FAILED', DEAD: 'DEAD', CANCELLED: 'CANCELLED' });
 export const DEFAULT_MAX_ATTEMPTS = 6;
 
 const jobSchema = new mongoose.Schema({
