@@ -40,6 +40,7 @@ import { PaymentMethod } from '../models/PaymentMethod.js';
 import { getSetting, getSettings } from './settingsService.js';
 import { countCash } from './cashService.js';
 import { carryPayments } from './billCarryService.js';
+import { assertBillTakesMoney } from './billRevisionService.js';
 import {
   assertBillHasLines,
   assertDiscountFits,
@@ -77,7 +78,7 @@ const DUPLICATE_KEY = 11000;
  * and the add-on prices separately and derives the line total; a bill freezes
  * the number that was printed, because it must still print the same in a year.
  */
-function toBillLine(line) {
+export function toBillLine(line) {
   const lineTotalInPaise = computeLineTotalInPaise(line);
 
   /**
@@ -117,7 +118,7 @@ function toBillLine(line) {
  * and can never drift from the totals beside them. allocateLineShares checks
  * C2 itself and throws before anything is saved if the shares do not balance.
  */
-function applyTotals(bill, lines, totals) {
+export function applyTotals(bill, lines, totals) {
   const shares = allocateLineShares(lines, totals);
   lines.forEach((line, index) => {
     line.discountShareInPaise = shares[index].discountShareInPaise;
@@ -426,6 +427,8 @@ export async function recordPayment(req, billId, { method, amountInPaise, refere
 
   assertNotVoided(bill);
   assertPaymentFits(bill, amountInPaise);
+  // P29. Items added to the bill are still with the kitchen. A card machine approval is recorded regardless: the money moved.
+  if (!terminal) await assertBillTakesMoney(req, bill, session);
 
   // P24. "Paid online" only ever comes from the advance, never from a cashier's pick.
   if (method === ONLINE_METHOD_CODE) {
@@ -556,6 +559,7 @@ export async function applyAdvance(req, billId) {
   if (bill.status === BILL_STATUSES.ON_ACCOUNT) {
     throw new BusinessRuleError('This bill is charged to an account and takes no payment.');
   }
+  await assertBillTakesMoney(req, bill);
 
   const order = await Order.findOne({ ...scoped(req), _id: bill.orderId }).select('advancePaymentId');
   const advance = await advanceFor(req, order);

@@ -27,7 +27,29 @@ import { instantsFor, MANAGERS, tenantOf, toBills } from './shared.js';
 export const STAGES = Object.freeze({
   BEFORE_PREPARATION: 'Cancelled before preparation',
   AFTER_PREPARATION: 'Cancelled after preparation',
+  // P29. Taken off a bill nothing was paid on; the bill was revised, never voided.
+  REMOVED_FROM_BILL: 'Removed from the bill before payment',
 });
+
+const CHANGE_WORDS = { REMOVED: 'Removed', ADDED: 'Added' };
+
+const changeColumns = [
+  { key: 'billNumber', label: LABELS.INVOICE_NUMBER, type: 'text' },
+  { key: 'at', label: LABELS.TIME, type: 'time' },
+  { key: 'change', label: LABELS.CHANGE, type: 'text' },
+  { key: 'items', label: LABELS.ITEMS, type: 'text' },
+  { key: 'beforeInPaise', label: LABELS.BILL_TOTAL_BEFORE, type: 'money' },
+  { key: 'afterInPaise', label: LABELS.BILL_TOTAL_AFTER, type: 'money' },
+  { key: 'changedByName', label: LABELS.CHANGED_BY, type: 'text' },
+  { key: 'approvedByName', label: LABELS.APPROVED_BY, type: 'text' },
+  { key: 'afterPrinting', label: LABELS.AFTER_PRINTING, type: 'text' },
+];
+
+const paidBeforePrintColumns = [
+  { key: 'billNumber', label: LABELS.INVOICE_NUMBER, type: 'text' },
+  { key: 'billedAt', label: LABELS.TIME_ISSUED, type: 'time' },
+  { key: 'billTotalInPaise', label: LABELS.BILL_TOTAL, type: 'money' },
+];
 
 const label = (list, code) => list.find((reason) => reason.code === code)?.label ?? null;
 const withNote = (text, note) => (text && note ? `${text}: ${note}` : text ?? note ?? 'Not recorded');
@@ -105,13 +127,19 @@ export default {
     const tenant = tenantOf(baseMatch);
     const inRange = (instant) => instant && instant >= start && instant < end;
 
-    const [orders, voidedBills] = await Promise.all([
+    const [orders, voidedBills, revisedBills, paidUnprinted] = await Promise.all([
       Order.find({ ...tenant, $or: [{ 'lines.cancelledAt': { $gte: start, $lt: end } }, { cancelledAt: { $gte: start, $lt: end } }] })
         .select('orderNumber orderType tableName platform openedBy isCancelled cancelledAt cancelledBy cancelReasonCode cancelReason lines')
         .lean(),
       Bill.find({ ...tenant, businessDate: { $gte: params.from, $lte: params.to }, isVoided: true })
         .sort({ voidedAt: 1 })
         .select('billNumber grandTotalInPaise voidReasonCode voidReason voidedBy voidedAt')
+        .lean(),
+      // P29. Bills revised in the range's hours, and live bills paid before they were printed.
+      Bill.find({ ...tenant, 'revisions.at': { $gte: start, $lt: end } }).select('billNumber businessDate revisions').lean(),
+      Bill.find({ ...tenant, businessDate: { $gte: params.from, $lte: params.to }, isVoided: false, paymentBeforePrint: true })
+        .sort({ billedAt: 1 })
+        .select('billNumber businessDate billedAt grandTotalInPaise')
         .lean(),
     ]);
 
@@ -162,12 +190,15 @@ export default {
       ...orderRows.map((row) => row.cancelledBy),
       ...orders.map((order) => order.openedBy),
       ...voidedBills.map((bill) => bill.voidedBy),
+      ...revisedBills.flatMap((bill) => bill.revisions.flatMap((entry) => [entry.by, entry.approvedBy])),
     ]);
     const nameOf = (id) => (id ? names.get(String(id)) ?? 'Unknown' : 'Not recorded');
 
     const shaped = (entry) => {
       const lineTotalInPaise = computeLineTotalInPaise(entry.line);
       const after = entry.line.wasPrepared === true;
+      const removed = Boolean(entry.line.removedFromBillId);
+      const stage = removed ? 'REMOVED_FROM_BILL' : after ? 'AFTER_PREPARATION' : 'BEFORE_PREPARATION';
       return {
         orderId: String(entry.order._id),
         cancelledAt: entry.line.cancelledAt,
@@ -177,8 +208,8 @@ export default {
         quantity: entry.line.quantity,
         lineTotalInPaise,
         wastedValueInPaise: after ? lineTotalInPaise : 0,
-        stage: after ? 'AFTER_PREPARATION' : 'BEFORE_PREPARATION',
-        stageLabel: after ? STAGES.AFTER_PREPARATION : STAGES.BEFORE_PREPARATION,
+        stage,
+        stageLabel: STAGES[stage],
         reason: entry.reason,
         cancelledByName: nameOf(entry.cancelledBy),
       };
@@ -204,6 +235,32 @@ export default {
       voidedByName: nameOf(bill.voidedBy),
       voidedAt: bill.voidedAt,
       drill: { billNumber: toBills({ from: params.from, to: params.to, status: 'VOIDED', billNumber: bill.billNumber }) },
+    }));
+
+    const billChanges = revisedBills
+      .flatMap((bill) =>
+        bill.revisions
+          .filter((entry) => inRange(entry.at))
+          .map((entry) => ({
+            billNumber: bill.billNumber,
+            at: entry.at,
+            kind: entry.kind,
+            change: CHANGE_WORDS[entry.kind] ?? entry.kind,
+            items: entry.lines.map((line) => `${line.quantity} × ${line.variantName ? `${line.itemName} (${line.variantName})` : line.itemName}`).join(', '),
+            beforeInPaise: entry.previousGrandTotalInPaise,
+            afterInPaise: entry.newGrandTotalInPaise,
+            changedByName: nameOf(entry.by),
+            approvedByName: entry.approvedBy ? nameOf(entry.approvedBy) : null,
+            afterPrinting: entry.wasPrinted ? 'Yes' : 'No',
+            drill: { billNumber: toBills({ from: bill.businessDate, to: bill.businessDate, billNumber: bill.billNumber }) },
+          })),
+      )
+      .sort((a, b) => a.at - b.at);
+    const paidBeforePrint = paidUnprinted.map((bill) => ({
+      billNumber: bill.billNumber,
+      billedAt: bill.billedAt,
+      billTotalInPaise: bill.grandTotalInPaise,
+      drill: { billNumber: toBills({ from: bill.businessDate, to: bill.businessDate, billNumber: bill.billNumber }) },
     }));
 
     const byReason = summarise(allLines, (line) => line.reason);
@@ -238,6 +295,23 @@ export default {
           rows: voids,
           totals: { count: voids.length, billTotalInPaise: sumPaise(0, ...voids.map((row) => row.billTotalInPaise)) },
         },
+        {
+          key: 'billChanges',
+          title: 'Bills changed before payment',
+          columns: changeColumns,
+          rows: billChanges,
+          totals: {
+            count: billChanges.length,
+            removedValueInPaise: sumPaise(0, ...billChanges.filter((row) => row.kind === 'REMOVED').map((row) => row.beforeInPaise - row.afterInPaise)),
+          },
+        },
+        {
+          key: 'paidBeforePrint',
+          title: 'Bills paid before printing',
+          columns: paidBeforePrintColumns,
+          rows: paidBeforePrint,
+          totals: { count: paidBeforePrint.length, billTotalInPaise: sumPaise(0, ...paidBeforePrint.map((row) => row.billTotalInPaise)) },
+        },
         { key: 'byReason', title: 'By reason', columns: summaryColumns(LABELS.CANCEL_REASON), rows: byReason, totals: summaryTotals(byReason) },
         { key: 'byPerson', title: 'By person', columns: summaryColumns(LABELS.CANCELLED_BY), rows: byPerson, totals: summaryTotals(byPerson) },
         { key: 'byItem', title: 'By item', columns: summaryColumns(LABELS.ITEM), rows: byItem, totals: summaryTotals(byItem) },
@@ -248,6 +322,6 @@ export default {
   },
 
   checks(req, params) {
-    return runRangeChecks(req, { from: params.from, to: params.to }, ['C6', 'C7']);
+    return runRangeChecks(req, { from: params.from, to: params.to }, ['C6', 'C7', 'C13']);
   },
 };

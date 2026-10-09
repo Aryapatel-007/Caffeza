@@ -51,7 +51,19 @@ import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 import { assertTableUsable, openOrder, rethrowTableConflict } from '../services/orderOpenService.js';
+import { addLinesToBilledOrder } from '../services/billRevisionService.js';
+import { Bill, BILL_STATUSES } from '../models/Bill.js';
+import { voidBillInSession } from '../services/billService.js';
 import { nowUtc } from '../utils/time.js';
+
+/**
+ * P29. While an order has a live bill its lines change only through the bill,
+ * so the bill and the order can never disagree about what was ordered. A bill
+ * is voided by clearing `billId`, so a set `billId` is a live bill.
+ */
+function assertNoLiveBill(order) {
+  if (order.billId) throw new BusinessRuleError('This table has a bill. Change the items from the bill.');
+}
 
 /** POST /orders */
 export async function createOrder(req, res) {
@@ -125,7 +137,9 @@ export async function addOrderLines(req, res) {
   const order = await loadOrderInTenant(req, orderId);
   // P26. A served table orders more: a READY_TO_BILL order with no live bill reopens.
   const reopens = order.status === ORDER_STATUSES.READY_TO_BILL && !order.billId;
-  if (!reopens) assertOrderIsOpen(order);
+  // P29. An order with a live bill that can be revised takes the lines, and its bill is revised.
+  const revisesBill = Boolean(order.billId) && [ORDER_STATUSES.OPEN, ORDER_STATUSES.READY_TO_BILL].includes(order.status);
+  if (!reopens && !revisesBill) assertOrderIsOpen(order);
 
   /**
    * Snapshotted before the write, on the order as we last read it. If someone
@@ -135,6 +149,15 @@ export async function addOrderLines(req, res) {
    */
   // P06: a PLATFORM_COLLECTS order freezes every new line at 0% too.
   const snapshotLines = await buildLineSnapshots(req, lines, { taxTreatment: order.taxTreatment });
+
+  if (revisesBill) {
+    const revised = await addLinesToBilledOrder(req, { order, version, snapshotLines });
+    req.log?.info(
+      { actorId: req.user.id, orderId: String(revised._id), orderNumber: revised.orderNumber, addedLines: snapshotLines.length },
+      'Lines added to a billed order; its bill was revised.',
+    );
+    return sendSuccess(res, serialiseOrder(revised));
+  }
 
   const updated = await applyVersionedUpdate(req, {
     orderId,
@@ -171,6 +194,7 @@ export async function editOrderLine(req, res) {
 
   const order = await loadOrderInTenant(req, orderId);
   assertOrderIsOpen(order);
+  assertNoLiveBill(order);
 
   const line = findLine(order, lineId);
   if (line.status !== ORDER_LINE_STATUSES.PENDING) {
@@ -212,6 +236,7 @@ export async function cancelOrderLine(req, res) {
 
   const order = await loadOrderInTenant(req, orderId);
   assertOrderIsOpen(order);
+  assertNoLiveBill(order);
 
   const line = findLine(order, lineId);
   if (line.status === ORDER_LINE_STATUSES.CANCELLED) {
@@ -412,6 +437,17 @@ export async function cancelOrder(req, res) {
   // kitchen make any of this", not auditing it dish by dish.
   assertOrderWasPreparedRule(order, wasPrepared);
 
+  /**
+   * P29. An order with a live bill nothing was paid on goes with its bill: the
+   * bill is voided in the same transaction, because no sale happened. Before
+   * P29 the bill was left live and unpaid, and blocked Day Close. A bill with
+   * money on it, or On Hold, is voided by itself first, deliberately.
+   */
+  const liveBill = order.billId ? await Bill.findOne({ ...scoped(req), _id: order.billId, isVoided: false }) : null;
+  if (liveBill && (liveBill.amountPaidInPaise > 0 || liveBill.status === BILL_STATUSES.ON_ACCOUNT)) {
+    throw new BusinessRuleError('This bill has money on it. Void the bill first.');
+  }
+
   const now = nowUtc();
 
   const liveLines = order.lines.filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED);
@@ -421,9 +457,13 @@ export async function cancelOrder(req, res) {
   const inventoryOn = await isFeatureOn(req, 'inventory');
 
   const updated = await withOptionalTransaction(async (session) => {
+    // Voiding moves the order on by one version, so the cancel below expects the next one.
+    if (liveBill) {
+      await voidBillInSession(req, liveBill._id, { reasonCode: 'ITEMS_CHANGED', note: 'Order cancelled', approvedBy }, session);
+    }
     const cancelled = await applyVersionedUpdate(req, {
       orderId,
-      version,
+      version: liveBill ? version + 1 : version,
       update: {
         $set: {
           status: ORDER_STATUSES.CANCELLED,

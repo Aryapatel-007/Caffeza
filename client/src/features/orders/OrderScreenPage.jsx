@@ -8,6 +8,7 @@ import Sheet from '../../components/ui/Sheet.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { getMenuTree } from '../../api/menu.js';
+import { getBill } from '../../api/bills.js';
 import {
   addOrderLines,
   cancelOrder,
@@ -106,6 +107,13 @@ export default function OrderScreenPage() {
 
   const order = orderQuery.data;
 
+  // P29. An order with a bill nothing is paid on takes more dishes, which revise that bill.
+  const billQuery = useQuery({
+    queryKey: ['bill', order?.billId],
+    queryFn: () => getBill(order.billId),
+    enabled: Boolean(order?.billId),
+  });
+
   /**
    * Every write goes through here so the version handling exists once.
    *
@@ -122,6 +130,7 @@ export default function OrderScreenPage() {
       queryClient.setQueryData(['order', orderId], next);
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       queryClient.invalidateQueries({ queryKey: ['kots'] });
+      if (next?.billId) queryClient.invalidateQueries({ queryKey: ['bill', next.billId] });
 
       if (variables.successMessage) {
         setToast({ tone: 'success', message: variables.successMessage });
@@ -148,7 +157,8 @@ export default function OrderScreenPage() {
       if (line.status !== 'PENDING') continue;
       counts.set(line.menuItemId, (counts.get(line.menuItemId) ?? 0) + line.quantity);
       const isSimple = !line.variantId && line.addOns.length === 0 && !line.notes;
-      if (isSimple && !simple.has(line.menuItemId)) simple.set(line.menuItemId, line);
+      // P29. With a bill, a line changes only through the bill, so a tap adds a new line.
+      if (isSimple && !order.billId && !simple.has(line.menuItemId)) simple.set(line.menuItemId, line);
     }
     return { simpleLines: simple, pendingCounts: counts };
   }, [order]);
@@ -173,7 +183,9 @@ export default function OrderScreenPage() {
   const pendingCount = order.lines.filter((line) => line.status === 'PENDING').length;
   const isOpen = order.status === 'OPEN';
   // P26. A served table, with no bill yet, can order more: the menu shows again.
-  const canAddMore = order.status === 'READY_TO_BILL' && !order.billId;
+  // P29. So can one whose bill nothing is paid on yet: the dishes revise that bill.
+  const hasBill = Boolean(order.billId);
+  const canAddMore = order.status === 'READY_TO_BILL' && (!hasBill || Boolean(billQuery.data?.revisable));
   const showMenu = isOpen || (canAddMore && addingMore);
   // P28. A cashier may too, with a PIN, when the owner allows it.
   const canCancelOrder = CAN_CANCEL_ORDER.includes(user?.role) || (user?.role === 'CASHIER' && approvals.managerTasks);
@@ -198,6 +210,7 @@ export default function OrderScreenPage() {
     <OrderDetails
       order={order}
       isOpen={isOpen}
+      locked={hasBill}
       isBusy={write.isPending}
       pendingCount={pendingCount}
       canCancelOrder={canCancelOrder}
@@ -277,10 +290,10 @@ export default function OrderScreenPage() {
               onClick={() => setAddingMore(true)}
               className="type-button min-h-12 whitespace-nowrap rounded-lg border border-ink bg-surface px-4 hover:bg-sunken"
             >
-              Add more dishes
+              {hasBill ? 'Add to this bill' : 'Add more dishes'}
             </button>
           )}
-          {!isOpen && <BillOrderButton order={order} />}
+          {(!isOpen || hasBill) && <BillOrderButton order={order} />}
         </div>
       </header>
 
@@ -487,6 +500,7 @@ export default function OrderScreenPage() {
 function OrderDetails({
   order,
   isOpen,
+  locked = false,
   isBusy,
   pendingCount,
   canCancelOrder,
@@ -500,8 +514,12 @@ function OrderDetails({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto">
+        {locked && (
+          <p className="type-caption px-4 pt-3 text-muted">This table has a bill. Remove items from the bill.</p>
+        )}
         <OrderLineList
           lines={order.lines}
+          locked={locked}
           isBusy={isBusy}
           onChangeQuantity={onChangeQuantity}
           onServeLine={onServeLine}

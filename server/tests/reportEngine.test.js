@@ -185,7 +185,8 @@ describe('the checks, each broken on purpose (TEST-DATA section 6)', () => {
   it('all pass on the golden day except the C9 warning', async () => {
     const checks = await dayChecks();
     assert.deepEqual(failing(checks), ['C9'], JSON.stringify(checks.filter((check) => !check.passed)));
-    assert.equal(checks.length, 12);
+    // P29 added C13.
+    assert.equal(checks.length, 13);
   });
 
   it('C1 on B03 when its round-off is +60 paise', async () => {

@@ -358,3 +358,13 @@ export function isReadyToBill(lines) {
   const live = lines.filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED);
   return live.length > 0 && live.every((line) => line.status === ORDER_LINE_STATUSES.SERVED);
 }
+
+/**
+ * The fields an order gains when it moves to READY_TO_BILL. P29: one shared
+ * change, used when a waiter serves the last dish (12.7), when the kitchen's
+ * ready serves it (13.3), when a cancel leaves only served lines, and undone
+ * by the kitchen's undo (13.5). Callers decide whether with isReadyToBill.
+ */
+export function readyToBillChange(at) {
+  return { status: ORDER_STATUSES.READY_TO_BILL, readyToBillAt: at };
+}

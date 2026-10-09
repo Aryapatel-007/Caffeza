@@ -26,6 +26,8 @@ const columns = [
   { key: 'billTotalInPaise', label: LABELS.BILL_TOTAL, type: 'money' },
   { key: 'status', label: LABELS.STATUS, type: 'text' },
   { key: 'voidReason', label: LABELS.VOID_REASON, type: 'text' },
+  // P29. A revision uses no number, so it adds no row: the row says how many times.
+  { key: 'revisedText', label: LABELS.REVISED, type: 'text' },
 ];
 
 export default {
@@ -41,7 +43,7 @@ export default {
 
   async query(req, baseMatch, params) {
     const bills = await Bill.find(baseMatch)
-      .select('billNumber billSequence invoiceSeries financialYear businessDate billedAt orderType tableName grandTotalInPaise status isVoided voidReasonCode voidReason')
+      .select('billNumber billSequence invoiceSeries financialYear businessDate billedAt orderType tableName grandTotalInPaise status isVoided voidReasonCode voidReason revision')
       .lean();
 
     const bySeries = new Map();
@@ -69,6 +71,8 @@ export default {
           voidReason: bill.isVoided
             ? bill.voidReasonCode ? reasonText(BILL_VOID_REASONS, bill.voidReasonCode, bill.voidReason) : bill.voidReason
             : null,
+          revision: bill.revision ?? 0,
+          revisedText: (bill.revision ?? 0) > 0 ? `Revised ${bill.revision}` : null,
           drill: { billTotalInPaise: toBills({ from: bill.businessDate, to: bill.businessDate, billNumber: bill.billNumber, ...(bill.isVoided ? { status: 'VOIDED' } : {}) }) },
         });
       }
@@ -89,6 +93,6 @@ export default {
   },
 
   checks(req, params) {
-    return runRangeChecks(req, { from: params.from, to: params.to }, ['C6']);
+    return runRangeChecks(req, { from: params.from, to: params.to }, ['C6', 'C13']);
   },
 };

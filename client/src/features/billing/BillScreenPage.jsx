@@ -37,6 +37,9 @@ import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import VoidBillPanel from './VoidBillPanel.jsx';
 import AddItemsPanel from './AddItemsPanel.jsx';
 import CancelItemsPanel from './CancelItemsPanel.jsx';
+import RemoveItemPanel from './RemoveItemPanel.jsx';
+import RevisionTimeline from './RevisionTimeline.jsx';
+import { getOrder } from '../../api/orders.js';
 import { BILL_VOID_REASONS, describeReason } from '../orders/cancelReasons.js';
 import { placeLabel } from '../orders/orderLabel.js';
 
@@ -63,6 +66,8 @@ export default function BillScreenPage() {
   const [correcting, setCorrecting] = useState(null); // the payment whose method is being changed
   const [printing, setPrinting] = useState(false);
   const [justPaid, setJustPaid] = useState(false);
+  // P29. The bill line being taken off.
+  const [removing, setRemoving] = useState(null);
 
   const billQuery = useQuery({
     queryKey: ['bill', billId],
@@ -70,6 +75,18 @@ export default function BillScreenPage() {
   });
 
   const bill = billQuery.data;
+
+  /**
+   * P29. The order behind the bill: each line's kitchen status, for "Was it
+   * already made?", and whether dishes added to the bill are still cooking.
+   */
+  const orderQuery = useQuery({
+    queryKey: ['order', bill?.orderId],
+    queryFn: () => getOrder(bill.orderId),
+    enabled: Boolean(bill?.orderId) && !bill?.isVoided,
+    refetchInterval: (query) => (query.state.data?.status === 'OPEN' ? 10_000 : false),
+  });
+  const order = orderQuery.data;
 
   // P08. The restaurant's configured methods, filtered to the ones this bill may use.
   const methodsQuery = useQuery({
@@ -238,6 +255,24 @@ export default function BillScreenPage() {
     !(bill.orderType === 'DELIVERY' && bill.platform?.code) &&
     (isTill || (isCaptain && Boolean(features?.billing?.captainsMayBill)));
 
+  /**
+   * P29 Part B. A bill nothing is paid on is revised, not voided: each item can
+   * be removed here, and dishes are added on the order. Otherwise the P25 and
+   * P26 flows, which void and re-bill, stay as they are.
+   */
+  const revisable = Boolean(bill.revisable);
+  const canRemove = revisable && (isTill || isCaptain) && bill.lines.length > 1;
+  const orderLineStatus = (orderLineId) => order?.lines.find((line) => line.id === orderLineId)?.status ?? 'SERVED';
+  const removeNeedsApproval = (line) => {
+    if (canManage) return false;
+    const sentToKitchen = ['FIRED', 'READY', 'SERVED'].includes(orderLineStatus(line.orderLineId));
+    const kitchenRule = (features?.approvals?.lineCancel ?? true) && sentToKitchen;
+    const printedRule = (features?.approvals?.revisePrintedBill ?? true) && (bill.printCount ?? 0) > 0;
+    return kitchenRule || printedRule;
+  };
+  // Dishes added to this bill are still with the kitchen: no money until they are ready.
+  const waitingForKitchen = order?.status === 'OPEN' && order?.billId === bill.id;
+
   // Paid or On Hold, the next useful thing is the printed bill; unpaid, it is the payment.
   const printIsPrimary = !bill.isVoided && !isSettleable;
 
@@ -288,13 +323,13 @@ export default function BillScreenPage() {
             {canCancelItems && (
               <button
                 type="button"
-                onClick={() => setPanel('add-items')}
+                onClick={() => (revisable ? navigate(`/orders/${bill.orderId}?add=1`) : setPanel('add-items'))}
                 className="flex min-h-12 items-center rounded-lg px-3 text-ink hover:bg-sunken"
               >
-                Add items
+                {revisable ? 'Add to this bill' : 'Add items'}
               </button>
             )}
-            {canCancelItems && (
+            {canCancelItems && !revisable && (
               <button
                 type="button"
                 onClick={() => setPanel('cancel-items')}
@@ -363,7 +398,18 @@ export default function BillScreenPage() {
                       {line.quantity} × <Money paise={line.unitPriceInPaise} />
                     </p>
                   </div>
-                  <Money paise={line.lineTotalInPaise} size="num" tabular />
+                  <div className="flex flex-none flex-col items-end gap-1">
+                    <Money paise={line.lineTotalInPaise} size="num" tabular />
+                    {canRemove && (
+                      <button
+                        type="button"
+                        onClick={() => setRemoving(line)}
+                        className="type-label min-h-12 rounded-lg px-3 text-alert hover:bg-alert-tint"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -408,6 +454,8 @@ export default function BillScreenPage() {
               </p>
             )}
 
+            <RevisionTimeline revisions={bill.revisions ?? []} />
+
             {bill.payments.length > 0 && (
               <div className="mt-4">
                 <p className="type-label mb-2 text-muted">Payments</p>
@@ -447,7 +495,14 @@ export default function BillScreenPage() {
 
           {/* Taking the payment, beside the bill. */}
           <div className="flex flex-col gap-4 lg:col-span-7">
-            {isSettleable && isTill && bill.advance?.available > 0 ? (
+            {isSettleable && waitingForKitchen ? (
+              <div className="rounded-[10px] border border-line border-l-[3px] border-l-open bg-surface p-4 sm:p-6">
+                <p className="type-heading">Waiting for the kitchen</p>
+                <p className="type-body mt-2 text-muted">
+                  Dishes added to this bill are not ready yet. Take payment once the kitchen has them ready.
+                </p>
+              </div>
+            ) : isSettleable && isTill && bill.advance?.available > 0 ? (
               <div className="rounded-[10px] border-2 border-ok bg-surface p-4 sm:p-6">
                 <p className="type-label text-ok">Paid online</p>
                 <p className="mt-1 flex flex-wrap items-baseline gap-2">
@@ -548,6 +603,21 @@ export default function BillScreenPage() {
             queryClient.invalidateQueries({ queryKey: ['bills'] });
             // The new bill opens, ready to print.
             if (result.bill) navigate(`/bills/${result.bill.id}`);
+          }}
+        />
+      )}
+
+      {removing && (
+        <RemoveItemPanel
+          bill={bill}
+          line={removing}
+          lineStatus={orderLineStatus(removing.orderLineId)}
+          needsApproval={removeNeedsApproval(removing)}
+          onCancel={() => setRemoving(null)}
+          onDone={(updated) => {
+            setRemoving(null);
+            invalidate(updated);
+            setToast({ tone: 'success', message: `${removing.itemName} removed. The bill is now ${moneyText(updated.grandTotalInPaise)}.` });
           }}
         />
       )}

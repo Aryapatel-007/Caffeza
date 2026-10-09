@@ -87,6 +87,10 @@ function sections(day, date) {
     { line: 'Wasted value', amountInPaise: g.cancelledItems.wastedValueInPaise },
     { line: 'Orders cancelled', count: g.cancelledOrders.count, amountInPaise: g.cancelledOrders.valueInPaise },
     { line: 'Voided bills', count: g.voidedBills.count, amountInPaise: g.voidedBills.valueInPaise, drill: { count: toBills({ ...day1, status: 'VOIDED' }) } },
+    // P29. Revised under the same number, never voided. A day closed before P29 has no such line.
+    ...(g.billRevisions
+      ? [{ line: 'Bills changed before payment', count: g.billRevisions.count, amountInPaise: g.billRevisions.removedValueInPaise, drill: { count: { report: 'R15', query: day1 } } }]
+      : []),
     // P25 Part E. Card, UPI or platform money owed back after an item was cancelled on a paid bill.
     ...(f.refunds && (f.refunds.owedInPaise > 0 || f.refunds.refundedInPaise > 0)
       ? [{ line: 'Refunds owed', count: f.refunds.owed.length, amountInPaise: f.refunds.owedInPaise }]

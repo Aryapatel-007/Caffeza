@@ -247,6 +247,8 @@ const orderLineSchema = new mongoose.Schema(
     cancelReason: { type: String, trim: true, maxlength: CANCEL_REASON_MAX_LENGTH, default: null },
     /** P04. The fixed reason, from LINE_CANCEL_REASONS. Null before P04. */
     cancelReasonCode: { type: String, enum: [...LINE_CANCEL_REASON_CODES, null], default: null },
+    /** P29. Set when the line was cancelled by removing it from an unpaid bill, which was revised. */
+    removedFromBillId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bill', default: null },
 
     /**
      * Was the kitchen already cooking this when it was cancelled?

@@ -121,6 +121,8 @@ export function buildInvoiceData({ restaurant, bill, receipt = {} }) {
   const showGstin = receipt.showGstin ?? true;
   const showFssai = receipt.showFssai ?? true;
   const printCount = bill.printCount ?? 0;
+  // P29 Part B. A print after a revision is a new print, because its content changed.
+  const revision = bill.revision ?? 0;
 
   return {
     restaurant: {
@@ -142,7 +144,9 @@ export function buildInvoiceData({ restaurant, bill, receipt = {} }) {
     billNumber: bill.billNumber,
     isVoided: Boolean(bill.isVoided),
     printCount,
-    isDuplicate: printCount >= 1,
+    isDuplicate: isDuplicatePrint(bill),
+    revision,
+    isRevised: revision > 0,
     issuedAt: bill.billedAt,
     issuedAtIst: istStamp(bill.billedAt),
     businessDate: bill.businessDate,
@@ -203,6 +207,16 @@ export function renderReceipt({ restaurant, bill, width = 32, receipt = {} }) {
   return layoutReceipt(buildInvoiceData({ restaurant, bill, receipt }), width);
 }
 
+/**
+ * P29 Part B. Whether the next print of this bill is a duplicate: it has been
+ * printed before, and nothing on it changed since. A bill printed before P29
+ * has no `lastPrintedRevision`, which reads as revision 0.
+ */
+export function isDuplicatePrint(bill) {
+  if ((bill.printCount ?? 0) < 1) return false;
+  return (bill.lastPrintedRevision ?? 0) === (bill.revision ?? 0);
+}
+
 /** Fixed-width text from the invoice data. */
 export function layoutReceipt(data, width = 32) {
   const lines = [];
@@ -222,6 +236,7 @@ export function layoutReceipt(data, width = 32) {
   push(rule(width, DOUBLE_RULE));
   push(centre('TAX INVOICE', width));
   push(row('Bill', data.billNumber, width));
+  if (data.isRevised) push(centre('Revised bill', width));
   push(row('Date', data.businessDate, width));
   push(row('Time', data.issuedAtIst, width));
   if (data.tableName) push(row('Table', data.tableName, width));

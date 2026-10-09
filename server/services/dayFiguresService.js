@@ -221,8 +221,23 @@ function gstSection(bills) {
   );
 }
 
+/**
+ * P29. The revisions made during the day, on any bill: how many, the value
+ * taken off, the value added, and how many were after the bill was printed.
+ */
+function revisionsSection(revisions) {
+  const removed = revisions.filter((entry) => entry.kind === 'REMOVED');
+  const added = revisions.filter((entry) => entry.kind === 'ADDED');
+  return {
+    count: revisions.length,
+    removedValueInPaise: sum(removed, (entry) => entry.previousGrandTotalInPaise - entry.newGrandTotalInPaise),
+    addedValueInPaise: sum(added, (entry) => entry.newGrandTotalInPaise - entry.previousGrandTotalInPaise),
+    afterPrintingCount: revisions.filter((entry) => entry.wasPrinted).length,
+  };
+}
+
 /** Section G. */
-function controlsSection({ bills, voidedBills, noChargeOrders, cancelledLines, cancelledOrders }) {
+function controlsSection({ bills, voidedBills, noChargeOrders, cancelledLines, cancelledOrders, revisions = [] }) {
   const discounted = bills
     .filter((bill) => bill.discount?.amountInPaise > 0)
     .map((bill) => ({ billNumber: bill.billNumber, amountInPaise: bill.discount.amountInPaise }))
@@ -259,6 +274,7 @@ function controlsSection({ bills, voidedBills, noChargeOrders, cancelledLines, c
           : bill.voidReason,
       })),
     },
+    billRevisions: revisionsSection(revisions),
   };
 }
 
@@ -393,6 +409,15 @@ export async function computeDayFigures(req, businessDate, { session = null, upT
   // P25 Part E. Money owed back to guests, created on this business date. Moves no money here.
   const refundRows = await Refund.find({ ...tenant, businessDate }).sort({ createdAt: 1 }).setOptions(opts(session)).lean();
 
+  // P29. Bills revised during the day's hours, whichever day they were issued on.
+  const revisedBills = await Bill.find({ ...tenant, 'revisions.at': { $gte: start, $lt: end } })
+    .select('revisions')
+    .setOptions(opts(session))
+    .lean();
+  const dayRevisions = revisedBills
+    .flatMap((bill) => bill.revisions)
+    .filter((entry) => entry.at >= start && entry.at < end && (!upTo || entry.at <= upTo));
+
   const { dayBills, billsWithDayPayments, movements, collections, noChargeOrders, cancelOrders } = asAt(upTo, {
     dayBills: loadedDayBills,
     billsWithDayPayments: loadedPaymentBills,
@@ -464,7 +489,7 @@ export async function computeDayFigures(req, businessDate, { session = null, upT
     cash: cashSection(movements, cashFromBillsInPaise, cashCollectionsInPaise),
     orderTypes: orderTypeSection(liveBills),
     gst: gstSection(liveBills),
-    controls: controlsSection({ bills: liveBills, voidedBills, noChargeOrders, cancelledLines, cancelledOrders }),
+    controls: controlsSection({ bills: liveBills, voidedBills, noChargeOrders, cancelledLines, cancelledOrders, revisions: dayRevisions }),
     invoices: invoiceSection(dayBills),
     refunds: {
       owed: refundRows

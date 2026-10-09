@@ -13,6 +13,7 @@ import { BusinessRuleError } from '../utils/errors.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { nowUtc } from '../utils/time.js';
 import { readBill } from './billService.js';
+import { isDuplicatePrint } from './receiptService.js';
 
 const QUEUE_LIMIT = 50;
 
@@ -54,15 +55,21 @@ export async function printQueue(req) {
   }));
 }
 
-/** POST /bills/:billId/printed. Every print, from any device, records itself here. */
+/**
+ * POST /bills/:billId/printed. Every print, from any device, records itself
+ * here. P29: it also records which revision was printed, so the first print
+ * after a revision is not a duplicate and a second print with no change is.
+ */
 export async function markPrinted(req, billId) {
-  await readBill(req, billId);
+  const bill = await readBill(req, billId);
+  const wasDuplicate = isDuplicatePrint(bill);
+  const revision = bill.revision ?? 0;
   const updated = await Bill.findOneAndUpdate(
     { ...scoped(req), _id: billId },
-    { $inc: { printCount: 1 }, $set: { lastPrintedAt: nowUtc() } },
+    { $inc: { printCount: 1 }, $set: { lastPrintedAt: nowUtc(), lastPrintedRevision: revision } },
     { new: true },
   ).select('printCount');
-  return { printCount: updated.printCount, isDuplicate: updated.printCount >= 2 };
+  return { printCount: updated.printCount, isDuplicate: wasDuplicate, revision };
 }
 
 export default { markPrinted, printQueue, requestPrint };

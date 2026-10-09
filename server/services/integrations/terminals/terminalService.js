@@ -17,6 +17,7 @@ import { nowUtc } from '../../../utils/time.js';
 import { withOptionalTransaction } from '../../../utils/transaction.js';
 import { assertNotVoided, assertPaymentFits } from '../../billPermissionService.js';
 import { readBill, recordPayment } from '../../billService.js';
+import { assertBillTakesMoney } from '../../billRevisionService.js';
 import { assertDayOpen, todayBusinessDate } from '../../dayLockService.js';
 import { methodForBill } from '../../paymentMethodService.js';
 import { secretsOf } from '../connectionService.js';
@@ -55,6 +56,8 @@ export async function startTerminalPayment(req, billId, { method, amountInPaise,
   await assertDayOpen(req, [bill.businessDate, await todayBusinessDate(req)]);
   assertNotVoided(bill);
   assertPaymentFits(bill, amountInPaise);
+  // P29. Items added to the bill are still with the kitchen.
+  await assertBillTakesMoney(req, bill);
   const paymentMethod = await methodForBill(req, bill, method);
   if (paymentMethod.terminalProvider !== 'PINE_LABS') throw new BusinessRuleError(`${paymentMethod.name} is not taken on the card machine.`);
 

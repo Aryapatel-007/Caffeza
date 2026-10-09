@@ -35,6 +35,7 @@ import { businessDateFor, nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 import { recordAudit } from './auditService.js';
 import { assertNotVoided } from './billPermissionService.js';
+import { assertBillTakesMoney } from './billRevisionService.js';
 import { assertDayOpen, todayBusinessDate } from './dayLockService.js';
 import { methodByCode } from './paymentMethodService.js';
 import { getSetting } from './settingsService.js';
@@ -217,6 +218,8 @@ export async function chargeBillToAccount(req, billId, { accountId }) {
   if (bill.status !== BILL_STATUSES.UNPAID) {
     throw new BusinessRuleError('Only an unpaid bill can be charged to an account.');
   }
+  // P29. Items added to the bill are still with the kitchen.
+  await assertBillTakesMoney(req, bill);
 
   const account = await loadAccount(req, accountId);
   if (!account.isActive) {

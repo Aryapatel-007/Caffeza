@@ -244,6 +244,21 @@ const billingSettingsSchema = new mongoose.Schema(
   {
     captainsMayBill: { type: Boolean, required: true, default: true },
     captainsMayTakePayment: { type: Boolean, required: true, default: false },
+    // P29 Part B. An unpaid bill is revised under the same number, not voided, when items change.
+    reviseUnpaidBills: { type: Boolean, required: true, default: true },
+    // P29 Part D. The bill screen asks for the print before the payment. Read by the client.
+    printBeforePayment: { type: Boolean, required: true, default: true },
+  },
+  { _id: false },
+);
+
+/**
+ * The kitchen. P29 Part C. When the kitchen marks a dish ready, it is served:
+ * the floor has no served step. Off keeps the two-step flow.
+ */
+const kitchenSettingsSchema = new mongoose.Schema(
+  {
+    readyMeansServed: { type: Boolean, required: true, default: true },
   },
   { _id: false },
 );
@@ -257,6 +272,8 @@ const approvalSettingsSchema = new mongoose.Schema(
     lineCancel: { type: Boolean, required: true, default: true },
     paidIn: { type: Boolean, required: true, default: true },
     managerTasks: { type: Boolean, required: true, default: true },
+    // P29 Part B. A cashier or captain removing an item from a bill already printed needs a PIN.
+    revisePrintedBill: { type: Boolean, required: true, default: true },
   },
   { _id: false },
 );
@@ -315,9 +332,49 @@ const reportSettingsSchema = new mongoose.Schema(
   { _id: false },
 );
 
+/**
+ * P29 Part F. What an expense was for. A code is frozen onto each expense and
+ * never changes; the label may. OTHER is always present and needs a note.
+ */
+export const OTHER_EXPENSE_CATEGORY = 'OTHER';
+export const DEFAULT_EXPENSE_CATEGORIES = Object.freeze(
+  [
+    ['MILK', 'Milk and dairy'],
+    ['VEGETABLES', 'Vegetables and fruit'],
+    ['GROCERIES', 'Groceries'],
+    ['GAS', 'Gas'],
+    ['PACKAGING', 'Packaging'],
+    ['CLEANING', 'Cleaning'],
+    ['REPAIRS', 'Repairs'],
+    ['STAFF_ADVANCE', 'Staff advance'],
+    ['TRANSPORT', 'Transport'],
+    [OTHER_EXPENSE_CATEGORY, 'Other'],
+  ].map(([code, label]) => Object.freeze({ code, label, isActive: true })),
+);
+
+const expenseCategorySchema = new mongoose.Schema(
+  {
+    code: { type: String, required: true, trim: true, match: /^[A-Z0-9_]{2,30}$/ },
+    label: { type: String, required: true, trim: true, maxlength: 40 },
+    isActive: { type: Boolean, required: true, default: true },
+  },
+  { _id: false },
+);
+
 const cashSettingsSchema = new mongoose.Schema(
   {
     denominations: { type: [denominationSchema], default: () => DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })) },
+    // P29 Part F.
+    expenseCategories: { type: [expenseCategorySchema], default: () => DEFAULT_EXPENSE_CATEGORIES.map((entry) => ({ ...entry })) },
+    usualFloatInPaise: {
+      type: Number,
+      required: true,
+      default: 200000,
+      min: 0,
+      max: 100_000_000,
+      validate: { validator: Number.isInteger, message: 'Must be a whole number of paise.' },
+    },
+    showDrawerTotalToStaff: { type: Boolean, required: true, default: false },
   },
   { _id: false },
 );
@@ -492,6 +549,7 @@ const settingsSchema = new mongoose.Schema(
     approvals: { type: approvalSettingsSchema, default: () => ({}) },
     dayClose: { type: dayCloseSettingsSchema, default: () => ({}) },
     cash: { type: cashSettingsSchema, default: () => ({}) },
+    kitchen: { type: kitchenSettingsSchema, default: () => ({}) },
     payments: { type: paymentSettingsSchema, default: () => ({}) },
     reports: { type: reportSettingsSchema, default: () => ({}) },
     floor: { type: floorSettingsSchema, default: () => ({}) },

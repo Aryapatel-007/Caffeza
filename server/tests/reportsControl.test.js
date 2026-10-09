@@ -120,7 +120,8 @@ describe('R15 Cancellations and Voids', () => {
     assert.deepEqual(items.totals, { quantity: 2, lineTotalInPaise: 75000 });
     assert.equal(data.headline.wastedValueInPaise, 39000);
     assert.deepEqual(section(data, 'orders').rows, []);
-    assert.deepEqual(data.checks.map((check) => [check.id, check.passed]), [['C6', true], ['C7', true]]);
+    // P29 added C13.
+    assert.deepEqual(data.checks.map((check) => [check.id, check.passed]), [['C6', true], ['C7', true], ['C13', true]]);
   });
 
   it('voids: CFA/C/22452, ₹347.00, Billed to the wrong table, by Manager', async () => {

@@ -137,6 +137,10 @@ export const ERROR_CODES = Object.freeze({
   DAY_NOT_CLOSED: 'DAY_NOT_CLOSED',
   PAIRING_CODE_INVALID: 'PAIRING_CODE_INVALID',
   BRIDGE_TOKEN_INVALID: 'BRIDGE_TOKEN_INVALID',
+  // P29.
+  BILL_NOT_REVISABLE: 'BILL_NOT_REVISABLE',
+  WAITING_FOR_KITCHEN: 'WAITING_FOR_KITCHEN',
+  ORDER_ALREADY_BILLED: 'ORDER_ALREADY_BILLED',
 });
 
 /**
@@ -794,5 +798,32 @@ export class PairingCodeInvalidError extends AppError {
 export class BridgeTokenInvalidError extends AppError {
   constructor() {
     super('This Tally bridge is not paired, or was switched off. Pair it again.', { statusCode: 401, code: ERROR_CODES.BRIDGE_TOKEN_INVALID });
+  }
+}
+
+/** P29 Part B. Removing an item from a bill that cannot be revised; `message` says why. */
+export class BillNotRevisableError extends AppError {
+  constructor(message) {
+    super(message, { statusCode: 422, code: ERROR_CODES.BILL_NOT_REVISABLE });
+  }
+}
+
+/** P29 Part B. Money taken on a bill whose order has items not yet ready. */
+export class WaitingForKitchenError extends AppError {
+  constructor() {
+    super('The new items are not ready yet. Take payment once the kitchen has them ready.', {
+      statusCode: 422,
+      code: ERROR_CODES.WAITING_FOR_KITCHEN,
+    });
+  }
+}
+
+/** P29 Part E. Undoing ready in the kitchen on an order that has a live bill. */
+export class OrderAlreadyBilledError extends AppError {
+  constructor() {
+    super('This table has been billed. Ask the cashier to change the bill.', {
+      statusCode: 422,
+      code: ERROR_CODES.ORDER_ALREADY_BILLED,
+    });
   }
 }

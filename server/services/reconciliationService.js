@@ -405,6 +405,37 @@ export function checkC11(payouts) {
   });
 }
 
+/**
+ * C13 Revision trail. P29. A revised bill holds one entry per revision,
+ * numbered 1 to `revision`, and the last one's total is the bill's.
+ */
+export function checkC13(bills) {
+  const failures = [];
+  for (const bill of bills) {
+    const revision = bill.revision ?? 0;
+    if (revision === 0 && (bill.revisions ?? []).length === 0) continue;
+    const entries = bill.revisions ?? [];
+    const numbered = entries.length === revision && entries.every((entry, index) => entry.revision === index + 1);
+    const last = entries.at(-1);
+    if (!numbered || !last || last.newGrandTotalInPaise !== bill.grandTotalInPaise) {
+      failures.push({ bill, last });
+    }
+  }
+  if (failures.length === 0) {
+    return result('C13', SEVERITY.ERROR, { passed: true, message: 'C13 Revision: every revised bill ends at its own total.' });
+  }
+  const [{ bill, last }] = failures;
+  return result('C13', SEVERITY.ERROR, {
+    passed: false,
+    message: last
+      ? `C13 Revision: bill ${bill.billNumber} is ${rupees(bill.grandTotalInPaise)} but its last revision says ${rupees(last.newGrandTotalInPaise)}.`
+      : `C13 Revision: bill ${bill.billNumber} says it was revised ${bill.revision ?? 0} times but holds ${(bill.revisions ?? []).length} revisions.`,
+    expected: last?.newGrandTotalInPaise ?? null,
+    actual: bill.grandTotalInPaise,
+    refs: failures.map(({ bill: row }) => row.billNumber),
+  });
+}
+
 /** The parts of a snapshot C12 compares: a zero row for an unused method is not a figure. */
 function comparable(figures) {
   const copy = structuredClone(figures);
@@ -412,9 +443,24 @@ function comparable(figures) {
   return JSON.stringify(copy);
 }
 
+const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date);
+
+/**
+ * P29. `now` cut down to the keys `stored` holds, object by object. A figure a
+ * later prompt adds to computeDayFigures is then compared only for days closed
+ * after it existed, so adding one never reads as every earlier day changing.
+ * Arrays are compared whole, as before.
+ */
+export function onStoredKeys(now, stored) {
+  if (!isPlainObject(now) || !isPlainObject(stored)) return now;
+  return Object.fromEntries(Object.keys(stored).filter((key) => key in now).map((key) => [key, onStoredKeys(now[key], stored[key])]));
+}
+
 /** C12 Closed days do not change. `closures` with their fresh figures. */
 export function checkC12(comparisons) {
-  const changed = comparisons.filter(({ closure, now }) => comparable(closure.snapshot) !== comparable(now));
+  const changed = comparisons.filter(
+    ({ closure, now }) => comparable(closure.snapshot) !== comparable(onStoredKeys(structuredClone(now), closure.snapshot)),
+  );
   if (changed.length === 0) {
     return result('C12', SEVERITY.ERROR, { passed: true, message: 'C12 Closed day: every closed day still adds up to its close.' });
   }
@@ -556,6 +602,7 @@ export async function runRangeChecks(req, { from, to }, ids, { session = null } 
     else if (id === 'C10') results.push(await accountsCheck(req, options));
     else if (id === 'C11') results.push(await payoutsCheck(req, from, to, options));
     else if (id === 'C12') results.push(await closedDaysCheck(req, from, to, options));
+    else if (id === 'C13') results.push(checkC13(live));
     else throw new Error(`runRangeChecks does not run ${id}; a report runs it with its own figures.`);
   }
   return results;
@@ -567,7 +614,7 @@ export async function runRangeChecks(req, { from, to }, ids, { session = null } 
  * date is caught by C8 alone rather than also opening a gap in C6.
  */
 export async function runDayChecks(req, businessDate, figures, { countedCashInPaise = null, session = null } = {}) {
-  const ranged = await runRangeChecks(req, { from: businessDate, to: businessDate }, ['C1', 'C2', 'C3', 'C4', 'C6', 'C7', 'C8', 'C10', 'C11'], { session });
+  const ranged = await runRangeChecks(req, { from: businessDate, to: businessDate }, ['C1', 'C2', 'C3', 'C4', 'C6', 'C7', 'C8', 'C10', 'C11', 'C13'], { session });
   const byId = Object.fromEntries(ranged.map((check) => [check.id, check]));
   return [
     byId.C1,
@@ -582,6 +629,8 @@ export async function runDayChecks(req, businessDate, figures, { countedCashInPa
     checkC9(figures.cash, countedCashInPaise),
     byId.C10,
     byId.C11,
+    // P29.
+    byId.C13,
     // P25 Part E. A warning while money is owed back to guests; never a blocker.
     ...(figures.refunds?.owedInPaise > 0 ? [checkRefundsOwed(figures.refunds)] : []),
   ];
@@ -610,6 +659,7 @@ export default {
   checkC10,
   checkC11,
   checkC12,
+  checkC13,
   datesBetween,
   runDayChecks,
   runRangeChecks,

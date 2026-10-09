@@ -85,6 +85,12 @@ export const AUDIT_ACTIONS = Object.freeze({
   // P28. A cancel or a paid in a manager approved by PIN on someone else's screen.
   LINE_CANCELLED_APPROVED: 'LINE_CANCELLED_APPROVED',
   CASH_PAID_IN: 'CASH_PAID_IN',
+  // P29. An unpaid bill's items changed under the same number; a kitchen tick taken back.
+  BILL_REVISED: 'BILL_REVISED',
+  KITCHEN_READY_UNDONE: 'KITCHEN_READY_UNDONE',
+  // P29 Part F. Cash out of the drawer that is not an expense; a morning float that was not what was kept.
+  CASH_TAKEN_OUT: 'CASH_TAKEN_OUT',
+  OPENING_FLOAT_DIFFERED: 'OPENING_FLOAT_DIFFERED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 
@@ -132,6 +138,9 @@ export const MANAGER_VISIBLE_ACTIONS = Object.freeze([
   AUDIT_ACTIONS.STOCK_ADJUSTED,
   AUDIT_ACTIONS.LINE_CANCELLED_AFTER_PREP,
   AUDIT_ACTIONS.LINE_CANCELLED_APPROVED,
+  // P29. A bill changed before payment, and a kitchen tick taken back, like line cancels.
+  AUDIT_ACTIONS.BILL_REVISED,
+  AUDIT_ACTIONS.KITCHEN_READY_UNDONE,
 ]);
 
 export const AUDIT_REASON_MAX_LENGTH = 500;

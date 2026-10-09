@@ -37,6 +37,7 @@ import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped, scopedForAggregate } from '../utils/scopedQuery.js';
 import { businessDateFor, nowUtc } from '../utils/time.js';
 import { reopenBill } from '../services/billReopenService.js';
+import { removeLines, revisability } from '../services/billRevisionService.js';
 import { approverForManagerTask } from '../services/approvalService.js';
 
 /**
@@ -76,7 +77,17 @@ export async function getBill(req, res) {
   const bill = await readBill(req, req.params.billId);
   // P24. An order paid online carries its advance, for the Apply advance button.
   const advance = await advanceOnBill(req, bill);
-  return sendSuccess(res, advance ? { ...bill.toJSON(), advance } : bill);
+  // P29. Whether items may change under this number, and the plain sentence why not.
+  const { revisable, reason } = await revisability(req, bill);
+  return sendSuccess(res, { ...bill.toJSON(), ...(advance ? { advance } : {}), revisable, revisableReason: reason });
+}
+
+/** POST /bills/:billId/remove-lines. P29 Part B. Every rule is in billRevisionService. */
+export async function postRemoveLines(req, res) {
+  const result = await removeLines(req, req.params.billId, req.body);
+  if (result?.preview) return sendSuccess(res, result);
+  const { revisable, reason } = await revisability(req, result);
+  return sendSuccess(res, { ...result.toJSON(), revisable, revisableReason: reason });
 }
 
 /** GET /bills */

@@ -401,6 +401,8 @@ export async function printDay(req, businessDate, width) {
   push(row('Wasted value', money(g.cancelledItems.wastedValueInPaise), width));
   push(row(`Orders cancelled (${g.cancelledOrders.count})`, money(g.cancelledOrders.valueInPaise), width));
   push(row(`Voided bills (${g.voidedBills.count})`, money(g.voidedBills.valueInPaise), width));
+  // P29. Bills revised under the same number, and the value taken off them.
+  if (g.billRevisions) push(row(`Bills changed (${g.billRevisions.count})`, money(g.billRevisions.removedValueInPaise), width));
 
   heading('Checks');
   for (const check of day.checks) {

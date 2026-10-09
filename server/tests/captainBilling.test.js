@@ -32,7 +32,8 @@ describe('captains bill', () => {
   it('lets a captain bill a dine-in order with the defaults, and never a delivery order', async () => {
     const floor = await seedFloor();
     const me = (await request('GET', '/api/v1/auth/me', { token: floor.tokens.WAITER })).body.data;
-    assert.deepEqual(me.billing, { captainsMayBill: true, captainsMayTakePayment: false });
+    // P29 added the two billing switches beside them.
+    assert.deepEqual(me.billing, { captainsMayBill: true, captainsMayTakePayment: false, reviseUnpaidBills: true, printBeforePayment: true });
 
     const order = await readyToBillOrder(floor);
     const billed = await createBill(floor.tokens.WAITER, order);
@@ -100,7 +101,8 @@ describe('printing at the counter', () => {
     const first = await request('GET', `/api/v1/bills/${bill.id}/receipt?width=48`, { token: floor.tokens.CASHIER });
     assert.doesNotMatch(first.body.data.text, /DUPLICATE/);
     const printed = await request('POST', `/api/v1/bills/${bill.id}/printed`, { token: floor.tokens.CASHIER });
-    assert.deepEqual(printed.body.data, { printCount: 1, isDuplicate: false });
+    // P29: `printed` also says which revision was printed.
+    assert.deepEqual(printed.body.data, { printCount: 1, isDuplicate: false, revision: 0 });
     assert.deepEqual((await queue()).body.data, []);
 
     await request('POST', `/api/v1/bills/${bill.id}/print-request`, { token: floor.tokens.WAITER });
@@ -110,7 +112,7 @@ describe('printing at the counter', () => {
     const invoice = await request('GET', `/api/v1/bills/${bill.id}/invoice`, { token: floor.tokens.CASHIER });
     assert.equal(invoice.body.data.isDuplicate, true);
     const again = await request('POST', `/api/v1/bills/${bill.id}/printed`, { token: floor.tokens.CASHIER });
-    assert.deepEqual(again.body.data, { printCount: 2, isDuplicate: true });
+    assert.deepEqual(again.body.data, { printCount: 2, isDuplicate: true, revision: 0 });
     assert.deepEqual((await queue()).body.data, []);
   });
 

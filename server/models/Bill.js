@@ -14,8 +14,10 @@
  *    is never reused. The unique indexes below are the guarantee, not a check
  *    in a controller.
  *
- * 3. A bill is never edited. There is no endpoint that changes a line. A wrong
- *    bill is voided, with a reason, and re-issued under a new number.
+ * 3. A bill is never edited once money is on it. A wrong bill with a payment is
+ *    voided, with a reason, and re-issued under a new number. P29: before any
+ *    payment its items may change under the same number, each change kept in
+ *    `revisions` (services/billRevisionService.js).
  */
 import mongoose from 'mongoose';
 
@@ -319,6 +321,41 @@ const paymentSchema = new mongoose.Schema(
 
 applyJsonTransform(paymentSchema);
 
+export const REVISION_KINDS = Object.freeze({ REMOVED: 'REMOVED', ADDED: 'ADDED' });
+
+/**
+ * P29. One change to the items on a bill nothing has been paid on, under the
+ * same number. Append-only; frozen like the lines. docs/DB-SCHEMA.md section 43.
+ */
+const revisionLineSchema = new mongoose.Schema(
+  {
+    orderLineId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    itemName: { type: String, required: true, trim: true },
+    variantName: { type: String, trim: true, default: null },
+    quantity: { type: Number, required: true, min: 1, validate: wholeNumber },
+    lineTotalInPaise: { type: Number, required: true, min: 0, validate: wholeNumber },
+    wasPrepared: { type: Boolean, default: null },
+  },
+  { _id: false },
+);
+
+const revisionSchema = new mongoose.Schema(
+  {
+    revision: { type: Number, required: true, min: 1, validate: wholeNumber },
+    kind: { type: String, required: true, enum: Object.values(REVISION_KINDS) },
+    at: { type: Date, required: true },
+    by: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    lines: { type: [revisionLineSchema], default: [] },
+    reasonCode: { type: String, default: null },
+    note: { type: String, trim: true, maxlength: 200, default: null },
+    previousGrandTotalInPaise: { type: Number, required: true, min: 0, validate: wholeNumber },
+    newGrandTotalInPaise: { type: Number, required: true, min: 0, validate: wholeNumber },
+    wasPrinted: { type: Boolean, required: true, default: false },
+  },
+  { _id: false },
+);
+
 const billSchema = new mongoose.Schema({
   /** The printed number, "2026-27/000148". Unique per restaurant, never reused. */
   billNumber: { type: String, required: true, trim: true },
@@ -448,6 +485,20 @@ const billSchema = new mongoose.Schema({
   printRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   lastPrintedAt: { type: Date, default: null },
   printCount: { type: Number, min: 0, default: 0, validate: wholeNumberOrEmpty },
+
+  /**
+   * P29 Part B. A bill nothing has been paid on is revised, not voided, when
+   * an item is removed or added: same number, new totals, one entry here per
+   * change. `lastPrintedRevision` is `revision` at the last print, so the
+   * first print after a change is not a duplicate. Null on a bill printed
+   * before P29, read as 0.
+   */
+  revision: { type: Number, min: 0, default: 0, validate: wholeNumberOrEmpty },
+  revisions: { type: [revisionSchema], default: [] },
+  lastPrintedRevision: { type: Number, min: 0, default: null, validate: wholeNumberOrEmpty },
+
+  /** P29 Part D. A payment was recorded while the bill had never been printed. */
+  paymentBeforePrint: { type: Boolean, default: false },
 });
 
 billSchema.plugin(baseSchemaPlugin);

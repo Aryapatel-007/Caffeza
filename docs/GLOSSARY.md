@@ -463,3 +463,17 @@ Added by P29.
 | **Kept for tomorrow** | The cash left in the drawer at Day Close, for the next day's float |
 | **Taken out at close** | Counted cash minus kept for tomorrow, at Day Close |
 | **Usual float** | The amount the cash book proposes to keep for tomorrow |
+
+Report column labels added by P29, for R7, R10 and R15:
+
+| Term | Meaning |
+|---|---|
+| **Change** | On a bill revision: Removed or Added |
+| **Items** | The items a revision removed or added, by their frozen names |
+| **Bill total before** | A revised bill's total before that revision |
+| **Bill total after** | A revised bill's total after that revision |
+| **Changed by** | The person who revised a bill |
+| **After printing** | Whether a bill had been printed when it was revised |
+| **Revised** | In the invoice register: the bill was revised, and how many times |
+| **Top-ups** | The day's top-ups added together |
+| **Expenses** | The day's expenses added together |

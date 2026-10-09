@@ -229,6 +229,32 @@ export const cancelLinesSchema = z.object({
     .superRefine(requireNoteForOther),
 });
 
+/**
+ * POST /bills/:billId/remove-lines. P29 Part B. `wasPrepared` follows the line
+ * cancel's own rule, checked against the line's status in the service: required
+ * for a line the kitchen has, refused for one never sent.
+ */
+export const removeLinesSchema = z.object({
+  params: billIdParam,
+  body: z
+    .object({
+      lines: z
+        .array(
+          z
+            .object({ lineId: objectId, wasPrepared: z.boolean({ error: 'Must be true or false.' }).optional() })
+            .strict('Is not a field you can set here.'),
+        )
+        .min(1, 'Pick at least one item.')
+        .max(100)
+        .refine((lines) => new Set(lines.map((line) => line.lineId)).size === lines.length, 'Each item can be picked once.'),
+      ...reasonFields(LINE_CANCEL_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
+      approval: approval.optional(),
+      preview: z.boolean({ error: 'Must be true or false.' }).optional(),
+    })
+    .strict('Is not a field you can set here.')
+    .superRefine(requireNoteForOther),
+});
+
 /** GET /refunds. P25 Part E. */
 export const listRefundsSchema = z.object({
   query: paginationQuery.extend({

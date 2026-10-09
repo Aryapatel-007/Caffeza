@@ -13,7 +13,7 @@ import { ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
 import { nowUtc } from '../utils/time.js';
 import { recordAudit } from './auditService.js';
 import { cancelKotLinesFor } from './kitchenService.js';
-import { applyVersionedUpdate, computeLineTotalInPaise, isReadyToBill } from './orderService.js';
+import { applyVersionedUpdate, computeLineTotalInPaise, isReadyToBill, readyToBillChange } from './orderService.js';
 import { returnStockForCancelledLine } from './stockMovementService.js';
 
 /**
@@ -22,12 +22,13 @@ import { returnStockForCancelledLine } from './stockMovementService.js';
  */
 export async function cancelLineInSession(
   req,
-  { order, line, version, reasonCode, note = null, wasPrepared, inventoryOn, approvedBy = null, auditApproval = true },
+  { order, line, version, reasonCode, note = null, wasPrepared, inventoryOn, approvedBy = null, auditApproval = true, removedFromBillId = null },
   session,
 ) {
   // P26. When what is left is all served, the order is ready to bill, as when the last dish is served.
   const linesAfter = order.lines.map((entry) => (String(entry._id) === String(line._id) ? { status: ORDER_LINE_STATUSES.CANCELLED } : entry));
   const nowReady = order.status === ORDER_STATUSES.OPEN && isReadyToBill(linesAfter);
+  const readyAt = nowUtc();
   const updated = await applyVersionedUpdate(req, {
     orderId: order._id,
     version,
@@ -42,7 +43,9 @@ export async function cancelLineInSession(
         'lines.$[line].wasPrepared': wasPrepared ?? null,
         // P28. The owner or manager who typed their PIN, when the canceller was not one.
         'lines.$[line].cancelApprovedBy': approvedBy,
-        ...(nowReady ? { status: ORDER_STATUSES.READY_TO_BILL, readyToBillAt: nowUtc() } : {}),
+        // P29. Taken off an unpaid bill, which was revised rather than voided.
+        ...(removedFromBillId ? { 'lines.$[line].removedFromBillId': removedFromBillId } : {}),
+        ...(nowReady ? readyToBillChange(readyAt) : {}),
       },
     },
     arrayFilters: [{ 'line._id': line._id }],

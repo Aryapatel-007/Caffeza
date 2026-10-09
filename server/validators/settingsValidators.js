@@ -241,6 +241,16 @@ const billing = z
   .object({
     captainsMayBill: z.boolean({ error: 'Must be true or false.' }).optional(),
     captainsMayTakePayment: z.boolean({ error: 'Must be true or false.' }).optional(),
+    // P29.
+    reviseUnpaidBills: z.boolean({ error: 'Must be true or false.' }).optional(),
+    printBeforePayment: z.boolean({ error: 'Must be true or false.' }).optional(),
+  })
+  .strict();
+
+/** The kitchen. P29 Part C. */
+const kitchen = z
+  .object({
+    readyMeansServed: z.boolean({ error: 'Must be true or false.' }).optional(),
   })
   .strict();
 
@@ -250,6 +260,8 @@ const approvals = z
     lineCancel: z.boolean({ error: 'Must be true or false.' }).optional(),
     paidIn: z.boolean({ error: 'Must be true or false.' }).optional(),
     managerTasks: z.boolean({ error: 'Must be true or false.' }).optional(),
+    // P29.
+    revisePrintedBill: z.boolean({ error: 'Must be true or false.' }).optional(),
   })
   .strict();
 
@@ -282,6 +294,37 @@ const cash = z
         }
       })
       .optional(),
+    /**
+     * P29 Part F. The whole list is sent and replaces the stored one. A code
+     * is 2 to 30 capital letters, digits or `_`, unique; OTHER is always there
+     * and on, because an expense that fits nothing else still needs a home.
+     */
+    expenseCategories: z
+      .array(
+        z
+          .object({
+            code: z.string({ error: 'Must be text.' }).trim().regex(/^[A-Z0-9_]{2,30}$/, 'Use 2 to 30 capital letters, digits or _.'),
+            label: z.string({ error: 'Must be text.' }).trim().min(1, 'A category needs a name.').max(40, 'Cannot be longer than 40 characters.'),
+            isActive: z.boolean({ error: 'Must be true or false.' }).default(true),
+          })
+          .strict('Is not a field you can set here.'),
+      )
+      .min(1, 'List at least one category.')
+      .max(30, 'At most 30 categories.')
+      .superRefine((list, context) => {
+        const codes = list.map((entry) => entry.code);
+        if (new Set(codes).size !== codes.length) context.addIssue({ code: 'custom', message: 'A category code is listed twice.' });
+        const other = list.find((entry) => entry.code === 'OTHER');
+        if (!other || !other.isActive) context.addIssue({ code: 'custom', message: 'Keep Other in the list, switched on.' });
+      })
+      .optional(),
+    usualFloatInPaise: z
+      .number({ error: 'Must be a whole number of paise.' })
+      .int('Must be a whole number of paise.')
+      .min(0, 'Cannot be below zero.')
+      .max(100_000_000, 'Cannot be more than ₹10,00,000.')
+      .optional(),
+    showDrawerTotalToStaff: z.boolean({ error: 'Must be true or false.' }).optional(),
   })
   .strict();
 
@@ -441,6 +484,7 @@ export const SETTINGS_GROUPS = Object.freeze([
   'approvals',
   'dayClose',
   'cash',
+  'kitchen',
   'payments',
   'reports',
   'floor',
@@ -491,6 +535,7 @@ export const updateSettingsSchema = z.object({
       approvals: approvals.optional(),
       dayClose: dayClose.optional(),
       cash: cash.optional(),
+      kitchen: kitchen.optional(),
       payments: payments.optional(),
       reports: reports.optional(),
       floor: floor.optional(),

@@ -95,6 +95,14 @@ export function cancelBillLines(billId, body) {
   return api.post(`/bills/${billId}/cancel-lines`, body);
 }
 
+/**
+ * P29 Part B. Takes items off a bill nothing has been paid on; the same bill,
+ * revised. With `preview: true` it answers the new total and changes nothing.
+ */
+export function removeBillLines(billId, body) {
+  return api.post(`/bills/${billId}/remove-lines`, body);
+}
+
 /** P25 Part E. Records money returned to a guest outside the system. */
 export function markRefundDone(refundId, reference) {
   return api.post(`/refunds/${refundId}/done`, { reference });

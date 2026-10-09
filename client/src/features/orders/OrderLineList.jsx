@@ -29,6 +29,8 @@ export default function OrderLineList({
   onChangeQuantity,
   onCancelLine,
   onServeLine,
+  // P29. The order has a bill: its lines change only through the bill.
+  locked = false,
 }) {
   if (lines.length === 0) {
     return (
@@ -95,8 +97,8 @@ export default function OrderLineList({
             </div>
 
             {!isCancelled && (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {isPending && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 empty:hidden">
+                {isPending && !locked && (
                   <QuantityStepper
                     value={line.quantity}
                     disabled={isBusy}
@@ -115,7 +117,7 @@ export default function OrderLineList({
                   </button>
                 )}
 
-                {line.status !== 'SERVED' && (
+                {line.status !== 'SERVED' && !locked && (
                   <button
                     type="button"
                     disabled={isBusy}

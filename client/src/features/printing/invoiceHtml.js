@@ -72,7 +72,8 @@ export function invoiceHtml(data, { qrSvg = null, logoDataUrl = null } = {}) {
   ].filter(Boolean);
 
   const facts = [
-    ['Invoice number', data.billNumber],
+    // P29. A bill changed before payment, under the same number, says so under it.
+    ['Invoice number', data.isRevised ? `${data.billNumber}, revised bill` : data.billNumber],
     ['Time issued', data.issuedAtIst],
     ['Order type', ORDER_TYPE_WORDS[data.orderType] ?? data.orderType],
     ['Table', data.tableName],
@@ -231,6 +232,7 @@ export function thermalBillHtml(data, { printer, logoDataUrl = null, qrSvg = nul
   ${row(`Date: ${escapeHtml(date)}`, place)}
   <div>${escapeHtml(time)}</div>
   ${row(data.cashierName ? `Cashier: ${escapeHtml(data.cashierName)}` : '', `Bill No.: ${escapeHtml(data.billNumber)}`)}
+  ${data.isRevised ? '<div class="c">Revised bill</div>' : ''}
   ${data.captainName ? `<div>Captain: ${escapeHtml(data.captainName)}</div>` : ''}
   <hr />
   <table>

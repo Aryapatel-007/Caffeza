@@ -110,6 +110,22 @@ export const LABELS = Object.freeze({
   NO_CHARGE_VALUE_BEFORE_GST: 'No Charge value, before GST',
   NO_CHARGE_REASON: 'No Charge reason',
   AGE_IN_DAYS: 'Age in days',
+  // P29.
+  CHANGE: 'Change',
+  ITEMS: 'Items',
+  BILL_TOTAL_BEFORE: 'Bill total before',
+  BILL_TOTAL_AFTER: 'Bill total after',
+  CHANGED_BY: 'Changed by',
+  AFTER_PRINTING: 'After printing',
+  REVISED: 'Revised',
+  BROUGHT_FORWARD: 'Brought forward',
+  OPENING_DIFFERENCE: 'Opening difference',
+  TOP_UPS: 'Top-ups',
+  EXPENSES: 'Expenses',
+  EXPENSE_CATEGORY: 'Expense category',
+  CASH_TAKEN_OUT: 'Cash taken out',
+  KEPT_FOR_TOMORROW: 'Kept for tomorrow',
+  TAKEN_OUT_AT_CLOSE: 'Taken out at close',
 });
 
 export const LABEL_VALUES = Object.freeze(Object.values(LABELS));

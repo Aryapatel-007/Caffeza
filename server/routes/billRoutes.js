@@ -27,6 +27,7 @@ import {
   getRefunds,
   postCancelLines,
   postReopenBill,
+  postRemoveLines,
   postRefundDone,
   postPrintRequest,
   postPrinted,
@@ -52,6 +53,7 @@ import {
   readBillSchema,
   billOnlySchema,
   cancelLinesSchema,
+  removeLinesSchema,
   reopenBillSchema,
   listRefundsSchema,
   refundDoneSchema,
@@ -128,6 +130,8 @@ router.post('/bills/:billId/void', ...till, validate(voidBillSchema), postVoid);
 router.post('/bills/:billId/cancel-lines', ...tillAndCaptains, validate(cancelLinesSchema), postCancelLines);
 // P26. Add items after billing: the same people and approval as cancelling.
 router.post('/bills/:billId/reopen', ...tillAndCaptains, validate(reopenBillSchema), postReopenBill);
+// P29. Take an item off an unpaid bill, which is revised under the same number. The same people as a line cancel.
+router.post('/bills/:billId/remove-lines', ...tillAndCaptains, validate(removeLinesSchema), postRemoveLines);
 router.get('/refunds', ...till, validate(listRefundsSchema), getRefunds);
 router.post('/refunds/:refundId/done', ...managers, validate(refundDoneSchema), postRefundDone);
 

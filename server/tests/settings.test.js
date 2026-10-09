@@ -10,7 +10,7 @@
  */
 import assert from 'node:assert/strict';
 
-import { DEFAULT_DENOMINATIONS } from '../models/Restaurant.js';
+import { DEFAULT_DENOMINATIONS, DEFAULT_EXPENSE_CATEGORIES } from '../models/Restaurant.js';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
 import { AuditLog } from '../models/AuditLog.js';
@@ -59,11 +59,18 @@ const DEFAULTS = {
   // P06.
   delivery: { platformCollectsGst: true },
   discounts: { cashierMayApplyPlatformDiscounts: false },
-  billing: { captainsMayBill: true, captainsMayTakePayment: false },
+  // P29 added reviseUnpaidBills, printBeforePayment, revisePrintedBill, the kitchen group and the cash book fields.
+  billing: { captainsMayBill: true, captainsMayTakePayment: false, reviseUnpaidBills: true, printBeforePayment: true },
   // P28.
-  approvals: { lineCancel: true, paidIn: true, managerTasks: true },
+  approvals: { lineCancel: true, paidIn: true, managerTasks: true, revisePrintedBill: true },
+  kitchen: { readyMeansServed: true },
   dayClose: { showCashDifferenceToManager: false },
-  cash: { denominations: DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })) },
+  cash: {
+    denominations: DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })),
+    expenseCategories: DEFAULT_EXPENSE_CATEGORIES.map((entry) => ({ ...entry })),
+    usualFloatInPaise: 200000,
+    showDrawerTotalToStaff: false,
+  },
   payments: { requireTerminalForLinkedMethods: true },
   // P25 Part J.
   reports: { onHoldTallyCode: null },
