@@ -155,6 +155,22 @@ export default function DeviceSettingsPage() {
           </label>
         )}
 
+        {/* P29 Part D. Print first, then ask how it is paid. */}
+        {isTill && (
+          <label className="flex min-h-12 items-start gap-3">
+            <input
+              type="checkbox"
+              checked={settings.printBillOnCreate}
+              onChange={(event) => update({ printBillOnCreate: event.target.checked })}
+              className="mt-1 size-5 accent-[var(--color-accent)]"
+            />
+            <span>
+              <span className="type-body block">Print the bill as soon as it is made</span>
+              <span className="type-caption block text-muted">For the counter computer. A bill made here prints straight away, on this device's printer.</span>
+            </span>
+          </label>
+        )}
+
         {isKitchen && (
           <label className="flex min-h-12 items-start gap-3">
             <input

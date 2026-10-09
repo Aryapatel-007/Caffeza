@@ -54,6 +54,8 @@ export async function asIntegration(restaurantId, branchId, providerName = 'Inte
     user: { id: String(user._id), role: user.role },
     currentUser: user,
     currentRestaurant: restaurant,
+    // P29. Nobody at the counter: a platform order is paid at pickup and never printed first.
+    isIntegration: true,
     log: logger.child({ restaurantId: String(restaurantId), actor: 'integration' }),
   };
 }

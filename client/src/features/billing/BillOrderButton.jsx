@@ -36,7 +36,8 @@ export default function BillOrderButton({ order }) {
 
   const mutation = useMutation({
     mutationFn: () => createBill({ orderId: order.id, version: order.version }),
-    onSuccess: (bill) => navigate(`/bills/${bill.id}`),
+    // P29 Part D. The bill screen prints a bill just made here, when this device asks it to.
+    onSuccess: (bill) => navigate(`/bills/${bill.id}`, { state: { justMade: true } }),
     onError: (mutationError) => {
       const raced = existingBillId(mutationError);
       if (raced) {

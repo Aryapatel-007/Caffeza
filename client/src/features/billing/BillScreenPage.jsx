@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { BackIcon, PrintIcon } from '../../components/ui/icons/index.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -68,10 +68,16 @@ export default function BillScreenPage() {
   const [justPaid, setJustPaid] = useState(false);
   // P29. The bill line being taken off.
   const [removing, setRemoving] = useState(null);
+  // P29 Part D. "Take payment without printing", for a guest who wants no paper.
+  const [payWithoutPrint, setPayWithoutPrint] = useState(false);
+  const location = useLocation();
+  const autoPrinted = useRef(false);
 
   const billQuery = useQuery({
     queryKey: ['bill', billId],
     queryFn: () => getBill(billId),
+    // P29 Part D. A captain waiting on the counter's print sees it land.
+    refetchInterval: (query) => (query.state.data?.printRequestedAt && !(query.state.data?.printCount > 0) ? 5_000 : false),
   });
 
   const bill = billQuery.data;
@@ -201,12 +207,30 @@ export default function BillScreenPage() {
     try {
       // P25. A thermal receipt, or a full A4 or A5 tax invoice, by this device's printer.
       await printBill(billId, { printer: device.printer, logoDataUrl: brand.logos?.LIGHT_GROUND?.dataUrl ?? null });
+      // P29 Part D. The print is recorded, so the payment can be asked for next.
+      queryClient.invalidateQueries({ queryKey: ['bill', billId] });
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error) });
     } finally {
       setPrinting(false);
     }
   };
+
+  /**
+   * P29 Part D. A bill just made on this counter prints at once when this
+   * device asks for it. Once, and only for the till: a captain's bill goes to
+   * the counter's queue as before.
+   */
+  const justMade = Boolean(location.state?.justMade);
+  const tillRole = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER].includes(user?.role);
+  useEffect(() => {
+    if (!justMade || autoPrinted.current || !bill || !device.printBillOnCreate || !tillRole) return;
+    if ((bill.printCount ?? 0) > 0 || bill.isVoided) return;
+    autoPrinted.current = true;
+    navigate(location.pathname, { replace: true, state: null });
+    print();
+    // print reads the device's printer; whether to print at all is decided by the values above.
+  }, [justMade, bill, device.printBillOnCreate, tillRole]);
 
   if (billQuery.isPending) {
     return (
@@ -273,6 +297,17 @@ export default function BillScreenPage() {
   // Dishes added to this bill are still with the kitchen: no money until they are ready.
   const waitingForKitchen = order?.status === 'OPEN' && order?.billId === bill.id;
 
+  /**
+   * P29 Part D. Print first, then ask how it is paid. Until the bill (or its
+   * latest revision) has been printed, the one primary action is printing it;
+   * the payment buttons come after. "Take payment without printing" is there
+   * for a guest who wants no paper, and the server records it.
+   */
+  const printFirst = features?.billing?.printBeforePayment ?? true;
+  const printedCurrent = (bill.printCount ?? 0) > 0 && (bill.lastPrintedRevision ?? 0) === (bill.revision ?? 0);
+  const asksForPrint = printFirst && isSettleable && canTakePayment && !waitingForKitchen && !printedCurrent && !payWithoutPrint;
+  const reprintAfterRevision = (bill.printCount ?? 0) > 0 && (bill.revision ?? 0) > 0;
+
   // Paid or On Hold, the next useful thing is the printed bill; unpaid, it is the payment.
   const printIsPrimary = !bill.isVoided && !isSettleable;
 
@@ -304,16 +339,18 @@ export default function BillScreenPage() {
               </ActionButton>
             )}
             {canCharge && <ActionButton onClick={() => setPanel('charge')}>Charge to account</ActionButton>}
-            {isCaptain && !bill.isVoided && (
+            {isCaptain && !bill.isVoided && !asksForPrint && (
               <ActionButton primary onClick={() => printRequest.mutate()} disabled={printRequest.isPending}>
                 <PrintIcon />
                 Print at counter
               </ActionButton>
             )}
-            <ActionButton primary={printIsPrimary && !isCaptain} onClick={() => print()} disabled={printing}>
-              <PrintIcon />
-              {isCaptain ? 'Print here' : <Bilingual k="printReceipt" />}
-            </ActionButton>
+            {!asksForPrint && (
+              <ActionButton primary={printIsPrimary && !isCaptain} onClick={() => print()} disabled={printing}>
+                <PrintIcon />
+                {isCaptain ? 'Print here' : <Bilingual k="printReceipt" />}
+              </ActionButton>
+            )}
             <Link
               to={`/bills/${bill.id}/receipt`}
               className="type-label flex min-h-12 items-center rounded-lg px-3 text-accent underline-offset-4 hover:underline"
@@ -501,6 +538,33 @@ export default function BillScreenPage() {
                 <p className="type-body mt-2 text-muted">
                   Dishes added to this bill are not ready yet. Take payment once the kitchen has them ready.
                 </p>
+              </div>
+            ) : asksForPrint ? (
+              <div className="rounded-[10px] border border-line bg-surface p-4 sm:p-6">
+                <p className="type-heading">{reprintAfterRevision ? 'Print the revised bill' : 'Print the bill for the guest'}</p>
+                <p className="type-body mt-2 text-muted">
+                  The guest checks it first. Remove an item or add to this bill now if anything is wrong, then take payment.
+                </p>
+                <Button
+                  size="lg"
+                  fullWidth
+                  className="mt-4"
+                  isLoading={isCaptain ? printRequest.isPending : printing}
+                  onClick={() => (isCaptain ? printRequest.mutate() : print())}
+                >
+                  <PrintIcon />
+                  {isCaptain ? 'Print at counter' : reprintAfterRevision ? 'Print the revised bill' : 'Print bill'}
+                </Button>
+                {isCaptain && bill.printRequestedAt && (
+                  <p className="type-caption mt-2 text-muted">Sent to the counter. Payment opens once it has printed.</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPayWithoutPrint(true)}
+                  className="type-label mt-3 min-h-12 w-full rounded-lg text-accent underline-offset-4 hover:underline"
+                >
+                  Take payment without printing
+                </button>
               </div>
             ) : isSettleable && isTill && bill.advance?.available > 0 ? (
               <div className="rounded-[10px] border-2 border-ok bg-surface p-4 sm:p-6">

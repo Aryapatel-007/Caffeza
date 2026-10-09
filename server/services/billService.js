@@ -507,6 +507,12 @@ async function addPaymentAndSettle(req, bill, { paymentMethod, amountInPaise, re
   });
 
   const at = nowUtc();
+  /**
+   * P29 Part D. The bill screen asks for the print first; a payment taken on a
+   * bill never printed is allowed and recorded, so the owner sees how often.
+   * A platform order paid by the integration at pickup is never printed first.
+   */
+  if ((bill.printCount ?? 0) === 0 && !req.isIntegration) bill.paymentBeforePrint = true;
   bill.payments.push({
     ...frozenMethodFields(paymentMethod),
     businessDate: businessDateFor(at, startMinutes),

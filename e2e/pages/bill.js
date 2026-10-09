@@ -28,6 +28,9 @@ export async function applyDiscount(page, { percent, amount, reason, note }) {
 
 /** Cashier. Each payment is `[method name, amount in rupees]`; the amount starts at what is owed. */
 export async function pay(page, payments) {
+  // P29 Part D. A bill not yet printed asks for the print first; these tests print where they mean to.
+  const skip = page.getByRole('button', { name: 'Take payment without printing' });
+  if (await skip.isVisible().catch(() => false)) await skip.click();
   for (const [method, amount] of payments) {
     const area = page.getByRole('region', { name: 'Take payment' });
     await area.getByRole('button', { name: new RegExp(`^${method}`) }).click();
