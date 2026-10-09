@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-09 by Rishi (P28 manager's PIN, and the thermal bill reworked for Z Chaat's Rugtek)
+Last updated: 2026-10-09 by Arya (P29 bill edits, ready means served, print first, kitchen undo, the cash book)
 
 ---
 
@@ -23,6 +23,14 @@ item after billing, cash counted by notes) and M21 Integrations: Swiggy and
 Zomato behind a sandbox platform, Pine Labs card machines, and Tally by file
 or through a bridge. `docs/INTEGRATIONS.md` says how to set each up and what
 is still waiting.
+
+P29 (2026-10-09) changed how the counter and the kitchen work: an unpaid bill
+is revised under the same number instead of voided, the kitchen's ready means
+served, the bill prints before payment is asked for, a wrong ready tick can be
+undone until the table is billed, and the cash drawer is now the cash book
+(brought forward, top-ups, expenses, cash taken out, cash in drawer). Before
+the next deploy reaches Z Chaat, run `npm run migrate:ready-to-served` once on
+the cloud database (see the P29 entry below).
 
 The cloud database (`cluster0.dkcsfcz`, `restaurant-erp`) holds Z Chaat, set
 up with its menu and five logins, and a duplicate "zchaat" waiting on Rishi's
@@ -463,7 +471,24 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-09 | A customer is one mobile number at one restaurant, built from orders. Offers consent is recorded only when the guest says yes, with the wording's version, how and by whom, and a withdrawal is kept; a phone is never in a URL, a log line or an audit line. (P27) | Rishi asked for guest details at the table for CRM. India's DPDP Act expects consent to be specific and provable, and withdrawable. |
 | 2026-10-09 | Adding items after billing voids the bill and reopens the order; the next bill carries the voided one's discount and payments. A served order takes new dishes and reopens. (P26) | The manager asked. An invoice is never edited, so this is Part E's void-and-re-bill, with the dishes added in between. |
 | 2026-10-08 | Where P25 was built differently from its prompt: the captain's button keeps the label "Bill this order"; cancel-lines has a `preview` mode and `GET /users/approvers` was added; the cancel note limit is 200; accepting a platform order is claim, call, create, not one transaction; `#A64220` was refused as an accent and Espresso is used; a Tally date is also held while QUEUED, PARTIAL or UNKNOWN; a BUILT or FAILED Tally export is replaced; the daily summary nets round-off; a payout credits the receivable with the gross it covers; a bridge result takes `reached`; a lost bridge post becomes UNKNOWN and is never re-sent; the Tally page is `/settings/tally`, because the router matches paths without regard to case; the e2e server runs the job loop. | Each is written into the contract where it changes behaviour, so the next reader does not take it for a mistake. |
-
+| 2026-10-09 | P29: a bill nothing has been paid on is revised, never voided, when an item is removed or added: the same invoice number, totals rebuilt by the code that made the bill, and one entry in `bills.revisions`, audited as `BILL_REVISED` (a manager may read it). A cashier or captain removing an item from a bill already printed needs a manager's PIN, by default (`approvals.revisePrintedBill`). `billing.reviseUnpaidBills` off gives the old void and re-bill. | The owner: "no need for a rebill, and no need for a record in voided bills". A cut after printing is where till fraud hides, and the cash count cannot catch it. |
+| 2026-10-09 | P29: a bill with money on it, On Hold, waiting on the card machine, a platform bill or on a closed day is not revisable; `remove-lines` answers `BILL_NOT_REVISABLE` with the reason, and `GET /bills/:id` carries `revisable` and `revisableReason`, so the screen offers Cancel an item instead. | Money moved, so P25's and P26's void and re-bill still apply exactly. |
+| 2026-10-09 | P29: while an order has a live bill, its lines change only through the bill (editing or cancelling a line on the order is refused), and a bill whose added dishes are still cooking takes no money, `WAITING_FOR_KITCHEN`, except a card machine approval, which is always recorded because the money moved. | The bill and the order can never disagree about what was ordered, and nobody pays for food not yet ready. |
+| 2026-10-09 | P29, built differently from the prompt: cancelling a whole order with a live unpaid bill now voids that bill in the same transaction; with money on it, it is refused. | B3 says cancelling the order voids the bill; before P29 it left the bill live and unpaid, which blocked Day Close. |
+| 2026-10-09 | P29: a print is a duplicate only when the bill was printed before and nothing changed since (`lastPrintedRevision`), so the first print after a revision is a new print. | A revised bill's content changed. |
+| 2026-10-09 | P29: the kitchen's ready means served, `kitchen.readyMeansServed`, default on, so it is on for every existing restaurant from the deploy. One shared change, `readyToBillChange`, moves an order to READY_TO_BILL wherever that happens. `npm run migrate:ready-to-served` (dry run, then `--apply`) serves lines left READY. | The owner: "In the kitchen, order ready means served." |
+| 2026-10-09 | P29, built differently: with ready means served on, the old served call on a line already served answers 200 with the order unchanged, even on an order already waiting for the cashier. | The prompt said it "accepts READY lines"; this also keeps a screen open during the deploy, and every older test fixture, from failing on a step that no longer exists. |
+| 2026-10-09 | P29: the bill screen asks for the print first (`billing.printBeforePayment`, default on, read by the client). The server takes a payment on an unprinted bill and records `paymentBeforePrint`, except a platform order paid by the integration at pickup, which is never printed first. R15 lists bills paid before printing. | The owner: "First print the bill, then ask the mode of payment." Without the exception every platform bill would sit in that list. |
+| 2026-10-09 | P29: the kitchen may undo a ready tick until the order is billed (`ORDER_ALREADY_BILLED` after), audited as `KITCHEN_READY_UNDONE`. A platform's "food is ready" call now waits 60 seconds; an undo inside the minute cancels the job (new status `CANCELLED`, its dedupe key released). A job already run, or retrying after a failure, counts as told. | A wrong tick must not reach Swiggy or Zomato. |
+| 2026-10-09 | P29, built differently: the kitchen's "Just done" row lists the tickets finished on that screen in the last 10 minutes, kept in the tab's session storage, not every station's. Marking a whole ticket needs a half-second hold; with reduced motion, or from the keyboard, the ticket asks "Mark all N ready?" in place. | The board's read lists open tickets oldest first, and a recently finished list would need a new query parameter; the undo a cook needs is for their own wrong tick. |
+| 2026-10-09 | P29: the cash book replaces the cash drawer page (`/cash` opens `/cash-book`): brought forward + top-ups + cash sales + cash collections − expenses − cash taken out = cash in drawer. New movement types `CASH_TAKEN_OUT` (owner and manager, audited) and `CASH_CHECK` (moves no money, may count 0). A top-up has a source and an expense a category, code and label frozen; a reason is optional except for Other. Day Close's count, the cash kept for tomorrow and the rest taken out are the cash book's last step; the Day Close page links to it. | The owner found the old drawer and Day Close hard to use, and drew this flow. |
+| 2026-10-09 | P29: the float is proposed from the most recent closed day that kept cash; confirming it records `broughtForwardFrom`. A recount that differs needs a note, stores `openingDifferenceInPaise` and writes `OPENING_FLOAT_DIFFERED`; C14 warns. Cash taken out at close is recorded after the count, so it never changes expected cash or the difference. | Yesterday's kept notes are today's float, and a difference overnight is the owner's to read. |
+| 2026-10-09 | P29: the cash in the drawer and every difference are left out by the server for staff (`cash.showDrawerTotalToStaff`, default off); a manager also sees them when `dayClose.showCashDifferenceToManager` is on. | The blind count must still work. The prompt's switch and the existing manager switch are read together, so neither undoes the other. |
+| 2026-10-09 | P29, built differently: C12 compares a stored Day Close snapshot with today's figures on the snapshot's own keys. | Adding figures to `computeDayFigures` (cash taken out, revisions) would otherwise read as every day closed before P29 having changed. |
+| 2026-10-09 | P29, built differently: R7 Cash Till is two sections, `days` and `expensesByCategory`, instead of rows at the top level. The two tests reading R7's rows were changed on purpose. | The prompt asks for a new section; the engine returns rows or sections, not both. |
+| 2026-10-09 | P29: Tally sends an expense to its category's ledger (or the expense one), a top-up by source (or the top-up one), cash to the bank as a contra entry (`voucherTypes.contra`, default "Contra"), and cash to the owner to a new head, the owner's drawings. Cash taken out at close is exported the same way. The golden day's XML is unchanged. | Cash to the bank is never an expense. |
+| 2026-10-09 | `.gitattributes` keeps the Tally XML fixtures LF on every checkout. | With `core.autocrlf` on Windows they checked out CRLF and the snapshot test failed before any P29 change; the content was byte for byte the same. |
+| 2026-10-09 | P29: every new setting was added in Part B, in one pass through the model, `settingsService`, the validator and `/auth/me`; "Cash sales" joined the glossary as the cash book's word for cash from bills. | One change to four files rather than four changes to each. |
 ---
 
 ## Open questions
@@ -488,7 +513,7 @@ Newest entry at the top. Keep the last ten or so, delete older ones.
 
 ### 2026-10-09 Arya, P29 bill edits, ready means served, print first, kitchen undo, the cash book
 
-In progress. The prompt is `docs/prompts/P29-bill-edits-ready-means-served-print-first-kitchen-undo-cash-book.md`.
+Paused by the user before the push and the deploy. Everything is committed on Arya's machine and **not pushed**: a push to `main` deploys the server on Render by itself. The prompt is `docs/prompts/P29-bill-edits-ready-means-served-print-first-kitchen-undo-cash-book.md`.
 
 ```
 P29 progress
@@ -498,10 +523,31 @@ P29 progress
 - [x] D Print before payment
 - [x] E Undo in the kitchen
 - [x] F The cash book
-- [ ] G Full check
+- [ ] G Full check: suite, lint, build, e2e and indexes done; the hand check at 380, 768 and 1280 not done
 ```
 
-Tests before Part A: 1,173, 1,172 passing, 1 failing (`tallyVouchers.test.js`, the stored XML: the fixtures check out with Windows line endings; Part G fixes it with `.gitattributes`).
+Tests before Part A: 1,173, 1,172 passing, 1 failing (`tallyVouchers.test.js`, the stored XML: the fixtures check out with Windows line endings; fixed with `.gitattributes`).
+Tests after Part F: 1,216, all passing. Lint and build pass. Two server tests were added in Part G (below); the full rerun with them was still running when the session paused, and those four files (98 tests) pass.
+`npm run e2e`: all 13 specs pass, with three new ones: `e2e/billRevision.spec.js` (a water bottle removed from a printed bill with the manager's PIN, the revised bill printed, paid in cash, one bill and no void), `e2e/kitchenUndo.spec.js` (a wrong tick undone from the bar), `e2e/cashBook.spec.js` (float brought forward, a top-up and an expense with the PIN, cash to the bank, the day closed keeping ₹2,000.00, and the next day proposing it).
+
+The first e2e run found five things, all fixed in Part G:
+1. The client dropped every P29 field of `/auth/me` (`AuthContext.jsx`), so the cash book had no expense categories and turning off print first, revise printed bill or ready means served in Settings did nothing on screen.
+2. After "Void and add items" the order screen reused the bill screen's copy of the order, which still named the voided bill, and offered no menu.
+3. With ready means served, a dish the kitchen made had no Cancel, and the server refused the cancel because the order was already waiting to be billed. Now, with the setting on, a line on a `READY_TO_BILL` order with no bill can be cancelled, and the order is open again when nothing is left (API-CONTRACT 12.6, two tests in `readyMeansServed.test.js`). With the setting off, refused as before.
+4. A bill the guest already paid online asked for the print before Apply advance; the advance now comes first.
+5. The platform spec's own ready helper needed the half-second hold.
+Also: the cash book's "Yesterday: counted ₹…" lost its spaces inside a flex link.
+
+On the cloud database (`cluster0.dkcsfcz`, `restaurant-erp`), done 2026-10-10 from this machine:
+- `npm run db:indexes`: 37 collections, 0 created, 205 present, 0 failures.
+- `npm run migrate:ready-to-served`, dry run then `-- --apply`: Z Chaat, 3 ready lines served, 1 order moved to ready to bill. A second dry run: nothing to do. It does not need running again.
+
+Still to do: the hand check of the bill screen before and after printing, the kitchen's undo bar and Just done row, and the cash book at 380, 768 and 1280; then push, which deploys the server on Render, and deploy the screens to Vercel from `client/` (`vercel build --prod`, `vercel deploy --prebuilt --prod`), DEPLOYMENT.md section 14.
+
+Endpoints added by P29: `POST /bills/:billId/remove-lines`, `POST /kots/:kotId/lines/:lineId/undo-ready`, `POST /kots/:kotId/undo-ready`, `GET /cash-book`. Fields: DB-SCHEMA section 43.
+
+Anything the other developer needs to know:
+Rishi: what moved on screen, so it is not taken for missing: the Cash drawer is now the Cash book (`/cash` opens it), and Day Close's count is the cash book's "Close the day"; Mark served is gone while ready means served is on (Settings, Kitchen, brings it back); an unpaid bill has Remove and Add to this bill instead of Cancel an item and Void; the payment buttons wait for the print (Settings, Bills, or "Take payment without printing").
 
 ### 2026-10-09 Rishi, P28 the manager's PIN, and the thermal bill
 

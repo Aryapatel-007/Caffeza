@@ -167,3 +167,5 @@ The neutral tone is Warm. The second language is Gujarati.
 13. The logo, as a PNG or SVG with a transparent background, for the Appearance page. An SVG is converted to PNG first: the upload refuses SVG.
 14. Tally version, company name and ledger names (P25 Part J).
 15. Pine Labs Merchant ID, Security Token, Store ID and terminal Client IDs (P25 Part I).
+16. **For their CA (P29 Part B).** Changing the amount of a bill after its invoice number is printed and before it is paid, under the same number, with every change recorded: confirm this is acceptable under GST for their B2C bills. Until then the owner can switch off "Change an unpaid bill instead of voiding it" (`billing.reviseUnpaidBills`) on the Settings screen and get the old void-and-rebill behaviour.
+17. Their expense categories, usual float and Tally ledgers for each category, cash to the bank and the owner's drawings (P29 Part F). The ten defaults are in place until they say otherwise.

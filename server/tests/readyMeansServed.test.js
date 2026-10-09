@@ -78,6 +78,44 @@ describe('with the setting on, the default', () => {
     assert.equal(served.status, 200, JSON.stringify(served.body));
     assert.equal(served.body.data.version, order.version);
   });
+
+  it('cancels a made dish on an order waiting to be billed, before any bill, and reopens it when nothing is left', async () => {
+    const floor = await seedFloor();
+    const { orderId, kot } = await firedTwoDishes(floor);
+    ok(await request('PATCH', `/api/v1/kots/${kot.id}/ready`, { token: floor.tokens.KITCHEN }), 'ready');
+    let order = ok(await readOrder(floor.tokens.WAITER, orderId), 'read');
+    assert.equal(order.status, 'READY_TO_BILL');
+
+    const cancel = (line) =>
+      request('POST', `/api/v1/orders/${orderId}/lines/${line.id}/cancel`, {
+        token: floor.tokens.OWNER,
+        body: { version: order.version, reasonCode: 'MODIFICATION', wasPrepared: true },
+      });
+    order = ok(await cancel(order.lines[0]), 'cancel the first');
+    assert.equal(order.lines[0].status, 'CANCELLED');
+    assert.equal(order.status, 'READY_TO_BILL');
+
+    order = ok(await cancel(order.lines[1]), 'cancel the second');
+    assert.equal(order.status, 'OPEN');
+    assert.equal(order.readyToBillAt, null);
+  });
+
+  it('with the setting off, still refuses a cancel on an order waiting to be billed', async () => {
+    const floor = await seedFloor();
+    ok(await setReadyMeansServed(floor, false), 'setting off');
+    const { orderId, kot } = await firedTwoDishes(floor);
+    ok(await request('PATCH', `/api/v1/kots/${kot.id}/ready`, { token: floor.tokens.KITCHEN }), 'ready');
+    let order = ok(await readOrder(floor.tokens.WAITER, orderId), 'read');
+    for (const line of order.lines) {
+      order = ok(await request('PATCH', `/api/v1/orders/${orderId}/lines/${line.id}/served`, { token: floor.tokens.WAITER, body: { version: order.version } }), 'served');
+    }
+    assert.equal(order.status, 'READY_TO_BILL');
+    const refused = await request('POST', `/api/v1/orders/${orderId}/lines/${order.lines[0].id}/cancel`, {
+      token: floor.tokens.OWNER,
+      body: { version: order.version, reasonCode: 'MODIFICATION', wasPrepared: true },
+    });
+    assert.equal(refused.status, 422, JSON.stringify(refused.body));
+  });
 });
 
 describe('with the setting off', () => {

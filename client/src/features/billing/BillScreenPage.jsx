@@ -301,11 +301,15 @@ export default function BillScreenPage() {
    * P29 Part D. Print first, then ask how it is paid. Until the bill (or its
    * latest revision) has been printed, the one primary action is printing it;
    * the payment buttons come after. "Take payment without printing" is there
-   * for a guest who wants no paper, and the server records it.
+   * for a guest who wants no paper, and the server records it. A bill the
+   * guest already paid online asks for no payment mode, so its advance is
+   * applied first and the print stays in the bar above.
    */
   const printFirst = features?.billing?.printBeforePayment ?? true;
   const printedCurrent = (bill.printCount ?? 0) > 0 && (bill.lastPrintedRevision ?? 0) === (bill.revision ?? 0);
-  const asksForPrint = printFirst && isSettleable && canTakePayment && !waitingForKitchen && !printedCurrent && !payWithoutPrint;
+  const hasAdvance = isTill && bill.advance?.available > 0;
+  const asksForPrint =
+    printFirst && isSettleable && canTakePayment && !waitingForKitchen && !printedCurrent && !payWithoutPrint && !hasAdvance;
   const reprintAfterRevision = (bill.printCount ?? 0) > 0 && (bill.revision ?? 0) > 0;
 
   // Paid or On Hold, the next useful thing is the printed bill; unpaid, it is the payment.
@@ -695,6 +699,8 @@ export default function BillScreenPage() {
             setPanel(null);
             queryClient.invalidateQueries({ queryKey: ['bill'] });
             queryClient.invalidateQueries({ queryKey: ['bills'] });
+            // This screen read the order while the old bill was live; the order screen must not reuse that copy.
+            queryClient.removeQueries({ queryKey: ['order', result.orderId] });
             // The order opens, with the menu, for the new dishes.
             navigate(`/orders/${result.orderId}?add=1`);
           }}

@@ -125,7 +125,8 @@ export default function OrderLineList({
                   </button>
                 )}
 
-                {line.status !== 'SERVED' && !locked && (
+                {/* P29: when the kitchen's ready serves the dish, a served line is one the kitchen just made, and may still be cancelled. */}
+                {(line.status !== 'SERVED' || readyMeansServed) && !locked && (
                   <button
                     type="button"
                     disabled={isBusy}

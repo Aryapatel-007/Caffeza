@@ -99,6 +99,7 @@ Each prompt names its model at the top.
 | P26 | Adding items after serving and after billing | M2, M3 | P25 | Rishi | Opus, high |
 | P27 | Customers: guest details at the table, for CRM | M22 | P26 | Rishi | Opus, high |
 | P28 | A manager's PIN for cancels, voids and cash | M2, M3, M16 | P26 | Rishi | Opus, high |
+| P29 | Bill edits without voids, ready means served, print before payment, undo in the kitchen, and a clear cash book | M2, M3, M16, M18, M19, M21 | P28 | Arya | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

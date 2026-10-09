@@ -28,6 +28,8 @@ export async function cancelLineInSession(
   // P26. When what is left is all served, the order is ready to bill, as when the last dish is served.
   const linesAfter = order.lines.map((entry) => (String(entry._id) === String(line._id) ? { status: ORDER_LINE_STATUSES.CANCELLED } : entry));
   const nowReady = order.status === ORDER_STATUSES.OPEN && isReadyToBill(linesAfter);
+  // P29. An order waiting to be billed whose last live dish is cancelled has nothing to bill, so it is open again.
+  const backToOpen = order.status === ORDER_STATUSES.READY_TO_BILL && !isReadyToBill(linesAfter);
   const readyAt = nowUtc();
   const updated = await applyVersionedUpdate(req, {
     orderId: order._id,
@@ -46,6 +48,7 @@ export async function cancelLineInSession(
         // P29. Taken off an unpaid bill, which was revised rather than voided.
         ...(removedFromBillId ? { 'lines.$[line].removedFromBillId': removedFromBillId } : {}),
         ...(nowReady ? readyToBillChange(readyAt) : {}),
+        ...(backToOpen ? { status: ORDER_STATUSES.OPEN, readyToBillAt: null } : {}),
       },
     },
     arrayFilters: [{ 'line._id': line._id }],

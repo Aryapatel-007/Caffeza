@@ -44,7 +44,8 @@ async function readyEverything(page, station) {
   await openStation(page, station);
   const list = page.locator('article');
   for (let left = await list.count(); left > 0; left = await list.count()) {
-    await list.first().locator('footer button').click();
+    // P29: marking a whole ticket ready is a half-second hold.
+    await list.first().locator('footer button').click({ delay: 700 });
     await expect(list).toHaveCount(left - 1);
   }
 }

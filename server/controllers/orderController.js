@@ -236,7 +236,16 @@ export async function cancelOrderLine(req, res) {
   const { version, reasonCode, note, wasPrepared, approval } = req.body;
 
   const order = await loadOrderInTenant(req, orderId);
-  assertOrderIsOpen(order);
+  /**
+   * P29. With the kitchen's ready serving the dish, an order is waiting to be
+   * billed the moment the kitchen finishes, while the guest may still send a
+   * made dish back. Until a bill exists, the line is cancelled here; once one
+   * does, assertNoLiveBill sends the change to the bill's Remove.
+   */
+  const waitingWithoutBill = order.status === ORDER_STATUSES.READY_TO_BILL && !order.billId;
+  if (!(waitingWithoutBill && (await getSetting(req.restaurantId, 'kitchen.readyMeansServed', { req })))) {
+    assertOrderIsOpen(order);
+  }
   assertNoLiveBill(order);
 
   const line = findLine(order, lineId);

@@ -32,7 +32,7 @@ export async function newTakeaway(page, items) {
  * An expense (P29's word for a paid out) goes in `category`, default Milk and
  * dairy, with `reason` as its note.
  */
-export async function recordCash(page, type, amount, reason = null, { category = 'Milk and dairy', source = 'From the owner' } = {}) {
+export async function recordCash(page, type, amount, reason = null, { category = 'Milk and dairy', source = 'From the owner', approval = null } = {}) {
   const { countNotes } = await import('./manager.js');
   const { typeOnKeypad } = await import('./keypad.js');
   await page.goto('/cash-book');
@@ -51,6 +51,11 @@ export async function recordCash(page, type, amount, reason = null, { category =
   await sheet.getByRole('button', { name: isExpense ? category : source, exact: true }).click();
   await typeOnKeypad(sheet, amount);
   if (reason) await sheet.getByLabel(/^Note/).fill(reason);
+  // P28. A cashier's top-up and expense need a manager's PIN, typed on the same screen.
+  if (approval) {
+    await sheet.getByRole('button', { name: approval.name, exact: true }).click();
+    await sheet.getByLabel('Their PIN').fill(approval.pin);
+  }
   await sheet.getByRole('button', { name: isExpense ? /^Record ₹/ : /^Add ₹/ }).click();
   await expect(page.getByText(isExpense ? 'Expense recorded.' : 'Top-up recorded.')).toBeVisible();
 }

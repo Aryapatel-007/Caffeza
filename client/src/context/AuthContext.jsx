@@ -66,15 +66,26 @@ const fromMe = (me) => ({
   billing: {
     captainsMayBill: me.billing?.captainsMayBill ?? true,
     captainsMayTakePayment: Boolean(me.billing?.captainsMayTakePayment),
+    // P29. Revise an unpaid bill rather than void it, and print it before taking payment.
+    reviseUnpaidBills: me.billing?.reviseUnpaidBills ?? true,
+    printBeforePayment: me.billing?.printBeforePayment ?? true,
   },
   // P28. What needs an owner's or manager's PIN. The server still decides.
   approvals: {
     lineCancel: me.approvals?.lineCancel ?? true,
     paidIn: me.approvals?.paidIn ?? true,
     managerTasks: me.approvals?.managerTasks ?? true,
+    revisePrintedBill: me.approvals?.revisePrintedBill ?? true,
   },
+  // P29 Part C. The kitchen's ready also serves the dish.
+  kitchen: { readyMeansServed: me.kitchen?.readyMeansServed ?? true },
   // P25 Part F. The active notes and coins, for the cash counter.
-  cash: { denominations: me.cash?.denominations ?? [] },
+  // P29 Part F. The cash book's expense categories and the usual float.
+  cash: {
+    denominations: me.cash?.denominations ?? [],
+    expenseCategories: me.cash?.expenseCategories ?? [],
+    usualFloatInPaise: me.cash?.usualFloatInPaise ?? 200000,
+  },
   // P25 Part I. The card machines this device may send a payment to.
   terminals: me.terminals ?? [],
   // P19. Section order, the long-open threshold and whether the guest picker may offer Skip.

@@ -1831,6 +1831,13 @@ table has a bill. Change the items from the bill." The same rule applies to
 
 ### 12.6 Cancel a line
 
+P29: with `settings.kitchen.readyMeansServed` on, a line may also be cancelled
+on an order that is `READY_TO_BILL` and has no bill yet, because the kitchen's
+ready makes the order wait for the cashier while the guest can still send a
+made dish back. When that leaves no live line, the order is `OPEN` again, with
+`readyToBillAt` null. With the setting off, a `READY_TO_BILL` order is refused
+exactly as before.
+
 ```
 POST /api/v1/orders/:orderId/lines/:lineId/cancel
 ```

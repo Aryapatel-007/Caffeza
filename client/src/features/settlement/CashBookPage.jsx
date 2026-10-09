@@ -143,17 +143,19 @@ export default function CashBookPage() {
       {y && (
         <p className="type-caption text-muted">
           <Link to={`/day-close?date=${y.businessDate}`} className="inline-flex min-h-12 items-center underline-offset-4 hover:underline">
-            Yesterday: counted <Money paise={y.countedCashInPaise} />
-            {y.keptForTomorrowInPaise !== null && (
-              <>
-                , kept <Money paise={y.keptForTomorrowInPaise} />
-                {y.takenOutAtCloseInPaise > 0 && (
-                  <>
-                    , taken out <Money paise={y.takenOutAtCloseInPaise} /> {y.takenOutTo === 'BANK_DEPOSIT' ? 'to the bank' : y.takenOutTo === 'OWNER' ? 'to the owner' : ''}
-                  </>
-                )}
-              </>
-            )}
+            <span>
+              Yesterday: counted <Money paise={y.countedCashInPaise} />
+              {y.keptForTomorrowInPaise !== null && (
+                <>
+                  , kept <Money paise={y.keptForTomorrowInPaise} />
+                  {y.takenOutAtCloseInPaise > 0 && (
+                    <>
+                      , taken out <Money paise={y.takenOutAtCloseInPaise} /> {y.takenOutTo === 'BANK_DEPOSIT' ? 'to the bank' : y.takenOutTo === 'OWNER' ? 'to the owner' : ''}
+                    </>
+                  )}
+                </>
+              )}
+            </span>
           </Link>
         </p>
       )}
