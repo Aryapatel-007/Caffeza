@@ -486,6 +486,23 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-09 Arya, P29 bill edits, ready means served, print first, kitchen undo, the cash book
+
+In progress. The prompt is `docs/prompts/P29-bill-edits-ready-means-served-print-first-kitchen-undo-cash-book.md`.
+
+```
+P29 progress
+- [x] A Spec
+- [ ] B Change an unpaid bill without voiding it
+- [ ] C Ready means served
+- [ ] D Print before payment
+- [ ] E Undo in the kitchen
+- [ ] F The cash book
+- [ ] G Full check
+```
+
+Tests before Part A: 1,173, 1,172 passing, 1 failing (`tallyVouchers.test.js`, the stored XML: the fixtures check out with Windows line endings; Part G fixes it with `.gitattributes`).
+
 ### 2026-10-09 Rishi, P28 the manager's PIN, and the thermal bill
 
 What was built or decided:

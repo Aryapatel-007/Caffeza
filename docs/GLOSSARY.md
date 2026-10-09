@@ -429,3 +429,37 @@ reports keep the terms above.
 | **Amount** | Line total |
 | **Cashier** | The person who made the bill |
 | **Bill No.** | Invoice number |
+
+---
+
+## 20. Bill revision and cash book words
+
+Added by P29.
+
+| Term | Meaning |
+|---|---|
+| **Bill revision** | A change to the items on a bill that nothing has been paid on, under the same invoice number: an item removed or added. It is not a void, and it uses no number. |
+| **Revised bill** | A bill with at least one revision. Printed "Revised bill" under its invoice number. |
+| **Remove** | On an unpaid bill: take an item off it, which revises the bill |
+| **Add to this bill** | On an unpaid bill: add dishes, which go to the kitchen and revise the bill |
+| **Bills changed before payment** | The revisions in a range: R15's section and R2's controls line |
+| **Removed from the bill before payment** | The stage of an item taken off an unpaid bill, in R15 |
+| **Bills paid before printing** | Bills whose payment was taken before they were printed |
+| **Waiting for the kitchen** | A bill whose order has items not yet ready. It takes no payment until they are. |
+| **Undo** | On the kitchen screen: take back a ready tick made by mistake |
+| **Just done** | The kitchen screen's row of tickets finished in the last 10 minutes |
+| **Cash book** | The one screen for the day's cash: brought forward, top-ups, cash sales, expenses, cash taken out, and the cash in the drawer |
+| **Brought forward** | The cash kept in the drawer when the last day closed, proposed as today's opening float |
+| **Opening difference** | A brought-forward float counted again in the morning: counted minus kept |
+| **Top-up** | Cash added to the drawer that is not a sale: from the owner, from the bank, or change. The record type is paid in. |
+| **Source** | Where a top-up came from: Owner, Bank, Change or Other |
+| **Expense** | Cash spent from the drawer, like buying milk. The record type is paid out. |
+| **Expense category** | What an expense was for, from the restaurant's list, like Milk and dairy |
+| **Cash taken out** | Cash removed from the drawer that is not an expense: a bank deposit, or cash given to the owner |
+| **Bank deposit** | Cash taken out to the bank. In Tally it is a contra entry, never an expense. |
+| **Given to the owner** | Cash taken out to the owner. In Tally it is the owner's drawings. |
+| **Cash check** | A count of the drawer during the day, without closing it. It moves no money. |
+| **Cash in drawer** | What should be in the drawer now: brought forward or opening float, plus top-ups, cash sales and cash collections, minus expenses and cash taken out. Called expected cash at Day Close. |
+| **Kept for tomorrow** | The cash left in the drawer at Day Close, for the next day's float |
+| **Taken out at close** | Counted cash minus kept for tomorrow, at Day Close |
+| **Usual float** | The amount the cash book proposes to keep for tomorrow |

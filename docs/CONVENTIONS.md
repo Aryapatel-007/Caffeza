@@ -262,6 +262,14 @@ BRIDGE_TOKEN_INVALID       401  a Tally bridge token is unknown or revoked
 
 From P25, 502 also covers a partner in M21: Swiggy, Zomato or Pine Labs.
 
+Added by P29:
+
+```
+BILL_NOT_REVISABLE         422  removing an item from a bill that cannot be revised; the message says why
+WAITING_FOR_KITCHEN        422  money taken on a bill whose order has items not yet ready
+ORDER_ALREADY_BILLED       422  undoing ready in the kitchen on an order that has a live bill
+```
+
 ### Paging
 
 Every list endpoint takes `?page=1&limit=50`.

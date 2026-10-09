@@ -2720,3 +2720,100 @@ Every new field has a default, so nothing is migrated.
 
 `orders.noCharge.approvedBy` already exists; from P28 it is the approver when a
 cashier asked.
+
+## 43. Additions for bill revisions, ready means served, kitchen undo and the cash book (P29)
+
+Every new field has a default, so nothing is migrated, and nothing is renamed or
+removed. The one data script, `npm run migrate:ready-to-served`, moves order
+lines a kitchen already marked ready to served for restaurants with
+`kitchen.readyMeansServed` on; it changes statuses only, never a figure.
+
+### `bills`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `revision` | Number | 0 | Whole number. How many times the bill was revised (API-CONTRACT M3 16.8). |
+| `revisions` | Array | `[]` | Append-only, one entry per revision, below |
+| `lastPrintedRevision` | Number or null | null | `revision` at the last `POST /printed`. Null on a bill printed before P29, read as 0. |
+| `paymentBeforePrint` | Boolean | false | Set when a payment is recorded while `printCount` is 0 (16.9) |
+
+One `revisions` entry:
+
+| Field | Type | Notes |
+|---|---|---|
+| `revision` | Number | The bill's `revision` after this change, 1 for the first |
+| `kind` | String | `REMOVED` or `ADDED` |
+| `at` | Date | UTC |
+| `by` | ObjectId | The person who changed it |
+| `approvedBy` | ObjectId or null | The owner or manager who typed their PIN; null when the actor approved themselves or none was needed |
+| `lines` | Array | `{ orderLineId, itemName, variantName, quantity, lineTotalInPaise, wasPrepared }`, frozen. `wasPrepared` is null on `ADDED`. |
+| `reasonCode` | String or null | From `LINE_CANCEL_REASONS` on `REMOVED`; null on `ADDED` |
+| `note` | String or null | Up to 200 characters |
+| `previousGrandTotalInPaise` | Number | Whole paise |
+| `newGrandTotalInPaise` | Number | Whole paise. Equals the bill's `grandTotalInPaise` for the last entry (C13). |
+| `wasPrinted` | Boolean | `printCount` was above 0 when it changed |
+
+No index is added: a revision is read with its bill.
+
+### `orders`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `lines[].removedFromBillId` | ObjectId or null | null | Set when the line was cancelled by removing it from an unpaid bill, so R15 can say so |
+
+### `kots`
+
+No new field. Undoing ready (API-CONTRACT M2 13.5) sets a line back to
+`PENDING` and its `readyAt` to null.
+
+### `cashmovements`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `type` | enum | | Gains `CASH_TAKEN_OUT` and `CASH_CHECK` |
+| `amountInPaise` | Number | | May be 0 on a `CASH_CHECK` only; every other type keeps the minimum of 1 |
+| `source` | String or null | null | `PAID_IN`: `OWNER`, `BANK`, `CHANGE` or `OTHER` |
+| `category` | String or null | null | `PAID_OUT`: an expense category code from settings, frozen |
+| `categoryLabel` | String or null | null | The category's label when the expense was written, frozen, so renaming a category never rewrites history |
+| `destination` | String or null | null | `CASH_TAKEN_OUT`: `BANK_DEPOSIT`, `OWNER` or `OTHER` |
+| `takenBy` | ObjectId or null | null | `CASH_TAKEN_OUT`: who took the cash |
+| `broughtForwardFrom` | String or null | null | `OPENING_FLOAT`: the closed business date its kept cash came from |
+| `openingDifferenceInPaise` | Number or null | null | `OPENING_FLOAT`: counted minus kept, signed, when a brought-forward float was recounted and differed |
+| `expectedCashInPaise` | Number or null | null | `CASH_CHECK`: the cash in the drawer at that moment |
+| `differenceInPaise` | Number or null | null | `CASH_CHECK`: counted minus expected, signed |
+
+The partial unique index for one live opening float per date is unchanged.
+
+### `dayclosures`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `keptForTomorrowInPaise` | Number or null | null | Cash left in the drawer at close. Null on a close from before P29, or when it was not given. |
+| `keptForTomorrowCount` | Array or absent | absent | Notes and coins kept, `cashCountRowSchema` |
+| `takenOutAtCloseInPaise` | Number or null | null | Counted minus kept |
+| `takenOutTo` | String or null | null | `BANK_DEPOSIT`, `OWNER` or `OTHER` |
+| `takenOutBy` | ObjectId or null | null | Who took it |
+| `history[].keptForTomorrowInPaise`, `history[].takenOutAtCloseInPaise` | Number or null | null | The same, per close |
+
+### `integrationjobs`
+
+| Field | Type | Notes |
+|---|---|---|
+| `status` | enum | Gains `CANCELLED`, set only when a kitchen undo stops a queued "food is ready" call. A cancelled job's `dedupeKey` gets the suffix `:cancelled:{jobId}`, so the key is free again. |
+
+### `restaurants`
+
+| Field | Type | Default |
+|---|---|---|
+| `settings.billing.reviseUnpaidBills` | Boolean | true |
+| `settings.billing.printBeforePayment` | Boolean | true |
+| `settings.approvals.revisePrintedBill` | Boolean | true |
+| `settings.kitchen.readyMeansServed` | Boolean | true, in the new group `settings.kitchen` |
+| `settings.cash.expenseCategories` | Array of `{ code, label, isActive }` | the ten in API-CONTRACT M16 9.2 |
+| `settings.cash.usualFloatInPaise` | Number | 200000 |
+| `settings.cash.showDrawerTotalToStaff` | Boolean | false |
+
+### `auditlogs`
+
+`action` gains `BILL_REVISED`, `KITCHEN_READY_UNDONE`, `CASH_TAKEN_OUT` and
+`OPENING_FLOAT_DIFFERED`.

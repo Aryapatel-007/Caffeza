@@ -153,8 +153,10 @@ Message: "C8 Date: bill {billNumber} was issued at {billedAt} India time, which 
 Scope: each business date with a cash record.
 Severity: WARNING.
 
-Expected cash equals opening float + cash from bills + cash collections + paid in − paid out.
+Expected cash equals opening float + cash from bills + cash collections + paid in − paid out − cash taken out.
 Cash collections are `accountentries` of type `COLLECTION` whose frozen method is `CASH`, on that business date.
+P29: paid in is shown as top-ups and paid out as expenses; cash taken out is the `CASH_TAKEN_OUT` movements of the date, a bank deposit or cash given to the owner, never an expense. A day with none gives the figure it gave before P29.
+Cash taken out at close, after the count, is not part of expected cash, and never changes the difference.
 That equation itself is ERROR if it fails, because it means the arithmetic is broken.
 The difference between counted and expected cash is a WARNING whenever it is not zero.
 
@@ -189,6 +191,31 @@ Severity: ERROR.
 Recomputing the Day Close figures from the stored records, with `computeDayFigures`, gives exactly `dayclosures.snapshot` stored when the day was closed.
 A failure means a record on a closed day was changed after the close.
 
+P29: the comparison is on the keys the stored snapshot holds. A figure a later prompt adds to `computeDayFigures` (like `cashTakenOutInPaise` or `controls.billRevisions`) is compared only for days closed after it existed, so adding a figure never reads as every earlier closed day having changed.
+
+### C13 Revision trail
+
+Added by P29.
+Scope: every live bill in the range whose `revision` is above 0.
+Severity: ERROR.
+
+The bill holds exactly `revision` entries in `revisions`, numbered 1 to `revision`, and the last one's `newGrandTotalInPaise` equals the bill's `grandTotalInPaise`.
+A failure means a bill's figures moved without a revision recording it.
+C1 and C2 still hold on a revised bill, because its totals and shares are rebuilt by the same code as bill creation. C6 is unaffected, because a revision uses no number. C7 holds, because a removed line is cancelled on the order and absent from the bill.
+
+Message: "C13 Revision: bill {billNumber} is {grandTotal} but its last revision says {newGrandTotal}."
+
+### C14 Brought forward
+
+Added by P29.
+Scope: each business date in the range whose opening float was brought forward.
+Severity: WARNING.
+
+The confirmed opening float equals `keptForTomorrowInPaise` of the closed day it was brought forward from.
+A difference is not an error, because the drawer can change overnight, but it is shown with its note for the owner to read.
+
+Message: "C14 Brought forward: {date} opened with {float}, but {fromDate} kept {kept}. Note: {note}."
+
 Message: "C12 Closed day: {date} was closed at {closedAt} with bill total {stored}. The records now add up to {now}."
 
 ---
@@ -198,20 +225,20 @@ Message: "C12 Closed day: {date} was closed at {closedAt} with bill total {store
 | Report | Checks |
 |---|---|
 | R1 Today | C1, C3, C4 for today |
-| R2 Day Close | C1, C3, C4, C6, C8, C9, and C12 when closed. P14 adds C2, C5.4, C5.7, C7, C10 and C11 for the day. |
+| R2 Day Close | C1, C3, C4, C6, C8, C9, and C12 when closed. P14 adds C2, C5.4, C5.7, C7, C10 and C11 for the day. P29 adds C13 and C14. |
 | R3 Sales by Day | C1, C5.6, C8 |
 | R4 Hours and Weekdays | C5.5 |
 | R5 Payments | C3, C4 |
 | R6 Platform Money | C11 |
-| R7 Cash Till | C9 for each date |
+| R7 Cash Till | C9 and C14 for each date |
 | R8 GST | C1, C5.7, C6 |
 | R9 Tally Export | C1, C5.7, and the export refuses to build if any ERROR check fails |
-| R10 Invoice Register | C6 |
+| R10 Invoice Register | C6, C13 |
 | R11 Menu Performance | C2, C5.1, C5.2, C7 |
 | R12 Captains | C5.3 |
 | R13 Tables and Table Time | C5.4 |
 | R14 Discounts | C1, C2 |
-| R15 Cancellations and Voids | C6, C7 |
+| R15 Cancellations and Voids | C6, C7, C13 |
 | R16 No Charge | C7 |
 | R17 On Hold Accounts | C10 |
 | R18 Activity Log | None. It is M8's read. |

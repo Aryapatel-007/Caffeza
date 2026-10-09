@@ -1796,6 +1796,11 @@ The new lines go to the kitchen as usual, and when the last is served the order
 is `READY_TO_BILL` again (12.7). An order with a live bill takes new lines only
 after `POST /bills/:billId/reopen` (M3 section 16.7).
 
+P29: an order whose live bill can be revised (M3 section 16.8) takes new lines
+directly. The order goes back to `OPEN`, keeps its `billId`, and the bill is
+revised in the same transaction (16.8.2). An order with a live bill that cannot
+be revised is still 422, and `reopen` is the way.
+
 422 `BUSINESS_RULE_VIOLATED` (P04) if the chosen variant is marked unavailable,
 with the message `The {variant name} size of "{item name}" is out of stock right
 now.`, or if a chosen add-on is, with `"{add-on name}" is out of stock right
@@ -1819,6 +1824,10 @@ new line, not an edit, because the snapshot on a line has to stay the thing that
 was actually ordered.
 
 422 `BUSINESS_RULE_VIOLATED` if the line has already been fired.
+
+P29: 422 `BUSINESS_RULE_VIOLATED` also when the order has a live bill, "This
+table has a bill. Change the items from the bill." The same rule applies to
+12.6. A line on a billed order is removed through M3 section 16.8.1, or 16.4.
 
 ### 12.6 Cancel a line
 
@@ -1910,6 +1919,18 @@ When the last non-cancelled line reaches `SERVED`, the order moves to
 `READY_TO_BILL` on its own and `readyToBillAt` is stamped. **The table stays
 occupied**, because the customers are still sitting there until a bill exists.
 
+P29 Part C: with `settings.kitchen.readyMeansServed` on (M7, default true) the
+kitchen's ready already serves the line (13.3), and the floor has no served
+step. This endpoint stays, for the setting's off state and for a line left
+`READY` from before the setting: with the setting on, a `READY` line is served
+as before, and a line already `SERVED` answers 200 with the order unchanged, so
+a screen written before P29 is never stuck on an error. With the setting off,
+behaviour is exactly as before P29.
+
+The move to `READY_TO_BILL` is worked out by one shared function in
+`orderService.js`, `readyToBillChange(lines, at)`, used here, by the kitchen's
+ready (13.3), by a line cancel, and by the kitchen undo (13.5).
+
 ### 12.8 Fire the order
 
 ```
@@ -1986,6 +2007,14 @@ the same transaction: `entityType: ORDER`, `entityLabel` "Order {orderNumber}",
 every line not already cancelled, and `details: { orderNumber, tableName,
 lineCount, reasonCode, wasPrepared }`.
 
+P29: an order with a live bill that nothing has been paid on and that is not On
+Hold is cancelled with its bill: the bill is voided in the same transaction,
+`voidReasonCode: ITEMS_CHANGED` and the note "Order cancelled", through the same
+code as 14.6, with the same `approvedBy`. A live bill with money on it, or On
+Hold, is 422 `BUSINESS_RULE_VIOLATED`, "This bill has money on it. Void the bill
+first." Before P29 the order was cancelled and its bill left live and unpaid,
+which blocked Day Close.
+
 **The narrower permission here is deliberate and is not an inconsistency to tidy
 up.** Cancelling one line is open to all four floor roles; cancelling a whole
 order is not. A whole-order cancel is how a table disappears, and a table
@@ -2050,6 +2079,51 @@ person carrying the plate discovers immediately.
 The KOT endpoints take no `version`. A ticket is not edited by two people racing
 to change the same value; marking an already-ready line ready again is a no-op,
 not a conflict.
+
+**P29 Part C, ready means served.** With `settings.kitchen.readyMeansServed` on
+(M7, default true), 13.3 and 13.4 set the KOT line to `READY` as before, and the
+matching order line, when it is `FIRED`, straight to `SERVED`, with `readyAt`
+and `servedAt` the same moment. When every live line of the order is then
+served, the order moves to `READY_TO_BILL` with `readyToBillAt`, through the
+same `readyToBillChange` as 12.7, in the same transaction. With the setting off,
+the order line becomes `READY` exactly as before. A platform order is told its
+food is ready (M21 section 7) when every live line is `READY` or `SERVED`, as
+before; from P29 that call waits 60 seconds (13.5).
+
+### 13.5 Undo ready (P29 Part E)
+
+```
+POST /api/v1/kots/:kotId/lines/:lineId/undo-ready
+POST /api/v1/kots/:kotId/undo-ready
+```
+
+Roles: all six, the same as marking ready. No body.
+
+The first undoes one line; the second every `READY` line on the ticket.
+Allowed only while the order has **no live bill**: otherwise 422
+`ORDER_ALREADY_BILLED`, "This table has been billed. Ask the cashier to change the
+bill." A line that is not `READY` is 422 "That one is not marked ready."
+
+In one transaction:
+
+1. The KOT line goes from `READY` back to `PENDING`, and `readyAt` is cleared.
+2. The matching order line, when it is `READY` or `SERVED`, goes back to
+   `FIRED`, clearing `readyAt` and `servedAt`.
+3. If the order was `READY_TO_BILL`, it goes back to `OPEN`, clearing
+   `readyToBillAt`.
+4. `KITCHEN_READY_UNDONE` is written, entity `ORDER`, `entityLabel` "Order
+   {orderNumber}", `reason` the item names, `details: { kotId, kotNumber,
+   lineIds, itemNames, tableName }`. A MANAGER may read it.
+
+**Platform orders.** The "food is ready" call (M21 section 7) is queued with
+`runAfter` 60 seconds ahead and its `dedupeKey` per platform order, as before.
+An undo cancels that job while it is still `QUEUED`: the job's status becomes
+`CANCELLED` and its `dedupeKey` is released (suffixed `:cancelled:{jobId}`), so
+the next ready queues a fresh call. When the job has already run, the undo
+still works here and the response says so.
+
+Response 200: the ticket, as 13.2, with `platformAlreadyTold` (boolean) beside
+it.
 
 **A ticket carries no money.** No price, no tax rate, no total. A ticket that
 carries prices is a ticket that can disagree with the bill.
@@ -2790,6 +2864,173 @@ orders change through the platform."). 409 `DAY_CLOSED` for a closed day. 409
 `TABLE_OCCUPIED` when the table has another order since. 403 as 16.4 without
 the approval.
 
+From P29 a bill that can be **revised** (16.8) is never reopened this way to add
+items: dishes are added to the order directly and the same bill is revised.
+`reopen` on a revisable bill is still accepted, for a client written before
+P29, and behaves exactly as above.
+
+### 16.8 Revising an unpaid bill (P29 Part B)
+
+A bill nothing has been paid on yet is still being agreed with the guest.
+Removing an item from it, or adding one, is a **revision of the same bill**:
+the same invoice number, new totals, and a revision record. It is not a void.
+Once any money is recorded on a bill, 16.4 and 16.7 apply exactly as before,
+because money has moved.
+
+**When a bill can be revised.** All of these, checked on the server by one
+function, `billRevisionService.revisability(req, bill)`, which returns
+`{ revisable, reason }`:
+
+1. The bill is not voided.
+2. Its status is `UNPAID`, `amountPaidInPaise` is 0, no online advance is
+   applied to it, and it is not charged to an account.
+3. No terminal payment on it is `WAITING` or `UNKNOWN`.
+4. It is not a delivery bill with a platform.
+5. Its business date is open.
+6. `settings.billing.reviseUnpaidBills` is true (M7, default true).
+
+`GET /bills/:billId` gains `revisable` (boolean) and `revisableReason` (the
+plain sentence why not, or null), so the screen knows which flow to offer. A
+bill that cannot be revised keeps 16.4 and 16.7 exactly as they are.
+
+#### 16.8.1 Removing items
+
+```
+POST /api/v1/bills/:billId/remove-lines
+```
+
+```json
+{
+  "lines": [{ "lineId": "6601…", "wasPrepared": false }],
+  "reasonCode": "WRONG_ITEM",
+  "note": null,
+  "approval": { "approverId": "652c…", "pin": "1234" },
+  "preview": false
+}
+```
+
+`lineId` is the order line's id, as in 16.4. `wasPrepared` follows the order
+line rule (12.6): required for a line the kitchen has, refused for one never
+sent. `reasonCode` is from `LINE_CANCEL_REASONS`; `note` up to 200 characters,
+required for `OTHER`. The same `lineId` twice is 400.
+
+Roles: OWNER, MANAGER, CASHIER, WAITER, the same as cancelling a line before
+billing (12.6). An approval is needed when the caller is a CASHIER or WAITER
+and either:
+
+1. `approvals.lineCancel` is on and any chosen line went to the kitchen
+   (`FIRED`, `READY` or `SERVED`), the same rule as 12.6; or
+2. `approvals.revisePrintedBill` is on (M7, default true) and the bill has been
+   printed (`printCount` above 0). A printed bill has been shown to the guest,
+   and lowering it after the guest paid cash in hand, keeping the difference, is
+   the commonest till fraud; the cash count cannot catch it, because expected
+   cash falls too.
+
+An OWNER or MANAGER approves their own. An approval follows the P28 rules.
+
+`preview: true` runs the whole request inside its transaction, reads the result
+and rolls it back, as 16.4 does, and answers `{ preview: true, billNumber,
+previousGrandTotalInPaise, newGrandTotalInPaise, removed: [{ itemName,
+variantName, quantity, lineTotalInPaise }] }`, so the confirmation can say
+"Water Bottle ₹47.61 comes off bill CFA/C/22446. The bill becomes ₹746.00." with
+GST worked out on the server. A preview needs no approval.
+
+Refused, in this order, each with a plain message:
+
+1. The bill's business date is closed: 409 `DAY_CLOSED`.
+2. The bill cannot be revised: 422 `BILL_NOT_REVISABLE`, with `revisableReason`
+   as the message. The client offers 16.4 instead.
+3. A `lineId` is not a live line on this bill: 422.
+4. Every live line would go: 422 `BUSINESS_RULE_VIOLATED`, "To remove
+   everything, cancel the order instead." Cancelling the whole order voids the
+   bill (12.10), which is right, because no sale happened.
+
+What happens, in **one transaction**:
+
+1. Each chosen order line is cancelled through `cancelLineInSession`, with its
+   reason and `wasPrepared`, so stock and the kitchen ticket behave exactly as a
+   cancel before billing, and `LINE_CANCELLED_AFTER_PREP` is written for a
+   prepared line. The order line also gets `removedFromBillId`, the bill's id.
+2. The bill's lines are rebuilt from the order's live lines, and every total is
+   recomputed with `computeBillTotals` and `allocateLineShares` through
+   `applyTotals`, the same code bill creation uses. The discount is re-applied:
+   a percent stays the same `rateBps`; a flat amount stays the same, capped at
+   the new item total. Its reason, note, funder, `appliedBy` and `appliedAt` are
+   kept.
+3. `billNumber`, `billSequence`, `invoiceSeries`, `financialYear`, `billedAt`
+   and `businessDate` do not change. No number is used.
+4. `revision` goes up by 1, and one entry is pushed to `revisions`:
+   `{ revision, at, by, approvedBy, kind: 'REMOVED', lines: [{ orderLineId,
+   itemName, variantName, quantity, lineTotalInPaise, wasPrepared }],
+   reasonCode, note, previousGrandTotalInPaise, newGrandTotalInPaise,
+   wasPrinted }`. `approvedBy` is null when the actor approved themselves.
+5. `BILL_REVISED` is written, entity `BILL`, `amountInPaise` the amount the bill
+   went down by, `details: { kind, revision, lineIds, reasonCode,
+   previousGrandTotalInPaise, newGrandTotalInPaise, wasPrinted, approvedBy }`.
+   A MANAGER may read it.
+
+Response 200: the revised bill, read as `GET /bills/:billId`.
+
+#### 16.8.2 Adding items
+
+12.4 changes for an order whose live bill can be revised: lines are added to it
+directly, without `reopen`. In one transaction the lines are pushed, the order
+moves back to `OPEN` and clears `readyToBillAt` (it keeps `billId`), and the
+bill is rebuilt as in 16.8.1 step 2 with a revision of kind `ADDED`, `lines` the
+added lines, no reason, no approval. `BILL_REVISED` is written with
+`amountInPaise` the amount the bill went up by. The new lines are then sent to
+the kitchen as usual (12.8).
+
+While such an order is `OPEN`, its bill **takes no money**: a payment, an online
+advance, a card machine payment and a charge to an account are each 422
+`WAITING_FOR_KITCHEN`, "The new items are not ready yet. Take payment once the
+kitchen has them ready." The order becomes `READY_TO_BILL` again when its last
+line is served, which with `kitchen.readyMeansServed` on (13.3) is when the
+kitchen marks it ready.
+
+While an order has a live bill, its lines change only through the bill: 12.5
+editing a line and 12.6 cancelling a line are 422 `BUSINESS_RULE_VIOLATED`,
+"This table has a bill. Change the items from the bill."
+
+A bill that cannot be revised keeps 16.7's void-and-reopen path exactly as it
+is, and 12.4 still refuses lines on an order with such a bill.
+
+#### 16.8.3 Printing a revised bill
+
+`GET /bills/:billId/invoice` and the receipt text (15) gain `revision` and
+`isRevised` (true when `revision` is above 0). Both print "Revised bill" under
+the invoice number when `isRevised`.
+
+Bills gain `lastPrintedRevision`, set by `POST /bills/:billId/printed` to the
+bill's `revision` at that moment. `isDuplicate` (16.3) becomes: `printCount` is
+1 or more **and** `lastPrintedRevision` equals `revision` (null reads as 0). So
+the first print after a revision is not a duplicate, because its content
+changed, and a second print with no change since is. `printed`'s response gains
+`revision`.
+
+#### 16.8.4 Where revisions show
+
+1. R15 (M19 section 17): a removed item is an item cancelled with stage "Removed
+   from the bill before payment", and never a void. A new section, "Bills changed
+   before payment", lists each revision.
+2. R2 Day Close controls: "Bills changed before payment", count and value
+   removed.
+3. R10 Invoice Register: one row per number as before, with "Revised" and the
+   count when above 0.
+4. The bill screen shows each revision in its timeline.
+
+Bills voided by 16.4 and 16.7 before P29 stay voided. Nothing is converted.
+
+### 16.9 Print the bill, then take payment (P29 Part D)
+
+`settings.billing.printBeforePayment` (M7, default true) is read by the client
+only. The server accepts a payment on a bill that was never printed, because
+staff may need to, and records it: when a payment is recorded on a bill whose
+`printCount` is 0, the bill's `paymentBeforePrint` is set to true and stays true.
+R15 lists those bills in their own section.
+
+`GET /auth/me` `billing` gains `printBeforePayment` and `reviseUnpaidBills`.
+
 ### 16.6 Permission summary for P25 in M3
 
 | Endpoint | OWNER | MANAGER | CASHIER | WAITER | KITCHEN | STOREKEEPER |
@@ -2801,6 +3042,7 @@ the approval.
 | GET /bills/print-queue | yes | yes | yes | no | no | no |
 | POST /bills/:id/printed | yes | yes | yes | yes | yes | yes |
 | POST /bills/:id/cancel-lines | yes | yes | with a manager's PIN | with a manager's PIN, when `captainsMayBill` | no | no |
+| POST /bills/:id/remove-lines (P29) | yes | yes | yes, a PIN as 16.8.1 says | yes, a PIN as 16.8.1 says | no | no |
 | GET /refunds | yes | yes | yes | no | no | no |
 | POST /refunds/:id/done | yes | yes | no | no | no | no |
 
@@ -3700,6 +3942,26 @@ schema default, so a restaurant saved before P25 reads back complete.
 
 `GET /auth/me` gains `billing` (both fields) and `cash.denominations`, because
 a captain and a cashier need them and cannot read `GET /settings`.
+
+### Settings added by P29
+
+OWNER to change, audited as `SETTINGS_CHANGED`, every field with a schema
+default, so a restaurant saved before P29 reads back complete.
+
+| Group and field | Type | Default | Meaning |
+|---|---|---|---|
+| `billing.reviseUnpaidBills` | Boolean | true | An unpaid bill is revised, not voided, when an item is removed or added (M3 section 16.8). Off: 16.4 and 16.7 exactly as before P29. |
+| `billing.printBeforePayment` | Boolean | true | The bill screen asks for the print before the payment (M3 section 16.9). Read by the client only. |
+| `approvals.revisePrintedBill` | Boolean | true | A CASHIER or WAITER removing an item from a bill already printed needs a manager's PIN (16.8.1) |
+| `kitchen.readyMeansServed` | Boolean | true | The kitchen's ready serves the line, and the floor has no served step (M2 section 13). New group `kitchen`. |
+| `cash.expenseCategories` | List | ten, M16 section 9.2 | `[{ code, label, isActive }]`, at most 30. `code` is 2 to 30 capital letters, digits or `_`, unique, and never changes once used; `label` 1 to 40 characters. `OTHER` is always present and active. A PATCH replaces the list. |
+| `cash.usualFloatInPaise` | Number | 200000 | Whole paise, 0 to 10,00,000 rupees. What Day Close proposes to keep in the drawer for tomorrow (M16 section 9.4). |
+| `cash.showDrawerTotalToStaff` | Boolean | false | Whether a MANAGER or CASHIER is shown the cash in the drawer and any difference in the cash book (M16 section 9.5). The OWNER always is. |
+
+`GET /auth/me` gains, beside the groups it already returns:
+`billing.reviseUnpaidBills`, `billing.printBeforePayment`,
+`approvals.revisePrintedBill`, `kitchen: { readyMeansServed }`, and in `cash`
+the active `expenseCategories` and `usualFloatInPaise`.
 ## 2. `GET /api/v1/settings`
 
 Roles: `OWNER`, `MANAGER`.
@@ -3955,6 +4217,15 @@ Added by P25, OWNER only to read like every action outside the manager list:
 | `TALLY_BRIDGE_PAIRED`, `TALLY_BRIDGE_REVOKED` | `INTEGRATION` | M21, from P25 Part K | A computer given, or refused, the right to post into Tally |
 
 `entityType` gains `INTEGRATION`, `PLATFORM_ORDER` and `TALLY_EXPORT`.
+
+Added by P29:
+
+| Action | Entity | Written by | MANAGER may read | Why it matters |
+|---|---|---|---|---|
+| `BILL_REVISED` | `BILL` | M3, P29 Part B | Yes | An unpaid bill's items changed under the same number. `details` carry the kind, the revision, the lines, the totals before and after, whether it was printed, and the approver. A cut after printing is where till fraud hides. |
+| `KITCHEN_READY_UNDONE` | `ORDER` | M2, P29 Part E | Yes | A dish ticked ready by mistake, ticked back. Not an alert, but a fact worth keeping. |
+| `CASH_TAKEN_OUT` | `CASH` | M16, P29 Part F | No | Cash removed from the drawer that is not an expense: a bank deposit, or cash given to the owner |
+| `OPENING_FLOAT_DIFFERED` | `CASH` | M16, P29 Part F | No | The float counted in the morning was not what was kept in the drawer the night before. `details` carry both amounts. |
 
 Reason codes added by P25, appended to the existing lists, server and client:
 
@@ -5128,6 +5399,9 @@ once per write:
 | POST /cash-movements, float or paid in | yes | yes | yes | no | no | no |
 | POST /cash-movements, paid out | yes | yes | no | no | no | no |
 | POST /cash-movements/:id/void | yes | yes | no | no | no | no |
+| POST /cash-movements, cash taken out (P29) | yes | yes | no | no | no | no |
+| POST /cash-movements, cash check (P29) | yes | yes | yes | no | no | no |
+| GET /cash-book (P29) | yes | yes | yes | no | no | no |
 | POST /day-close | yes | yes | no | no | no | no |
 | GET /day-close, /day-close/:date, print | yes | yes | no | no | no | no |
 | POST /day-close/:date/reopen | yes | no | no | no | no | no |
@@ -5226,6 +5500,174 @@ Counted cash. A day counted as a total shows the total only. R2 and R5 show
 | Code | Status | When |
 |---|---|---|
 | `CASH_COUNT_MISMATCH` | 422 | A count by notes and a total sent beside it disagree |
+
+## 9. P29: the cash book
+
+The cash drawer and the cash part of Day Close become one screen, the **cash
+book**, that reads top to bottom like the owner's own drawing:
+
+```
+  Brought forward       yesterday's cash kept in the drawer, with its notes
++ Top-ups               cash added: from the owner, from the bank, change
++ Cash sales            cash payments on bills today
++ Cash collections      On Hold accounts paid in cash today
+- Expenses              cash spent, by category
+- Cash taken out        cash removed that is not an expense: a bank deposit, given to the owner
+= Cash in drawer        what should be in the drawer now
+```
+
+On screen `PAID_IN` is always **Top-up** and `PAID_OUT` is always **Expense**.
+The stored type names do not change.
+
+### 9.1 Expected cash
+
+Everywhere, in `computeDayFigures` and Day Close:
+
+expected cash = opening float (brought forward or counted) + top-ups + cash
+sales + cash collections − expenses − cash taken out.
+
+A day with no `CASH_TAKEN_OUT` gives exactly the figure it gave before P29.
+
+### 9.2 Cash movements
+
+`POST /api/v1/cash-movements` keeps its shape and gains, additively:
+
+| Type | New fields | Rules |
+|---|---|---|
+| `OPENING_FLOAT` | `broughtForward` (boolean, request only) | See 9.3. |
+| `PAID_IN`, a top-up | `source`: `OWNER`, `BANK`, `CHANGE` or `OTHER` | `reason` becomes optional when `source` is sent; one of the two is required. `OTHER` needs a `reason`. |
+| `PAID_OUT`, an expense | `category`: a code from `settings.cash.expenseCategories` | `reason` becomes optional when `category` is sent; one of the two is required. A code not in the active list is 422. `OTHER` needs a `reason`. |
+| `CASH_TAKEN_OUT`, new | `destination`: `BANK_DEPOSIT`, `OWNER` or `OTHER`, required; `takenBy`, an active user of the restaurant, default the actor; `cashCount`, optional | `amountInPaise` or `cashCount`, as the float. `OTHER` needs a `reason`. Writes `CASH_TAKEN_OUT`, entity `CASH`. |
+| `CASH_CHECK`, new | `cashCount` or `amountInPaise`, 0 allowed | Moves no money. Stores `expectedCashInPaise` and `differenceInPaise` worked out at that moment from `computeDayFigures`. |
+
+The ten default expense categories, `settings.cash.expenseCategories`: `MILK`
+Milk and dairy, `VEGETABLES` Vegetables and fruit, `GROCERIES` Groceries, `GAS`
+Gas, `PACKAGING` Packaging, `CLEANING` Cleaning, `REPAIRS` Repairs,
+`STAFF_ADVANCE` Staff advance, `TRANSPORT` Transport, `OTHER` Other. A code is
+stored on each expense and never changes, so a renamed category keeps its
+history.
+
+Every movement keeps `businessDate` from the server clock, and the existing
+rules: 409 `DAY_CLOSED` on a closed date, voided and never deleted.
+
+### 9.3 Brought forward
+
+Day closures gain `keptForTomorrowInPaise`, `keptForTomorrowCount` (notes and
+coins left in the drawer), `takenOutAtCloseInPaise`, `takenOutTo` and
+`takenOutBy` (9.4).
+
+The cash book proposes today's opening float from the most recent closed day
+before today whose `keptForTomorrowInPaise` is set. Confirming it is
+`POST /cash-movements` `{ type: 'OPENING_FLOAT', broughtForward: true }`:
+
+1. With no amount and no count, the float is the kept amount and count, and
+   `broughtForwardFrom` is that date.
+2. With an amount or a count (a recount), the float is what was counted;
+   `broughtForwardFrom` is still that date, and when it differs from the kept
+   amount, `openingDifferenceInPaise` is counted minus kept, a `reason` is
+   required (422 "Say why the drawer is not what was kept last night."), and
+   `OPENING_FLOAT_DIFFERED` is written, entity `CASH`.
+3. With no closed day that kept cash, 422 "There is no cash kept from a closed
+   day to bring forward. Count the float instead."
+
+An opening float sent without `broughtForward` is counted as before P29.
+
+### 9.4 Closing the day
+
+`POST /day-close` gains, optional, so a client written before P29 closes as
+before:
+
+```json
+{ "businessDate": "2026-09-26", "cashCount": [ … ], "note": "₹4 short",
+  "keptForTomorrowInPaise": 200000, "keptForTomorrowCount": [ … ],
+  "takenOutTo": "BANK_DEPOSIT", "takenOutBy": "652c…" }
+```
+
+1. The count is entered first, as before. The blind count rule does not change.
+2. `keptForTomorrowInPaise` or `keptForTomorrowCount` (the server totals it;
+   both must agree) is what stays in the drawer. More than the count is 422
+   "You cannot keep more than you counted."
+3. The rest, counted minus kept, is `takenOutAtCloseInPaise`. When it is above
+   0, `takenOutTo` is required. It is recorded on the closure and its history
+   entry **after** the count, so it never changes expected cash or the
+   difference.
+4. The day closes as before, with its blockers and checks.
+
+`settings.cash.usualFloatInPaise` is what the screen proposes to keep, never
+more than the count.
+
+### 9.5 The cash book read, and who sees the total
+
+```
+GET /api/v1/cash-book?date=YYYY-MM-DD
+```
+
+OWNER, MANAGER, CASHIER. Default today's business date.
+
+```json
+{
+  "businessDate": "2026-09-26",
+  "isClosed": false,
+  "broughtForward": {
+    "fromDate": "2026-09-25", "keptInPaise": 200000, "keptCount": [ … ],
+    "confirmed": { "id": "…", "amountInPaise": 200000, "openingDifferenceInPaise": null, "at": "…" }
+  },
+  "openingFloatInPaise": 200000,
+  "topUps": { "totalInPaise": 0, "count": 0, "bySource": [] },
+  "cashSales": { "totalInPaise": 175400, "billCount": 3 },
+  "cashCollections": { "totalInPaise": 0, "count": 0 },
+  "expenses": { "totalInPaise": 35000, "count": 1, "byCategory": [ { "code": "MILK", "label": "Milk and dairy", "totalInPaise": 35000, "count": 1 } ] },
+  "cashTakenOut": { "totalInPaise": 0, "count": 0 },
+  "cashInDrawerInPaise": 340400,
+  "lastCheck": { "at": "…", "countedInPaise": 340000, "differenceInPaise": -400 },
+  "yesterday": { "businessDate": "2026-09-25", "countedCashInPaise": 1240000, "keptForTomorrowInPaise": 200000, "takenOutAtCloseInPaise": 1040000, "takenOutTo": "BANK_DEPOSIT" },
+  "lastUsedExpense": { "MILK": 35000 },
+  "movements": [ … ]
+}
+```
+
+`cashSales` is cash payments whose own business date is this date (M16 section
+4). `lastUsedExpense` is the most recent expense amount per category in the last
+7 business days, for "Same as last time". `movements` is `GET /cash-movements`.
+
+**Who sees the total.** The blind count must still work, so the server leaves
+`cashInDrawerInPaise`, every `differenceInPaise` (on `lastCheck`, on each
+`CASH_CHECK` and on the check's `expectedCashInPaise`), and `yesterday`'s
+expected and difference out of the response, here and in `GET
+/cash-movements`, unless the caller is the OWNER, or
+`cash.showDrawerTotalToStaff` is on, or the caller is a MANAGER and
+`dayClose.showCashDifferenceToManager` is on. A cash check then answers "Check
+saved" with no difference. Whatever the settings, Day Close takes the count
+before it shows any expected figure. These fields are left out by the server,
+never only hidden on screen.
+
+### 9.6 Permissions
+
+| Action | OWNER | MANAGER | CASHIER |
+|---|---|---|---|
+| `GET /cash-book` | yes | yes | yes |
+| Confirm the opening float | yes | yes | yes |
+| Top-up | yes | yes | yes, with a PIN when `approvals.paidIn` is on |
+| Expense | yes | yes | with a PIN when `approvals.managerTasks` is on, refused when it is off |
+| Cash taken out | yes | yes | no |
+| Cash check | yes | yes | yes |
+| Close the day, keep for tomorrow | yes | yes | no |
+| Expense categories, usual float, staff total switch | yes | no | no |
+| Void any of these | yes | yes | no |
+
+Voiding keeps the existing rule for voiding a cash movement (section 3), which
+matches the last row.
+
+### 9.7 Checks
+
+C9 uses the formula in 9.1. C14 "Brought forward" is new, WARNING: a day's
+confirmed opening float differs from the kept cash of the closed day it was
+brought forward from. RECONCILIATION-RULES has both. Day Close and R2 run C14
+for the day.
+
+C12 compares a stored snapshot with today's figures on the keys the snapshot
+itself holds, so a figure added by a later prompt (like `cashTakenOutInPaise`)
+never reads as a changed day for a day closed before it existed.
 
 ---
 
@@ -6078,6 +6520,61 @@ query.
 for sales, tax, discounts, payments and today are gone; `/reports/sales` and
 `/reports/tax` redirect to R3 and R8, and `/reports/discounts` and
 `/reports/payments` are R14 and R5. The M6 endpoints stay.
+
+## 17. P29 changes
+
+Additive: no column is renamed and no figure moves, except where the cash
+formula itself changed (M16 section 9.1).
+
+**R15 Cancellations and Voids.**
+
+1. An item removed from an unpaid bill (M3 section 16.8.1) is a row of `items`
+   like any line cancelled on its own, with `stage` `REMOVED_FROM_BILL` and
+   `stageLabel` "Removed from the bill before payment". Its wasted value still
+   follows `wasPrepared`. It is never a row of `voids`, because no bill was
+   voided.
+2. A new section, `billChanges`, "Bills changed before payment": one row per
+   revision whose time is in the range: Invoice number, Time, Change ("Removed"
+   or "Added"), Items, Bill total before, Bill total after, Changed by, Approved
+   by, and "After printing" (Yes or No). Totals: count, and the value removed
+   (the sum of before minus after on `REMOVED` rows).
+3. A new section, `paidBeforePrint`, "Bills paid before printing": Invoice
+   number, Time issued, Bill total, for live bills of the range with
+   `paymentBeforePrint` true. Totals: count and bill total.
+4. R15 also runs C13.
+
+**R2 Day Close.** `figures.controls` gains `billRevisions: { count,
+removedValueInPaise, addedValueInPaise, afterPrintingCount }`, the revisions
+made on that business date, shown as the controls line "Bills changed before
+payment ({count})", value removed. Its cash section shows the cash book's lines
+(M16 section 9): brought forward from, top-ups, expenses by category, cash taken
+out, expected cash, counted cash, kept for tomorrow, taken out at close, and the
+opening difference. It runs C13 and C14 for the day.
+
+**R7 Cash Till.** The columns are, in order: Business date, Brought forward,
+Opening float, Opening difference, Top-ups, Cash from bills, Cash collections,
+Expenses, Cash taken out, Expected cash, Counted cash, Cash difference, Kept for
+tomorrow, Taken out at close, Cash count, Closed by, Time. "Paid in" and "Paid
+out" read Top-ups and Expenses, the same figures. A new section,
+`expensesByCategory`, "Expenses by category": one row per category with a column
+per business date and a total, and a totals row. Cash taken out is never an
+expense here.
+
+**R10 Invoice Register.** Each row gains `revision`, shown as "Revised" with the
+count when above 0, and nothing otherwise. No row is added for a revision: a
+revision uses no number.
+
+## 18. Checks added by P29
+
+**C13 Revision trail**, ERROR. For every live bill of the range with `revision`
+above 0, the last entry of `revisions` has `newGrandTotalInPaise` equal to the
+bill's `grandTotalInPaise`, and `revisions` has exactly `revision` entries. Run
+by R2 (and Day Close), R10 and R15.
+
+**C14 Brought forward**, WARNING. For every business date of the range whose
+opening float was brought forward, the float equals the kept cash of the closed
+day it came from. The message names both amounts and the note. Run by R2 (and
+Day Close) and R7.
 
 ---
 
@@ -6944,6 +7441,11 @@ When every line of an accepted order is ready in the kitchen, `markFoodReady` is
 queued. When an item or variant's availability changes, `setItemAvailability`
 is queued for every `ACTIVE` channel where it is mapped, once per channel.
 
+P29: `markFoodReady` is queued with `runAfter` 60 seconds ahead, so a wrong tick
+undone in the kitchen within the minute never reaches the platform (M2 section
+13.5). Jobs gain the status `CANCELLED`, set only by that undo, which also
+releases the job's `dedupeKey`. A cancelled job is never run.
+
 ### 7.4 On the incoming requests screen
 
 Platform orders join P23's inbox, alert, chime, spoken line and banner; nothing
@@ -7011,6 +7513,22 @@ No secrets. Config: `version` (`TALLY_PRIME` or `TALLY_ERP9`), `companyName`,
 `onHold.mode` is `ONE` (one combined ledger) or `PER_ACCOUNT` (`byAccount` keyed
 by account id). Before any export, every head with an amount on that date must
 have a ledger: 422 `TALLY_MAPPING_INCOMPLETE` listing each missing head.
+
+P29 adds, every one optional:
+
+| Key | Meaning |
+|---|---|
+| `expenseByCategory` | `{ [categoryCode]: ledger }`. An expense goes to its category's ledger, or to `paidOut` when its category has none. |
+| `topUpBySource` | `{ OWNER, BANK, CHANGE, OTHER }` to a ledger. A top-up goes to its source's ledger, or to `paidIn`. |
+| `ownerDrawings` | The owner's drawings ledger, a new head. Cash taken out to the owner, during the day or at close, goes here. |
+| `cashTakenOutOther` | Cash taken out with destination `OTHER`. A new head. |
+
+Cash taken out to the bank, during the day or at close, is a **contra** entry,
+`Cash` credit against the `bank` ledger debit, never an expense, with the new
+voucher type `voucherTypes.contra`, default "Contra". Cash taken out to the
+owner is a payment voucher, owner's drawings debit, Cash credit. A cash check
+and a brought-forward float move no money and make no voucher. Every voucher
+still balances to the paisa.
 
 ### 9.3 Endpoints
 
@@ -7285,3 +7803,27 @@ Its audit reason becomes "PIN set." `GET /users/approvers` gains `hasPin`
 ## Error codes
 
 None new.
+
+# P29 Bill revisions, ready means served, print first, kitchen undo, the cash book
+
+The prompt is `docs/prompts/P29-bill-edits-ready-means-served-print-first-kitchen-undo-cash-book.md`.
+Each part is specified in the module it belongs to:
+
+| Part | Where |
+|---|---|
+| B Revising an unpaid bill | M3 section 16.8; M2 sections 12.4, 12.5 and 12.10 |
+| C Ready means served | M2 sections 12.7 and 13 |
+| D Print before payment | M3 section 16.9 |
+| E Undo in the kitchen | M2 section 13.5; M21 section 7.3 |
+| F The cash book | M16 section 9; M21 section 9.2 |
+| Settings | M7, "Settings added by P29" |
+| Audit actions | M8 section 2 |
+| Reports and checks | M19 sections 17 and 18 |
+
+## Error codes
+
+| Code | Status | When |
+|---|---|---|
+| `BILL_NOT_REVISABLE` | 422 | `remove-lines` on a bill that has money on it, is On Hold, waits on the card machine, is a platform bill, or has revisions switched off. The message says which. |
+| `WAITING_FOR_KITCHEN` | 422 | A payment, advance, card machine payment or account charge on a bill whose order has items not yet ready |
+| `ORDER_ALREADY_BILLED` | 422 | Undoing ready in the kitchen on an order with a live bill |
