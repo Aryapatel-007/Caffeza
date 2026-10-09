@@ -1,0 +1,41 @@
+# The API server on Render, as a Blueprint. 2026-10-09, at Rishi's request:
+# Render's free plan for the server, Vercel for the screens. docs/DEPLOYMENT.md
+# section 14 says how, and what the free plan costs in waiting.
+#
+# Create it in Render with New, Blueprint, this repository. Render generates
+# the secrets marked generateValue; it asks for MONGO_URI, which is never in git.
+services:
+  - type: web
+    name: zchaat-pos-api
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # The screens' address on Vercel. Vercel forwards /api here, so to the
+      # browser the app and the API are one address (client/vercel.json).
+      - key: CLIENT_ORIGIN
+        value: https://zchaat-pos.vercel.app
+      # Vercel's edge, then Render's proxy: two in front of the server.
+      - key: TRUST_PROXY
+        value: '2'
+      - key: MONGO_URI
+        sync: false
+      # Render's generated values are 32 random bytes in base64: long enough for
+      # the JWT secrets, and exactly what the two encryption keys need.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: INTEGRATION_SECRETS_KEY
+        generateValue: true
+      - key: PAYMENT_SECRETS_KEY
+        generateValue: true
+      - key: DISPLAY_TIMEZONE
+        value: Asia/Kolkata

@@ -315,3 +315,43 @@ The image does not run it on start: indexes are never built under live traffic.
 same address.
 
 Run one instance only. The rate limiter keeps its counts in memory.
+
+---
+
+## 14. Vercel for the screens, Render's free plan for the server
+
+Decided 2026-10-09 at Rishi's request. The server is the same Docker image as
+section 13, described in `render.yaml`; the screens are a prebuilt Vite build on
+Vercel. `client/vercel.json` forwards every `/api/...` request to Render and
+every other path to `index.html`, so to the browser the app and the API are one
+address: the sign-in cookie, the CSRF header and CORS work as they do locally.
+
+| Part | Where | Address |
+|---|---|---|
+| Screens | Vercel project `zchaat-pos` (Arya's projects) | https://zchaat-pos.vercel.app |
+| Server | Render service `zchaat-pos-api`, free plan, Singapore | https://zchaat-pos-api.onrender.com |
+| Database | Atlas `cluster0.dkcsfcz`, database `restaurant-erp` | the same one the local app uses |
+
+**Render, once:** New, Blueprint, choose `Aryapatel-007/Caffeza`. Render reads
+`render.yaml`, generates the two JWT secrets and the two encryption keys, and
+asks for `MONGO_URI`: paste it from your own `.env`. The free plan has no
+pre-deploy step, so run `npm run db:indexes` from a developer machine whenever a
+change adds an index; the server refuses to start while one is missing.
+
+**Atlas, once:** Network Access must allow Render. The free plan has no fixed
+outgoing address, so the entry is `0.0.0.0/0`; the database password is then
+the only lock, so keep it long and rotate it if it was ever shared.
+
+**Vercel, every deploy:** from `client/`, so the pinned library versions in the
+root `package-lock.json` are used, never a fresh install on Vercel:
+
+```
+vercel build --prod
+vercel deploy --prebuilt --prod
+```
+
+**What the free plan costs.** The server sleeps after 15 minutes with no
+request and takes about a minute to wake, so the first screen after a quiet
+spell waits. Asleep, it runs no background jobs (partner retries, card machine
+checks). The login limits are counted in memory and reset when it sleeps. For
+a restaurant in service, move to a paid instance; nothing else changes.
