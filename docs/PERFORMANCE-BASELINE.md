@@ -323,3 +323,35 @@ Measured, live, 2026-10-10, after the Vercel deploy: the main script on
 (it was 1,453,593 with it), 130,776 bytes over the wire with Brotli. The
 reports chunk and the Gujarati subset (38,240 bytes) are served from the same
 address.
+
+---
+
+## P33, 2026-10-10
+
+### Requests per device per minute, idle
+
+Measured, local: the e2e server with the golden day, in Chromium, each screen
+left alone for two minutes after it settled, signed in as the manager. The
+counter computer had "Print bills sent by captains" on; online orders were off
+in the golden restaurant, so the online alerts did not poll in either run.
+
+| Device | Channel off (as before P33) | Channel on |
+|---|---|---|
+| Kitchen tablet, `/kitchen` | 6 (`GET /kots` every 10 s) | **1** |
+| Counter computer, `/dashboard` | 17 (print queue 12, tables 4, dashboard 1) | **3** |
+
+With the channel on, each of those reads happens once a minute and again the
+moment something changes. Not yet measured on the live system: it needs the
+P33 server deployed and a staff session on a real tablet.
+
+### How fast a change arrives
+
+Measured, local, in `e2e/liveChannel.spec.js`: a ticket marked ready on one
+kitchen tablet left the other within 2 seconds, while that one was polling
+only every 60. With its channel cut, the second tablet still picked up a new
+ticket within its 10-second poll.
+
+### The build
+
+The Socket.IO client added 16 kB gzip to the main chunk: 126.44 kB (P32) to
+142.42 kB.

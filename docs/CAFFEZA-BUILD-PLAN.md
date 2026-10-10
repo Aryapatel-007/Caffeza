@@ -103,6 +103,7 @@ Each prompt names its model at the top.
 | P30 | Performance baseline and hosting | Phase 2 hosting | P29 | Rishi | Sonnet, medium |
 | P31 | Compression and request latency | Phase 2 | P30 | Rishi | Sonnet, medium |
 | P32 | The client's weight | M20 | P30 | Rishi | Opus, high |
+| P33 | The live channel | M2, M14, M18 | P30, P31 | Rishi | Opus, high |
 | P30 (keep awake) | Keep the free server awake | Hosting | The Render and Vercel deploy | Arya | Sonnet, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.

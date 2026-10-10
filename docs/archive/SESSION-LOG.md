@@ -1,5 +1,29 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-02 Rishi, P16 menu, captain and table reports
+
+What was built or decided:
+Three report definitions in `server/services/reports/definitions/`, registered in `registry.js`.
+R11 Menu Performance (`menu`): categories, or items within one category with `categoryName`, from the line values frozen in P03; share of net sales by the largest remainder method, always 100.00%; rank; cancelled quantity and wasted value from cancelled order lines by the business date of the cancel; bills from before P03 in a "Not recorded" row with blank shares. Checks C2, C5.1, C5.2, C7.
+R12 Captains (`captains`): by frozen `captainId`, named from the most recent bill; average per cover; average table time on paid dine-in bills only; discounted bills and discount; items cancelled and their value by `cancelledBy`. Check C5.3.
+R13 Tables and Table Time (`tables`): sections `tables` (bills, covers, net sales, turns per day, average table time), `kitchen` (items made and average minutes from fired to ready, per station) and `slowestItems` (five per station). Check C5.4.
+Shared helpers in `definitions/shared.js`: `tenantOf`, `instantsFor`, `minutesExpr`, `averageMinutes`. The engine now takes a definition's own `columns` when it returns them.
+
+`tests/reportsMenu.test.js` builds the golden day once, closes 26 September, and checks TEST-DATA section 4 to the paisa: every category row, Pizza at 20.26% and the column at exactly 10000, B11 left out, Thecha Paneer Chilli 1 cancelled with ₹390.00 wasted and Cheesy Tornado ₹0.00, moving Mexican Bowl afterwards changes nothing, a pre-P03 bill in "Not recorded" with C5 still passing; every captain row with totals equal to R3, average table times 60.5, 59.0 and 53.0 and none for Ranjeet Paswan and Counter, Khuman Singh's 2 items cancelled for ₹750.00, renaming him afterwards changes nothing; the ten table times (578 minutes, average 57.8), Table 16 with one bill, Tables 30 and 35 with no table time. C5 broken by leaving out Pizza fails with ₹1,800.78 missing. Each workbook's totals equal the JSON, and only OWNER and MANAGER may read them.
+
+Tests: 843 before, 859 after, 0 failing. Lint and build pass.
+
+Files or endpoints touched:
+New: `definitions/menu.js`, `captains.js`, `tables.js`, `tests/reportsMenu.test.js`. Changed: `definitions/shared.js`, `reports/engine.js`, `reports/registry.js`, `reports/labels.js` and the client mirror, `tests/reportsDaily.test.js` (its role and export walks now include the three new reports), GLOSSARY section 13, TEST-DATA section 4, API-CONTRACT M19 R13 and section 14.
+Endpoints: `GET /api/v1/reports/v2/{menu, captains, tables}`.
+
+Anything the other developer needs to know:
+`npm test` needs `server/.env.test`, which is gitignored; copy it from `server/.env.test.example` (it holds only `NODE_ENV=test`). It was missing on this machine.
+The prompts P16 to P21, P20A, P20B and `DESIGN-SYSTEM-V2.md` were added to `docs/prompts/` in this session. `P10-cash-drawer-day-close-1.md` is a markdown copy of P10, which is done.
+
+Anything now blocked or unblocked:
+P17 can start. P18 has R11 to R13.
+
 ### 2026-10-01 Rishi, new delivery order on one screen (ahead of P20)
 
 What was built or decided:

@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-10 by Rishi (P32 the client's weight) and Arya (P30 keep the free server awake)
+Last updated: 2026-10-10 by Rishi (P33 the live channel, silent printing, the move to a Singapore database)
 
 ---
 
@@ -34,9 +34,10 @@ the cloud database (see the P29 entry below).
 
 The cloud database (`cluster0.dkcsfcz`, `restaurant-erp`) holds Z Chaat, set
 up with its menu and five logins, and a duplicate "zchaat" waiting on Rishi's
-choice of which stays. No bill has been made there. Next: P33, the live channel. After it, the rest of the
-profile's section 15 from Z Chaat, then the gates in `docs/GO-LIVE.md`,
-tracked in `docs/GO-LIVE-READINESS.md`.
+choice of which stays. No bill has been made there. Next: switch Render's `MONGO_URI` to the Singapore cluster (in
+progress), then P34, re-measure. After it, the rest of the profile's section 15
+from Z Chaat, then the gates in `docs/GO-LIVE.md`, tracked in
+`docs/GO-LIVE-READINESS.md`.
 
 ---
 
@@ -507,6 +508,13 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-10 | P30 (keep awake), built differently: the heartbeat follows the online page's opening hours only while the online page is switched on; otherwise every hour counts. `/auth/me` `online` gains `opensAtMinutes` and `closesAtMinutes`. | The opening hours always have a stored default (10:00 AM to 11:00 PM), so "no hours set" never happens; while the page is off those times are a default nobody chose. |
 | 2026-10-10 | P30 (keep awake): the wake limiter, 60 a minute per address, is the one limiter that also runs under `NODE_ENV=test`. | The prompt asks for its limit to be tested. |
 | 2026-10-10 | Two prompts written the same day both carry the number P30: Rishi's "Performance baseline and hosting" and Arya's "Keep the free server awake". Both are kept under their own file names, and the second is written "P30 (keep awake)" wherever the two could be confused. | Found when Arya's P30 was rebased onto Rishi's P30 to P32. Renumbering either would break the prompt's own references; the next prompt is P33. |
+| 2026-10-10 | A WebSocket delivers *something changed* and the polls back off to 60 seconds while it is healthy. It carries no data and never replaces a poll. | This partly reverses the 2026-08-29 decision against WebSockets on the kitchen display. That decision's reason still stands and is what shaped this one: a socket that silently stops delivering is worse than a ten-second delay, so a missed heartbeat sends the poll straight back to ten seconds and a dropped message costs at most one interval. |
+| 2026-10-10 | The socket's rooms come from the verified token, and the connection is dropped when the access token expires. | Same reasoning as `authenticate` reading the role from the database: a demoted user must not keep a live channel for fifteen minutes. |
+| 2026-10-10 | P33 was built on Render's free plan, against its prompt's precondition, at Rishi's choice. | The prompt asked to stop on the free plan because a sleeping server drops every socket. Arya's keep-awake (P30, keep awake) keeps it up in working hours, and when it does sleep the screens simply poll at their own interval: nothing is lost. |
+| 2026-10-10 | Changes are announced from the models, through a plugin on `orders`, `kots`, `bills`, `tables`, `onlineorders`, `reservations` and `platformorders`, and a write in a transaction is announced only once the session ends committed. | P33 asked for announcements from each service that writes. In the model, every service is covered, including ones written later, without anyone remembering. Four bill services open their own sessions, so the deferral sits on the session, not on `withOptionalTransaction`. The driver's `isCommitted` is true for an aborted transaction too, so the plugin checks the state itself; a test proves a rolled-back write is never announced. |
+| 2026-10-10 | Screens on Vercel open the live channel on the server's own address, named by `/auth/me` (`LIVE_ORIGIN`, else Render's `RENDER_EXTERNAL_URL`). | Vercel's rewrite of `/api` does not carry a WebSocket. The token travels in Socket.IO's handshake, not the refresh cookie, so the one-address design the cookie needs is untouched. |
+| 2026-10-10 | Bills print with no dialog by opening the till through a launcher (`tools/silent-printing/`) that starts Chrome with `--kiosk-printing` in a profile of its own. | A web page cannot skip Chrome's print dialog; Chrome started with that flag can. A separate profile keeps the flag off everyday browsing and never remembers "Save as PDF" as the printer. The server still never talks to a printer. |
+| 2026-10-10 | Z Chaat's database moves to a new Atlas cluster in AWS Singapore, during service, at Rishi's choice: copied with `npm run db:copy`, kept caught up every 30 seconds until Render's `MONGO_URI` changes, with counters always taking the higher value. The old Mumbai cluster is left untouched as the backup. | The server is in Singapore. The copy only reads the old cluster and never deletes; the catch-up's counter rule means a bill number can never be issued twice across the switch. A short pause in billing while Render restarts was asked of the restaurant. |
 ---
 
 ## Open questions
@@ -528,6 +536,22 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-10 Rishi, P33 the live channel, silent printing, the Singapore database
+
+What was built or decided:
+1. **P33, the live channel.** Spec first (API-CONTRACT "P33 The live channel"). Server: `services/live/bus.js` (announce, coalesced over 250 ms, never throws) and `services/live/socketServer.js` (Socket.IO at `/api/v1/live`, WebSocket only; the handshake makes `authenticate`'s checks in its order with its helpers, now exported; rooms from the verified token; closed at token expiry; a heartbeat every 20 s that re-checks the user; at most 5 sockets a user). `models/plugins/liveAnnounce.js` on seven models announces `kots`, `tables`, `online`, `platform-orders` and `print-queue`, after commit only. `LIVE_CHANNEL` (on, off) and `LIVE_ORIGIN`; `/auth/me` gains `live`. The e2e server runs it. Client: `src/api/live.js` (one connection, invalidates on a message, healthy only while connected and heard from within 30 s) and `useLiveInterval`, used by the kitchen, floor, dashboard, online alerts, inbox, bookings, platform orders and the captain bill printer; `components/LiveConnection.jsx` in the shell. Nothing on screen shows it.
+2. **Bills with no print dialog.** `tools/silent-printing/`: a launcher for a Mac and one for Windows that open the till in its own Chrome profile with `--kiosk-printing`, and a README for setting up the counter. This device explains it for the till roles.
+3. **The database move.** `npm run db:copy` (copy, sync, verify; reads the source only, never deletes). The new Singapore cluster has every index and a verified copy of all 454 documents, and a catch-up runs every 30 seconds from this Mac until the switch.
+4. Keep-awake: Arya's P30 (keep awake) already covers it; nothing added. Its runbook advises cron-job.org rather than UptimeRobot, whose free plan is for non-commercial use.
+
+Tests: 1,235 before, 1,244 after, 0 failing. New: `liveChannel.test.js` (9): refused handshakes, restaurant A never hearing B even when A names B's room (fails when a client-named room is joined, tried on purpose), dropped on the next heartbeat when deactivated, the connection cap, announcing with nobody listening, a rolled-back transaction never announced, a fired order announcing kots and tables, no HTTP request through Express, and switched off. `npm run e2e` with the channel on: all 14 pass, including the new `e2e/liveChannel.spec.js`. With `LIVE_CHANNEL=off`: the other 13 pass and the new one skips itself. Lint and build pass.
+Measured, local: an idle kitchen tablet 6 requests a minute to 1, an idle counter computer 17 to 3.
+
+Not done here, needing people: switching `MONGO_URI` on Render, the two-tablet and wifi checks on real devices, the till launcher on Z Chaat's counter Mac with the Rugtek, and the cron-job.org account.
+
+Anything the other developer needs to know:
+Arya: pull and `npm install` (`socket.io`, `socket.io-client`). A new collection that screens should hear about gets `liveAnnouncePlugin` with a topic, and the topic needs adding in `bus.js`, `api/live.js` and the contract. If the channel ever misbehaves in service: `LIVE_CHANNEL=off` on Render and Save and deploy.
 
 ### 2026-10-10 Arya, P30 (keep awake) keep the free server awake
 
@@ -1007,30 +1031,6 @@ Audit lines can no longer be changed through Mongoose at all. Test helpers clear
 Anything now blocked or unblocked:
 P18 can start: every report it draws exists.
 
-### 2026-10-02 Rishi, P16 menu, captain and table reports
-
-What was built or decided:
-Three report definitions in `server/services/reports/definitions/`, registered in `registry.js`.
-R11 Menu Performance (`menu`): categories, or items within one category with `categoryName`, from the line values frozen in P03; share of net sales by the largest remainder method, always 100.00%; rank; cancelled quantity and wasted value from cancelled order lines by the business date of the cancel; bills from before P03 in a "Not recorded" row with blank shares. Checks C2, C5.1, C5.2, C7.
-R12 Captains (`captains`): by frozen `captainId`, named from the most recent bill; average per cover; average table time on paid dine-in bills only; discounted bills and discount; items cancelled and their value by `cancelledBy`. Check C5.3.
-R13 Tables and Table Time (`tables`): sections `tables` (bills, covers, net sales, turns per day, average table time), `kitchen` (items made and average minutes from fired to ready, per station) and `slowestItems` (five per station). Check C5.4.
-Shared helpers in `definitions/shared.js`: `tenantOf`, `instantsFor`, `minutesExpr`, `averageMinutes`. The engine now takes a definition's own `columns` when it returns them.
-
-`tests/reportsMenu.test.js` builds the golden day once, closes 26 September, and checks TEST-DATA section 4 to the paisa: every category row, Pizza at 20.26% and the column at exactly 10000, B11 left out, Thecha Paneer Chilli 1 cancelled with ₹390.00 wasted and Cheesy Tornado ₹0.00, moving Mexican Bowl afterwards changes nothing, a pre-P03 bill in "Not recorded" with C5 still passing; every captain row with totals equal to R3, average table times 60.5, 59.0 and 53.0 and none for Ranjeet Paswan and Counter, Khuman Singh's 2 items cancelled for ₹750.00, renaming him afterwards changes nothing; the ten table times (578 minutes, average 57.8), Table 16 with one bill, Tables 30 and 35 with no table time. C5 broken by leaving out Pizza fails with ₹1,800.78 missing. Each workbook's totals equal the JSON, and only OWNER and MANAGER may read them.
-
-Tests: 843 before, 859 after, 0 failing. Lint and build pass.
-
-Files or endpoints touched:
-New: `definitions/menu.js`, `captains.js`, `tables.js`, `tests/reportsMenu.test.js`. Changed: `definitions/shared.js`, `reports/engine.js`, `reports/registry.js`, `reports/labels.js` and the client mirror, `tests/reportsDaily.test.js` (its role and export walks now include the three new reports), GLOSSARY section 13, TEST-DATA section 4, API-CONTRACT M19 R13 and section 14.
-Endpoints: `GET /api/v1/reports/v2/{menu, captains, tables}`.
-
-Anything the other developer needs to know:
-`npm test` needs `server/.env.test`, which is gitignored; copy it from `server/.env.test.example` (it holds only `NODE_ENV=test`). It was missing on this machine.
-The prompts P16 to P21, P20A, P20B and `DESIGN-SYSTEM-V2.md` were added to `docs/prompts/` in this session. `P10-cash-drawer-day-close-1.md` is a markdown copy of P10, which is done.
-
-Anything now blocked or unblocked:
-P17 can start. P18 has R11 to R13.
-
 ---
 
 ## Known problems
@@ -1050,7 +1050,7 @@ Things that are broken or half done, so nobody rediscovers them.
 | M1 had no React screens. | Rishi, 2026-08-29 | FIXED 2026-08-29. The builder and the availability board are built, on the design system, and verified against the live cluster. |
 | `userController.js` still holds a private copy of `escapeRegex` now that `utils/escapeRegex.js` exists. Two copies of a security-relevant function is how one of them drifts. | Rishi, 2026-08-29 | FIXED 2026-08-29 on `fix/m0/auth-hardening`. `userController.js` now imports the shared one. |
 | M1 and M5 were both built by Rishi although the module table lists Arya as the owner of each, which crosses the one-owner-per-module rule in CONVENTIONS section 9. Neither has had the second developer's read that BUILD-PLAN section 9 requires, and both were merged to `main` anyway. | Rishi, 2026-08-29, extended 2026-08-30 | OPEN. Two modules of review debt on `main`, not one. Arya reads M1 and M5. Until then both are done on code and tests only. |
-| Two tablets open on the availability board do not see each other's toggles live. The board refetches on window focus and after every mutation, which keeps them from drifting far apart, but there is no realtime sync in v1. Two people switching the same dish within seconds will briefly disagree. | Rishi, 2026-08-29 | OPEN by design for v1. Revisit if a pilot restaurant runs more than one tablet on this screen. |
+| Two tablets open on the availability board do not see each other's toggles live. The board refetches on window focus and after every mutation, which keeps them from drifting far apart, but there is no realtime sync in v1. Two people switching the same dish within seconds will briefly disagree. | Rishi, 2026-08-29 | OPEN. P33's live channel does not cover it: availability is not one of its five topics, and P33 forbade adding more. A sixth topic, `menu`, would close it the same way. |
 | The M5 clock screen (`/attendance`) is "all six roles" but has no all-roles read to draw its grid: it uses `GET /users` and `GET /attendance?openOnly=true`, both OWNER/MANAGER. On a tablet signed in as a floor role the grid shows a "sign in as a manager" message instead of names. The clock action (`POST /attendance/station/clock`) is genuinely all-roles. | Rishi, 2026-08-30 | OPEN. The fix is a small all-roles `GET /attendance/board` returning `[{ userId, name, isIn, since }]` for this one screen. Contract change, so deferred rather than slipped in. In practice a wall tablet is signed in as a manager, so it works today. |
 | An order line called its tax rate `taxRateBasisPoints` while the menu item it was copied from called the same number `taxRateBps`. Two names for one quantity, across M1 and M2. | Rishi, 2026-08-30, while backfilling the M2 spec | FIXED 2026-08-30, before M3 read either. The order line field is `taxRateBps` everywhere. CONVENTIONS section 2 now carries a Bps naming rule and a one-name-per-quantity rule so the next module does not reintroduce it. `unitPriceInPaise` vs `priceInPaise` is left alone on purpose: those are genuinely different numbers, the chosen variant's price versus the item's base price. |
 | The `skipTenantGuard` tripwire asserted on the *file names* that mention the hatch, not the number of uses, so `isEmailRegistered` became a fourth production use inside the already-listed `authService.js` without the tripwire firing. | Rishi, 2026-08-30 | FIXED 2026-08-30. The test now builds a per-file count and asserts `{ authService.js: 3, tokenService.js: 1 }`, so a new use inside an already-sanctioned file fails the suite. Verified by adding a fifth use and watching it fail. `M0-SUMMARY.md` now says four and explains each. The dated changelog entries below still say three; they were true when written and are left as history. |
@@ -1063,7 +1063,7 @@ Things that are broken or half done, so nobody rediscovers them.
 | `services/billService.js` and `services/operationsReportService.js` still read `restaurant.settings.businessDayStartsAtMinutes` directly, each with its own query and its own default, rather than going through `settingsService`. The three controllers that did the same were migrated by M7; these two were not. | Rishi, 2026-08-31 | HALF FIXED in P02: `billService.js` now reads through `settingsService`. `operationsReportService.js` still reads directly. OPEN and harmless today: both reads are correct and return the same number. Left alone deliberately because they are M3 and M6 files and M7 had no mandate to touch M3's. The point of `settingsService` is that there is one place, so this should be finished on the next M3 or M6 touch. Two lines. |
 | M2 has a second error copy map, `client/src/features/orders/errorCopy.js`, alongside M1's `features/menu/errorCopy.js`. DESIGN-SYSTEM.md section 8 asks for one. They cannot merge as they stand: M1's hard-codes menu wording for codes both modules use. | Rishi, 2026-08-29 | OPEN. The end state is one shared base map with per-module overrides, which means rewriting M1's. M2 was not scoped to change M1 code. |
 | `scripts/provisionRestaurant.js` has its own copy of the optional-transaction dance now that `utils/transaction.js` exists. Two copies of the same fallback logic is how one of them drifts, exactly like the `escapeRegex` row above. | Rishi, 2026-08-29 | OPEN. Left alone deliberately because M2 was not allowed to edit M0 code. Worth switching over in the next M0 touch. |
-| The kitchen display polls every ten seconds, so two people at the pass can briefly disagree about whether a dish is ready, and a ticket can sit on screen for up to ten seconds after it is complete. | Rishi, 2026-08-29 | OPEN by design for v1, same shape as the availability board row above. Revisit only if a pilot kitchen finds ten seconds too slow. |
+| The kitchen display polls every ten seconds, so two people at the pass can briefly disagree about whether a dish is ready, and a ticket can sit on screen for up to ten seconds after it is complete. | Rishi, 2026-08-29 | MOSTLY FIXED 2026-10-10 in P33. While the live channel is healthy a ticket marked ready leaves every other tablet within about a second (2 seconds in the browser test). The ten-second poll stays as the safety net: the moment the channel misses a heartbeat or drops, the board polls every ten seconds again. |
 | `GET /kots` filters on a status that is derived from the ticket's lines, so the filter is applied after the page is read from the database. A page can therefore come back with fewer rows than its limit while more matching tickets exist further on. | Rishi, 2026-08-29 | FIXED 2026-10-02: "still to cook" is in the query, so the board always reads open tickets. |
 | Unique indexes are never built in production. `config/database.js` turns `autoIndex` off when `NODE_ENV=production`, and no script runs `syncIndexes`. On a fresh production database the guards against duplicate bills and double-booked tables would not exist. | Audit, 2026-09-29 | FIXED in P01. |
 | `trust proxy` is off, so behind a host's proxy every device shares one address, and one failed login rate-limits everyone | Audit, 2026-09-29 | FIXED in P01. |
@@ -1079,4 +1079,4 @@ Things that are broken or half done, so nobody rediscovers them.
 | The online page address has no printable QR code yet, only a link with Copy. | Rishi, 2026-10-08 | OPEN. Needs a small client QR library, which is a dependency decision. |
 | Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |
 | The API is on Render's free plan, so it sleeps after fifteen minutes with no request, and the first screen after that waits for it to start: about a minute by Render's account. Not measured, because Z Chaat was in service all through P30; `docs/PERFORMANCE-BASELINE.md` section 1 has the command to run before opening. | Rishi, P30, 2026-10-10 | OPEN by Rishi's choice. A paid plan removes it with no code change: `plan: starter` in `render.yaml`. |
-| The server is in Singapore and the Atlas cluster in Mumbai, so every query crosses between them. | Rishi, P30, 2026-10-10 | OPEN. Plan in `docs/DEPLOYMENT.md` section 15. |
+| The server is in Singapore and the Atlas cluster in Mumbai, so every query crosses between them. | Rishi, P30, 2026-10-10 | IN PROGRESS 2026-10-10: a new cluster in AWS Singapore (`cluster0.onbbqdp`) holds a verified copy, kept caught up every 30 seconds, waiting for Rishi to set `MONGO_URI` on Render. DEPLOYMENT.md section 15. |

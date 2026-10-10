@@ -446,6 +446,28 @@ platform webhooks, the background job runner, card machine checks. The day Z
 Chaat pays, move to Render's cheapest paid plan and switch the three pingers
 off; the heartbeat then costs nothing and can stay.
 
+### The live channel (P33)
+
+The server also runs a WebSocket, Socket.IO at `/api/v1/live`, that tells open
+screens *something changed, read again*. It carries no data; the polling is
+still the safety net. New server dependency `socket.io`, new client
+dependency `socket.io-client`.
+
+- **Where screens connect.** Vercel's rewrite of `/api` does not carry a
+  WebSocket, so screens on `zchaat-pos.vercel.app` open the channel on the
+  server's own address. `GET /auth/me` tells them which: `LIVE_ORIGIN` if set,
+  else `RENDER_EXTERNAL_URL`, which Render sets by itself. Nothing to set on
+  Render. The server accepts the connection from `CLIENT_ORIGIN` only.
+- **Switching it off.** `LIVE_CHANNEL=off` on Render, then Save and deploy.
+  No socket, nothing announced, every screen polls exactly as before P33.
+  This is the rollback if anything misbehaves during service.
+- **One instance.** The channel lives in the one server process. A second
+  instance would need a shared adapter (Redis, for one), or an announcement on
+  one instance would never reach screens connected to the other. Add it the
+  day there is a second instance, not before.
+- **On the free plan.** A sleeping server drops every socket; screens then poll
+  at their own interval until it wakes and they reconnect. Nothing is lost.
+
 ---
 
 ## 15. The server and the database are in different regions
