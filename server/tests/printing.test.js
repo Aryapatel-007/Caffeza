@@ -38,7 +38,8 @@ after(async () => {
 
 describe('the page a print gets', () => {
   it('gives a thermal bill a page exactly its printed width and measured height, never auto', () => {
-    assert.equal(pageCss({ printer: 'THERMAL_80', contentHeightMm: 143.2 }), '@page { size: 72mm 145mm; margin: 0; }');
+    assert.equal(pageCss({ printer: 'THERMAL_80', contentHeightMm: 143.2 }), '@page { size: 78mm 145mm; margin: 0; }');
+    assert.equal(pageCss({ printer: 'THERMAL_80', contentHeightMm: 143.2, printWidth: 'STANDARD' }), '@page { size: 72mm 145mm; margin: 0; }');
     assert.equal(pageCss({ printer: 'THERMAL_58', contentHeightMm: 143.2, paperLength: 'BILL' }), '@page { size: 48mm 145mm; margin: 0; }');
     assert.doesNotMatch(pageCss({ printer: 'THERMAL_58', contentHeightMm: 50 }), /auto/);
     assert.throws(() => pageCss({ printer: 'THERMAL_80' }), /measured height/);
@@ -46,11 +47,12 @@ describe('the page a print gets', () => {
   });
 
   it('narrows the bill and its page together when the device keeps the edges clear', () => {
-    assert.equal(contentWidthMm('THERMAL_80', 'SMALL'), 68);
-    assert.equal(contentWidthMm('THERMAL_80', 'MORE'), 64);
+    assert.equal(contentWidthMm('THERMAL_80', 'SMALL'), 74);
+    assert.equal(contentWidthMm('THERMAL_80', 'MORE'), 70);
+    assert.equal(contentWidthMm('THERMAL_80', 'SMALL', 'STANDARD'), 68);
     assert.equal(contentWidthMm('THERMAL_58', 'SMALL'), 44);
-    assert.equal(contentWidthMm('THERMAL_80', 'UNKNOWN'), 72);
-    assert.equal(pageCss({ printer: 'THERMAL_80', contentHeightMm: 100, edgeMargin: 'SMALL' }), '@page { size: 68mm 101mm; margin: 0; }');
+    assert.equal(contentWidthMm('THERMAL_80', 'UNKNOWN'), 78);
+    assert.equal(pageCss({ printer: 'THERMAL_80', contentHeightMm: 100, edgeMargin: 'SMALL' }), '@page { size: 74mm 101mm; margin: 0; }');
     assert.equal(contentWidthMm('A4', 'MORE'), 186);
   });
 
@@ -62,10 +64,15 @@ describe('the page a print gets', () => {
 
   it('lays a roll out to what the head prints, and fits its characters inside it', () => {
     assert.equal(contentWidthMm('THERMAL_58'), 48);
-    assert.equal(contentWidthMm('THERMAL_80'), 72);
+    assert.equal(contentWidthMm('THERMAL_58', 'NONE', 'STANDARD'), 48);
+    assert.equal(contentWidthMm('THERMAL_80'), 78);
+    assert.equal(contentWidthMm('THERMAL_80', 'NONE', 'STANDARD'), 72);
+    assert.equal(contentWidthMm('THERMAL_80', 'NONE', 'UNKNOWN'), 78);
     for (const printer of ['THERMAL_58', 'THERMAL_80']) {
-      const lineMm = monospaceFontMm(printer) * 0.6 * charactersFor(printer);
-      assert.ok(lineMm <= contentWidthMm(printer) - 2 + 1e-9, `${printer}: ${lineMm} mm`);
+      for (const width of ['WIDE', 'STANDARD']) {
+        const lineMm = monospaceFontMm(printer, 'NONE', width) * 0.6 * charactersFor(printer);
+        assert.ok(lineMm <= contentWidthMm(printer, 'NONE', width) - 2 + 1e-9, `${printer} ${width}: ${lineMm} mm`);
+      }
     }
   });
 

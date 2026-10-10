@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/AuthContext.jsx';
-import { BILL_TEXT_SIZES, EDGE_MARGINS, PAPER_LENGTHS, PRINTER_KEYS, PRINTERS } from './printers.js';
+import { BILL_TEXT_SIZES, EDGE_MARGINS, PAPER_LENGTHS, PRINT_WIDTHS, PRINTER_KEYS, PRINTERS } from './printers.js';
 import { DENSITIES, TEXT_SIZES, THEMES, useDeviceSettings } from './useDeviceSettings.js';
 
 const THEME_LABELS = { AUTO: 'Automatic', DAY: 'Day', NIGHT: 'Night' };
@@ -70,6 +70,16 @@ export default function DeviceSettingsPage() {
           value={settings.printer}
           onChange={(printer) => update({ printer })}
         />
+
+        {settings.printer === 'THERMAL_80' && (
+          <Choice
+            legend="Print width"
+            hint="How wide the bill and kitchen tickets print on the 80 mm roll."
+            options={Object.entries(PRINT_WIDTHS).map(([value, entry]) => ({ value, label: entry.label, detail: entry.hint }))}
+            value={settings.printWidth}
+            onChange={(printWidth) => update({ printWidth })}
+          />
+        )}
 
         {PRINTERS[settings.printer]?.thermal && (
           <Choice

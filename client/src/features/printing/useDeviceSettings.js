@@ -5,9 +5,11 @@ import {
   DEFAULT_BILL_TEXT_SIZE,
   DEFAULT_EDGE_MARGIN,
   DEFAULT_PAPER_LENGTH,
+  DEFAULT_PRINT_WIDTH,
   DEFAULT_PRINTER,
   EDGE_MARGINS,
   PAPER_LENGTHS,
+  PRINT_WIDTHS,
   printerFor,
 } from './printers.js';
 
@@ -43,6 +45,8 @@ const DEFAULTS = Object.freeze({
   billTextSize: DEFAULT_BILL_TEXT_SIZE,
   // 2026-10-09. NONE, SMALL or MORE: space kept clear at each side of a roll, from printers.js.
   edgeMargin: DEFAULT_EDGE_MARGIN,
+  // 2026-10-10. WIDE (78 mm) or STANDARD (72 mm): the 80 mm roll's printed width, from printers.js.
+  printWidth: DEFAULT_PRINT_WIDTH,
   autoPrintKots: false,
   // P25 Part D. A counter computer prints the bills captains send it.
   printCaptainBills: false,
@@ -80,7 +84,8 @@ function withDefaults(stored) {
   const paperLength = PAPER_LENGTHS[rest.paperLength] ? rest.paperLength : DEFAULT_PAPER_LENGTH;
   const billTextSize = BILL_TEXT_SIZES[rest.billTextSize] ? rest.billTextSize : DEFAULT_BILL_TEXT_SIZE;
   const edgeMargin = EDGE_MARGINS[rest.edgeMargin] ? rest.edgeMargin : DEFAULT_EDGE_MARGIN;
-  return { ...rest, printer: printerFor(stored), paperLength, billTextSize, edgeMargin };
+  const printWidth = PRINT_WIDTHS[rest.printWidth] ? rest.printWidth : DEFAULT_PRINT_WIDTH;
+  return { ...rest, printer: printerFor(stored), paperLength, billTextSize, edgeMargin, printWidth };
 }
 
 function readStored() {

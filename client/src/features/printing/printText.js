@@ -42,8 +42,8 @@ export async function printDocument({ printer: chosen, bodyHtml, styles = '' }) 
     return;
   }
   const printer = PRINTERS[chosen] ? chosen : 'THERMAL_80';
-  const { paperLength, edgeMargin } = readDeviceSettings();
-  const widthMm = contentWidthMm(printer, edgeMargin);
+  const { paperLength, edgeMargin, printWidth } = readDeviceSettings();
+  const widthMm = contentWidthMm(printer, edgeMargin, printWidth);
   /**
    * The content gets its width in millimetres, not the page's. Without it,
    * whatever paper Chrome prints on, A4 in the preview, stretched every block
@@ -83,7 +83,7 @@ export async function printDocument({ printer: chosen, bodyHtml, styles = '' }) 
     // Measured after layout at the printed width, then the page is written: see pageCss.
     const heightMm = pxToMm(doc.getElementById('print-root').getBoundingClientRect().height);
     const page = doc.createElement('style');
-    page.textContent = pageCss({ printer, contentHeightMm: heightMm, paperLength, edgeMargin });
+    page.textContent = pageCss({ printer, contentHeightMm: heightMm, paperLength, edgeMargin, printWidth });
     doc.head.appendChild(page);
     await nextFrame(frame.contentWindow);
 
@@ -97,6 +97,7 @@ export async function printDocument({ printer: chosen, bodyHtml, styles = '' }) 
 /** The styles for server-laid text: a roll's full width, or a large block at the top of a page. */
 export function textStyles(printer) {
   const paper = PRINTERS[printer] ?? PRINTERS.THERMAL_80;
+  const { edgeMargin, printWidth } = readDeviceSettings();
   return `
   pre {
     margin: 0;
@@ -110,7 +111,7 @@ export function textStyles(printer) {
     font-family: Consolas, "Lucida Console", Menlo, "DejaVu Sans Mono", monospace;
     font-weight: 700;
     color: black;
-    font-size: ${monospaceFontMm(printer, readDeviceSettings().edgeMargin).toFixed(2)}mm;
+    font-size: ${monospaceFontMm(printer, edgeMargin, printWidth).toFixed(2)}mm;
     line-height: 1.2;
     white-space: pre;
   }

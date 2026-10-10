@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-09 by Arya (P29 bill edits, ready means served, print first, kitchen undo, the cash book)
+Last updated: 2026-10-10 by Rishi (the 80 mm bill prints 78 mm wide)
 
 ---
 
@@ -470,6 +470,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-09 | P28: an owner's or manager's PIN, typed on the same screen, approves a cashier's or captain's cancel of a sent dish and a cashier's paid in, and lets a cashier void, cancel a whole order, give No Charge and pay out. Each is a switch in `settings.approvals`, all on. Who acted stays the actor; the approver is stored beside them. A dish never sent needs no PIN. | Rishi asked for a password before cancels and other sensitive work, and chose the manager's PIN over a password. A mistaken tap that never reached the kitchen costs nothing, so asking for a PIN there would only slow the floor. |
 | 2026-10-09 | A customer is one mobile number at one restaurant, built from orders. Offers consent is recorded only when the guest says yes, with the wording's version, how and by whom, and a withdrawal is kept; a phone is never in a URL, a log line or an audit line. (P27) | Rishi asked for guest details at the table for CRM. India's DPDP Act expects consent to be specific and provable, and withdrawable. |
 | 2026-10-09 | Adding items after billing voids the bill and reopens the order; the next bill carries the voided one's discount and payments. A served order takes new dishes and reopens. (P26) | The manager asked. An invoice is never edited, so this is Part E's void-and-re-bill, with the dishes added in between. |
+| 2026-10-10 | On the 80 mm roll, a bill and a kitchen ticket are laid out 78 mm wide by default, chosen on This device as Print width (`PRINT_WIDTHS` in printers.js); 72 mm stays a choice. Edge margin narrows either. The 58 mm roll is unchanged at 48 mm. | Rishi asked for 78 mm because Z Chaat's bill was still cut on the right at 72 mm. Most 80 mm heads print 72 mm, so if 78 mm cuts more, the device switches back to 72 mm without a deploy. Not yet checked on the Rugtek. |
 | 2026-10-08 | Where P25 was built differently from its prompt: the captain's button keeps the label "Bill this order"; cancel-lines has a `preview` mode and `GET /users/approvers` was added; the cancel note limit is 200; accepting a platform order is claim, call, create, not one transaction; `#A64220` was refused as an accent and Espresso is used; a Tally date is also held while QUEUED, PARTIAL or UNKNOWN; a BUILT or FAILED Tally export is replaced; the daily summary nets round-off; a payout credits the receivable with the gross it covers; a bridge result takes `reached`; a lost bridge post becomes UNKNOWN and is never re-sent; the Tally page is `/settings/tally`, because the router matches paths without regard to case; the e2e server runs the job loop. | Each is written into the contract where it changes behaviour, so the next reader does not take it for a mistake. |
 | 2026-10-09 | P29: a bill nothing has been paid on is revised, never voided, when an item is removed or added: the same invoice number, totals rebuilt by the code that made the bill, and one entry in `bills.revisions`, audited as `BILL_REVISED` (a manager may read it). A cashier or captain removing an item from a bill already printed needs a manager's PIN, by default (`approvals.revisePrintedBill`). `billing.reviseUnpaidBills` off gives the old void and re-bill. | The owner: "no need for a rebill, and no need for a record in voided bills". A cut after printing is where till fraud hides, and the cash count cannot catch it. |
 | 2026-10-09 | P29: a bill with money on it, On Hold, waiting on the card machine, a platform bill or on a closed day is not revisable; `remove-lines` answers `BILL_NOT_REVISABLE` with the reason, and `GET /bills/:id` carries `revisable` and `revisableReason`, so the screen offers Cancel an item instead. | Money moved, so P25's and P26's void and re-bill still apply exactly. |
@@ -510,6 +511,18 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-10 Rishi, the 80 mm bill prints 78 mm wide
+
+What was built or decided:
+This device gains Print width for the 80 mm roll: 78 mm (default) or 72 mm. It sets the bill's width, its page size and the kitchen ticket's text size together, beside Edge margin, which still narrows either one. The receipt preview shows the chosen width. Asked for by Rishi because Z Chaat's bill is cut on the right side.
+
+Tests: `printing.test.js` and `designGuard.test.js`, 25 passing, with the 72 mm expectations changed on purpose to 78 and new ones for 72 mm. The full suite was not run. The client builds and the changed files lint clean.
+
+Files touched: `client/src/features/printing/printers.js`, `useDeviceSettings.js`, `printText.js`, `DeviceSettingsPage.jsx`, `features/billing/ReceiptPreviewPage.jsx`, `server/tests/printing.test.js`, DEPLOYMENT.md section 10.
+
+Anything the other developer needs to know:
+Every device on the 80 mm roll moves to 78 mm with the next screens deploy. Not printed on the Rugtek yet. If the right side is cut more, set Print width to 72 mm on that device.
 
 ### 2026-10-09 Arya, P29 bill edits, ready means served, print first, kitchen undo, the cash book
 

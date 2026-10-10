@@ -241,7 +241,7 @@ Paper length, also on This device, is "As long as the bill" by default: the page
 2. Blank space at the end: compress or skip it, and cut after the document, where the driver offers it.
 3. Print density or darkness: raise it if the bill prints light. Thermal paper also prints faint when it is old or kept in heat.
 
-If the right-hand edge of the bill is cut off on paper, first check the driver's paper size is the 80 mm roll, not 58 mm or A4. If it is and the last letters are still cut, choose Edge margin, 2 mm each side, on This device. Bill text size, also there, makes the text smaller or larger without changing the layout.
+If the right-hand edge of the bill is cut off on paper, first check the driver's paper size is the 80 mm roll, not 58 mm or A4. On the 80 mm roll, This device's Print width lays the bill out 78 mm wide by default (from 2026-10-10), or 72 mm, the usual head width. If the right side is cut at 78 mm, choose 72 mm. If the last letters are still cut, choose Edge margin, 2 mm each side, on This device. Bill text size, also there, makes the text smaller or larger without changing the layout.
 
 ---
 
