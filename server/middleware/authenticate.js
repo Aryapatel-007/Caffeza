@@ -93,16 +93,34 @@ export async function authenticate(req, res, next) {
   }
 
   /**
-   * A database read on every authenticated request, deliberately uncached.
+   * Two database reads on every authenticated request, deliberately uncached.
    *
    * A stale permission cache is a security bug waiting to happen, and at this
    * scale there is no performance problem to justify one. Do not add a cache
    * here without a measurement that says it is needed.
    *
-   * Scoped by the restaurantId in the token, so the tenant guard is satisfied
-   * and a token cannot reach a user in another restaurant.
+   * The user is scoped by the restaurantId in the token, so the tenant guard
+   * is satisfied and a token cannot reach a user in another restaurant. The
+   * restaurant is legitimate unguarded query pattern 1: a lookup by _id from a
+   * verified token.
+   *
+   * P31. The two reads do not depend on each other, so they run together: with
+   * the server in Singapore and the database in Mumbai, one after the other was
+   * two round trips on the front of every request. The checks below still run
+   * in the same order as before, the user first.
+   *
+   * The restaurant stays fully loaded, `settings` and all, although only
+   * `isActive` is checked here. `settingsService.getSettings` reads
+   * `req.currentRestaurant` and checks only that its `_id` matches, so a
+   * document trimmed of `settings` would hand every caller schema defaults (the
+   * wrong tax rate, business day and invoice series) with nothing failing. To
+   * trim it, `getSettings` must first check for the settings themselves. The
+   * heavy fields, logo bytes and sealed secrets, are already `select: false`.
    */
-  const user = await User.findOne({ _id: claims.id, restaurantId: claims.restaurantId });
+  const [user, restaurant] = await Promise.all([
+    User.findOne({ _id: claims.id, restaurantId: claims.restaurantId }),
+    Restaurant.findById(claims.restaurantId),
+  ]);
 
   if (!user || user.isActive === false) {
     return next(new UnauthenticatedError('Your session is not valid. Please sign in again.'));
@@ -114,9 +132,6 @@ export async function authenticate(req, res, next) {
     // fails too and the user lands on the login screen, which is correct.
     return next(new TokenExpiredError('Your password changed. Please sign in again.'));
   }
-
-  // Legitimate unguarded query pattern 1: lookup by _id from a verified token.
-  const restaurant = await Restaurant.findById(claims.restaurantId);
 
   if (!restaurant || restaurant.isActive === false) {
     return next(new UnauthenticatedError('Your session is not valid. Please sign in again.'));

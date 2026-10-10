@@ -501,6 +501,41 @@ describe('GET /auth/me', () => {
     assert.equal(body.error.code, 'UNAUTHENTICATED');
   });
 
+  /**
+   * P31. The user and restaurant reads now run together. The checks must still
+   * run in the old order, the user first: these two would pass a rewrite that
+   * checked the restaurant first only if they were not here.
+   */
+  it('still fails on the user first when the user and the restaurant are both inactive', async () => {
+    const { phone, user, restaurant } = await seedFullRestaurant();
+    const session = await signIn(phone);
+    const before = await request('GET', '/api/v1/auth/me', { token: session.accessToken });
+    assert.equal(before.status, 200);
+
+    const { Restaurant } = await import('../models/Restaurant.js');
+    await User.updateOne({ _id: user._id, restaurantId: restaurant._id }, { $set: { isActive: false } });
+    await Restaurant.updateOne({ _id: restaurant._id }, { $set: { isActive: false } });
+
+    const { status, body } = await request('GET', '/api/v1/auth/me', { token: session.accessToken });
+    assert.equal(status, 401);
+    assert.equal(body.error.code, 'UNAUTHENTICATED');
+    assert.equal(body.error.message, 'Your session is not valid. Please sign in again.');
+  });
+
+  it('checks the password change before the restaurant, so a changed password with an inactive restaurant is still TOKEN_EXPIRED', async () => {
+    const { phone, user, restaurant } = await seedFullRestaurant();
+    const session = await signIn(phone);
+
+    const { Restaurant } = await import('../models/Restaurant.js');
+    await User.updateOne({ _id: user._id, restaurantId: restaurant._id }, { $set: { passwordChangedAt: new Date(Date.now() + 60_000) } });
+    await Restaurant.updateOne({ _id: restaurant._id }, { $set: { isActive: false } });
+
+    const { status, body } = await request('GET', '/api/v1/auth/me', { token: session.accessToken });
+    assert.equal(status, 401);
+    assert.equal(body.error.code, 'TOKEN_EXPIRED');
+    assert.equal(body.error.message, 'Your password changed. Please sign in again.');
+  });
+
   it('rejects a token signed for a user that does not exist', async () => {
     const { restaurant, branch } = await seedFullRestaurant();
     const orphan = issueAccessToken({
