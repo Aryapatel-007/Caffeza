@@ -7939,3 +7939,112 @@ can keep its heartbeat (below) inside working hours. Additive.
 ## Error codes
 
 No new server error code. `SERVER_NOT_CONFIRMED` exists only in the client.
+
+---
+
+# P33 The live channel
+
+A WebSocket that tells a signed-in screen *something changed, read again*.
+It is a fast path over the polling, never instead of it. It adds no
+collection, no field and no business rule.
+
+## 1. The rule: it carries no data
+
+A message names what changed and nothing else:
+
+```json
+{ "topic": "kots", "restaurantId": "6ac7de4c44e45400c1058e99", "branchId": "6ac7de4c44e45400c1058e9a" }
+```
+
+`branchId` is null when the write that caused it did not carry one. The
+client's only reaction is to invalidate the matching React Query keys, which
+makes the ordinary authenticated HTTP read that exists today. A topic name is
+not tenant data, and every read behind it is still scoped, permission-checked
+and authenticated. A dropped message costs at most one poll interval.
+
+## 2. Topics
+
+| Topic | Sent after a write to | Screens that read again |
+|---|---|---|
+| `kots` | `kots` | Kitchen display |
+| `tables` | `orders`, `bills`, `tables` | Floor view, dashboard |
+| `online` | `onlineorders`, `reservations`, `platformorders` | Online alerts, inbox, bookings |
+| `platform-orders` | `platformorders` | Platform orders section |
+| `print-queue` | `bills` | Captain bill printer |
+
+A write inside a transaction is announced only once the transaction has
+committed; one that rolls back is never announced. Announcements for one
+restaurant and topic within 250 milliseconds are sent as one. An announcement
+can never fail the write it follows: an error is logged and dropped.
+
+## 3. Connecting
+
+Socket.IO 4, WebSocket transport only, at the path `/api/v1/live`, on the
+origin `GET /api/v1/auth/me` names (section 6). On Vercel the page and the
+API share an address through a rewrite, and that rewrite does not carry a
+WebSocket, so a screen served by Vercel connects to the server's own address.
+Cross-origin connections are allowed from `CLIENT_ORIGIN` only.
+
+The handshake sends `{ token }` as Socket.IO's `auth`: the access token, never
+the refresh cookie. The server then makes exactly the checks `authenticate`
+makes, in the same order:
+
+1. The token verifies, and its claims are complete.
+2. The user exists in the token's restaurant and is active.
+3. The token was not issued at or before `passwordChangedAt`, whole seconds,
+   fail closed.
+4. The restaurant exists and is active.
+
+Then:
+
+5. The socket joins the rooms for the restaurant and the branch **in the
+   verified token**. Nothing the client sends names a room.
+6. The connection is closed when the access token expires. The client
+   connects again with its next token.
+7. A user may hold at most 5 connections; a sixth is refused.
+
+A refused handshake gets Socket.IO's `connect_error`, with the message
+`UNAUTHENTICATED`, `TOKEN_EXPIRED` or `TOO_MANY_CONNECTIONS`.
+
+A socket is not an API call: neither the general limiter nor the per-user
+limiter counts it.
+
+## 4. The heartbeat
+
+The server sends `heartbeat` to every socket every 20 seconds, after checking
+again that the user and restaurant are active and the password has not
+changed since the token; if not, it closes the socket instead. The client
+treats 30 seconds without a heartbeat as a dead connection.
+
+## 5. What the screens do (client only)
+
+1. One connection per signed-in device, opened by the app shell, beside
+   `src/api`. Components never open one.
+2. Every screen that reads one of the five topics keeps its poll interval
+   (kitchen 10 seconds, floor 15, captain bill printer 5, and so on) and polls
+   at **60 seconds** only while the connection is open and its last heartbeat
+   is under 30 seconds old. The moment either stops being true the screen goes
+   straight back to its own interval, and reads its topics once at once.
+3. On a message, the matching keys are invalidated. Data is never set from a
+   message.
+4. Nothing on screen shows the connection: no banner, no indicator.
+
+## 6. `GET /api/v1/auth/me` addition
+
+```json
+"live": { "enabled": true, "origin": "https://zchaat-pos-api.onrender.com" }
+```
+
+`enabled` is false when the server runs with `LIVE_CHANNEL=off`; screens then
+poll exactly as before P33. `origin` is `LIVE_ORIGIN`, else the host's own
+address (`RENDER_EXTERNAL_URL`, which Render sets), else null, meaning the
+page's own address. Additive.
+
+## 7. Switching it off
+
+`LIVE_CHANNEL=off` and a restart: no socket is opened, nothing is announced,
+and every screen polls at its own interval. This is the rollback.
+
+## Error codes
+
+No new HTTP error code.
