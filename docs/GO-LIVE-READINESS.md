@@ -114,6 +114,12 @@ From `docs/archive/caffeza/CAFFEZA-PROFILE.md` section 15 and `setup/archive/caf
 17. The golden restaurant has no KITCHEN login, so the two station tablets in the e2e test sign in as the manager. Caffeza's setup file does have the two station logins.
 18. A printed bill's time bar on the floor counts from when the table opened, not from when the bill printed, because the floor read does not carry the print time (DESIGN-SYSTEM section 13a).
 
+
+**Found by P30, 2026-10-10** (`docs/PERFORMANCE-BASELINE.md`)
+19. The server is on Render's free plan, by Rishi's choice. It sleeps after 15 minutes with no request, and the first screen after that, including the first till of the morning, waits for it to start: about a minute by Render's own account. The cold start was not measured, because Z Chaat was in service the whole session; the baseline file has the command to run before opening. This wait is the price of the free plan, and it goes away on a paid plan with no code change.
+20. The server is in Singapore and the database in Mumbai. Every query crosses between them. The plan is `docs/DEPLOYMENT.md` section 15.
+21. The live screens were React's development build, about twice the JavaScript and slower to render, because the client's build read `NODE_ENV=development` from the root `.env`. Fixed in P32.
+
 ---
 
 ## 5. Verdict

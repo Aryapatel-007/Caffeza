@@ -37,5 +37,6 @@ The full table, with dependencies and owners, is in
 | P27 | Customers: guest details at the table, for CRM | Done. Arya's read outstanding. |
 | P28 | A manager's PIN for cancels, voids and cash | Done 2026-10-09. Arya's read outstanding. |
 | P29 | Bill edits without voids, ready means served, print before payment, undo in the kitchen, and a clear cash book | Done 2026-10-10. Rishi's read outstanding. |
+| P30 | Performance baseline and hosting | Done 2026-10-10. Stays on Render's free plan, by Rishi's choice. |
 
 Prompt files that do not exist yet are added as they are written.

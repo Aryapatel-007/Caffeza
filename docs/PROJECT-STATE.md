@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-10 by Rishi (the 80 mm bill prints 78 mm wide)
+Last updated: 2026-10-10 by Rishi (P30 performance baseline)
 
 ---
 
@@ -34,7 +34,7 @@ the cloud database (see the P29 entry below).
 
 The cloud database (`cluster0.dkcsfcz`, `restaurant-erp`) holds Z Chaat, set
 up with its menu and five logins, and a duplicate "zchaat" waiting on Rishi's
-choice of which stays. No bill has been made there. Next: the rest of the
+choice of which stays. No bill has been made there. Next: P31, the cheap server wins. After it, the rest of the
 profile's section 15 from Z Chaat, then the gates in `docs/GO-LIVE.md`,
 tracked in `docs/GO-LIVE-READINESS.md`.
 
@@ -490,6 +490,9 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-09 | P29: Tally sends an expense to its category's ledger (or the expense one), a top-up by source (or the top-up one), cash to the bank as a contra entry (`voucherTypes.contra`, default "Contra"), and cash to the owner to a new head, the owner's drawings. Cash taken out at close is exported the same way. The golden day's XML is unchanged. | Cash to the bank is never an expense. |
 | 2026-10-09 | `.gitattributes` keeps the Tally XML fixtures LF on every checkout. | With `core.autocrlf` on Windows they checked out CRLF and the snapshot test failed before any P29 change; the content was byte for byte the same. |
 | 2026-10-09 | P29: every new setting was added in Part B, in one pass through the model, `settingsService`, the validator and `/auth/me`; "Cash sales" joined the glossary as the cash book's word for cash from bills. | One change to four files rather than four changes to each. |
+| 2026-10-10 | The API stays on Render's free plan. P30 proposed Starter and Rishi said no. | The cost is the wait: the server sleeps after fifteen minutes without a request, so the first screen of the morning waits for it to start, about a minute by Render's account. Written into `docs/GO-LIVE-READINESS.md` and `docs/DEPLOYMENT.md` section 14. |
+| 2026-10-10 | The server (Render, Singapore) and the database (Atlas, AWS Mumbai) are in different regions, found by reading the cluster's node tags. Moving either is planned in `docs/DEPLOYMENT.md` section 15, not done in a session. | Every query crosses between them, and `authenticate` alone makes two per request. Render has no India region, so the choice is the database to Singapore or the server to a host in Mumbai, and Z Chaat has live bills, so the move is scheduled work with a backup first. |
+| 2026-10-10 | ESLint skips `client/.vercel/`. | `vercel build` leaves its output there on any machine that deploys, and `npm run lint` failed on about 2,800 errors in that generated code. |
 ---
 
 ## Open questions
@@ -511,6 +514,25 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-10 Rishi, P30 performance baseline
+
+What was built or decided:
+No application code. `docs/PERFORMANCE-BASELINE.md` records what the live system costs today, each figure marked measured live, measured against live data, measured locally or built. Findings:
+1. Cold start: not measured. The first request answered in 0.53 s because Z Chaat was in service and the server never slept. Rishi chose to stay on Render's free plan, so the morning wait stays; the readiness document says so.
+2. Compression: every live answer already arrives Brotli-compressed, by Render's Cloudflare edge, and Vercel passes it through. Our own server compresses nothing: Z Chaat's `GET /menu` leaves it as 46,022 bytes.
+3. Regions: Render is in Singapore and the Atlas cluster in AWS Mumbai (`ap-south-1`), read from the cluster's node tags. Plan in DEPLOYMENT.md section 15.
+4. Polling: every screen polls exactly as often as its code says (kitchen 6 a minute, floor 4, dashboard 4 plus 1), counted in a browser against the e2e server.
+5. The build: on any machine whose root `.env` says `NODE_ENV=development`, `vite build` makes React's development build (1,491 kB, 325 kB gzip), and **the live Vercel site is that build** (1.45 MB, with React's development checks). Fixed in P32.
+6. A repeated `GET /tables` with its ETag already answers 304 with no body.
+ESLint now skips `client/.vercel/`, where a deploy leaves its build output.
+
+Tests: 1,218 passing, 0 failing, at `bfc909d`; P30 changed no code. Lint passes.
+
+Files touched: `docs/PERFORMANCE-BASELINE.md` (new), `docs/DEPLOYMENT.md` sections 14 and 15, `docs/GO-LIVE-READINESS.md`, `eslint.config.js`, the prompts README and the build plan.
+
+Anything the other developer needs to know:
+Arya: every Vercel deploy so far, from either machine, shipped React's development build. P32 fixes the build and adds a check that refuses a development build.
 
 ### 2026-10-10 Rishi, the 80 mm bill prints 78 mm wide
 
@@ -967,28 +989,6 @@ Left out: the manager PIN on discounts (the server already limits discounts by r
 
 Checked in headless Chromium on the local demo data: a takeaway billed, 10% Regular guest applied (₹209.00 item total, ₹20.90 off, bill ₹205.00 from the server), the receipt at 48 characters, and the ledger with that bill selected. No page errors. Lint and build pass.
 
-### 2026-10-01 Rishi, floor and order screen restyle (ahead of P19 and P20)
-
-What was built or decided:
-The floor (`/floor`) and the order screen were rebuilt from the user's pasted designs.
-Floor: Free and Seated counts, section filter pills, table cards (seated cards have a chana edge, minutes since the order opened, the order number and the item total), and a footer with tables seated and the open tables' item total.
-Tapping a free table opens `SeatTablePanel`: 1 to 7, or 8+ with a stepper up to 100. "Start order" creates the order with `guestCount`.
-Order screen: a header card with back, place, guests, order number and opened time, the menu search, and Switch table (`MoveTablePanel`). Category pills with counts and dish cards; a stepper on a dish's unsent line.
-A dark order bar at the bottom shows items, the item total before GST, Review order and Send to kitchen. Review order is a slide-over with the lines, No Charge and cancel order.
-Once an order is waiting for the cashier or closed, the lines are the page, with the bill button. `LineOptionsPanel` has size cards, extras rows, a note, and the quantity and "Add to order" with the line total in the footer.
-
-Checked by hand in headless Chromium against the local database, after `npm run seed:demo` rebuilt the demo restaurants there. Steps: seated a table with 2 guests, added dishes, raised a quantity, opened sizes and Review order. Checked at 1440 and 390 wide, with no page errors and no sideways scroll on a phone. Lint and build pass. No server change, so the tests were not rerun.
-
-Files or endpoints touched:
-Client only. New: `features/orders/SeatTablePanel.jsx`, `MoveTablePanel.jsx`. Changed: `FloorViewPage.jsx`, `OrderScreenPage.jsx`, `MenuPicker.jsx`, `LineOptionsPanel.jsx`, `OrderLineList.jsx`.
-
-Anything the other developer needs to know:
-Showing Ready to bill, guests or the captain on a floor card needs the `GET /tables` occupancy block to carry them. That is a contract change, for P19.
-Switch table and the guest count were not tried on a real tablet.
-
-Anything now blocked or unblocked:
-Nothing.
-
 ---
 
 ## Known problems
@@ -1036,3 +1036,5 @@ Things that are broken or half done, so nobody rediscovers them.
 | A guest opening the public page downloads the whole staff app bundle (about 1.2 MB, 270 KB compressed) as well as the page's own 52 KB chunk, because the staff screens are not lazy-loaded. | Rishi, 2026-10-08 | OPEN. Fine on 4G, slow on a weak signal. Fix by lazy-loading the staff routes in `App.jsx`. |
 | The online page address has no printable QR code yet, only a link with Copy. | Rishi, 2026-10-08 | OPEN. Needs a small client QR library, which is a dependency decision. |
 | Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |
+| The API is on Render's free plan, so it sleeps after fifteen minutes with no request, and the first screen after that waits for it to start: about a minute by Render's account. Not measured, because Z Chaat was in service all through P30; `docs/PERFORMANCE-BASELINE.md` section 1 has the command to run before opening. | Rishi, P30, 2026-10-10 | OPEN by Rishi's choice. A paid plan removes it with no code change: `plan: starter` in `render.yaml`. |
+| The server is in Singapore and the Atlas cluster in Mumbai, so every query crosses between them. | Rishi, P30, 2026-10-10 | OPEN. Plan in `docs/DEPLOYMENT.md` section 15. |

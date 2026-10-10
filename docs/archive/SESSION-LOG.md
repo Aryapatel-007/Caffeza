@@ -1,5 +1,27 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, floor and order screen restyle (ahead of P19 and P20)
+
+What was built or decided:
+The floor (`/floor`) and the order screen were rebuilt from the user's pasted designs.
+Floor: Free and Seated counts, section filter pills, table cards (seated cards have a chana edge, minutes since the order opened, the order number and the item total), and a footer with tables seated and the open tables' item total.
+Tapping a free table opens `SeatTablePanel`: 1 to 7, or 8+ with a stepper up to 100. "Start order" creates the order with `guestCount`.
+Order screen: a header card with back, place, guests, order number and opened time, the menu search, and Switch table (`MoveTablePanel`). Category pills with counts and dish cards; a stepper on a dish's unsent line.
+A dark order bar at the bottom shows items, the item total before GST, Review order and Send to kitchen. Review order is a slide-over with the lines, No Charge and cancel order.
+Once an order is waiting for the cashier or closed, the lines are the page, with the bill button. `LineOptionsPanel` has size cards, extras rows, a note, and the quantity and "Add to order" with the line total in the footer.
+
+Checked by hand in headless Chromium against the local database, after `npm run seed:demo` rebuilt the demo restaurants there. Steps: seated a table with 2 guests, added dishes, raised a quantity, opened sizes and Review order. Checked at 1440 and 390 wide, with no page errors and no sideways scroll on a phone. Lint and build pass. No server change, so the tests were not rerun.
+
+Files or endpoints touched:
+Client only. New: `features/orders/SeatTablePanel.jsx`, `MoveTablePanel.jsx`. Changed: `FloorViewPage.jsx`, `OrderScreenPage.jsx`, `MenuPicker.jsx`, `LineOptionsPanel.jsx`, `OrderLineList.jsx`.
+
+Anything the other developer needs to know:
+Showing Ready to bill, guests or the captain on a floor card needs the `GET /tables` occupancy block to carry them. That is a contract change, for P19.
+Switch table and the guest count were not tried on a real tablet.
+
+Anything now blocked or unblocked:
+Nothing.
+
 ### 2026-10-01 Rishi, takeaway, delivery, kitchen and bill screens restyled (ahead of P18 to P20)
 
 What was built or decided:

@@ -362,3 +362,63 @@ request and takes about a minute to wake, so the first screen after a quiet
 spell waits. Asleep, it runs no background jobs (partner retries, card machine
 checks). The login limits are counted in memory and reset when it sleeps. For
 a restaurant in service, move to a paid instance; nothing else changes.
+
+**Staying on the free plan.** P30 (2026-10-10) proposed Render's Starter plan
+and Rishi chose to stay on free. The wait above is the price of that choice:
+the first screen of the morning, and the first after any quiet fifteen minutes,
+waits for the server to start. `docs/PERFORMANCE-BASELINE.md` section 1 has the
+command to measure it before opening. To change, set `plan: starter` in
+`render.yaml` and push; the Blueprint applies it.
+
+---
+
+## 15. The server and the database are in different regions
+
+Found by P30 on 2026-10-10, by reading the cluster's own node tags.
+
+| Part | Region |
+|---|---|
+| Render service `zchaat-pos-api` | Singapore |
+| Atlas `cluster0.dkcsfcz` | AWS `ap-south-1`, Mumbai |
+
+Every query crosses Singapore to Mumbai and back. `authenticate` makes two
+before any route runs, and a bill makes ten or more, so the distance is paid
+many times on every tap. Section 2 of this file already asks for the server
+and the database in one region. The Singapore to Mumbai round trip was not
+measured, because nothing of ours in Singapore can time it without a code
+change; it is the figure to take first, for example from a one-off Render
+shell with `mongosh` and `db.runCommand({ ping: 1 })` timed in a loop.
+
+Render has no India region, so there are two ways to put them together, and
+choosing between them is a decision for Rishi and Arya, not a session:
+
+1. **Move the database to Singapore** (AWS `ap-southeast-1`), next to the
+   server. The restaurant is then about as far from the data as it is from the
+   server today. This is what P30 assumed.
+2. **Move the server to a host with a Mumbai region**, next to the database,
+   which is also closer to Gandhinagar. This reopens the host choice of
+   section 2 and section 14.
+
+Moving the database is a migration, not a setting, and Z Chaat has live bills.
+How it is done depends on the cluster's tier, which is read in Atlas under the
+cluster's name:
+
+- A dedicated cluster (M10 or larger) can change region from the Atlas
+  screen; Atlas moves it node by node.
+- A free or shared cluster cannot change region. A new cluster is made in
+  Singapore, the data copied with `mongodump` and `mongorestore`, and
+  `MONGO_URI` changed on Render and in each developer's `.env`.
+
+Either way, the move happens outside service hours, after Z Chaat's last bill
+and before anyone opens a screen:
+
+1. Take a backup first (section 8), and check it restores.
+2. Do the move, or make the new cluster and restore into it.
+3. Run `npm run db:indexes` against the new cluster before any traffic reaches
+   it. The server refuses to start while an index is missing.
+4. Allow Render in the new cluster's Network Access (section 14).
+5. Change `MONGO_URI` on Render if the address changed, let it restart, and
+   check `GET /api/v1/health` reports the database connected.
+6. Open one screen, read the floor and a closed day's report, and compare a
+   day's totals with the old cluster's before switching anything else off.
+
