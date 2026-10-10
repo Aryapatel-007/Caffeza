@@ -19,6 +19,7 @@ import { MAX_BASIS_POINTS } from '../validators/common.js';
 import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
+import { liveAnnouncePlugin } from './plugins/liveAnnounce.js';
 
 export const ORDER_TYPES = Object.freeze({
   DINE_IN: 'DINE_IN',
@@ -419,6 +420,8 @@ const orderSchema = new mongoose.Schema({
 
 orderSchema.plugin(baseSchemaPlugin);
 orderSchema.plugin(tenantGuardPlugin);
+// P33. Tells open screens that read these topics to read again, after the write commits.
+orderSchema.plugin(liveAnnouncePlugin, { topics: ['tables'] });
 
 /** occupiesTable as derived from a status value, for the hooks below. */
 /**

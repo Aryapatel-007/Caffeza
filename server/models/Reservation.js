@@ -12,6 +12,7 @@ import { consentSchema, GUEST_NAME_MAX_LENGTH, REQUEST_NOTE_MAX_LENGTH } from '.
 import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
+import { liveAnnouncePlugin } from './plugins/liveAnnounce.js';
 
 export const RESERVATION_STATUSES = Object.freeze({
   /** P24. Requested, the deposit not yet paid. Invisible to staff. */
@@ -80,6 +81,8 @@ const reservationSchema = new mongoose.Schema({
 
 reservationSchema.plugin(baseSchemaPlugin);
 reservationSchema.plugin(tenantGuardPlugin);
+// P33. Tells open screens that read these topics to read again, after the write commits.
+reservationSchema.plugin(liveAnnouncePlugin, { topics: ['online'] });
 
 reservationSchema.index({ restaurantId: 1, branchId: 1, businessDate: 1, at: 1 });
 reservationSchema.index({ restaurantId: 1, branchId: 1, status: 1, createdAt: 1 });

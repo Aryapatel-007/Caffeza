@@ -31,6 +31,7 @@ import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { originSchema } from './Order.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
+import { liveAnnouncePlugin } from './plugins/liveAnnounce.js';
 
 /**
  * `PAID` is reached when the payments add up to the grand total, not when the
@@ -503,6 +504,8 @@ const billSchema = new mongoose.Schema({
 
 billSchema.plugin(baseSchemaPlugin);
 billSchema.plugin(tenantGuardPlugin);
+// P33. Tells open screens that read these topics to read again, after the write commits.
+billSchema.plugin(liveAnnouncePlugin, { topics: ['tables', 'print-queue'] });
 
 /**
  * The number an auditor quotes, so it is unique per restaurant rather than per

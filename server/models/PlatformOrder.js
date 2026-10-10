@@ -9,6 +9,7 @@ import { INTEGRATION_PROVIDERS } from './IntegrationConnection.js';
 import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
+import { liveAnnouncePlugin } from './plugins/liveAnnounce.js';
 
 export const PLATFORM_ORDER_STATUSES = Object.freeze({
   RECEIVED: 'RECEIVED',
@@ -67,6 +68,8 @@ const platformOrderSchema = new mongoose.Schema({
 
 platformOrderSchema.plugin(baseSchemaPlugin);
 platformOrderSchema.plugin(tenantGuardPlugin);
+// P33. Tells open screens that read these topics to read again, after the write commits.
+platformOrderSchema.plugin(liveAnnouncePlugin, { topics: ['platform-orders', 'online'] });
 
 /** A duplicate ORDER_PLACED hits this and changes nothing. */
 platformOrderSchema.index({ restaurantId: 1, connectionId: 1, platformOrderId: 1 }, { unique: true });

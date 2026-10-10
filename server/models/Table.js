@@ -12,6 +12,7 @@ import mongoose from 'mongoose';
 import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
+import { liveAnnouncePlugin } from './plugins/liveAnnounce.js';
 
 export const TABLE_NAME_MAX_LENGTH = 20;
 export const TABLE_SECTION_MAX_LENGTH = 40;
@@ -115,6 +116,8 @@ const tableSchema = new mongoose.Schema({
 
 tableSchema.plugin(baseSchemaPlugin);
 tableSchema.plugin(tenantGuardPlugin);
+// P33. Tells open screens that read these topics to read again, after the write commits.
+tableSchema.plugin(liveAnnouncePlugin, { topics: ['tables'] });
 
 tableSchema.pre('validate', function deriveNameLower() {
   if (typeof this.name === 'string') this.nameLower = this.name.trim().toLowerCase();

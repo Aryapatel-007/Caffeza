@@ -13,6 +13,7 @@ import mongoose from 'mongoose';
 import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
+import { liveAnnouncePlugin } from './plugins/liveAnnounce.js';
 import { LINE_NOTES_MAX_LENGTH, ORDER_TYPE_VALUES } from './Order.js';
 
 export const KOT_LINE_STATUSES = Object.freeze({
@@ -88,6 +89,8 @@ const kotSchema = new mongoose.Schema({
 
 kotSchema.plugin(baseSchemaPlugin);
 kotSchema.plugin(tenantGuardPlugin);
+// P33. Tells open screens that read these topics to read again, after the write commits.
+kotSchema.plugin(liveAnnouncePlugin, { topics: ['kots'] });
 
 /**
  * Ascending, not descending. A kitchen works oldest ticket first, so the

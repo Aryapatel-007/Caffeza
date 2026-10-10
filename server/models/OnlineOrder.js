@@ -15,6 +15,7 @@ import { DECLINE_REASON_CODES } from '../config/onlineReasons.js';
 import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
+import { liveAnnouncePlugin } from './plugins/liveAnnounce.js';
 
 export const ONLINE_ORDER_STATUSES = Object.freeze({
   /** P24. Placed, not yet paid. Invisible to staff. */
@@ -121,6 +122,8 @@ const onlineOrderSchema = new mongoose.Schema({
 
 onlineOrderSchema.plugin(baseSchemaPlugin);
 onlineOrderSchema.plugin(tenantGuardPlugin);
+// P33. Tells open screens that read these topics to read again, after the write commits.
+onlineOrderSchema.plugin(liveAnnouncePlugin, { topics: ['online'] });
 
 onlineOrderSchema.index({ restaurantId: 1, branchId: 1, status: 1, createdAt: 1 });
 onlineOrderSchema.index({ restaurantId: 1, reference: 1 }, { unique: true });
