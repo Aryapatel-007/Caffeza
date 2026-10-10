@@ -21,10 +21,15 @@ import '@fontsource/ibm-plex-mono/700.css';
  * Gujarati and Devanagari siblings for the second-language line. `standard.css`
  * registers both axes (weight 100 to 800, width 75 to 125); `index.css` in the
  * same package would register weight only. IBM Plex Sans was removed in P20B.
+ *
+ * P32. The Gujarati and Devanagari faces are subsets of those two fonts, made
+ * by `client/fontSubset.js` on every build and dev start from the characters
+ * the app writes: 450 kB and 726 kB down to a few kB each. Anek Latin, first
+ * in the font stack, draws every Latin character, so those two families need
+ * no Latin faces of their own.
  */
 import '@fontsource-variable/anek-latin/standard.css';
-import '@fontsource-variable/anek-gujarati/standard.css';
-import '@fontsource-variable/anek-devanagari/standard.css';
+import './fonts/generated/second-language.css';
 import './index.css';
 
 /**

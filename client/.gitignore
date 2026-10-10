@@ -1,2 +1,4 @@
 .vercel
 .env*
+# P32: the second-language font subsets, made by fontSubset.js on every build and dev start.
+src/fonts/generated/
