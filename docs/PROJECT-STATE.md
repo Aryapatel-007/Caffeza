@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-10 by Rishi (P30 performance baseline)
+Last updated: 2026-10-10 by Rishi (P31 compression and request latency)
 
 ---
 
@@ -34,7 +34,7 @@ the cloud database (see the P29 entry below).
 
 The cloud database (`cluster0.dkcsfcz`, `restaurant-erp`) holds Z Chaat, set
 up with its menu and five logins, and a duplicate "zchaat" waiting on Rishi's
-choice of which stays. No bill has been made there. Next: P31, the cheap server wins. After it, the rest of the
+choice of which stays. No bill has been made there. Next: P32, the client's weight. After it, the rest of the
 profile's section 15 from Z Chaat, then the gates in `docs/GO-LIVE.md`,
 tracked in `docs/GO-LIVE-READINESS.md`.
 
@@ -493,6 +493,10 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-10 | The API stays on Render's free plan. P30 proposed Starter and Rishi said no. | The cost is the wait: the server sleeps after fifteen minutes without a request, so the first screen of the morning waits for it to start, about a minute by Render's account. Written into `docs/GO-LIVE-READINESS.md` and `docs/DEPLOYMENT.md` section 14. |
 | 2026-10-10 | The server (Render, Singapore) and the database (Atlas, AWS Mumbai) are in different regions, found by reading the cluster's node tags. Moving either is planned in `docs/DEPLOYMENT.md` section 15, not done in a session. | Every query crosses between them, and `authenticate` alone makes two per request. Render has no India region, so the choice is the database to Singapore or the server to a host in Mumbai, and Z Chaat has live bills, so the move is scheduled work with a backup first. |
 | 2026-10-10 | ESLint skips `client/.vercel/`. | `vercel build` leaves its output there on any machine that deploys, and `npm run lint` failed on about 2,800 errors in that generated code. |
+| 2026-10-10 | API responses are compressed, mounted straight after `helmet()` so it covers the webhook and bridge routes too. | JSON leaves the server at about a fifth of its size or less (Z Chaat's menu 46,022 to 5,457 bytes), and compression is response-side so it cannot disturb a raw body a partner signature was computed over. On Render the device saw little change, because Render's Cloudflare edge was already Brotli-compressing; it matters on any other host. |
+| 2026-10-10 | `authenticate`'s user and restaurant reads run together, not one after the other. | They do not depend on each other, and two serial round trips to the database sat on the front of every authenticated request (measured from Rishi's Mac: 193 ms one after the other, 77 ms together). No cache was added: the role is still read live, and the checks still run user first. |
+| 2026-10-10 | The restaurant document stays fully loaded in `authenticate`. | `settingsService` reads it from `req.currentRestaurant` and checks only the `_id`, so trimming `settings` would hand every caller schema defaults with nothing failing. Written beside the read. |
+| 2026-10-10 | No conditional-request handling was built: a repeated poll already gets a 304 from Express's weak ETags. | Measured against live data. A 304 saves bandwidth, not the queries; cutting those is P33's. |
 ---
 
 ## Open questions
@@ -514,6 +518,21 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-10 Rishi, P31 compression and request latency
+
+What was built or decided:
+1. `compression` (new server dependency) mounted straight after `helmet()`, so every route answers compressed when asked, webhooks and the Tally bridge included. Images are left alone by content type. Measured against live data: Z Chaat's `GET /menu` 46,022 bytes to 5,457 gzip, 5,159 Brotli.
+2. `authenticate` reads the user and the restaurant together with `Promise.all`; every check after them is unchanged and in the same order. Measured from Rishi's Mac: the two reads 193 ms one after the other, 77 ms together.
+3. The restaurant document stays fully loaded; the comment in `authenticate.js` says why.
+4. 304s already work at the app; nothing built. Not yet watched in a device's network tab.
+
+Tests: 1,218 before, 1,222 after, 0 failing, golden day included. New: `compression.test.js` (gzip when asked and identical plain when not; an image never compressed again), two in `auth.test.js` (both inactive still fails on the user; a changed password with an inactive restaurant is still TOKEN_EXPIRED, which fails if the restaurant is checked first, tried on purpose), and the signed webhook in `integrationsFoundation.test.js` now asks for gzip. `npm run e2e`: all 13 specs pass. Lint and build pass.
+
+Files touched: `server/server.js`, `server/middleware/authenticate.js`, `server/package.json`, `package-lock.json`, the three test files, `docs/PERFORMANCE-BASELINE.md`, DEPLOYMENT.md section 13.
+
+Anything the other developer needs to know:
+Arya: `compression` is the new server dependency, the first since P24. Pull and `npm install`.
 
 ### 2026-10-10 Rishi, P30 performance baseline
 
@@ -976,18 +995,6 @@ What was built or decided:
 Left out: Own Delivery (not a platform in `config/platforms.js`), rider details and ETA, live queue counts, Scan QR, "Aggregator Bridge", dish photos and codes, packaging charge, an order-level discount (discounts are on the bill), Print KOT (the kitchen screen prints) and rider note.
 
 Checked in headless Chromium as the demo cashier: Swiggy, three dishes including a Half size, sent to the kitchen and landing on the order; the same number again refused with the link; no sideways scroll at 390 wide; no page errors. Lint and build pass.
-
-### 2026-10-01 Rishi, discount drawer, bills ledger and receipt preview (ahead of P18 to P20)
-
-What was built or decided:
-From the user's pasted designs, client only, same endpoints.
-Discount drawer (`DiscountPanel.jsx`, wider `PanelShell`): percent or amount toggle, 5/10/20/50% presets showing the rupee amount, the keypad, the fixed reasons, Paid for by on platform reasons, and a preview of item total and discount. It shows no GST or new bill total: those come from the server once the discount is applied, because tax arithmetic lives only in `tax.js`. The percent preview rounds half away from zero, display only.
-Bills (`BillsListPage.jsx`) is now a ledger: bill total, bills, unpaid bills and voided figures from `meta.totals` (the unpaid count is `meta.total` of the same list filtered to unpaid); a table with invoice number, time issued, table, captain, paid with, status and bill total; status pills, dates, include voided, paging, and a search over the page on screen. The selected bill shows beside it, read with `GET /bills/:billId`, with Take payment or Open bill and a link to the receipt.
-Receipt preview: a new screen at `/bills/:billId/receipt` showing the server's receipt text in a paper slip at the device's width, the 58 or 80 mm choice (the same device setting as This device), Print bill, and the bill's figures. Linked from the bill screen and the ledger.
-
-Left out: the manager PIN on discounts (the server already limits discounts by role, and there is no PIN check for it), WhatsApp e-bill, PDF, kick drawer, printer status and roll level, copies, IRN, UPI and loyalty QR codes, Wi-Fi line, "Print estimate", export and percent-change figures.
-
-Checked in headless Chromium on the local demo data: a takeaway billed, 10% Regular guest applied (₹209.00 item total, ₹20.90 off, bill ₹205.00 from the server), the receipt at 48 characters, and the ledger with that bill selected. No page errors. Lint and build pass.
 
 ---
 

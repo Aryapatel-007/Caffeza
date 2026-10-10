@@ -1,5 +1,17 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, discount drawer, bills ledger and receipt preview (ahead of P18 to P20)
+
+What was built or decided:
+From the user's pasted designs, client only, same endpoints.
+Discount drawer (`DiscountPanel.jsx`, wider `PanelShell`): percent or amount toggle, 5/10/20/50% presets showing the rupee amount, the keypad, the fixed reasons, Paid for by on platform reasons, and a preview of item total and discount. It shows no GST or new bill total: those come from the server once the discount is applied, because tax arithmetic lives only in `tax.js`. The percent preview rounds half away from zero, display only.
+Bills (`BillsListPage.jsx`) is now a ledger: bill total, bills, unpaid bills and voided figures from `meta.totals` (the unpaid count is `meta.total` of the same list filtered to unpaid); a table with invoice number, time issued, table, captain, paid with, status and bill total; status pills, dates, include voided, paging, and a search over the page on screen. The selected bill shows beside it, read with `GET /bills/:billId`, with Take payment or Open bill and a link to the receipt.
+Receipt preview: a new screen at `/bills/:billId/receipt` showing the server's receipt text in a paper slip at the device's width, the 58 or 80 mm choice (the same device setting as This device), Print bill, and the bill's figures. Linked from the bill screen and the ledger.
+
+Left out: the manager PIN on discounts (the server already limits discounts by role, and there is no PIN check for it), WhatsApp e-bill, PDF, kick drawer, printer status and roll level, copies, IRN, UPI and loyalty QR codes, Wi-Fi line, "Print estimate", export and percent-change figures.
+
+Checked in headless Chromium on the local demo data: a takeaway billed, 10% Regular guest applied (₹209.00 item total, ₹20.90 off, bill ₹205.00 from the server), the receipt at 48 characters, and the ledger with that bill selected. No page errors. Lint and build pass.
+
 ### 2026-10-01 Rishi, floor and order screen restyle (ahead of P19 and P20)
 
 What was built or decided:

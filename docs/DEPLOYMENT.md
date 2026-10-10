@@ -290,6 +290,11 @@ The build stage runs `npm ci` and `npm run build`. The run stage is Node 20
 slim with production dependencies only, the server, the setup files and
 `client/dist`, running as the non-root `node` user, started with `npm start`.
 
+The server compresses its own answers with the `compression` package (P31,
+2026-10-10), so it needs no proxy in front of it to do that. Render's edge
+compresses as well; what it does with an answer that is already compressed is
+in `docs/PERFORMANCE-BASELINE.md`, P31 section 4.
+
 **Environment variables to set on the host** (section 4 has the details):
 
 | Variable | Value |
