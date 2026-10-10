@@ -174,3 +174,63 @@ Express's weak ETags already work at the app. Through Vercel, API answers carry
 `/api/v1/health`), which lets a browser keep the answer and revalidate it, and
 the client's `fetch` does not turn the HTTP cache off. P31 section 9 records
 the decision.
+
+---
+
+## P31, 2026-10-10
+
+### 1. Compression
+
+The server now compresses its own answers (`compression`, mounted straight
+after `helmet()`). Measured, live data, through this code on Rishi's Mac:
+
+| Request | P30, bytes sent | P31, `gzip` | P31, `br` | Brotli at its best, for comparison |
+|---|---|---|---|---|
+| `GET /api/v1/menu` | 46,022 | 5,457 | 5,159 | 4,292 |
+| `GET /api/v1/tables` | 8,974 | 1,068 | 931 | 789 |
+| `GET /api/v1/bills?limit=50` | 6,481 | 1,758 | 1,680 | 1,428 |
+| `GET /api/v1/categories` | 4,010 | 572 | 505 | 455 |
+| `GET /api/v1/auth/me` | 2,495 | 1,139 | 1,150 | 941 |
+
+(`/tables` and `/bills` changed size between the two runs because Z Chaat was
+seating tables and billing while they ran.)
+
+What a Z Chaat tablet receives changes little: Render's Cloudflare edge was
+already Brotli-compressing every answer (P30 section 2), and the last column
+is roughly what it sends. The change matters on any host without such an
+edge. The deployed figure is in section 4 below.
+
+### 2. `authenticate`'s two reads
+
+Measured, live data, from Rishi's Mac, 25 rounds of exactly the two queries
+`authenticate` makes, against Z Chaat's owner and restaurant:
+
+| | Median |
+|---|---|
+| One after the other (before P31) | 193 ms |
+| Together, `Promise.all` (P31) | 77 ms |
+
+The whole `GET /auth/me` timed from the Mac (P30: median 307 ms) was 352 ms
+after P31, inside the noise of a home connection; the reads on their own are
+the fair comparison. From Render in Singapore to Mumbai the saving is one
+database round trip on every authenticated request.
+
+### 3. Do 304s already work
+
+Measured, live data: `GET /api/v1/tables`, then again with the first answer's
+`ETag` as `If-None-Match`: **200 with 8,839 bytes, then 304 with no body.**
+
+Yes, at the app. Express's weak ETags answer a repeated poll with 304. Through
+Vercel, answers carry `cache-control: public, max-age=0, must-revalidate`
+(measured on `/api/v1/health`), which tells a browser it may keep the answer
+and must check it every time, and the client's `fetch` leaves the HTTP cache
+on, so the browser should send `If-None-Match` by itself. That last step was
+not watched in a device's network tab; it is the one thing to look at there.
+No change made.
+
+A 304 saves bandwidth, not database work: the server still runs every query
+to build the answer it compares against. Cutting the queries is P33's job.
+
+### 4. Deployed
+
+Filled in after the push, below.
