@@ -7834,3 +7834,108 @@ Each part is specified in the module it belongs to:
 | `BILL_NOT_REVISABLE` | 422 | `remove-lines` on a bill that has money on it, is On Hold, waits on the card machine, is a platform bill, or has revisions switched off. The message says which. |
 | `WAITING_FOR_KITCHEN` | 422 | A payment, advance, card machine payment or account charge on a bill whose order has items not yet ready |
 | `ORDER_ALREADY_BILLED` | 422 | Undoing ready in the kitchen on an order with a live bill |
+
+# P30 Keeping the free server awake
+
+Render's free plan stops the server after 15 minutes without a request and
+takes about a minute to wake. P30 adds a cheap address for pingers, a record of
+every start, and the screens' calm handling of a cold start. None of it is a
+restaurant's data, and none of it is a bill, an order or a payment.
+
+## 1. `GET /api/v1/wake`
+
+No sign-in, no tenant, no role. Public on purpose: it returns nothing private.
+
+```json
+{ "success": true, "data": { "ok": true, "startedAt": "2026-10-10T02:59:40.000Z", "uptimeSeconds": 731 } }
+```
+
+1. Touches no database, so it answers while the database is down.
+2. Its own limiter: 60 requests a minute per address, a 429 `RATE_LIMITED`
+   after that. It is never counted by the general, sign-in or refresh limiters.
+   It is the one limiter that also runs under `NODE_ENV=test`, so its limit can
+   be tested.
+3. Logged at `debug`, so it never reaches a production log, which logs `info`
+   and above. A failure is still logged as one.
+4. `Cache-Control: no-store`. A cached answer would not keep the server awake.
+
+`startedAt` is when this server process started, in UTC.
+
+## 2. `GET /api/v1/health`
+
+Unchanged, and additive: gains `startedAt` beside the existing
+`uptimeSeconds`, and `Cache-Control: no-store`.
+
+## 3. `GET /api/v1/system/starts?days=7`
+
+OWNER only. `days` 1 to 60, default 7. Reads `serverstarts` (DB-SCHEMA
+section 44), which belongs to the server rather than to a restaurant, so every
+owner reads the same starts. The restaurant only supplies its business day
+start and its opening hours, to group and judge them.
+
+```json
+{
+  "success": true,
+  "data": {
+    "days": [
+      {
+        "businessDate": "2026-10-10",
+        "starts": 1,
+        "startsInWorkingHours": 0,
+        "longestGapMinutes": null
+      }
+    ],
+    "starts": [
+      { "id": "...", "startedAt": "2026-10-10T02:59:40.000Z", "release": "7126e3a", "reason": "DEPLOY", "inWorkingHours": false }
+    ],
+    "workingHours": { "opensAtMinutes": 600, "closesAtMinutes": 1380, "fromOnlineSettings": true },
+    "sleptInWorkingHours": ["2026-10-09"]
+  }
+}
+```
+
+1. `days`: one row per business date in the range, newest first, by
+   `businessDateFor` with the restaurant's business day start, including days
+   with no start. `longestGapMinutes` is the longest gap between two starts on
+   that date, whole minutes, null with fewer than two.
+2. `starts`: every start in the range, newest first.
+3. `reason`: `FIRST` (no start recorded before it), `DEPLOY` (its release
+   differs from the previous start's) or `RESTART` (the same release: a wake
+   from sleep, or a crash).
+4. Working hours are `settings.online.opensAtMinutes` to `closesAtMinutes`
+   while the online page is switched on (`settings.features.online`); while it
+   is off those times are only a default nobody chose, and every hour counts
+   as working (`fromOnlineSettings: false`).
+5. `inWorkingHours` and `startsInWorkingHours` count only `RESTART` starts
+   inside working hours: a deploy is not a sleep.
+6. `sleptInWorkingHours`: business dates with more than 2 such starts, newest
+   first. The Server card in Settings names them.
+
+## 4. `GET /api/v1/auth/me` additions
+
+`online` gains `opensAtMinutes` and `closesAtMinutes`, so every role's screen
+can keep its heartbeat (below) inside working hours. Additive.
+
+## 5. What the screens do (client only)
+
+1. A heartbeat: while signed in, one timer for the whole app calls `/wake`
+   every 5 minutes, only while the tab is visible, and only within working
+   hours (section 3 point 4) plus 30 minutes either side. A failed ping is
+   ignored.
+2. A cold start: a 502, 503 or 504, an HTML page where JSON was expected, or
+   a request that times out or never reaches the server. A GET is retried
+   after 3, 6, 12, 20 and 30 seconds, about 70 seconds in all, with a bar at
+   the top: "Starting the server. This takes about a minute the first time in
+   the morning." A POST, PUT, PATCH or DELETE is **never** retried: it may have
+   reached the server, and a second try could make a second bill or record a
+   payment twice. It fails with the client-only code `SERVER_NOT_CONFIRMED`,
+   "The server was starting and we could not confirm this went through. Check
+   the bill before trying again." Any other status, 400 to 499 included, is
+   never retried.
+3. On first load, before the sign-in screen, the app calls `/wake` once; if
+   no answer comes in 2 seconds it shows the same bar and keeps trying until
+   one does.
+
+## Error codes
+
+No new server error code. `SERVER_NOT_CONFIRMED` exists only in the client.

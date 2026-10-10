@@ -2817,3 +2817,24 @@ The partial unique index for one live opening float per date is unchanged.
 
 `action` gains `BILL_REVISED`, `KITCHEN_READY_UNDONE`, `CASH_TAKEN_OUT` and
 `OPENING_FLOAT_DIFFERED`.
+
+## 44. `serverstarts` (P30)
+
+One document each time the server process starts listening. It belongs to the
+server, not to a restaurant, so it is the second collection after
+`restaurants` with no `restaurantId`, and it applies neither `baseSchema` nor
+`tenantGuard`. It holds no restaurant's data: a time, a release and a reason.
+`models/index.js` lists it in `SERVER_MODELS`, which the purge tool and the
+seed wipe skip, because no restaurant owns its documents.
+
+| Field | Type | Notes |
+|---|---|---|
+| `startedAt` | Date | UTC. When the process started, not when the row was written. |
+| `release` | String or null | `RELEASE_VERSION`, the commit the host deployed, or null |
+| `nodeEnv` | String | `NODE_ENV` |
+| `reason` | String | `FIRST`, `DEPLOY` or `RESTART`, against the previous start (API-CONTRACT P30 section 3) |
+| `createdAt` | Date | UTC |
+
+Indexes: `{ startedAt: -1 }`, with `expireAfterSeconds` of 60 days: a start
+older than 60 days is removed by the database. Written once per start, never
+updated, never read by a report or a bill.
