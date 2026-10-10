@@ -8,6 +8,7 @@ import { ROLES } from '../users/roles.js';
 
 import { printBill } from './printBill.js';
 import { rememberPrinted, useDeviceSettings } from './useDeviceSettings.js';
+import { useLiveInterval } from '../../api/live.js';
 
 const TILL = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER];
 const POLL_MS = 5000;
@@ -30,11 +31,13 @@ export default function CaptainBillPrinter() {
   const queryClient = useQueryClient();
   const enabled = Boolean(device.printCaptainBills) && TILL.includes(user?.role);
 
+  // P33. 5 seconds, or 60 while the live channel is healthy and announcing print requests.
+  const interval = useLiveInterval(POLL_MS);
   const queue = useQuery({
     queryKey: ['print-queue'],
     queryFn: getPrintQueue,
     enabled,
-    refetchInterval: POLL_MS,
+    refetchInterval: interval,
     refetchIntervalInBackground: true,
   });
 

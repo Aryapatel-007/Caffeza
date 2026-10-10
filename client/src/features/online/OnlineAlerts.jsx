@@ -22,6 +22,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import { chime, onUnlockChange, soundIsUnlocked, speak, spokenLine, unlockSound } from './alertSound.js';
 import { alertRoleOn } from './inboxOn.js';
+import { useLiveInterval } from '../../api/live.js';
 
 const POLL_MS = 15_000;
 const REPEAT_MS = 60_000;
@@ -37,11 +38,12 @@ export function useAlertsOn() {
 
 /** The inbox, shared by the banner and the nav badge through one query. */
 export function useOnlineInbox(enabled) {
+  const interval = useLiveInterval(POLL_MS);
   return useQuery({
     queryKey: INBOX_QUERY_KEY,
     queryFn: getInbox,
     enabled,
-    refetchInterval: POLL_MS,
+    refetchInterval: interval,
     refetchIntervalInBackground: true,
   });
 }

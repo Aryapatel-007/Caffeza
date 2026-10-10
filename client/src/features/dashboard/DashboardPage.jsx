@@ -10,8 +10,10 @@ import { useTheme } from '../../context/ThemeProvider.jsx';
 import { formatDateIst, formatTimeIst } from '../../utils/formatDate.js';
 
 import UnclosedDayWarning from '../settlement/UnclosedDayWarning.jsx';
-import Money, { moneyText } from '../../components/ui/Money.jsx';
+import Money, { moneyText } from '../../components/ui/Money.jsx';
+
 import Spinner from '../../components/ui/Spinner.jsx';
+import { useLiveInterval } from '../../api/live.js';
 
 /**
  * Home. Every figure here is read from the server, none is drawn for show: the
@@ -60,11 +62,12 @@ export default function DashboardPage() {
     enabled: isManager,
     refetchInterval: 60_000,
   });
+  const tablesInterval = useLiveInterval(15_000);
   const tables = useQuery({
     queryKey: ['tables', { includeInactive: false }],
     queryFn: () => listTables(),
     enabled: canTakeOrders,
-    refetchInterval: 15_000,
+    refetchInterval: tablesInterval,
   });
 
   const now = new Date();

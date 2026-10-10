@@ -23,6 +23,7 @@ import {
   ScooterIcon,
   SignOutIcon,
 } from './ui/icons/index.jsx';
+import LiveConnection from './LiveConnection.jsx';
 import Sheet from './ui/Sheet.jsx';
 import Spinner from './ui/Spinner.jsx';
 
@@ -283,7 +284,14 @@ export default function AppShell({ children }) {
 
   useEffect(() => setMoreOpen(false), [pathname]);
 
-  if (FULL_SCREEN_PATHS.includes(pathname)) return <Suspense fallback={<ScreenLoading />}>{children}</Suspense>;
+  if (FULL_SCREEN_PATHS.includes(pathname)) {
+    return (
+      <>
+        <LiveConnection />
+        <Suspense fallback={<ScreenLoading />}>{children}</Suspense>
+      </>
+    );
+  }
 
   return (
     <div className="v2 flex h-full bg-ground text-ink">
@@ -304,6 +312,7 @@ export default function AppShell({ children }) {
           <span className="type-caption truncate text-muted">{user?.name}</span>
         </header>
 
+        <LiveConnection />
         <OnlineAlerts />
         <CaptainBillPrinter />
 

@@ -34,6 +34,7 @@ import { OnlineTabs } from './OnlineInboxPage.jsx';
 import { DeclineSheet, errorText } from './OnlineSheets.jsx';
 import PaymentChip from './PaymentChip.jsx';
 import { BOOKING_DECLINE_REASONS } from './onlineReasons.js';
+import { useLiveInterval } from '../../api/live.js';
 
 const TILL_ROLES = ['OWNER', 'MANAGER', 'CASHIER'];
 const NO_SHOW_AFTER_MS = 15 * 60_000;
@@ -100,11 +101,13 @@ export default function BookingsPage() {
   const [sheet, setSheet] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const inbox = useQuery({ queryKey: INBOX_QUERY_KEY, queryFn: getInbox, refetchInterval: 15_000 });
+  const fast = useLiveInterval(15_000);
+  const slow = useLiveInterval(30_000);
+  const inbox = useQuery({ queryKey: INBOX_QUERY_KEY, queryFn: getInbox, refetchInterval: fast });
   const bookings = useQuery({
     queryKey: ['online', 'bookings', date, inbox.data?.latestRequestAt ?? null],
     queryFn: () => listReservations({ date }),
-    refetchInterval: 30_000,
+    refetchInterval: slow,
   });
   const tables = useQuery({ queryKey: ['tables', 'for-bookings'], queryFn: () => listTables(), enabled: Boolean(sheet) });
 

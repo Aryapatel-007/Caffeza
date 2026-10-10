@@ -14,6 +14,7 @@ import { charactersFor, printText } from '../printing/printText.js';
 import { rememberPrinted, useDeviceSettings } from '../printing/useDeviceSettings.js';
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
+import { useLiveInterval } from '../../api/live.js';
 
 const ALL_STATIONS = 'ALL';
 
@@ -75,10 +76,12 @@ export default function KitchenDisplayPage() {
 
   const stations = useQuery({ queryKey: ['stations'], queryFn: () => listStations() });
 
+  // P33. 10 seconds, or 60 while the live channel is healthy and announcing tickets.
+  const ticketInterval = useLiveInterval(10_000);
   const tickets = useQuery({
     queryKey: ['kots', { status: 'PENDING,IN_PROGRESS', stationId: stationFilter ?? null }],
     queryFn: () => listKots({ status: 'PENDING,IN_PROGRESS', limit: 50, stationId: stationFilter }),
-    refetchInterval: 10_000,
+    refetchInterval: ticketInterval,
     // A ticket board that stops updating when the tab loses focus is a ticket
     // board that lies to a kitchen. Keep polling regardless.
     refetchIntervalInBackground: true,

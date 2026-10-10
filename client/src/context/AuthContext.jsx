@@ -70,6 +70,8 @@ const fromMe = (me) => ({
     reviseUnpaidBills: me.billing?.reviseUnpaidBills ?? true,
     printBeforePayment: me.billing?.printBeforePayment ?? true,
   },
+  // P33. The live channel: on or off, and the address to open it on (null: this page's own).
+  live: { enabled: Boolean(me.live?.enabled), origin: me.live?.origin ?? null },
   // P28. What needs an owner's or manager's PIN. The server still decides.
   approvals: {
     lineCancel: me.approvals?.lineCancel ?? true,

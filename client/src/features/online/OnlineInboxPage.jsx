@@ -23,6 +23,7 @@ import { INBOX_QUERY_KEY } from './OnlineAlerts.jsx';
 import { AcceptSheet, DeclineSheet, errorText } from './OnlineSheets.jsx';
 import PaymentChip from './PaymentChip.jsx';
 import { ORDER_DECLINE_REASONS } from './onlineReasons.js';
+import { useLiveInterval } from '../../api/live.js';
 
 const TILL_ROLES = ['OWNER', 'MANAGER', 'CASHIER'];
 
@@ -168,20 +169,22 @@ export default function OnlineInboxPage() {
   const [declining, setDeclining] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const inbox = useQuery({ queryKey: INBOX_QUERY_KEY, queryFn: getInbox, refetchInterval: 15_000 });
+  const fast = useLiveInterval(15_000);
+  const slow = useLiveInterval(30_000);
+  const inbox = useQuery({ queryKey: INBOX_QUERY_KEY, queryFn: getInbox, refetchInterval: fast });
   const today = businessDateToday();
   // P25 Part H. With online orders off, this screen shows only delivery platform orders.
   const onlineOn = Boolean(features.online?.enabled);
   const waiting = useQuery({
     queryKey: ['online', 'orders', 'WAITING', inbox.data?.latestRequestAt ?? null],
     queryFn: () => listOnlineOrders({ status: 'WAITING', limit: 100 }),
-    refetchInterval: 15_000,
+    refetchInterval: fast,
     enabled: onlineOn,
   });
   const answered = useQuery({
     queryKey: ['online', 'orders', 'today'],
     queryFn: () => listOnlineOrders({ date: today, limit: 100 }),
-    refetchInterval: 30_000,
+    refetchInterval: slow,
     enabled: onlineOn,
   });
 

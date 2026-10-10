@@ -11,6 +11,7 @@ import { formatTimeIst } from '../../utils/formatDate.js';
 
 import { errorText } from './OnlineSheets.jsx';
 import { PLATFORM_REJECT_REASONS } from './platformRejectReasons.js';
+import { useLiveInterval } from '../../api/live.js';
 
 const PREP_MINUTES = [10, 15, 20, 30, 45];
 const ATTENTION_WORDS = {
@@ -44,10 +45,11 @@ export default function PlatformOrdersSection({ canDecide, onToast }) {
   const queryClient = useQueryClient();
   const [accepting, setAccepting] = useState(null);
   const [rejecting, setRejecting] = useState(null);
+  const interval = useLiveInterval(15_000);
   const waiting = useQuery({
     queryKey: ['platform-orders', 'WAITING'],
     queryFn: () => listPlatformOrders({ status: 'WAITING' }),
-    refetchInterval: 15_000,
+    refetchInterval: interval,
     enabled: canDecide,
   });
   const refresh = () => {

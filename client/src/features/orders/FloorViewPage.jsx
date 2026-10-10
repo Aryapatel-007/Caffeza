@@ -18,6 +18,7 @@ import SeatTablePanel from './SeatTablePanel.jsx';
 
 import Spinner from '../../components/ui/Spinner.jsx';
 import { formatTimeIst } from '../../utils/formatDate.js';
+import { useLiveInterval } from '../../api/live.js';
 
 /** How a screen reader names a table: "Table 5" for a table called "5", and "Table 5" for one called "Table 5". */
 const spokenName = (name) => (/^table\b/i.test(name) ? name : `Table ${name}`);
@@ -66,11 +67,13 @@ export default function FloorViewPage() {
   const [seating, setSeating] = useState(null);
   const [moving, setMoving] = useState(null);
 
+  // P33. 15 seconds, or 60 while the live channel is healthy.
+  const tablesInterval = useLiveInterval(15_000);
   const tables = useQuery({
     queryKey: ['tables', { includeInactive: false }],
     queryFn: () => listTables(),
     // A table is taken and freed by other people all through a service.
-    refetchInterval: 15_000,
+    refetchInterval: tablesInterval,
   });
 
   const open = useMutation({
