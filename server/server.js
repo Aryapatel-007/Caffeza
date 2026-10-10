@@ -17,6 +17,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import cors from 'cors';
 import express from 'express';
+import compression from 'compression';
 import helmet from 'helmet';
 
 import { connectDatabase, installShutdownHandlers } from './config/database.js';
@@ -118,6 +119,21 @@ export function createApp({ serveClient: shouldServeClient = config.isProduction
   app.set('trust proxy', config.TRUST_PROXY);
 
   app.use(helmet());
+
+  /**
+   * P31. Compresses responses, before every route, the partners' webhooks and
+   * the Tally bridge included.
+   *
+   * Compression only touches what the server sends back. It cannot disturb the
+   * raw request bodies the Razorpay, platform and Pine Labs webhooks keep for
+   * their signature checks, nor the larger bodies the logo and photo uploads
+   * parse for themselves. Already-compressed bytes, the PNG, WebP and JPEG of a
+   * logo or a dish photo, are left alone by content type; a test proves it.
+   *
+   * On Render, Cloudflare compresses on the way out as well
+   * (docs/PERFORMANCE-BASELINE.md); this is for any host without that edge.
+   */
+  app.use(compression());
 
   // credentials is on for the refresh token cookie that arrives in M0 part B.
   app.use(cors({ origin: config.CLIENT_ORIGIN, credentials: true }));

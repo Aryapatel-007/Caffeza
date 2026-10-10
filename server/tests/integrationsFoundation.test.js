@@ -156,7 +156,9 @@ describe('webhooks', () => {
     assert.equal(JSON.stringify(events).includes('9876543210'), false, 'a phone number reached the log');
     assert.equal(await IntegrationJob.countDocuments({ restaurantId: team.restaurant._id }), 0);
 
-    const good = await postHook(webhookUrl, body, { 'x-sandbox-signature': signSandboxBody(Buffer.from(body), SANDBOX.credentials.webhookSecret) });
+    // P31: compression sits in front of every route, these included. It works on
+    // the answer only, so a client asking for gzip still has its raw body verified.
+    const good = await postHook(webhookUrl, body, { 'x-sandbox-signature': signSandboxBody(Buffer.from(body), SANDBOX.credentials.webhookSecret), 'accept-encoding': 'gzip' });
     assert.equal(good.status, 200, JSON.stringify(good.body));
 
     // A new address: the old one stops working at once.
