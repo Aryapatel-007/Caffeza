@@ -377,7 +377,7 @@ command to measure it before opening. To change, set `plan: starter` in
 
 ### Keeping the free server awake
 
-Added by P30, at no cost.
+Added by P30 (keep awake), at no cost.
 
 **Why.** Render's free plan stops the server after 15 minutes without a
 request, and waking it takes about a minute: the first person to open the app
