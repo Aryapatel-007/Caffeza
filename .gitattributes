@@ -1,2 +1,4 @@
 # P29: the Tally XML snapshots are compared byte for byte, so they keep LF on every checkout, Windows included.
 server/tests/fixtures/tally/*.xml text eol=lf
+# The till launcher for Windows keeps CRLF, which cmd.exe expects.
+*.cmd text eol=crlf

@@ -111,6 +111,18 @@ export default function DeviceSettingsPage() {
           />
         )}
 
+        {/* 2026-10-10. A page cannot skip Chrome's print dialog; Chrome started with --kiosk-printing can. */}
+        {isTill && (
+          <section aria-labelledby="no-dialog" className="flex flex-col gap-1">
+            <h2 id="no-dialog" className="type-heading">Printing with no dialog</h2>
+            <p className="type-caption text-muted">
+              Chrome asks before every print, and this page cannot turn that off. To print bills straight to the bill printer, make it this
+              computer&apos;s default printer and open the till with the launcher from the repository&apos;s tools/silent-printing folder, one file for a Mac and
+              one for Windows. The till then opens in its own Chrome window that prints with no dialog, and everyday Chrome is left as it is.
+            </p>
+          </section>
+        )}
+
         {/* P25 Part I. Which card machine sits beside this device. */}
         {(features.terminals ?? []).length > 0 && (
           <Choice
