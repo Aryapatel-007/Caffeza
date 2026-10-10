@@ -1,0 +1,56 @@
+# P30. A backup pinger that keeps Render's free server awake in working hours.
+# docs/DEPLOYMENT.md section 14, "Keeping the free server awake".
+#
+# The main pinger is cron-job.org; StatusCake is the second and the alarm.
+# This is a backup, not the main pinger: GitHub may delay or skip scheduled
+# runs when it is busy, sometimes by many minutes.
+#
+# GitHub turns off scheduled workflows in a public repository after 60 days
+# with no commits. If the repository goes quiet, check this workflow in the
+# Actions tab and turn it back on.
+#
+# The window. GitHub's schedule is in UTC; India time is UTC plus 5:30.
+#   India time: every 10 minutes from 8:30 AM to 2:30 AM the next morning.
+#   UTC:        every 10 minutes from 3:00 to 20:59, which is "*/10 3-20 * * *".
+# To change it, convert the India times to UTC first, and keep the whole
+# Render account under 700 hours a month (the table in DEPLOYMENT.md).
+#
+# The address comes from the repository variable KEEP_AWAKE_URL (Settings,
+# Secrets and variables, Actions, Variables), for example
+# https://zchaat-pos-api.onrender.com/api/v1/wake. No secret is needed: the
+# address is public anyway.
+
+name: Keep the server awake
+
+on:
+  schedule:
+    - cron: '*/10 3-20 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Call the wake address
+        env:
+          KEEP_AWAKE_URL: ${{ vars.KEEP_AWAKE_URL }}
+        run: |
+          if [ -z "$KEEP_AWAKE_URL" ]; then
+            echo "Set the repository variable KEEP_AWAKE_URL first."
+            exit 1
+          fi
+          # Up to 3 tries, 90 seconds each, so a cold start is not a failure.
+          for try in 1 2 3; do
+            if curl --fail --silent --show-error --max-time 90 "$KEEP_AWAKE_URL"; then
+              echo
+              echo "Awake, on try $try."
+              exit 0
+            fi
+            echo "Try $try did not answer."
+            sleep 10
+          done
+          echo "The server did not answer in 3 tries."
+          exit 1
