@@ -536,6 +536,8 @@ Tests: 1,222 passing, 0 failing; no server change. `npm run e2e`: all 13 specs p
 
 Files touched: `client/vite.config.js`, `client/fontSubset.js` (new), `client/src/routes/` (new), `client/src/App.jsx`, `client/src/main.jsx`, `client/src/components/AppShell.jsx`, `client/src/features/printing/printBill.js`, `client/.gitignore`, `client/package.json`, `package-lock.json`, DESIGN-SYSTEM section 13c, `docs/PERFORMANCE-BASELINE.md`.
 
+Deployed 2026-10-10 from Rishi's Mac. Server: P31 pushed to `main` and rebuilt by Render, healthy with the database connected. Screens: `vercel build --prod` and `vercel deploy --prebuilt --prod` from `client/`, live at https://zchaat-pos.vercel.app (deployment `dpl_5AR1HgUJTQ1G6XaFVYHecFar9WoV`; the first attempt answered "Not authorized" and the retry went through). Checked live: the main script is 416,980 bytes with no development code (130,776 over the wire), the reports chunk and the Gujarati subset are served, the sign-in screen draws with no page error, and `/api` still reaches Render.
+
 Anything the other developer needs to know:
 Arya: pull and `npm install` (two new client dev dependencies). A new screen goes in a group in `client/src/routes/` unless it is used during service. A Gujarati or Hindi word anywhere in `client/src` is picked up by the font subset on the next build; if the subset cannot draw it the build stops and names it.
 

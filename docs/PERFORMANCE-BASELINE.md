@@ -315,3 +315,11 @@ Measured, local, at 380 and 1280 wide, the network slowed to 1.5 s latency and
 and while it arrived the frame stayed and the screen showed its still shape
 ("Opening the screen"). No sideways scroll on the floor or on Reports at
 either width.
+
+### 4. Deployed
+
+Measured, live, 2026-10-10, after the Vercel deploy: the main script on
+`zchaat-pos.vercel.app` is 416,980 bytes with none of React's development code
+(it was 1,453,593 with it), 130,776 bytes over the wire with Brotli. The
+reports chunk and the Gujarati subset (38,240 bytes) are served from the same
+address.
