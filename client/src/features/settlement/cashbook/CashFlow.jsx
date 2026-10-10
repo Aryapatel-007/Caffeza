@@ -39,10 +39,13 @@ export function flowSteps(book) {
 function DrawerCard({ book, wide = false }) {
   const seesTotal = book.cashInDrawerInPaise !== undefined;
   return (
-    <div className={['rounded-[10px] border-2 border-ink bg-surface p-4', wide ? 'min-w-0 flex-[1.4]' : ''].join(' ')}>
+    <div className={['@container min-w-0 rounded-[10px] border-2 border-ink bg-surface p-4', wide ? 'flex-[1.4]' : ''].join(' ')}>
       <p className="type-label text-muted">Cash in drawer</p>
       {seesTotal ? (
-        <Money paise={book.cashInDrawerInPaise} size="hero" tabular className="block" />
+        // Fits the card, as the stat tiles do: a lakh amount shrinks rather than running out of the box.
+        <p className="type-num-fit mt-1 text-ink">
+          <Money paise={book.cashInDrawerInPaise} tabular />
+        </p>
       ) : (
         <p className="type-body mt-1 text-muted">Counted at Day Close. The owner sees the total.</p>
       )}
@@ -72,10 +75,12 @@ export default function CashFlow({ book, onOpen }) {
             <button
               type="button"
               onClick={() => onOpen(step.key)}
-              className="flex h-full min-h-12 min-w-0 flex-1 flex-col items-start rounded-[10px] border border-line bg-surface p-4 text-left hover:bg-sunken"
+              className="@container flex h-full min-h-12 min-w-0 flex-1 flex-col items-start rounded-[10px] border border-line bg-surface p-4 text-left hover:bg-sunken"
             >
               <span className="type-label text-muted">{step.label}</span>
-              <Money paise={step.amountInPaise} size="tile" tabular />
+              <span className="type-num-fit-tile">
+                <Money paise={step.amountInPaise} tabular />
+              </span>
               <span className="type-caption text-muted">{step.note}</span>
             </button>
           </div>

@@ -513,7 +513,7 @@ Newest entry at the top. Keep the last ten or so, delete older ones.
 
 ### 2026-10-09 Arya, P29 bill edits, ready means served, print first, kitchen undo, the cash book
 
-Paused by the user before the push and the deploy. Everything is committed on Arya's machine and **not pushed**: a push to `main` deploys the server on Render by itself. The prompt is `docs/prompts/P29-bill-edits-ready-means-served-print-first-kitchen-undo-cash-book.md`.
+Built and checked. The prompt is `docs/prompts/P29-bill-edits-ready-means-served-print-first-kitchen-undo-cash-book.md`.
 
 ```
 P29 progress
@@ -523,7 +523,7 @@ P29 progress
 - [x] D Print before payment
 - [x] E Undo in the kitchen
 - [x] F The cash book
-- [ ] G Full check: suite (1,218 passing), lint, build, e2e and indexes done; the hand check at 380, 768 and 1280 not done
+- [x] G Full check
 ```
 
 Tests before Part A: 1,173, 1,172 passing, 1 failing (`tallyVouchers.test.js`, the stored XML: the fixtures check out with Windows line endings; fixed with `.gitattributes`).
@@ -542,7 +542,7 @@ On the cloud database (`cluster0.dkcsfcz`, `restaurant-erp`), done 2026-10-10 fr
 - `npm run db:indexes`: 37 collections, 0 created, 205 present, 0 failures.
 - `npm run migrate:ready-to-served`, dry run then `-- --apply`: Z Chaat, 3 ready lines served, 1 order moved to ready to bill. A second dry run: nothing to do. It does not need running again.
 
-Still to do: the hand check of the bill screen before and after printing, the kitchen's undo bar and Just done row, and the cash book at 380, 768 and 1280; then push, which deploys the server on Render, and deploy the screens to Vercel from `client/` (`vercel build --prod`, `vercel deploy --prebuilt --prod`), DEPLOYMENT.md section 14.
+Checked by hand, 2026-10-10, through a throwaway browser script on the golden day (not kept): the bill screen before printing (the print step first, Remove on each line, the revision "Removed: 1 × Water Bottle, ₹900.00 to ₹851.00") and after (the methods and keypad, Print bill in the header), the kitchen's undo bar and its Just done row, and the cash book as the owner, as the cashier (the drawer total blind) and its Close the day sheet, each at 380, 768 and 1280: no sideways scroll anywhere. One thing found and fixed: with a lakh-sized top-up, the cash book's figures at 1280 ran out of their cards and into the signs between them. The drawer card now uses `type-num-fit`, and the five step cards a new `type-num-fit-tile` (`index.css`), both sized to their card, as the home screen tiles were on 3 October. Not looked at: the 130% text size, and a real phone or printer.
 
 Endpoints added by P29: `POST /bills/:billId/remove-lines`, `POST /kots/:kotId/lines/:lineId/undo-ready`, `POST /kots/:kotId/undo-ready`, `GET /cash-book`. Fields: DB-SCHEMA section 43.
 
