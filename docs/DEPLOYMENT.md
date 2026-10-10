@@ -350,6 +350,13 @@ vercel build --prod
 vercel deploy --prebuilt --prod
 ```
 
+On a machine that has never deployed, once: `npx vercel login`, then from
+`client/` `npx vercel link --yes --project zchaat-pos --scope aryas-projects-0d1567ce`
+and `npx vercel pull --yes --environment=production`. They write `client/.vercel/`
+and `client/.env.local` (a Vercel token), both git-ignored. Vercel also starts its
+own build on every push to `main`, and that build fails every time, as the
+decision log says; a failed build never replaces the live site, so ignore it.
+
 **What the free plan costs.** The server sleeps after 15 minutes with no
 request and takes about a minute to wake, so the first screen after a quiet
 spell waits. Asleep, it runs no background jobs (partner retries, card machine
