@@ -545,6 +545,7 @@ A test fails the build if any component contains a raw hex colour, or any versio
 9. **Loading.** `Spinner` no longer spins: it draws the screen's shape in `sunken`, still, a heading and rows. Screens that showed "Loading..." text show it too. A button that is working shows three still dots. A test fails on `animate-spin`, `animate-pulse`, `animate-ping` or `animate-bounce` anywhere in the client.
 10. **Empty lists say what to do next.** Page-level lists use `EmptyState` with a next step; an empty list inside a card keeps its one quiet line and gains the next step.
 11. **One title per screen.** The kitchen's "All caught up" was a second `title`; it is an `EmptyState`. The sign-in screen without a brand shows the name as a `heading`.
+12. **A lazy screen loads in its shape** (P32). A back-office screen arrives in its own chunk the first time it opens. While it does, `AppShell`'s `Suspense` shows `ScreenLoading`: the frame stays where it is and the content area draws `Spinner` at `lg`, still, labelled "Opening the screen". The guest's page does the same. A fallback is never `null`, which reads as a broken screen.
 
 ## 14. How to check a screen
 

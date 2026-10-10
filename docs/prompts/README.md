@@ -39,5 +39,6 @@ The full table, with dependencies and owners, is in
 | P29 | Bill edits without voids, ready means served, print before payment, undo in the kitchen, and a clear cash book | Done 2026-10-10. Rishi's read outstanding. |
 | P30 | Performance baseline and hosting | Done 2026-10-10. Stays on Render's free plan, by Rishi's choice. |
 | P31 | Compression and request latency | Done 2026-10-10. |
+| P32 | The client's weight | Done 2026-10-10. Not yet checked on a device at Z Chaat. |
 
 Prompt files that do not exist yet are added as they are written.

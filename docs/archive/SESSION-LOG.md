@@ -1,5 +1,14 @@
 # Session log, archived from PROJECT-STATE.md
 
+### 2026-10-01 Rishi, new delivery order on one screen (ahead of P20)
+
+What was built or decided:
+`/orders/delivery` is now one screen from the user's design: platform cards, the platform order number and an optional customer name, the menu, and a "Delivery order summary" beside it with steppers, item total and the 0% GST note. The order is a draft on the screen until Send to kitchen, which creates it with its lines in one `POST /orders` (the contract already takes `lines` on create) and then fires it; Save without sending creates it only; Clear throws the draft away. A platform number already on an open order is refused by the server, and the screen links to that order. The summary prices are the menu's, for reading out; the server prices the lines and the bill decides GST.
+
+Left out: Own Delivery (not a platform in `config/platforms.js`), rider details and ETA, live queue counts, Scan QR, "Aggregator Bridge", dish photos and codes, packaging charge, an order-level discount (discounts are on the bill), Print KOT (the kitchen screen prints) and rider note.
+
+Checked in headless Chromium as the demo cashier: Swiggy, three dishes including a Half size, sent to the kitchen and landing on the order; the same number again refused with the link; no sideways scroll at 390 wide; no page errors. Lint and build pass.
+
 ### 2026-10-01 Rishi, discount drawer, bills ledger and receipt preview (ahead of P18 to P20)
 
 What was built or decided:

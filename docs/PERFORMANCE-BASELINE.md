@@ -233,4 +233,85 @@ to build the answer it compares against. Cutting the queries is P33's job.
 
 ### 4. Deployed
 
-Filled in after the push, below.
+Measured, live, 2026-10-10, after `main` was pushed and Render rebuilt (the
+health check's uptime started after the push):
+
+- Render's edge passes our own compression through rather than redoing it. A
+  request for the main script asking `br` got `br` (221,534 bytes), asking
+  `gzip` got `gzip` (224,286), and a browser's usual `gzip, deflate, br` got
+  `br`. So compressing at the app downgrades nobody from Brotli to gzip.
+- Not checked live: a signed-in JSON read such as `GET /menu`, and a logo or
+  dish photo, both of which need a staff session this session did not have.
+  The tests cover both (`compression.test.js`); on a device, the network tab
+  should show `content-encoding: br` on `/api/v1/menu` and none on a photo.
+
+---
+
+## P32, 2026-10-10
+
+### 1. The build
+
+Built on Rishi's Mac:
+
+| Asset | P30 as built here (development React) | P30, production | P32 | 
+|---|---|---|---|
+| Main chunk `index-*.js` | 1,491.35 kB, gzip 325.47 kB | 782.41 kB, gzip 225.50 kB | **416.98 kB, gzip 126.44 kB** |
+| `PublicSite-*.js` | 87.49 kB, gzip 14.64 kB | 41.25 kB, gzip 11.72 kB | 41.31 kB, gzip 11.76 kB |
+| `index-*.css` | 59.89 kB, gzip 11.41 kB | 59.89 kB, gzip 11.41 kB | 58.31 kB, gzip 11.35 kB |
+
+What changed:
+
+1. **The build is production again.** `client/vite.config.js` no longer lets
+   the root `.env`'s `NODE_ENV=development` turn the build into a development
+   build, and a production build now fails if React's development code is in
+   it (tried on purpose: it fails, naming the chunk).
+2. **The back office is lazy.** Ten groups load on first use, from
+   `client/src/routes/`. The largest: settings 24.40 kB gzip, settlement
+   15.64 kB, reports 14.27 kB, integrations 9.65 kB. The service screens
+   (sign-in, home, floor, order, takeaway, kitchen, bill) stay in the main chunk.
+3. **The QR code library loads when a bill with a review link prints**
+   (10.13 kB gzip), not with the app.
+
+The main chunk is 44% smaller than P30's production build, not "well under
+half" as P32 hoped. What is left is mostly what every screen needs: React DOM
+alone is 131 kB of it before compression, React Query 42 kB, the router 23 kB,
+and the service screens themselves. Vite no longer warns about chunk size.
+
+Against what Z Chaat was actually downloading, the live development build of
+1,453,593 bytes, the main chunk is 417 kB: less than a third.
+
+### 2. The fonts
+
+| Font | Before | P32 subset |
+|---|---|---|
+| Anek Gujarati, Gujarati | 450.19 kB | **38.24 kB** (63 words) |
+| Anek Devanagari, Devanagari | 726.16 kB | **47.33 kB** (74 words) |
+
+The subsets are made from every Gujarati and Devanagari word in `client/src`:
+the labels in `gu.js` and `hi.js`, and the attendance clock's two Hindi
+lines. A subset of their characters alone was 326 kB and 547 kB, because the
+virama pulls in every conjunct the characters could form; so each word is
+shaped with HarfBuzz and the subset keeps exactly the glyphs shaping used.
+Every word is then shaped again with the subset and compared with the full
+font at nine weight and width settings; any difference fails the build
+(tried on purpose: it fails, naming the words).
+
+Measured, local, in Chromium, after signing in:
+
+| What was on screen | Font files fetched |
+|---|---|
+| The floor, the takeaway start and an empty order, Gujarati on | Anek Latin only. None of these screens shows a Gujarati word. |
+| The app's Gujarati words drawn | `anek-gujarati-subset` only |
+| The clock screen's Hindi line drawn | `anek-devanagari-subset` only |
+
+**Devanagari was not being fetched for a Gujarati restaurant** before P32
+either: nothing outside the attendance clock writes Devanagari, and
+attendance is off at Z Chaat.
+
+### 3. The first lazy screen
+
+Measured, local, at 380 and 1280 wide, the network slowed to 1.5 s latency and
+50 kB/s: going from the floor to Reports fetched the reports chunk only then,
+and while it arrived the frame stayed and the screen showed its still shape
+("Opening the screen"). No sideways scroll on the floor or on Reports at
+either width.

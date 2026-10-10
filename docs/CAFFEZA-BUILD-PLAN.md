@@ -102,6 +102,7 @@ Each prompt names its model at the top.
 | P29 | Bill edits without voids, ready means served, print before payment, undo in the kitchen, and a clear cash book | M2, M3, M16, M18, M19, M21 | P28 | Arya | Opus, high |
 | P30 | Performance baseline and hosting | Phase 2 hosting | P29 | Rishi | Sonnet, medium |
 | P31 | Compression and request latency | Phase 2 | P30 | Rishi | Sonnet, medium |
+| P32 | The client's weight | M20 | P30 | Rishi | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

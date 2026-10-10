@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-10 by Rishi (P31 compression and request latency)
+Last updated: 2026-10-10 by Rishi (P32 the client's weight)
 
 ---
 
@@ -34,7 +34,7 @@ the cloud database (see the P29 entry below).
 
 The cloud database (`cluster0.dkcsfcz`, `restaurant-erp`) holds Z Chaat, set
 up with its menu and five logins, and a duplicate "zchaat" waiting on Rishi's
-choice of which stays. No bill has been made there. Next: P32, the client's weight. After it, the rest of the
+choice of which stays. No bill has been made there. Next: P33, the live channel. After it, the rest of the
 profile's section 15 from Z Chaat, then the gates in `docs/GO-LIVE.md`,
 tracked in `docs/GO-LIVE-READINESS.md`.
 
@@ -497,6 +497,10 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-10 | `authenticate`'s user and restaurant reads run together, not one after the other. | They do not depend on each other, and two serial round trips to the database sat on the front of every authenticated request (measured from Rishi's Mac: 193 ms one after the other, 77 ms together). No cache was added: the role is still read live, and the checks still run user first. |
 | 2026-10-10 | The restaurant document stays fully loaded in `authenticate`. | `settingsService` reads it from `req.currentRestaurant` and checks only the `_id`, so trimming `settings` would hand every caller schema defaults with nothing failing. Written beside the read. |
 | 2026-10-10 | No conditional-request handling was built: a repeated poll already gets a 304 from Express's weak ETags. | Measured against live data. A 304 saves bandwidth, not the queries; cutting those is P33's. |
+| 2026-10-10 | The back-office routes are lazy; the service screens stay eager. | A captain's phone was downloading Tally, the report engine and the integration settings to draw a floor. The screens someone opens forty times a day (sign-in, home, floor, order, takeaway, kitchen, bill) must never wait for a chunk. Ten groups in `client/src/routes/`, one `import()` each; `AppShell`'s `Suspense` draws the still shape meanwhile. |
+| 2026-10-10 | The second-language fonts are subsetted at build time from every Gujarati and Devanagari word in `client/src`, and the build fails if the subset draws any of those words differently from the full font. | Anek Gujarati is 450 kB and the labels need a few dozen words. A subset of their characters alone stayed at 326 kB, because the virama keeps every conjunct, so each word is shaped with HarfBuzz and the subset keeps exactly the glyphs it used: 38 kB, and 47 kB for Devanagari. A broken word must break the build, not a cashier's screen. |
+| 2026-10-10 | `client/vite.config.js` reads the root `.env` without letting its `NODE_ENV=development` decide the build, and a production build fails if React's development code is in it. | Vite's `loadEnv` copied that value into `VITE_USER_NODE_ENV`, so every build from a developer machine, every Vercel deploy included, was React's development build: twice the JavaScript and slower. Found in P30. |
+| 2026-10-10 | The QR code library loads when a bill with a review link prints, not with the app. | It is 10 kB gzip that most bills and every restaurant without a review link never use. Fetched once, then cached for good. |
 ---
 
 ## Open questions
@@ -518,6 +522,22 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-10 Rishi, P32 the client's weight
+
+What was built or decided:
+1. The build is production again. `client/vite.config.js` stops the root `.env`'s `NODE_ENV=development` turning `vite build` into a development build, which is what the live Vercel site had been running; a production build now fails if React's development code is in it.
+2. The back office is lazy: ten groups in `client/src/routes/`, loaded on first use. The service screens stay in the main chunk. `ScreenLoading` in `AppShell.jsx` is the `Suspense` fallback, the screen's still shape, for the guest's page too.
+3. `client/fontSubset.js`, a Vite plugin run on every build and dev start, subsets Anek Gujarati and Anek Devanagari to the words in `client/src`, by shaping each word with HarfBuzz, and fails the build if the subset draws any word differently. Output in `client/src/fonts/generated/`, git-ignored. New client dev dependencies: `harfbuzzjs`, `fontverter`.
+4. The QR library loads when a bill with a review link prints.
+Figures (built here): main chunk 782.41 kB / 225.50 kB gzip (P30, production) to 416.98 kB / 126.44 kB gzip; Gujarati font 450.19 to 38.24 kB; Devanagari 726.16 to 47.33 kB. Devanagari was not being fetched for a Gujarati restaurant before or after. Full figures in `docs/PERFORMANCE-BASELINE.md`.
+
+Tests: 1,222 passing, 0 failing; no server change. `npm run e2e`: all 13 specs pass, with no wait added. Lint and build pass, with no chunk-size warning. Both build checks were broken on purpose and failed as they should. Checked in Chromium at 380 and 1280 with the network slowed: going from the floor to Reports fetches the reports chunk only then, shows the still shape inside the frame, and nothing scrolls sideways. Not checked: 130% text size, and a real device at Z Chaat.
+
+Files touched: `client/vite.config.js`, `client/fontSubset.js` (new), `client/src/routes/` (new), `client/src/App.jsx`, `client/src/main.jsx`, `client/src/components/AppShell.jsx`, `client/src/features/printing/printBill.js`, `client/.gitignore`, `client/package.json`, `package-lock.json`, DESIGN-SYSTEM section 13c, `docs/PERFORMANCE-BASELINE.md`.
+
+Anything the other developer needs to know:
+Arya: pull and `npm install` (two new client dev dependencies). A new screen goes in a group in `client/src/routes/` unless it is used during service. A Gujarati or Hindi word anywhere in `client/src` is picked up by the font subset on the next build; if the subset cannot draw it the build stops and names it.
 
 ### 2026-10-10 Rishi, P31 compression and request latency
 
@@ -987,15 +1007,6 @@ The prompts P16 to P21, P20A, P20B and `DESIGN-SYSTEM-V2.md` were added to `docs
 Anything now blocked or unblocked:
 P17 can start. P18 has R11 to R13.
 
-### 2026-10-01 Rishi, new delivery order on one screen (ahead of P20)
-
-What was built or decided:
-`/orders/delivery` is now one screen from the user's design: platform cards, the platform order number and an optional customer name, the menu, and a "Delivery order summary" beside it with steppers, item total and the 0% GST note. The order is a draft on the screen until Send to kitchen, which creates it with its lines in one `POST /orders` (the contract already takes `lines` on create) and then fires it; Save without sending creates it only; Clear throws the draft away. A platform number already on an open order is refused by the server, and the screen links to that order. The summary prices are the menu's, for reading out; the server prices the lines and the bill decides GST.
-
-Left out: Own Delivery (not a platform in `config/platforms.js`), rider details and ETA, live queue counts, Scan QR, "Aggregator Bridge", dish photos and codes, packaging charge, an order-level discount (discounts are on the bill), Print KOT (the kitchen screen prints) and rider note.
-
-Checked in headless Chromium as the demo cashier: Swiggy, three dishes including a Half size, sent to the kitchen and landing on the order; the same number again refused with the link; no sideways scroll at 390 wide; no page errors. Lint and build pass.
-
 ---
 
 ## Known problems
@@ -1040,7 +1051,7 @@ Things that are broken or half done, so nobody rediscovers them.
 | `npm run seed:golden` and the e2e config's webServer command started with `NODE_ENV=test`, which Windows `cmd` cannot run. | Arya, P22 | FIXED 2026-10-02: both use the `scripts/lib/asTest.js` preload. |
 | The general rate limit would likely trip during a normal Caffeza service. `generalLimiter` allows 600 requests per 15 minutes per address. Every device in the cafe shares one address. It runs before static files too. Polling alone, before anyone taps anything: five captain phones on the floor at 15 seconds is 300, two kitchen tablets at 10 seconds is 180, and the dashboard at 15 and 60 seconds is 75. That is about 555. Once the limit is reached, every device in the cafe gets 429 until the window passes. `npm run e2e:cloud` uses one device per role, so it cannot catch this. | Rishi, 2026-10-08, while specifying P23 | FIXED 2026-10-08: 5,000 per address on the API only, 1,000 per signed-in user, public pages apart. |
 | `reports.test.js` "a voided attendance entry contributes no minutes" fails when run between 5:00 and 9:00 AM India time. Its shift starts four hours before the real clock, so in that window it lands on yesterday's business date. | Rishi, 2026-10-08 | OPEN. A test problem, not a product one: fails the same way on `ea76a46`. Fix by setting the clock with `setClockForTests` like the newer tests. |
-| A guest opening the public page downloads the whole staff app bundle (about 1.2 MB, 270 KB compressed) as well as the page's own 52 KB chunk, because the staff screens are not lazy-loaded. | Rishi, 2026-10-08 | OPEN. Fine on 4G, slow on a weak signal. Fix by lazy-loading the staff routes in `App.jsx`. |
+| A guest opening the public page downloads the whole staff app bundle (about 1.2 MB, 270 KB compressed) as well as the page's own 52 KB chunk, because the staff screens are not lazy-loaded. | Rishi, 2026-10-08 | FIXED 2026-10-10 in P32. The back office is in chunks of its own and the build is production again: a guest now downloads the main chunk, 126.44 kB gzip, and the page's own 11.76 kB. The service screens stay in the main chunk on purpose. |
 | The online page address has no printable QR code yet, only a link with Copy. | Rishi, 2026-10-08 | OPEN. Needs a small client QR library, which is a dependency decision. |
 | Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |
 | The API is on Render's free plan, so it sleeps after fifteen minutes with no request, and the first screen after that waits for it to start: about a minute by Render's account. Not measured, because Z Chaat was in service all through P30; `docs/PERFORMANCE-BASELINE.md` section 1 has the command to run before opening. | Rishi, P30, 2026-10-10 | OPEN by Rishi's choice. A paid plan removes it with no code change: `plan: starter` in `render.yaml`. |
