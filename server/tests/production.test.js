@@ -112,7 +112,8 @@ describe('the smoke check', () => {
     assert.deepEqual(failed, [], JSON.stringify(failed));
     assert.equal(byName(results, 'plain http').status, 'skip');
     assert.equal(byName(results, 'plain http').detail, 'skipped for http');
-    assert.equal(results.length, 8);
+    // P30 added the wake address check, on purpose.
+    assert.equal(results.length, 9);
   });
 
   it('fails the page checks against a server that does not serve the client', async () => {

@@ -9,7 +9,7 @@ import { after, before, describe, it } from 'node:test';
 
 import mongoose from 'mongoose';
 
-import { ALL_MODELS } from '../models/index.js';
+import { ALL_MODELS, SERVER_MODELS } from '../models/index.js';
 import { parseArgs, purgePlan, purgeRestaurant } from '../scripts/purgeRestaurant.js';
 import { createMenuItem, createTable, seedTeam } from './helpers/m2Fixtures.js';
 import { startTestDatabase, stopTestDatabase } from './helpers/testDatabase.js';
@@ -52,7 +52,10 @@ describe('the purge tool', () => {
     const plan = purgePlan();
     assert.deepEqual(
       plan.map((step) => step.collection).sort(),
-      ALL_MODELS.map((model) => model.collection.collectionName).sort(),
+      // P30: the server's own records belong to no restaurant, and are left out on purpose.
+      ALL_MODELS.filter((model) => !SERVER_MODELS.includes(model))
+        .map((model) => model.collection.collectionName)
+        .sort(),
     );
     const unscoped = mongoose.model('PurgeTestUnscoped', new mongoose.Schema({ name: String }));
     assert.throws(() => purgePlan([...ALL_MODELS, unscoped]), /has no restaurantId/);

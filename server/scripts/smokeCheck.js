@@ -56,6 +56,15 @@ export async function runSmokeChecks(baseUrl) {
     return { status: 'pass', detail: `release ${data.release ?? 'not set'}` };
   });
 
+  // P30. What the pingers call: it must answer, and never from a cache.
+  await check('the wake address answers, never cached', async () => {
+    const response = await get(`${base}/api/v1/wake`);
+    if (response.status !== 200 || response.json?.data?.ok !== true) return { status: 'fail', detail: `status ${response.status}` };
+    const cache = response.headers?.get?.('cache-control') ?? null;
+    if (cache !== null && cache !== 'no-store') return { status: 'fail', detail: `Cache-Control ${cache}` };
+    return { status: 'pass', detail: `up ${response.json.data.uptimeSeconds} s` };
+  });
+
   await check('the home page is the app', async () => {
     const response = await get(`${base}/`);
     html = response.text;

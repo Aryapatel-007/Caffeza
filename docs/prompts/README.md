@@ -40,5 +40,6 @@ The full table, with dependencies and owners, is in
 | P30 | Performance baseline and hosting | Done 2026-10-10. Stays on Render's free plan, by Rishi's choice. |
 | P31 | Compression and request latency | Done 2026-10-10. |
 | P32 | The client's weight | Done 2026-10-10. Not yet checked on a device at Z Chaat. |
+| P30 (keep awake) | Keep the free server awake | Done 2026-10-10. Its prompt is numbered P30 too, written the same day as the row above; see the decision log. The three pingers still need setting up by hand, DEPLOYMENT.md section 14. Rishi's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.

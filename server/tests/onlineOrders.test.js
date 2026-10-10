@@ -415,6 +415,9 @@ describe('the inbox and permissions', () => {
       alertRoles: ['OWNER', 'MANAGER', 'CASHIER'],
       publicSlug: world.slug,
       pausedUntil: null,
+      // P30 added the opening hours, on purpose, for the heartbeat.
+      opensAtMinutes: 600,
+      closesAtMinutes: 1380,
       // P25 Part H. No delivery platform connected.
       platformChannels: [],
     });

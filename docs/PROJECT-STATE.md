@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-10 by Rishi (P32 the client's weight)
+Last updated: 2026-10-10 by Rishi (P32 the client's weight) and Arya (P30 keep the free server awake)
 
 ---
 
@@ -501,6 +501,12 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-10 | The second-language fonts are subsetted at build time from every Gujarati and Devanagari word in `client/src`, and the build fails if the subset draws any of those words differently from the full font. | Anek Gujarati is 450 kB and the labels need a few dozen words. A subset of their characters alone stayed at 326 kB, because the virama keeps every conjunct, so each word is shaped with HarfBuzz and the subset keeps exactly the glyphs it used: 38 kB, and 47 kB for Devanagari. A broken word must break the build, not a cashier's screen. |
 | 2026-10-10 | `client/vite.config.js` reads the root `.env` without letting its `NODE_ENV=development` decide the build, and a production build fails if React's development code is in it. | Vite's `loadEnv` copied that value into `VITE_USER_NODE_ENV`, so every build from a developer machine, every Vercel deploy included, was React's development build: twice the JavaScript and slower. Found in P30. |
 | 2026-10-10 | The QR code library loads when a bill with a review link prints, not with the app. | It is 10 kB gzip that most bills and every restaurant without a review link never use. Fetched once, then cached for good. |
+| 2026-10-10 | P30 (keep awake): Render's free server is kept awake by outside pingers during working hours only: cron-job.org the main one, StatusCake the second and the alarm, and a GitHub Actions workflow (`.github/workflows/keep-awake.yml`) as a backup, all calling the database-free `GET /api/v1/wake`, 8:30 AM to 2:30 AM India time by default. Every open, visible, signed-in screen also pings it every 5 minutes inside working hours plus 30 minutes. | The owner does not want a paid plan. Render's 750 free hours a month are shared by every free service on the account, so always on would leave nothing spare; the default window is about 560 hours. |
+| 2026-10-10 | P30 (keep awake): during a cold start a read (GET) is tried again after 3, 6, 12, 20 and 30 seconds under a "Starting the server" bar; a write (POST, PUT, PATCH, DELETE) is never sent twice, and fails as `SERVER_NOT_CONFIRMED` with "Check the bill before trying again" and a Reload this screen button. The rule is `shouldRetry` in `client/src/api/coldStart.js`, tested from the server suite. | A write that timed out may have reached the server; a second try could make a second bill or record a payment twice. |
+| 2026-10-10 | P30 (keep awake): `serverstarts` records each start (`FIRST`, `DEPLOY` or `RESTART`, by the release), kept 60 days, read by the owner on Settings, Server. It has no `restaurantId`, so `models/index.js` gains `SERVER_MODELS`, which the purge tool and the seed wipe skip. `RELEASE_VERSION` falls back to Render's own `RENDER_GIT_COMMIT`. | A deploy is a start but not a sleep, and Render never set `RELEASE_VERSION`, so without the fallback every deploy would have read as a wake. |
+| 2026-10-10 | P30 (keep awake), built differently: the heartbeat follows the online page's opening hours only while the online page is switched on; otherwise every hour counts. `/auth/me` `online` gains `opensAtMinutes` and `closesAtMinutes`. | The opening hours always have a stored default (10:00 AM to 11:00 PM), so "no hours set" never happens; while the page is off those times are a default nobody chose. |
+| 2026-10-10 | P30 (keep awake): the wake limiter, 60 a minute per address, is the one limiter that also runs under `NODE_ENV=test`. | The prompt asks for its limit to be tested. |
+| 2026-10-10 | Two prompts written the same day both carry the number P30: Rishi's "Performance baseline and hosting" and Arya's "Keep the free server awake". Both are kept under their own file names, and the second is written "P30 (keep awake)" wherever the two could be confused. | Found when Arya's P30 was rebased onto Rishi's P30 to P32. Renumbering either would break the prompt's own references; the next prompt is P33. |
 ---
 
 ## Open questions
@@ -523,6 +529,22 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-10 Arya, P30 (keep awake) keep the free server awake
+
+What was built or decided:
+The prompt is `docs/prompts/P30-keep-the-free-server-awake.md`. Spec first (`spec the wake address, server starts and the cold start handling`): API-CONTRACT "P30", DB-SCHEMA section 44, GLOSSARY section 21.
+1. Server: `GET /api/v1/wake` (no database, its own limiter of 60 a minute, logged at debug, `Cache-Control: no-store`); `/health` gains `startedAt` and `no-store`; `serverstarts` written as the server starts listening (`services/serverStartService.js`); `GET /api/v1/system/starts?days=7`, owner only, per business date with the starts in working hours and the days the server slept.
+2. Screens: the heartbeat (`features/system/ServerHeartbeat.jsx`), the cold start handling in `api/client.js` with the rules in `api/coldStart.js`, the bar (`components/ServerStartingBar.jsx`, state in `api/serverWaking.js`), the first-load check (`api/system.js` `watchServerOnLoad`), and the Server card in Settings (`features/settings/ServerCard.jsx`).
+3. `.github/workflows/keep-awake.yml`, and DEPLOYMENT.md section 14 "Keeping the free server awake" (the hours budget, cron-job.org, StatusCake, GitHub Actions, the heartbeat). GO-LIVE-READINESS item 11 says which pingers are not set up yet.
+4. `npm run smoke` checks `/api/v1/wake`.
+
+Tests: 1,218 before, 1,231 after, 0 failing. New: `serverStarts.test.js` (7), `coldStart.test.js` (6). Four pinned tests changed on purpose: the health fields (`app.test.js`), `/auth/me`'s online block (`onlineOrders.test.js`), the smoke check count (`production.test.js`) and the purge tool's models (`purgeRestaurant.test.js`). Lint and build pass. `npm run e2e`: all 13 specs pass.
+Checked by hand: the production server (`NODE_ENV=production`, a built client, an in-memory database with its 206 indexes built) answered `/wake` with `no-store`, wrote one `serverstarts` row, and still answered `/wake` once its database was stopped, with no `/wake` line in its log. Through the screens, with a throwaway browser script (not kept) that answered the API with 503 and an HTML page: a report showed the "Starting the server" bar and loaded by itself once the API answered; a cash payment was sent exactly once, showed "could not confirm" with Reload this screen, and the bill stayed unpaid; the sign-in screen at 380 wide showed the bar before anyone signed in. Not checked: a real Render cold start, and signing in after a real overnight sleep.
+
+Anything the other developer needs to know:
+Every network call still goes through `api/client.js`, so a new screen gets the cold start handling for free. The bar is fixed at the top and covers the top bar while it shows. `/system/starts` reads one collection shared by every restaurant: it is about the server, not a restaurant.
+
+Still to do by hand (Arya): cron-job.org, StatusCake and the `KEEP_AWAKE_URL` repository variable, DEPLOYMENT.md section 14. The heartbeat and the bar reach Z Chaat only after a Vercel deploy from `client/`.
 ### 2026-10-10 Rishi, P32 the client's weight
 
 What was built or decided:

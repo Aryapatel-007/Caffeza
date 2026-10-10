@@ -33,7 +33,8 @@ describe('GET /api/v1/health', () => {
     assert.deepEqual(
       Object.keys(body.data).sort(),
       // `release` added by P12, from RELEASE_VERSION.
-      ['database', 'environment', 'release', 'status', 'uptimeSeconds'],
+      // P30 added startedAt, on purpose.
+      ['database', 'environment', 'release', 'startedAt', 'status', 'uptimeSeconds'],
     );
 
     assert.equal(body.data.status, 'ok');
