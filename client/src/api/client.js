@@ -9,7 +9,21 @@
  * the login screen every fifteen minutes.
  */
 
+import { shouldRetry } from './coldStart.js';
+import { beginWaiting, endWaiting, markUnconfirmed } from './serverWaking.js';
+
 export const API_BASE_URL = '/api/v1';
+
+/**
+ * P30. How long one request may take before it counts as the server not
+ * answering. Long enough for any real request, short enough that a person is
+ * told something within the minute a cold start takes.
+ */
+const REQUEST_TIMEOUT_MS = 30_000;
+
+/** P30. A write sent while the server woke, which it may or may not have received. */
+export const SERVER_NOT_CONFIRMED_MESSAGE =
+  'The server was starting and we could not confirm this went through. Check the bill before trying again.';
 
 /**
  * An API failure, carrying the code from the server.
@@ -87,6 +101,33 @@ async function readEnvelope(response) {
   throw new ApiError({ ...envelope?.error, status: response.status });
 }
 
+/**
+ * P30. A cold start, as the fetch saw it: a status and a content type when
+ * something answered, `isTimeout` when nothing did. Thrown by `sendRequest`
+ * and caught by `sendWithColdStart`, never seen outside this file.
+ */
+class ColdStartFailure extends Error {
+  constructor({ status = null, contentType = null, isTimeout = false }) {
+    super('The server did not answer.');
+    this.status = status;
+    this.contentType = contentType;
+    this.isTimeout = isTimeout;
+  }
+}
+
+/** The caller's own signal, plus our timeout. Aborting either aborts the fetch. */
+function withTimeout(signal) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), REQUEST_TIMEOUT_MS);
+  if (signal) {
+    if (signal.aborted) controller.abort(signal.reason);
+    else signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true });
+  }
+  return { signal: controller.signal, done: () => clearTimeout(timer) };
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function sendRequest(path, { method = 'GET', body, signal } = {}) {
   const headers = {
     // Marks every call as one the app made deliberately. /auth/refresh and
@@ -97,16 +138,76 @@ async function sendRequest(path, { method = 'GET', body, signal } = {}) {
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    // Sends the httpOnly refresh-token cookie to the auth endpoints.
-    credentials: 'include',
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal,
-  });
+  const timed = withTimeout(signal);
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      // Sends the httpOnly refresh-token cookie to the auth endpoints.
+      credentials: 'include',
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: timed.signal,
+    });
+  } catch (error) {
+    // The caller cancelled: not ours to retry or report.
+    if (signal?.aborted) throw error;
+    // Timed out, or never reached anything: the server may be waking.
+    throw new ColdStartFailure({ isTimeout: true });
+  } finally {
+    timed.done();
+  }
+
+  // P30. Render waking, or Vercel's forwarding giving up on it: 502, 503, 504,
+  // or an HTML page where our JSON should be.
+  const contentType = response.headers.get('content-type');
+  if ([502, 503, 504].includes(response.status) || /text\/html/i.test(contentType ?? '')) {
+    throw new ColdStartFailure({ status: response.status, contentType });
+  }
 
   return readEnvelope(response);
+}
+
+/**
+ * P30. Sends one request through a cold start.
+ *
+ * A GET is tried again after 3, 6, 12, 20 and 30 seconds while the bar at the
+ * top says the server is starting, and gives up after that. A write never is:
+ * it may have reached the server, so it fails with SERVER_NOT_CONFIRMED and the
+ * bar offers to reload the screen's data. The rules are `shouldRetry`, tested
+ * on their own.
+ */
+async function sendWithColdStart(path, options = {}) {
+  const method = (options.method ?? 'GET').toUpperCase();
+  let waiting = false;
+  try {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await sendRequest(path, options);
+      } catch (error) {
+        if (!(error instanceof ColdStartFailure)) throw error;
+        const delay = shouldRetry({ method, status: error.status, contentType: error.contentType, isTimeout: error.isTimeout, attempt });
+        if (delay === null) {
+          if (method !== 'GET') {
+            markUnconfirmed();
+            throw new ApiError({ code: 'SERVER_NOT_CONFIRMED', message: SERVER_NOT_CONFIRMED_MESSAGE, status: error.status });
+          }
+          throw new ApiError({
+            code: 'SERVER_STARTING',
+            message: 'The server is still starting. Try again in a minute.',
+            status: error.status,
+          });
+        }
+        if (!waiting) {
+          waiting = true;
+          beginWaiting();
+        }
+        await sleep(delay);
+      }
+    }
+  } finally {
+    if (waiting) endWaiting();
+  }
 }
 
 /**
@@ -118,7 +219,7 @@ async function sendRequest(path, { method = 'GET', body, signal } = {}) {
  */
 async function request(path, options = {}) {
   try {
-    return await sendRequest(path, options);
+    return await sendWithColdStart(path, options);
   } catch (error) {
     const isExpired = error instanceof ApiError && error.code === 'TOKEN_EXPIRED';
     if (!isExpired) throw error;
@@ -133,7 +234,7 @@ async function request(path, options = {}) {
     setAccessToken(newToken);
 
     try {
-      return await sendRequest(path, options);
+      return await sendWithColdStart(path, options);
     } catch (retryError) {
       if (retryError instanceof ApiError && retryError.code === 'TOKEN_EXPIRED') {
         onSessionLost?.();

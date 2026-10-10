@@ -7886,7 +7886,7 @@ start and its opening hours, to group and judge them.
       }
     ],
     "starts": [
-      { "id": "...", "startedAt": "2026-10-10T02:59:40.000Z", "release": "7126e3a", "reason": "DEPLOY", "inWorkingHours": false }
+      { "id": "...", "startedAt": "2026-10-10T02:59:40.000Z", "businessDate": "2026-10-10", "release": "7126e3a", "reason": "DEPLOY", "inWorkingHours": false }
     ],
     "workingHours": { "opensAtMinutes": 600, "closesAtMinutes": 1380, "fromOnlineSettings": true },
     "sleptInWorkingHours": ["2026-10-09"]

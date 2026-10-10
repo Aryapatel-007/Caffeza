@@ -4,6 +4,9 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import App from './App.jsx';
+import { watchServerOnLoad } from './api/system.js';
+import ServerStartingBar from './components/ServerStartingBar.jsx';
+import ServerHeartbeat from './features/system/ServerHeartbeat.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ThemeProvider } from './context/ThemeProvider.jsx';
 
@@ -57,12 +60,17 @@ const queryClient = new QueryClient({
   },
 });
 
+// P30. Before the sign-in screen: if the server has not answered in 2 seconds, say it is starting.
+watchServerOnLoad();
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
           <ThemeProvider>
+            <ServerStartingBar />
+            <ServerHeartbeat />
             <App />
           </ThemeProvider>
         </AuthProvider>

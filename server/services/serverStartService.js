@@ -121,6 +121,7 @@ export async function readServerStarts(req, { days = 7 } = {}) {
     starts: summary.starts.map((start) => ({
       id: String(start._id),
       startedAt: start.startedAt,
+      businessDate: start.businessDate,
       release: start.release ?? null,
       reason: start.reason,
       inWorkingHours: start.inWorkingHours,

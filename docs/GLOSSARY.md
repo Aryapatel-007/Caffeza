@@ -478,3 +478,18 @@ Report column labels added by P29, for R7, R10 and R15:
 | **Revised** | In the invoice register: the bill was revised, and how many times |
 | **Top-ups** | The day's top-ups added together |
 | **Expenses** | The day's expenses added together |
+
+---
+
+## 21. Server words
+
+Added by P30.
+
+| Term | Meaning |
+|---|---|
+| **Server** | The program in the cloud every screen talks to. On Render's free plan it sleeps after 15 minutes with no one using it. |
+| **Starting the server** | The minute it takes to wake after a sleep. A bar at the top of the screen says so, and the screen loads by itself. |
+| **Started** | One time the server began running: after a deploy, or a wake from sleep. Counted on the Server card in Settings. |
+| **Went to sleep during working hours** | A business date with more than 2 wakes, not deploys, inside working hours: the pingers did not keep it awake. |
+| **Pinger** | An outside service that calls the server's wake address every few minutes, so it never sleeps in working hours |
+| **Reload this screen** | After a write the server may not have received while it woke: read the screen's data again, without sending the write twice |

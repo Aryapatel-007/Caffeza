@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { businessDateToday } from '../../utils/formatDate.js';
 import { errorMessage } from './errorCopy.js';
 import PaymentMethodsSection from './PaymentMethodsSection.jsx';
+import ServerCard from './ServerCard.jsx';
 import OnlineSettingsSection from './OnlineSettingsSection.jsx';
 import ExpenseCategoriesEditor, { RupeesInput } from './ExpenseCategoriesEditor.jsx';
 import { Checkbox, Section } from './settingsParts.jsx';
@@ -165,6 +166,9 @@ export default function SettingsPage() {
             Open Appearance
           </Link>
         </Section>
+
+        {/* P30. The free server's starts, the owner's to read; this page is the owner's alone. */}
+        <ServerCard />
 
         <Section title="Integrations" description="Delivery platforms, the card machine and Tally: connections, item mapping, exports and alerts.">
           <Link to="/settings/integrations" className="type-button flex min-h-12 w-fit items-center rounded-lg border border-ink bg-surface px-4 hover:bg-sunken">
