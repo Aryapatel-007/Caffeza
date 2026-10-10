@@ -223,6 +223,24 @@ const envSchema = z
         .nullable(),
     ),
 
+    /**
+     * P33. The live channel: `on` (default) or `off`. Off is the rollback: no
+     * socket, nothing announced, every screen polls as before P33.
+     */
+    LIVE_CHANNEL: optionalVar('LIVE_CHANNEL', 'on').refine((value) => ['on', 'off'].includes(value), 'LIVE_CHANNEL must be on or off.'),
+
+    /**
+     * P33. The address screens open the live channel on, when it is not the
+     * page's own: a page on Vercel reaches the API through a rewrite that does
+     * not carry a WebSocket. Falls back to RENDER_EXTERNAL_URL, which Render
+     * sets itself, then to null, meaning the page's own address.
+     */
+    LIVE_ORIGIN: z.preprocess((value) => {
+      const given = value === undefined || value === null || String(value).trim() === '' ? process.env.RENDER_EXTERNAL_URL : value;
+      const text = given === undefined || given === null ? '' : String(given).trim();
+      return text === '' ? null : text;
+    }, z.string().regex(/^https?:[/][/][^/]+$/, 'LIVE_ORIGIN must be a bare origin with no trailing slash.').nullable()),
+
     /** P24. Razorpay's API address. Tests and the e2e server point it at a fake. */
     RAZORPAY_API_BASE: optionalVar('RAZORPAY_API_BASE', 'https://api.razorpay.com').refine(
       whenPresent((value) => /^https?:[/][/][^/]+$/.test(value)),

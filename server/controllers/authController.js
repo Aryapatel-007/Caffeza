@@ -6,6 +6,7 @@
  * authService.js owns it, so a grep of this folder for the field name comes
  * back empty and stays that way.
  */
+import { config } from '../config/env.js';
 import { logger } from '../config/logger.js';
 import { Branch } from '../models/Branch.js';
 import { REVOKE_REASONS } from '../models/RefreshToken.js';
@@ -271,6 +272,9 @@ export async function me(req, res) {
       // P25 Part H. The delivery platforms connected and on: their orders arrive in the same inbox.
       platformChannels: await activeOrderChannels(req),
     },
+    // P33. Whether the live channel is on, and where to open it: a page on
+    // Vercel reaches the API through a rewrite that does not carry a WebSocket.
+    live: { enabled: config.LIVE_CHANNEL === 'on', origin: config.LIVE_ORIGIN },
     // P22. Each logo slot's hash and size, never its bytes: a device fetches a
     // logo only when the hash differs from the one it saved.
     appearance: { ...presentAppearance(appearance, req.currentRestaurant?.name), logos: presentLogos(req.currentRestaurant) },

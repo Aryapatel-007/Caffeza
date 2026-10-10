@@ -25,7 +25,7 @@ const BEARER_PATTERN = /^Bearer\s+(\S+)$/i;
  *   restaurantId  the tenant
  *   branchId      the outlet
  */
-function readClaims(payload) {
+export function readClaims(payload) {
   if (!payload || typeof payload !== 'object') return null;
 
   const claims = {
@@ -62,7 +62,7 @@ function readClaims(payload) {
  * password takes longer than that. Being lenient would leave a real, if
  * narrow, hole in exactly the mechanism this exists to provide.
  */
-function issuedBeforePasswordChange(issuedAtSeconds, passwordChangedAt) {
+export function issuedBeforePasswordChange(issuedAtSeconds, passwordChangedAt) {
   if (!passwordChangedAt) return false;
   return issuedAtSeconds <= Math.floor(passwordChangedAt.getTime() / 1000);
 }

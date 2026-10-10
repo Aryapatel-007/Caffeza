@@ -37,6 +37,11 @@ export async function startTestServer() {
   return baseUrl;
 }
 
+/** P33. The HTTP server behind the test app, so a test can attach the live channel to it. */
+export function testHttpServer() {
+  return server;
+}
+
 export function stopTestServer() {
   return new Promise((resolve) => server.close(resolve));
 }

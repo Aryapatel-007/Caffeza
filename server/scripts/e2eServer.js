@@ -71,7 +71,12 @@ const { startFakeRazorpay } = await import('../tests/helpers/fakeRazorpay.js');
 await startFakeRazorpay({ port: FAKE_RAZORPAY_PORT, host: HOST });
 
 const app = createApp({ serveClient: true });
-await new Promise((resolve) => app.listen(APP_PORT, HOST, resolve));
+const httpServer = await new Promise((resolve) => {
+  const listening = app.listen(APP_PORT, HOST, () => resolve(listening));
+});
+// P33. The live channel, as production runs it. LIVE_CHANNEL=off for the run without it.
+const { attachLiveChannel } = await import('../services/live/socketServer.js');
+attachLiveChannel(httpServer);
 
 // P25. Webhooks and partner calls are jobs, as in production; server.js starts
 // this loop everywhere but tests, and the browser tests need it running.
