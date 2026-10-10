@@ -33,6 +33,7 @@ import hookRoutes, { HOOKS_PATH } from './routes/hookRoutes.js';
 import tallyBridgeRoutes, { TALLY_BRIDGE_PATH } from './routes/tallyBridgeRoutes.js';
 import routes from './routes/index.js';
 import { startJobLoop } from './services/integrations/jobRunner.js';
+import { recordServerStart } from './services/serverStartService.js';
 import { describeKey, findMissingIndexes } from './services/indexService.js';
 
 export const API_PREFIX = '/api/v1';
@@ -258,6 +259,9 @@ export async function startServer() {
       { port: config.PORT, environment: config.NODE_ENV, api: API_PREFIX },
       'Server listening.',
     );
+    // P30. One row per start, so the owner can see whether the server slept in
+    // working hours. A failure to write it never stops the server.
+    recordServerStart().catch((error) => logger.warn({ err: error }, 'Could not record this server start.'));
   });
 
   // The listener closes first so an in-flight request is not cut off partway

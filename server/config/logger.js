@@ -113,6 +113,12 @@ export const logger = createLogger();
  * The id is generated here and never read from a client header. A client does
  * not get to choose what our logs are keyed on.
  */
+/** P30. The wake address, wherever the API is mounted. */
+export function isWakeRequest(req) {
+  const url = (req.originalUrl ?? req.url ?? '').split('?')[0];
+  return /\/wake\/?$/.test(url);
+}
+
 export const httpLogger = pinoHttp({
   logger,
   genReqId(req, res) {
@@ -129,6 +135,9 @@ export const httpLogger = pinoHttp({
   customLogLevel(req, res, error) {
     if (error || res.statusCode >= 500) return 'error';
     if (res.statusCode >= 400) return 'warn';
+    // P30. Pingers call /wake every few minutes all day: below info, so a
+    // production log, which keeps info and above, never fills with them.
+    if (isWakeRequest(req)) return 'debug';
     return 'info';
   },
 });

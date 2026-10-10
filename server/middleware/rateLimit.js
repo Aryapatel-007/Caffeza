@@ -48,6 +48,12 @@ const USER_MAX_REQUESTS = 1000;
 const PUBLIC_PATH = /^\/public(\/|$)/;
 
 /**
+ * P30. The wake address has its own limiter, below, and is never counted
+ * against the cafe's general budget: pingers call it all day.
+ */
+const WAKE_PATH = /^\/wake\/?$/;
+
+/**
  * Session refreshes, 2 October 2026. A refresh is not a sign-in: it is every
  * device restoring its session on a page load. Only a refresh that carries a
  * cookie the server refuses is counted, per address, against this ceiling.
@@ -95,7 +101,26 @@ export const generalLimiter = rateLimit({
   keyGenerator: (req) => normaliseIp(req.ip),
   // Mounted on the API prefix only, so req.path is relative to it. Static
   // files, the built client, are never counted.
-  skip: (req) => skipInTest() || PUBLIC_PATH.test(req.path),
+  skip: (req) => skipInTest() || PUBLIC_PATH.test(req.path) || WAKE_PATH.test(req.path),
+  handler: limitReached,
+});
+
+/**
+ * P30. The wake address: 60 a minute per address. Generous for three
+ * pingers and every open screen in a cafe, which share one address, and a
+ * ceiling on anyone using a free endpoint as a way to keep us busy.
+ *
+ * The one limiter that also runs under test, so its limit can be tested. Each
+ * test file runs in its own process, so a file that uses it up harms no other.
+ */
+export const WAKE_MAX_PER_MINUTE = 60;
+
+export const wakeLimiter = rateLimit({
+  windowMs: MINUTE_MS,
+  limit: WAKE_MAX_PER_MINUTE,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `wake|${normaliseIp(req.ip)}`,
   handler: limitReached,
 });
 

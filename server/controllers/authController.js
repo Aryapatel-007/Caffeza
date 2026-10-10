@@ -265,6 +265,9 @@ export async function me(req, res) {
       alertRoles: [...online.alertRoles],
       publicSlug: branch?.online?.publicSlug ?? null,
       pausedUntil: branch?.online?.pausedUntil && branch.online.pausedUntil > now ? branch.online.pausedUntil : null,
+      // P30. The opening hours, so every screen keeps its heartbeat to working hours.
+      opensAtMinutes: online.opensAtMinutes,
+      closesAtMinutes: online.closesAtMinutes,
       // P25 Part H. The delivery platforms connected and on: their orders arrive in the same inbox.
       platformChannels: await activeOrderChannels(req),
     },

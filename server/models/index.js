@@ -43,6 +43,7 @@ import { RefreshToken } from './RefreshToken.js';
 import { Refund } from './Refund.js';
 import { Reservation } from './Reservation.js';
 import { Restaurant } from './Restaurant.js';
+import { ServerStart } from './ServerStart.js';
 import { Station } from './Station.js';
 import { StockMovement } from './StockMovement.js';
 import { Table } from './Table.js';
@@ -82,6 +83,7 @@ export const ALL_MODELS = Object.freeze([
   Refund,
   Reservation,
   Restaurant,
+  ServerStart,
   Station,
   StockMovement,
   Table,
@@ -90,3 +92,12 @@ export const ALL_MODELS = Object.freeze([
   TerminalTransaction,
   User,
 ]);
+
+/**
+ * P30. Models that belong to the server, which every restaurant shares, not
+ * to any one restaurant: no `restaurantId`, no tenant guard, no restaurant's
+ * data. The purge tool and the seed wipe skip them, because no restaurant owns
+ * their documents. `restaurants` itself is the other exception, handled on its
+ * own as the tenant. A new model joins this list only for the same reason.
+ */
+export const SERVER_MODELS = Object.freeze([ServerStart]);

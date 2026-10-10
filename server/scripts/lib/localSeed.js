@@ -7,7 +7,7 @@
 import mongoose from 'mongoose';
 
 import { config } from '../../config/env.js';
-import { ALL_MODELS } from '../../models/index.js';
+import { ALL_MODELS, SERVER_MODELS } from '../../models/index.js';
 
 /** The database host, from the configured URI. */
 export function databaseHost() {
@@ -41,9 +41,9 @@ export function assertSafeToSeed() {
 }
 
 /** Every collection that carries a restaurantId, from the model registry, so a new model is never missed. */
-export const SCOPED_COLLECTIONS = ALL_MODELS.map((model) => model.collection.collectionName).filter(
-  (name) => name !== 'restaurants' && name !== 'branches',
-);
+export const SCOPED_COLLECTIONS = ALL_MODELS.filter((model) => !SERVER_MODELS.includes(model))
+  .map((model) => model.collection.collectionName)
+  .filter((name) => name !== 'restaurants' && name !== 'branches');
 
 /**
  * Deletes one restaurant found by its exact name, and every record scoped to

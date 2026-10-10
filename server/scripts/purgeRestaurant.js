@@ -31,7 +31,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import mongoose from 'mongoose';
 
 import { connectDatabase, disconnectDatabase } from '../config/database.js';
-import { ALL_MODELS } from '../models/index.js';
+import { ALL_MODELS, SERVER_MODELS } from '../models/index.js';
 import { Restaurant } from '../models/Restaurant.js';
 import { databaseHost } from './listRestaurants.js';
 
@@ -46,7 +46,8 @@ export const DEFAULT_BACKUP_ROOT = path.resolve(path.dirname(fileURLToPath(impor
  * model this tool does not know how to scope, and it refuses to guess.
  */
 export function purgePlan(models = ALL_MODELS) {
-  return models.map((model) => {
+  // P30. The server's own records belong to no restaurant, so a purge never touches them.
+  return models.filter((model) => !SERVER_MODELS.includes(model)).map((model) => {
     if (model === Restaurant || model.modelName === Restaurant.modelName) {
       return { model, collection: model.collection.collectionName, filter: (id) => ({ _id: id }), isRestaurant: true };
     }

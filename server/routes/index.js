@@ -33,6 +33,7 @@ import dayCloseRoutes from './dayCloseRoutes.js';
 import reportV2Routes from './reportV2Routes.js';
 import paymentMethodRoutes from './paymentMethodRoutes.js';
 import stationRoutes from './stationRoutes.js';
+import systemRoutes from './systemRoutes.js';
 import userRoutes from './userRoutes.js';
 
 const router = Router();
@@ -58,6 +59,8 @@ router.use(accountRoutes);
 router.use(dayCloseRoutes);
 router.use(reportV2Routes);
 router.use(auditRoutes);
+// P30. The record of server starts, for the owner.
+router.use(systemRoutes);
 router.use(brandRoutes);
 router.use(onlineRoutes);
 router.use(paymentRoutes);

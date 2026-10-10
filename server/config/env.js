@@ -234,7 +234,10 @@ const envSchema = z
      * smoke check can tell which version answered. Optional; null when unset.
      */
     RELEASE_VERSION: z.preprocess((value) => {
-      const text = value === undefined || value === null ? '' : String(value).trim();
+      // P30. Render sets RENDER_GIT_COMMIT itself on every deploy, so a start
+      // can be told apart from a wake from sleep without setting this by hand.
+      const given = value === undefined || value === null || String(value).trim() === '' ? process.env.RENDER_GIT_COMMIT : value;
+      const text = given === undefined || given === null ? '' : String(given).trim();
       return text === '' ? null : text;
     }, z.string().max(100, 'RELEASE_VERSION must be at most 100 characters.').nullable()),
   })

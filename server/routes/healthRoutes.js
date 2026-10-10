@@ -5,10 +5,13 @@
  */
 import { Router } from 'express';
 
-import { getHealth } from '../controllers/healthController.js';
+import { getHealth, getWake } from '../controllers/healthController.js';
+import { wakeLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 
 router.get('/health', getHealth);
+// P30. What the pingers call: no database, its own limiter, never cached.
+router.get('/wake', wakeLimiter, getWake);
 
 export default router;
