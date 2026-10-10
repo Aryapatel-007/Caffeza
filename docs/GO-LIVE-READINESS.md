@@ -48,7 +48,7 @@ Screenshots for a person to look at are written to `e2e/screenshots/` on every r
 | 8 | The owner has checked the menu | **Waiting on Caffeza**: their full menu or an export of it, then the owner's written sign-off on staging. `setup/archive/caffeza/caffeza-menu.csv` is still partial. |
 | 9 | Every staff login works | **Waiting on Caffeza**: names and phone numbers for every person (all eight staff phones in `setup/archive/caffeza/caffeza.json` are TO CONFIRM), then each signs in once on their own device. |
 | 10 | On Hold opening balances are agreed | **Waiting on Caffeza**: the owner's written list of what each account owes on cutover day. |
-| 11 | Monitoring is on | **Ready, needs a person**: Arya stops staging once and confirms the uptime alert arrives. |
+| 11 | Monitoring is on | **Ready, needs a person**: Arya stops staging once and confirms the uptime alert arrives. P30 (2026-10-10), keeping the free server awake: the wake address, the heartbeat from open screens and the GitHub Actions workflow are built; cron-job.org (main pinger), StatusCake (second pinger and the alarm) and the `KEEP_AWAKE_URL` repository variable are **not set up yet**, DEPLOYMENT.md section 14. |
 | 12 | Support is arranged | **Ready, needs a person**: both developers put the support card at the counter. |
 
 ---

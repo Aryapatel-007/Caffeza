@@ -375,6 +375,77 @@ waits for the server to start. `docs/PERFORMANCE-BASELINE.md` section 1 has the
 command to measure it before opening. To change, set `plan: starter` in
 `render.yaml` and push; the Blueprint applies it.
 
+### Keeping the free server awake
+
+Added by P30, at no cost.
+
+**Why.** Render's free plan stops the server after 15 minutes without a
+request, and waking it takes about a minute: the first person to open the app
+after a quiet spell waits, or used to see an error. Render gives each account
+750 free hours a month, shared by every free service on the account, and when
+they run out every one of them stops until the next month. So the server is
+kept awake only during working hours, plus a margin, never around the clock.
+
+**The hours budget.**
+
+| Pattern | Hours a day | Hours in a 31-day month | Fits in 750? |
+|---|---|---|---|
+| Always on | 24 | 744 | Only just, and leaves nothing for any other free service |
+| 8:30 AM to 2:30 AM, the default | 18 | about 560 | Yes, with room |
+| Z Chaat's real hours plus 30 minutes either side | to confirm | keep under 700 | Change the windows below once confirmed |
+
+Every pinger below uses the same window. Change all three together.
+
+**cron-job.org, the main pinger.**
+1. Sign up at https://cron-job.org (free).
+2. Create a cronjob. Title: Z Chaat keep awake.
+3. URL: `https://zchaat-pos-api.onrender.com/api/v1/wake`.
+4. Schedule: every 10 minutes, hours 8 AM to 2 AM. Time zone: Asia/Kolkata.
+5. Under notifications, turn on "notify me when it fails".
+6. Save, then run it once by hand and check it says 200.
+
+**StatusCake, the second pinger and the alarm.**
+1. Sign up for the free plan at https://www.statuscake.com.
+2. Add an uptime test: URL `https://zchaat-pos-api.onrender.com/api/v1/health`, check every 5 minutes.
+3. Add a contact group with an email address, and attach it to the test, so a
+   real outage sends an email.
+4. StatusCake checks around the clock, so on its own it keeps the server awake
+   all 744 hours of a month. Either pause the test outside working hours, or
+   accept those hours if this is the only free service on the Render account.
+5. Not UptimeRobot: its free plan is now for personal, non-commercial use only,
+   and Z Chaat is a business.
+
+**GitHub Actions, the backup.** `.github/workflows/keep-awake.yml` calls the
+wake address every 10 minutes from 8:30 AM to 2:30 AM India time.
+1. In GitHub, Settings, Secrets and variables, Actions, Variables, add the
+   repository variable `KEEP_AWAKE_URL` =
+   `https://zchaat-pos-api.onrender.com/api/v1/wake`.
+2. In the Actions tab, open "Keep the server awake" and run it once by hand.
+3. Check the Actions tab once a week. GitHub may delay or skip scheduled runs,
+   and turns a public repository's schedules off after 60 days with no commits.
+
+**The heartbeat.** Every screen that is open, visible and signed in calls the
+wake address every 5 minutes within working hours plus 30 minutes either side
+(the online page's opening hours while it is switched on, otherwise every
+hour). The counter computer left open on the bills screen keeps the server
+awake on its own.
+
+**When it is asleep anyway.** The screens wait calmly: a read is tried again
+after 3, 6, 12, 20 and 30 seconds under a bar saying "Starting the server", and
+loads by itself; a write is never sent twice, and the bar says to check the
+bill before trying again.
+
+**How to tell it works.** Settings, Server (owner only): how many times the
+server started today and on each of the last 7 days, and a plain warning naming
+any day it went to sleep during working hours. A deploy is a start too, but
+never counts as a sleep. Render's logs show each start as well.
+
+**What this does not fix.** Render says the free plan is not for production,
+and the server is small. Anything due while it sleeps waits until it wakes:
+platform webhooks, the background job runner, card machine checks. The day Z
+Chaat pays, move to Render's cheapest paid plan and switch the three pingers
+off; the heartbeat then costs nothing and can stay.
+
 ---
 
 ## 15. The server and the database are in different regions
