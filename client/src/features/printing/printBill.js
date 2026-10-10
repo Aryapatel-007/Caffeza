@@ -7,8 +7,6 @@
  * print queue all print through here, so a bill looks the same whoever prints
  * it.
  */
-import QRCode from 'qrcode';
-
 import { getInvoice, markBillPrinted } from '../../api/bills.js';
 
 import { INVOICE_STYLES, invoiceHtml, THERMAL_BILL_STYLES, thermalBillHtml } from './invoiceHtml.js';
@@ -16,9 +14,16 @@ import { PRINTERS } from './printers.js';
 import { printDocument } from './printText.js';
 import { readDeviceSettings } from './useDeviceSettings.js';
 
-/** The review link as an SVG QR code, or null. Built here, never fetched. */
-export function reviewQrSvg(url) {
-  if (!url) return Promise.resolve(null);
+/**
+ * The review link as an SVG QR code, or null. Built here, never fetched.
+ *
+ * P32. The QR library loads the first time a bill with a review link prints,
+ * not with the app: most bills, and every restaurant without a review link,
+ * never need it. It is a few kB, and cached for good once fetched.
+ */
+export async function reviewQrSvg(url) {
+  if (!url) return null;
+  const { default: QRCode } = await import('qrcode');
   return QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
 }
 

@@ -1,54 +1,72 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
+import { ScreenLoading } from './components/AppShell.jsx';
 import NotFoundPage from './components/NotFoundPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import RequireFeature from './components/RequireFeature.jsx';
 import RequireRole from './components/RequireRole.jsx';
-import AttendanceRegisterPage from './features/attendance/AttendanceRegisterPage.jsx';
-import ClockScreen from './features/attendance/ClockScreen.jsx';
-import MyAttendancePage from './features/attendance/MyAttendancePage.jsx';
 import LoginPage from './features/auth/LoginPage.jsx';
 import BillScreenPage from './features/billing/BillScreenPage.jsx';
-import ReceiptPreviewPage from './features/billing/ReceiptPreviewPage.jsx';
-import BillsListPage from './features/billing/BillsListPage.jsx';
-import RecipeEditorPage from './features/inventory/RecipeEditorPage.jsx';
-import StockListPage from './features/inventory/StockListPage.jsx';
-import LabourReportPage from './features/reports/LabourPage.jsx';
-import StockReportPage from './features/reports/StockPage.jsx';
-import AppearancePage from './features/settings/AppearancePage.jsx';
-import CustomersPage from './features/customers/CustomersPage.jsx';
-import IntegrationsPage from './features/integrations/IntegrationsPage.jsx';
-import ItemMappingPage from './features/integrations/ItemMappingPage.jsx';
-import TallyPage from './features/integrations/TallyPage.jsx';
-import SettingsPage from './features/settings/SettingsPage.jsx';
-import AccountsPage from './features/settlement/AccountsPage.jsx';
-import PayoutsPage from './features/settlement/PayoutsPage.jsx';
-import CashBookPage from './features/settlement/CashBookPage.jsx';
-import DayClosePage from './features/settlement/DayClosePage.jsx';
-import DeviceSettingsPage from './features/printing/DeviceSettingsPage.jsx';
-import StationsPage from './features/stations/StationsPage.jsx';
-import ActivityLogPage from './features/reports/ActivityLogPage.jsx';
-import ReportPage from './features/reports/ReportPage.jsx';
-import ReportsIndexPage from './features/reports/ReportsIndexPage.jsx';
-import BillListPage from './features/reports/v2/BillListPage.jsx';
-import BillDetailPage from './features/reports/v2/BillDetailPage.jsx';
 import DashboardPage from './features/dashboard/DashboardPage.jsx';
 import KitchenDisplayPage from './features/kitchen/KitchenDisplayPage.jsx';
-import AvailabilityBoardPage from './features/menu/AvailabilityBoardPage.jsx';
-import MenuBuilderPage from './features/menu/MenuBuilderPage.jsx';
 import FloorViewPage from './features/orders/FloorViewPage.jsx';
 import OrderScreenPage from './features/orders/OrderScreenPage.jsx';
-import TableArrangePage from './features/orders/TableArrangePage.jsx';
-import TableManagementPage from './features/orders/TableManagementPage.jsx';
 import TakeawayOrderPage from './features/orders/TakeawayOrderPage.jsx';
-import DeliveryOrderPage from './features/orders/DeliveryOrderPage.jsx';
-import BookingsPage from './features/online/BookingsPage.jsx';
-import OnlineInboxPage from './features/online/OnlineInboxPage.jsx';
 import RequireOnline from './features/online/RequireOnline.jsx';
-import StaffFormPage from './features/users/StaffFormPage.jsx';
-import StaffListPage from './features/users/StaffListPage.jsx';
 import { ROLES } from './features/users/roles.js';
+
+/**
+ * P32. Screens away from service load on first use, one chunk per group (`src/routes/`).
+ * The service screens above stay in the main chunk: a captain or a cashier never waits for
+ * one mid-rush. AppShell's Suspense draws the screen's still shape while a chunk arrives.
+ */
+const lazyScreen = (load, name) => lazy(() => load().then((group) => ({ default: group[name] })));
+const reportsGroup = () => import('./routes/reports.js');
+const settlementGroup = () => import('./routes/settlement.js');
+const settingsGroup = () => import('./routes/settings.js');
+const integrationsGroup = () => import('./routes/integrations.js');
+const menuGroup = () => import('./routes/menu.js');
+const inventoryGroup = () => import('./routes/inventory.js');
+const attendanceGroup = () => import('./routes/attendance.js');
+const peopleGroup = () => import('./routes/people.js');
+const onlineGroup = () => import('./routes/online.js');
+const deliveryGroup = () => import('./routes/delivery.js');
+const ActivityLogPage = lazyScreen(reportsGroup, 'ActivityLogPage');
+const LabourReportPage = lazyScreen(reportsGroup, 'LabourReportPage');
+const ReportPage = lazyScreen(reportsGroup, 'ReportPage');
+const ReportsIndexPage = lazyScreen(reportsGroup, 'ReportsIndexPage');
+const StockReportPage = lazyScreen(reportsGroup, 'StockReportPage');
+const BillDetailPage = lazyScreen(reportsGroup, 'BillDetailPage');
+const BillListPage = lazyScreen(reportsGroup, 'BillListPage');
+const BillsListPage = lazyScreen(settlementGroup, 'BillsListPage');
+const ReceiptPreviewPage = lazyScreen(settlementGroup, 'ReceiptPreviewPage');
+const AccountsPage = lazyScreen(settlementGroup, 'AccountsPage');
+const CashBookPage = lazyScreen(settlementGroup, 'CashBookPage');
+const DayClosePage = lazyScreen(settlementGroup, 'DayClosePage');
+const PayoutsPage = lazyScreen(settlementGroup, 'PayoutsPage');
+const TableArrangePage = lazyScreen(settingsGroup, 'TableArrangePage');
+const TableManagementPage = lazyScreen(settingsGroup, 'TableManagementPage');
+const DeviceSettingsPage = lazyScreen(settingsGroup, 'DeviceSettingsPage');
+const AppearancePage = lazyScreen(settingsGroup, 'AppearancePage');
+const SettingsPage = lazyScreen(settingsGroup, 'SettingsPage');
+const StationsPage = lazyScreen(settingsGroup, 'StationsPage');
+const IntegrationsPage = lazyScreen(integrationsGroup, 'IntegrationsPage');
+const ItemMappingPage = lazyScreen(integrationsGroup, 'ItemMappingPage');
+const TallyPage = lazyScreen(integrationsGroup, 'TallyPage');
+const AvailabilityBoardPage = lazyScreen(menuGroup, 'AvailabilityBoardPage');
+const MenuBuilderPage = lazyScreen(menuGroup, 'MenuBuilderPage');
+const RecipeEditorPage = lazyScreen(inventoryGroup, 'RecipeEditorPage');
+const StockListPage = lazyScreen(inventoryGroup, 'StockListPage');
+const AttendanceRegisterPage = lazyScreen(attendanceGroup, 'AttendanceRegisterPage');
+const ClockScreen = lazyScreen(attendanceGroup, 'ClockScreen');
+const MyAttendancePage = lazyScreen(attendanceGroup, 'MyAttendancePage');
+const CustomersPage = lazyScreen(peopleGroup, 'CustomersPage');
+const StaffFormPage = lazyScreen(peopleGroup, 'StaffFormPage');
+const StaffListPage = lazyScreen(peopleGroup, 'StaffListPage');
+const BookingsPage = lazyScreen(onlineGroup, 'BookingsPage');
+const OnlineInboxPage = lazyScreen(onlineGroup, 'OnlineInboxPage');
+const DeliveryOrderPage = lazyScreen(deliveryGroup, 'DeliveryOrderPage');
 
 /** Staff management is for the people who run the place. */
 const STAFF_ADMIN_ROLES = [ROLES.OWNER, ROLES.MANAGER];
@@ -111,9 +129,8 @@ const STOCK_REPORT_ROLES = [ROLES.OWNER, ROLES.MANAGER, ROLES.STOREKEEPER];
 const SETTINGS_ROLES = [ROLES.OWNER];
 
 /**
- * P23. The guest's page, in its own chunk. The staff screens are still in the
- * main bundle, so a guest downloads them too until those are split; see the
- * known problems table.
+ * P23. The guest's page, in its own chunk. Since P32 the back-office screens
+ * are in chunks of their own too, so a guest no longer downloads them.
  */
 const PublicSite = lazy(() => import('./features/public/PublicSite.jsx'));
 
@@ -633,7 +650,7 @@ export default function App() {
       <Route
         path="/r/:slug/*"
         element={
-          <Suspense fallback={null}>
+          <Suspense fallback={<ScreenLoading />}>
             <PublicSite />
           </Suspense>
         }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext.jsx';
@@ -24,6 +24,7 @@ import {
   SignOutIcon,
 } from './ui/icons/index.jsx';
 import Sheet from './ui/Sheet.jsx';
+import Spinner from './ui/Spinner.jsx';
 
 /**
  * The frame around every signed-in screen. DESIGN-SYSTEM sections 8a and 9.
@@ -261,6 +262,19 @@ function RailMark({ isService }) {
   );
 }
 
+/**
+ * P32. What a screen in a lazy chunk shows while the chunk arrives: the
+ * screen's shape, still, inside the frame, which stays where it is. Never
+ * `null`, which would look like a broken screen (DESIGN-SYSTEM section 13c).
+ */
+export function ScreenLoading() {
+  return (
+    <div className="p-4">
+      <Spinner size="lg" label="Opening the screen" />
+    </div>
+  );
+}
+
 export default function AppShell({ children }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
@@ -269,7 +283,7 @@ export default function AppShell({ children }) {
 
   useEffect(() => setMoreOpen(false), [pathname]);
 
-  if (FULL_SCREEN_PATHS.includes(pathname)) return children;
+  if (FULL_SCREEN_PATHS.includes(pathname)) return <Suspense fallback={<ScreenLoading />}>{children}</Suspense>;
 
   return (
     <div className="v2 flex h-full bg-ground text-ink">
@@ -296,7 +310,9 @@ export default function AppShell({ children }) {
         {/* `relative`, so anything absolutely placed inside a screen (screen-reader text,
             tooltips) belongs to this scroll area. Without it such an element was
             placed against the window and gave the page a second scroll. */}
-        <div className="relative min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</div>
+        <div className="relative min-h-0 flex-1 overflow-y-auto print:overflow-visible">
+          <Suspense fallback={<ScreenLoading />}>{children}</Suspense>
+        </div>
 
         <nav aria-label="Main" className="flex flex-none items-stretch gap-1 border-t border-line bg-surface px-2 py-1 min-[600px]:hidden print:hidden">
           {places.map((place) => (
