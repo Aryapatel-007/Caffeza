@@ -2929,3 +2929,59 @@ a sent message, `messageId`, `customerId`, `deliveryStatus` (`SENT`,
 
 A STOP writes `offers.given: false` and an `offersHistory` entry with source
 `ONLINE`, `by: null` and the reason "Replied STOP on WhatsApp".
+
+## 48. The WhatsApp assistant (P39)
+
+### `conversations` (new)
+
+One per guest per branch.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `customerId` | ObjectId | | The guest. Never the number |
+| `status` | enum | `BOT` | `BOT`, `NEEDS_STAFF`, `STAFF`, `CLOSED` |
+| `lastInboundAt` | Date or null | null | The guest's last message: the 24-hour window |
+| `lastMessageAt` | Date | | Either side. Kept 30 days after it, then removed (TTL) |
+| `turns` | [{ role, text, at, toolName }] | [] | The last 30. `role`: `GUEST`, `ASSISTANT`, `STAFF`, `TOOL`. Text up to 1,000 characters |
+| `pendingBooking` | Object or null | null | What the guest has given so far |
+| `handoffReason` | String or null | null | |
+| `aiCallsDate` | String or null | null | A business date |
+| `aiCallsToday` | Number | 0 | Model calls on `aiCallsDate` |
+
+Indexes: `{ restaurantId, branchId, customerId }` unique;
+`{ restaurantId, branchId, status, lastMessageAt }`; `{ lastMessageAt }` with a
+30-day TTL, which does not lead with `restaurantId` because MongoDB's TTL needs a
+single date field, the same as `integrationevents`.
+
+### `customers`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `source` | enum | `ORDER` | `ORDER`, or `WHATSAPP` for a guest known only from writing on WhatsApp |
+| `whatsappStoppedAt` | Date or null | null | The guest asked for no messages at all. Nothing is sent, bills included |
+
+`firstVisitAt` and `lastVisitAt` are no longer required: a `WHATSAPP` guest has
+had no visit. Every guest from an order still has both. Additive: no stored
+document changes.
+
+### `reservations`
+
+`source` gains `WHATSAPP`.
+
+### `messagetemplates`
+
+Two more keys the restaurant may add: `BOOKING_CONFIRMED` and `BOOKING_DECLINED`.
+
+### `integrationconnections`
+
+`provider` gains `GEMINI` and `ANTHROPIC`.
+
+### `restaurants.settings.assistant`
+
+| Field | Type | Default |
+|---|---|---|
+| `enabled` | Boolean | false |
+| `bookingsEnabled` | Boolean | true |
+| `greeting` | String or null | null |
+| `handoffHours` | String or null | null |
+| `dailyAiLimit` | Number | 500 |

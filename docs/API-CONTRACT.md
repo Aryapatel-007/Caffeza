@@ -8387,3 +8387,99 @@ nothing.
 
 `TEMPLATE_NOT_APPROVED` 422, `MESSAGING_NOT_CONNECTED` 422, `GUEST_OPTED_OUT`
 422. CONVENTIONS section 3.
+
+# P39 The WhatsApp assistant
+
+`docs/prompts/P39-whatsapp-assistant.md`. Additive. Depends on P37.
+
+## 1. The AI providers
+
+New M21 provider kind `AI_ASSISTANT`, two providers, set up like every M21
+provider (`PUT /integrations/:provider`, `POST .../test`, pause, resume):
+
+| Provider | Credentials (sealed) | Config |
+|---|---|---|
+| `GEMINI` | `apiKey` | `model` (default `gemini-2.5-flash`), `apiBaseUrl` (default `https://generativelanguage.googleapis.com/v1beta`) |
+| `ANTHROPIC` | `apiKey` | `model` (default `claude-haiku-5-5`), `apiBaseUrl` (default `https://api.anthropic.com`) |
+
+https always; plain http only to this machine outside production, for the fake
+in tests. The key travels in a header, never in an address. The test asks the
+model for one word and passes only when it answers. When both are on, the
+assistant uses `ANTHROPIC`. Neither has a webhook.
+
+## 2. Settings
+
+`settings.assistant` on `GET` and `PATCH /settings`, OWNER, audited:
+`enabled` (false), `bookingsEnabled` (true), `greeting` (null, up to 300
+characters), `handoffHours` (null, up to 120 characters, like "between 11 am and
+10 pm"), `dailyAiLimit` (500, 0 to 5,000).
+
+## 3. What a guest's message does
+
+The P37 webhook now stores every text, button reply and list reply from a guest
+as an `INBOUND_MESSAGE` event, processed by a job; the exact STOP keywords keep
+their P37 path. A number with no guest record at this restaurant gets one
+(`customers.source: WHATSAPP`, no visit yet), so the assistant can answer it.
+
+For each message, in order:
+
+1. The conversation is found or opened, the message kept as a turn, and
+   `lastInboundAt` set: the 24-hour window is open.
+2. A conversation waiting for, or with, a person (`NEEDS_STAFF`, `STAFF`): the
+   assistant is quiet.
+3. The assistant off, no AI connection on, or the day's `dailyAiLimit` used: the
+   **fixed menu**, three buttons (Book a table, Opening hours, Talk to us),
+   answered without a model.
+4. Otherwise the model, with the system prompt (P39 section 11), the last 12
+   turns and the tools (P39 section 9), up to 4 rounds of tool calls.
+5. **The reply check.** Every rupee amount, time, link and reference in the reply
+   must appear in this message's tool results, the facts block or the guest's
+   words; a claim that messages are stopped needs a successful `stop_messages`;
+   at most 900 characters. A failing reply goes back to the model once, then the
+   guest is told the team will reply and the chat is handed to staff.
+6. The reply is sent as a free-form message, with up to three reply buttons when
+   the model offered choices, through P37's job runner.
+
+A guest who stopped all messages (`whatsappStoppedAt`) and writes again gets an
+answer to what they asked, inside the window they opened, and nothing else.
+
+## 4. Stopping messages
+
+`stop_messages`, called by the model, or the STOP keywords:
+
+| Scope | Effect |
+|---|---|
+| `OFFERS` | Offers consent withdrawn (`customerService.withdrawOffersFromMessage`, source `ONLINE`). Bills and booking messages still go. |
+| `ALL` | As `OFFERS`, and `customers.whatsappStoppedAt` set: `sendTemplate` and every job skip this guest, bills included, `skipped: "STOPPED"`. Cleared only by staff, on the chat. |
+
+## 5. Bookings on WhatsApp
+
+`request_booking` runs `reservationService.request` exactly as the public page
+does, with `source: WHATSAPP`, the guest's own number, and an idempotency key
+of the conversation and the slot. It waits for staff to confirm. When staff
+confirm or decline a `WHATSAPP` booking, the guest is told: inside their
+24-hour window as a free-form message, else through the utility templates
+`BOOKING_CONFIRMED` (`reference`, `date`, `time`, `partySize`) and
+`BOOKING_DECLINED` (`reference`, `reason`), when approved. A failure to tell
+them never fails the confirm.
+
+## 6. The staff inbox
+
+OWNER, MANAGER, CASHIER. No phone number in any address or answer.
+
+```
+GET  /api/v1/chats                     the chats needing a person first, then by last message
+GET  /api/v1/chats/:chatId             its turns, the guest's first name, their upcoming bookings
+POST /api/v1/chats/:chatId/reply       { text }: sent inside the 24-hour window; outside it, 422
+POST /api/v1/chats/:chatId/hand-back   to the assistant
+POST /api/v1/chats/:chatId/done        closed, until the guest writes again
+POST /api/v1/chats/:chatId/clear-stop  { reason }: the guest asked to get messages again
+```
+
+A chat in the list: `{ id, status, guestFirstName, lastMessageAt, lastText,
+windowOpen, handoffReason }`. `GET /online/inbox` gains `waitingChats` (chats
+needing a person) and `latestChatAt`, and the online alert counts them.
+
+## Error codes
+
+None new. A staff reply outside the window is 422 `BUSINESS_RULE_VIOLATED`.

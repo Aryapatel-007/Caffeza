@@ -538,3 +538,22 @@ Added by P37.
 | **Delivery receipt** | Meta telling us a message was sent, delivered, read, or failed |
 | **Service window** | The 24 hours after a guest writes to the restaurant, when a plain reply needs no template |
 | **Send the bill on WhatsApp** | The setting that sends a guest their bill when it is paid |
+
+---
+
+## 25. Assistant words
+
+Added by P39.
+
+| Term | Meaning |
+|---|---|
+| **Assistant** | The automated WhatsApp assistant that answers guests from the restaurant's own data |
+| **Chat** | One guest's WhatsApp conversation with the restaurant |
+| **Chats** | The screen where staff read and answer chats |
+| **Needs a person** | A chat the assistant handed over, waiting for staff |
+| **Hand back** | Give a chat back to the assistant |
+| **Stop offers** | The guest wants no promotions. Bills and booking messages still go |
+| **Stop all messages** | The guest wants nothing from the restaurant on WhatsApp, bills included |
+| **Fixed menu** | The three buttons a guest gets when the assistant is off or out of its daily limit |
+| **AI key** | The key to Gemini or Anthropic the assistant uses |
+| **Window open** | The guest wrote in the last 24 hours, so staff can reply freely |
