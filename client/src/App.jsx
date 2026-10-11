@@ -65,6 +65,7 @@ const CustomersPage = lazyScreen(peopleGroup, 'CustomersPage');
 const StaffFormPage = lazyScreen(peopleGroup, 'StaffFormPage');
 const StaffListPage = lazyScreen(peopleGroup, 'StaffListPage');
 const BookingsPage = lazyScreen(onlineGroup, 'BookingsPage');
+const ChatsPage = lazyScreen(onlineGroup, 'ChatsPage');
 const OnlineInboxPage = lazyScreen(onlineGroup, 'OnlineInboxPage');
 const DeliveryOrderPage = lazyScreen(deliveryGroup, 'DeliveryOrderPage');
 
@@ -642,6 +643,18 @@ export default function App() {
                 <BookingsPage />
               </RequireRole>
             </RequireOnline>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P39. WhatsApp chats, for the till. The server decides who may read them. */}
+      <Route
+        path="/online/chats"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={BILLING_ROLES}>
+              <ChatsPage />
+            </RequireRole>
           </ProtectedRoute>
         }
       />

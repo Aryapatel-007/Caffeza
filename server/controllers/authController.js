@@ -36,7 +36,7 @@ import {
 import { resetPasswordFromSignIn } from '../services/passwordResetService.js';
 import { sendSuccess } from '../utils/response.js';
 import { nowUtc } from '../utils/time.js';
-import { activeOrderChannels, activeTerminals } from '../services/integrations/channelStatus.js';
+import { activeOrderChannels, activeTerminals, whatsappOn } from '../services/integrations/channelStatus.js';
 
 function presentUser(user, { includeLastLoginAt = false, includeStation = false } = {}) {
   const shape = {
@@ -272,6 +272,8 @@ export async function me(req, res) {
       closesAtMinutes: online.closesAtMinutes,
       // P25 Part H. The delivery platforms connected and on: their orders arrive in the same inbox.
       platformChannels: await activeOrderChannels(req),
+      // P39. WhatsApp is on: chats waiting for a person ring the same alert, for the till.
+      chats: await whatsappOn(req),
     },
     // P33. Whether the live channel is on, and where to open it: a page on
     // Vercel reaches the API through a rewrite that does not carry a WebSocket.

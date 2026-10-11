@@ -31,6 +31,7 @@
     "setup:restaurant": "npm run setup:restaurant --workspace=server --",
     "import:menu": "npm run import:menu --workspace=server --",
     "smoke": "npm run smoke --workspace=server --",
+    "assistant:eval": "npm run assistant:eval --workspace=server --",
     "e2e": "playwright test --config e2e/playwright.config.js",
     "e2e:cloud": "playwright test --config e2e/cloud.config.js"
   },

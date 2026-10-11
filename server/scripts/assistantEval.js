@@ -2,9 +2,10 @@
  * The WhatsApp assistant's eval. P39 section 16.
  *
  *   npm run assistant:eval
- *   npm run assistant:eval -- --provider GROQ --model llama-3.3-70b-versatile
+ *   npm run assistant:eval -- --provider GROQ --model openai/gpt-oss-120b
  *   npm run assistant:eval -- --only so1,ns5        (some cases, by id)
  *   npm run assistant:eval -- --label NOT_STOP      (one label)
+ *   npm run assistant:eval -- --from ns12           (resume a run that stopped)
  *
  * Sends every labelled message in `tests/assistant/eval.json` once to a real
  * model, with the real system prompt and tools and made-up restaurant facts,
@@ -26,7 +27,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import '../config/env.js';
 import { buildSystemPrompt } from '../services/chatbot/systemPrompt.js';
 import { TOOL_DEFINITIONS } from '../services/chatbot/tools.js';
-import { adapterFor } from '../services/integrations/providers.js';
+import { adapterFor, providerFor } from '../services/integrations/providers.js';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 export const EVAL_FILE = path.join(SCRIPT_DIR, '..', 'tests', 'assistant', 'eval.json');
@@ -36,8 +37,8 @@ const STOP_LABELS = new Set(['STOP_OFFERS', 'STOP_ALL', 'STOP_EITHER']);
 export const PASS_RATE = 0.95;
 
 const KEY_VARIABLES = Object.freeze({ GROQ: 'GROQ_API_KEY', GEMINI: 'GEMINI_API_KEY', ANTHROPIC: 'ANTHROPIC_API_KEY' });
-const DEFAULT_MODELS = Object.freeze({ GROQ: 'llama-3.3-70b-versatile', GEMINI: 'gemini-2.5-flash', ANTHROPIC: 'claude-haiku-5-5' });
 const GAP_MS = 2_100;
+const MAX_TRIES = 8;
 const LONGEST_WAIT_MS = 120_000;
 
 /** A made-up restaurant, fixed so two runs read the same prompt. */
@@ -124,12 +125,13 @@ export function readEvalFile(file = EVAL_FILE) {
 }
 
 export function parseArgs(argv) {
-  const args = { provider: 'GROQ', model: null, only: null, label: null };
+  const args = { provider: 'GROQ', model: null, only: null, label: null, from: null };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--provider') args.provider = String(argv[++i]).toUpperCase();
     else if (argv[i] === '--model') args.model = argv[++i];
     else if (argv[i] === '--only') args.only = String(argv[++i]).split(',').map((id) => id.trim()).filter(Boolean);
     else if (argv[i] === '--label') args.label = String(argv[++i]).toUpperCase();
+    else if (argv[i] === '--from') args.from = String(argv[++i]);
   }
   return args;
 }
@@ -144,17 +146,19 @@ export function retryAfterMs(message) {
 }
 
 async function ask(adapter, connection, secrets, system, testCase) {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < MAX_TRIES; attempt += 1) {
     try {
       return await adapter.complete(connection, secrets, { system, messages: messagesFor(testCase), tools: TOOL_DEFINITIONS, maxTokens: 400 });
     } catch (error) {
-      const wait = retryAfterMs(error.message);
-      if (wait === null || wait > LONGEST_WAIT_MS) throw error;
+      const asked = retryAfterMs(error.message);
+      if (asked === null || asked > LONGEST_WAIT_MS) throw error;
+      // A minute's token budget refills slowly: "try again in 30ms" is rarely enough.
+      const wait = Math.max(asked, 4_000 * (attempt + 1));
       process.stdout.write(`  (rate limited, waiting ${Math.round(wait / 1000)} s)\n`);
       await sleep(wait);
     }
   }
-  throw new Error('Still rate limited after four tries.');
+  throw new Error(`Still rate limited after ${MAX_TRIES} tries.`);
 }
 
 async function main() {
@@ -165,8 +169,11 @@ async function main() {
   if (!apiKey) throw new Error(`${keyVariable} is not set. Add it to the root .env (it is git-ignored).`);
 
   const { cases, offer } = readEvalFile();
-  const chosen = cases.filter((testCase) => (!args.only || args.only.includes(testCase.id)) && (!args.label || testCase.label === args.label));
-  const model = args.model ?? DEFAULT_MODELS[args.provider];
+  const start = args.from ? cases.findIndex((testCase) => testCase.id === args.from) : 0;
+  if (start < 0) throw new Error(`No case ${args.from}.`);
+  const chosen = cases.slice(start).filter((testCase) => (!args.only || args.only.includes(testCase.id)) && (!args.label || testCase.label === args.label));
+  // The provider's own default, so the eval tests what a restaurant gets.
+  const model = args.model ?? providerFor(args.provider).configSchema.parse({}).model;
   // `skipLog`: these calls belong to no restaurant, so there is no event log to write.
   const connection = { provider: args.provider, config: { model }, skipLog: true };
   const adapter = await adapterFor(args.provider);

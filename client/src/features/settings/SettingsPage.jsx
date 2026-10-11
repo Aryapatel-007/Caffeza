@@ -381,6 +381,53 @@ export default function SettingsPage() {
           </Section>
         )}
 
+        {/* P39. */}
+        {form.assistant && (
+          <Section
+            title="Assistant"
+            description="The automated assistant on your WhatsApp number. It needs WhatsApp and an AI key connected in Integrations."
+          >
+            <Checkbox
+              label="Answer guests on WhatsApp"
+              hint="Questions about the menu, hours and bookings, from your own data. Anything else goes to Chats for a person. Off: nothing is sent, and every message waits in Chats."
+              checked={form.assistant.enabled}
+              onChange={set('assistant', 'enabled')}
+            />
+            <Checkbox
+              label="Take table bookings on WhatsApp"
+              hint="A booking from WhatsApp waits for staff to confirm it, like one from your online page."
+              checked={form.assistant.bookingsEnabled}
+              onChange={set('assistant', 'bookingsEnabled')}
+            />
+            <Input
+              label="How to greet a new chat"
+              maxLength={300}
+              value={form.assistant.greeting ?? ''}
+              onChange={(event) => set('assistant', 'greeting')(event.target.value)}
+              hint="Optional, up to 300 characters. Like: Namaste from Z Chaat!"
+            />
+            <Input
+              label="When a person replies"
+              maxLength={120}
+              value={form.assistant.handoffHours ?? ''}
+              onChange={(event) => set('assistant', 'handoffHours')(event.target.value)}
+              hint="Told to a guest handed to a person, like: between 11 am and 11 pm. Empty: as soon as they can."
+            />
+            <Input
+              label="AI replies a day, at most"
+              type="number"
+              min="0"
+              max="5000"
+              value={form.assistant.dailyAiLimit}
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                if (Number.isInteger(value)) set('assistant', 'dailyAiLimit')(value);
+              }}
+              hint="After this many, guests get the three fixed buttons until tomorrow. It keeps a free AI key inside its limits."
+            />
+          </Section>
+        )}
+
         {/* P29 Part F. */}
         <Section title="Cash book" description="The float kept for tomorrow, who sees the cash in the drawer, and what expenses are for.">
           <RupeesInput label="Usual float, kept in the drawer for tomorrow" paise={form.cash.usualFloatInPaise} onChange={set('cash', 'usualFloatInPaise')} />

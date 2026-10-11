@@ -6,6 +6,10 @@
  * read a tool result and answer with it). The connection test's one-word ask
  * is answered by itself. Every request is kept, so a test can check what the
  * model was sent.
+ *
+ * The browser tests script it over the e2e server's control port, where a
+ * function cannot travel, so a step may also be `{ sayFromResult: "...{reference}..." }`:
+ * the text with each `{name}` filled from the last tool result.
  */
 import http from 'node:http';
 
@@ -21,7 +25,17 @@ export function lastToolResult(body) {
   return result ? JSON.parse(result.content) : null;
 }
 
-export async function startFakeModel() {
+/** One queued step as the answer to this request. */
+function answerFor(next, body) {
+  if (typeof next === 'function') return next(body);
+  if (next?.sayFromResult) {
+    const result = lastToolResult(body) ?? {};
+    return say(next.sayFromResult.replace(/\{(\w+)\}/g, (_, key) => String(result[key] ?? '')));
+  }
+  return next;
+}
+
+export async function startFakeModel({ port = 0, host = '127.0.0.1' } = {}) {
   const state = { queue: [], requests: [] };
   const server = http.createServer((req, res) => {
     let raw = '';
@@ -40,12 +54,12 @@ export async function startFakeModel() {
       const next = state.queue.shift();
       if (!next) return send(200, say('Sorry, I did not catch that.'));
       if (next === 'DOWN') return send(529, { error: { type: 'overloaded_error', message: 'Overloaded' } });
-      return send(200, typeof next === 'function' ? next(body) : next);
+      return send(200, answerFor(next, body));
     });
   });
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await new Promise((resolve) => server.listen(port, host, resolve));
   return {
-    url: `http://127.0.0.1:${server.address().port}`,
+    url: `http://${host}:${server.address().port}`,
     state,
     script: (...entries) => state.queue.push(...entries),
     stop: () => new Promise((resolve) => server.close(resolve)),

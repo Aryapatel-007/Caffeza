@@ -14,7 +14,7 @@ import ConfigFields from './ConfigFields.jsx';
 import EventLog from './EventLog.jsx';
 import WhatsAppTemplates from './WhatsAppTemplates.jsx';
 import { connectionChip } from './integrationWords.js';
-import { credentialLabel, DEFAULT_ENVIRONMENT, ENVIRONMENTS, PROVIDER_DEFAULTS, PROVIDER_FIELDS } from './providerForms.js';
+import { credentialLabel, DEFAULT_ENVIRONMENT, ENVIRONMENTS, PROVIDER_DEFAULTS, PROVIDER_FIELDS, PROVIDER_WARNINGS } from './providerForms.js';
 
 /** A secret field: "ending 7Q2X" and Replace, or a box to type a new one. */
 function SecretField({ field, hint, value, onChange, disabled }) {
@@ -81,6 +81,7 @@ export default function ProviderSheet({ entry, canEdit, onClose, onToast }) {
           <p className="type-body">{entry.unavailableReason}</p>
         ) : (
           <>
+            {PROVIDER_WARNINGS[entry.provider] && <p className="type-body rounded-xl border border-line p-4">{PROVIDER_WARNINGS[entry.provider]}</p>}
             <Select label="Environment" value={environment} options={ENVIRONMENTS} disabled={!canEdit} onChange={(event) => setEnvironment(event.target.value)} />
             {(entry.credentialFields ?? []).map((field) => (
               <SecretField

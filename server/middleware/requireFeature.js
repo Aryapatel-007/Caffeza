@@ -54,14 +54,16 @@ export function requireFeature(name) {
 /**
  * P25 Part H. The incoming requests inbox is on when online orders are, or
  * when any delivery platform connection is on: platform orders arrive there
- * too. Otherwise the same 403 FEATURE_DISABLED as online orders off.
+ * too. P39: or when WhatsApp is on, for chats waiting for a person. Otherwise
+ * the same 403 FEATURE_DISABLED as online orders off.
  */
 export async function requireOnlineOrChannel(req, res, next) {
   if (!req.restaurantId) return next(new UnauthenticatedError('Sign in to continue.'));
   try {
     if (await isFeatureOn(req, 'online')) return next();
-    const { activeOrderChannels } = await import('../services/integrations/channelStatus.js');
+    const { activeOrderChannels, whatsappOn } = await import('../services/integrations/channelStatus.js');
     if ((await activeOrderChannels(req)).length > 0) return next();
+    if (await whatsappOn(req)) return next();
     return next(new FeatureDisabledError(FEATURE_LABELS.online));
   } catch (error) {
     return next(error);

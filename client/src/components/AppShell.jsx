@@ -94,6 +94,8 @@ function useMoreGroups() {
         { to: '/menu/availability', label: 'Availability', show: true },
         { to: '/online', label: 'Online orders', show: floor && inboxOn(features) },
         { to: '/online/bookings', label: 'Bookings', show: floor && onlineOn },
+        // P39. WhatsApp chats, for the till.
+        { to: '/online/chats', label: 'Chats', show: till && Boolean(features.online?.chats) },
       ],
     },
     {

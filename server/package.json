@@ -21,7 +21,8 @@
     "db:copy": "node scripts/copyDatabase.js",
     "setup:restaurant": "node scripts/setupRestaurant.js",
     "import:menu": "node scripts/importMenu.js",
-    "smoke": "node scripts/smokeCheck.js"
+    "smoke": "node scripts/smokeCheck.js",
+    "assistant:eval": "node scripts/assistantEval.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

@@ -64,6 +64,8 @@ const DEFAULTS = {
   // P28.
   approvals: { lineCancel: true, paidIn: true, managerTasks: true, revisePrintedBill: true },
   kitchen: { readyMeansServed: true, oneTicketPerOrder: true },
+  // P39.
+  assistant: { enabled: false, bookingsEnabled: true, greeting: null, handoffHours: null, dailyAiLimit: 500 },
   dayClose: { showCashDifferenceToManager: false },
   cash: {
     denominations: DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })),

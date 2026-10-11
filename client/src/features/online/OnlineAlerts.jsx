@@ -21,7 +21,7 @@ import { BellIcon } from '../../components/ui/icons/index.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import { chime, onUnlockChange, soundIsUnlocked, speak, spokenLine, unlockSound } from './alertSound.js';
-import { alertRoleOn } from './inboxOn.js';
+import { alertRoleOn, chatsOn } from './inboxOn.js';
 import { useLiveInterval } from '../../api/live.js';
 
 const POLL_MS = 15_000;
@@ -48,13 +48,17 @@ export function useOnlineInbox(enabled) {
   });
 }
 
-function announce(inbox, speakAloud) {
+function announce(inbox, speakAloud, chatIsNewest) {
   chime();
-  if (speakAloud) speak(spokenLine(inbox.latest));
+  if (speakAloud) speak(chatIsNewest ? 'A WhatsApp chat needs a person.' : spokenLine(inbox.latest));
 }
+
+/** The later of two times, either of which may be missing. */
+const laterOf = (a, b) => (!a ? b : !b ? a : new Date(a) >= new Date(b) ? a : b);
 
 export default function OnlineAlerts() {
   const { pathname } = useLocation();
+  const { user, features } = useAuth();
   const [device] = useDeviceSettings();
   const alertsOn = useAlertsOn() && !pathname.startsWith('/kitchen');
   const { data: inbox } = useOnlineInbox(alertsOn);
@@ -74,8 +78,13 @@ export default function OnlineAlerts() {
     };
   }, []);
 
-  const waiting = inbox ? inbox.waitingOrders + inbox.waitingReservations + (inbox.waitingPlatformOrders ?? 0) : 0;
-  const latestAt = inbox?.latestRequestAt ?? null;
+  // P39. Chats waiting for a person, for the till only.
+  const chats = chatsOn(features, user?.role) ? (inbox?.waitingChats ?? 0) : 0;
+  const requests = inbox ? inbox.waitingOrders + inbox.waitingReservations + (inbox.waitingPlatformOrders ?? 0) : 0;
+  const waiting = requests + chats;
+  const latestChatAt = chats > 0 ? inbox.latestChatAt : null;
+  const latestAt = laterOf(inbox?.latestRequestAt ?? null, latestChatAt);
+  const chatIsNewest = Boolean(latestChatAt) && latestAt === latestChatAt;
 
   // A new request: announce it once.
   useEffect(() => {
@@ -84,24 +93,26 @@ export default function OnlineAlerts() {
       // The first read after opening the app. Anything already waiting is
       // announced too, so a device switched on mid-rush is not silent.
       lastAnnounced.current = latestAt;
-      if (waiting > 0) announce(inbox, device.speakAlerts);
+      if (waiting > 0) announce(inbox, device.speakAlerts, chatIsNewest);
       return;
     }
     if (new Date(latestAt) > new Date(lastAnnounced.current)) {
       lastAnnounced.current = latestAt;
-      announce(inbox, device.speakAlerts);
+      announce(inbox, device.speakAlerts, chatIsNewest);
     }
-  }, [alertsOn, latestAt, waiting, inbox, device.speakAlerts]);
+  }, [alertsOn, latestAt, waiting, inbox, device.speakAlerts, chatIsNewest]);
 
   // While anything waits, say so again every minute.
   useEffect(() => {
     if (!alertsOn || waiting === 0) return undefined;
     const timer = setInterval(() => {
       chime();
-      if (device.speakAlerts) speak(waiting === 1 ? 'One online request is waiting.' : `${waiting} online requests are waiting.`);
+      if (!device.speakAlerts) return;
+      if (requests > 0) speak(requests === 1 ? 'One online request is waiting.' : `${requests} online requests are waiting.`);
+      else speak(chats === 1 ? 'A WhatsApp chat needs a person.' : `${chats} WhatsApp chats need a person.`);
     }, REPEAT_MS);
     return () => clearInterval(timer);
-  }, [alertsOn, waiting, device.speakAlerts]);
+  }, [alertsOn, waiting, requests, chats, device.speakAlerts]);
 
   // The tab title carries the count, for a till showing another tab.
   useEffect(() => {
@@ -121,8 +132,12 @@ export default function OnlineAlerts() {
       ? (new Date(inbox.oldestWaitingAt).getTime() + new Date(inbox.oldestAnswerBy).getTime()) / 2
       : null;
   const late = halfway !== null && Date.now() > halfway;
-  const words =
-    waiting === 1 ? '1 online request waiting' : `${waiting} online requests waiting`;
+  const words = [
+    requests > 0 && (requests === 1 ? '1 online request waiting' : `${requests} online requests waiting`),
+    chats > 0 && (chats === 1 ? '1 chat needs a person' : `${chats} chats need a person`),
+  ]
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <div
@@ -148,7 +163,7 @@ export default function OnlineAlerts() {
         </button>
       )}
       <Link
-        to={inbox.waitingOrders > 0 || inbox.waitingPlatformOrders > 0 ? '/online' : '/online/bookings'}
+        to={inbox.waitingOrders > 0 || inbox.waitingPlatformOrders > 0 ? '/online' : inbox.waitingReservations > 0 ? '/online/bookings' : '/online/chats'}
         className="type-button flex min-h-12 items-center rounded-lg bg-surface px-4 text-ink hover:bg-sunken"
       >
         Open

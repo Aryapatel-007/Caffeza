@@ -46,6 +46,8 @@ const DEFAULT_ONLINE = Object.freeze({
   pausedUntil: null,
   // P25 Part H. The delivery platforms connected and on.
   platformChannels: [],
+  // P39. WhatsApp is on: chats waiting for a person ring the same alert.
+  chats: false,
 });
 
 /** P20A. Ocean and no second language until /auth/me says otherwise. */

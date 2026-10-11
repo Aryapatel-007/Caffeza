@@ -228,7 +228,7 @@ const PROVIDERS = {
     credentialSchema: z.object({ apiKey: secret(300).min(20, 'At least 20 characters.') }).strict(),
     configSchema: z
       .object({
-        model: z.string().trim().min(3).max(80).default('llama-3.3-70b-versatile'),
+        model: z.string().trim().min(3).max(80).default('openai/gpt-oss-120b'),
         apiBaseUrl: aiBaseUrl('https://api.groq.com/openai/v1'),
       })
       .strict(),

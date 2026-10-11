@@ -18,6 +18,14 @@ const ORDER_CHANNEL = [
   { path: 'defaultPrepMinutes', kind: 'number', label: 'Preparation time, minutes', min: 5, max: 120 },
 ];
 
+/** An AI provider's two settings. P39. */
+function aiFields(defaultModel) {
+  return [
+    { path: 'model', kind: 'text', label: 'Model', hint: `Leave as ${defaultModel} unless you know you need another.` },
+    { path: 'apiBaseUrl', kind: 'text', label: 'Service address', hint: 'Leave as it is.' },
+  ];
+}
+
 export const PROVIDER_FIELDS = Object.freeze({
   SANDBOX_PLATFORM: [
     { path: 'actsAs', kind: 'select', label: 'Bills as', options: [{ value: 'ZOMATO', label: 'Zomato' }, { value: 'SWIGGY', label: 'Swiggy' }] },
@@ -42,6 +50,10 @@ export const PROVIDER_FIELDS = Object.freeze({
     { path: 'senderDisplayName', kind: 'text', label: 'Name shown on the screens', optional: true },
     { path: 'apiBaseUrl', kind: 'text', label: 'Meta Cloud API address', hint: 'Leave as it is unless Meta says otherwise.' },
   ],
+  // P39, the assistant's AI. One is used at a time; Anthropic first.
+  GEMINI: aiFields('gemini-2.5-flash'),
+  ANTHROPIC: aiFields('claude-haiku-5-5'),
+  GROQ: aiFields('openai/gpt-oss-120b'),
   TALLY: [
     { path: 'version', kind: 'select', label: 'Tally version', options: [{ value: 'TALLY_PRIME', label: 'TallyPrime' }, { value: 'TALLY_ERP9', label: 'Tally.ERP 9' }] },
     { path: 'companyName', kind: 'text', label: 'Company name, exactly as in Tally' },
@@ -59,9 +71,21 @@ export const PROVIDER_DEFAULTS = Object.freeze({
   PINE_LABS: { baseUrl: 'https://www.plutuscloudserviceuat.in:8201', paths: { upload: '', status: '', cancel: '' }, storeId: '', terminals: [{ name: 'Counter', clientId: '' }], autoCancelMinutes: 5, postbackEnabled: false },
   TALLY: { version: 'TALLY_PRIME', companyName: '', granularity: 'DAILY_SUMMARY', delivery: 'FILE', exportPayouts: false },
   WHATSAPP: { sendBillOnPayment: false, defaultLanguage: 'en', senderDisplayName: '', apiBaseUrl: 'https://graph.facebook.com/v21.0' },
+  GEMINI: { model: 'gemini-2.5-flash', apiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta' },
+  ANTHROPIC: { model: 'claude-haiku-5-5', apiBaseUrl: 'https://api.anthropic.com' },
+  GROQ: { model: 'openai/gpt-oss-120b', apiBaseUrl: 'https://api.groq.com/openai/v1' },
 });
 
-export const DEFAULT_ENVIRONMENT = Object.freeze({ SANDBOX_PLATFORM: 'SANDBOX', PINE_LABS: 'UAT', TALLY: 'PRODUCTION', SWIGGY: 'PRODUCTION', ZOMATO: 'PRODUCTION', WHATSAPP: 'PRODUCTION' });
+/**
+ * Said plainly on the sheet, P39 section 6. A free tier may keep what guests
+ * write; a paid Anthropic key is not used for training by default.
+ */
+export const PROVIDER_WARNINGS = Object.freeze({
+  GEMINI: 'Free tier: for testing only. Guests’ messages may be used by Google. Use a paid key before guests write.',
+  GROQ: 'Free tier: for testing only, with a small daily limit. Use a paid key before guests write.',
+});
+
+export const DEFAULT_ENVIRONMENT = Object.freeze({ SANDBOX_PLATFORM: 'SANDBOX', PINE_LABS: 'UAT', TALLY: 'PRODUCTION', SWIGGY: 'PRODUCTION', ZOMATO: 'PRODUCTION', WHATSAPP: 'PRODUCTION', GEMINI: 'PRODUCTION', ANTHROPIC: 'PRODUCTION', GROQ: 'PRODUCTION' });
 
 export const valueAt = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
 
@@ -82,4 +106,6 @@ export const credentialLabel = (field) =>
     accessToken: 'Access token',
     webhookVerifyToken: 'Webhook verify token',
     appSecret: 'App secret',
+    // P39, an AI provider.
+    apiKey: 'API key',
   })[field] ?? field;

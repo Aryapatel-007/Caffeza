@@ -7,7 +7,14 @@
  */
 import { postJson } from './http.js';
 
-export const GROQ_DEFAULT_MODEL = 'llama-3.3-70b-versatile';
+export const GROQ_DEFAULT_MODEL = 'openai/gpt-oss-120b';
+
+/**
+ * gpt-oss thinks before it answers, and the thinking counts against
+ * `max_tokens`: at its default effort a short WhatsApp reply can run out of
+ * room and come back empty. Low effort keeps the answer quick.
+ */
+const reasoningFor = (model) => (String(model).startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {});
 
 const base = (connection) => String(connection.config?.apiBaseUrl ?? 'https://api.groq.com/openai/v1').replace(/\/$/, '');
 
@@ -39,11 +46,13 @@ const parseArguments = (text) => {
 };
 
 export async function complete(connection, secrets, { system, messages, tools = [], maxTokens = 700 }) {
+  const model = connection.config?.model ?? GROQ_DEFAULT_MODEL;
   const answer = await postJson(connection, {
     url: `${base(connection)}/chat/completions`,
     headers: { Authorization: `Bearer ${secrets.apiKey}` },
     body: {
-      model: connection.config?.model ?? GROQ_DEFAULT_MODEL,
+      model,
+      ...reasoningFor(model),
       temperature: 0.2,
       max_tokens: maxTokens,
       messages: messagesFor(system, messages),

@@ -25,6 +25,8 @@ export const CONTROL_PORT = 5056;
 export const FAKE_RAZORPAY_PORT = 5057;
 /** P37. A fake Meta Cloud API, so a bill paid in the browser test is sent on WhatsApp. */
 export const FAKE_META_PORT = 5059;
+/** P39. A fake AI model, so a guest can book a table on WhatsApp in the browser test. Not 5060 or 5061: fetch refuses those ports (SIP). */
+export const FAKE_MODEL_PORT = 5062;
 const HOST = '127.0.0.1';
 
 if (process.env.NODE_ENV !== 'test') {
@@ -73,6 +75,9 @@ const { startFakeRazorpay } = await import('../tests/helpers/fakeRazorpay.js');
 await startFakeRazorpay({ port: FAKE_RAZORPAY_PORT, host: HOST });
 const { startFakeMeta } = await import('../tests/helpers/fakeMeta.js');
 const fakeMeta = await startFakeMeta({ port: FAKE_META_PORT, host: HOST });
+// P39. The assistant's model, scripted by the browser test through /model.
+const { startFakeModel } = await import('../tests/helpers/fakeModel.js');
+const fakeModel = await startFakeModel({ port: FAKE_MODEL_PORT, host: HOST });
 
 const app = createApp({ serveClient: true });
 const httpServer = await new Promise((resolve) => {
@@ -126,6 +131,7 @@ const control = http.createServer(async (request, response) => {
     }
     if (request.method === 'POST' && request.url === '/reset') {
       Object.assign(fakeMeta.state, { templates: [], messages: [], requests: [] });
+      Object.assign(fakeModel.state, { queue: [], requests: [] });
       return send(response, 200, await reset());
     }
     // P37. What the fake Meta was sent, and its reviewer approving a template.
@@ -134,6 +140,13 @@ const control = http.createServer(async (request, response) => {
       const { name } = await readJson(request);
       fakeMeta.approve(name);
       return send(response, 200, { approved: name });
+    }
+    // P39. What the fake model answers next, in order: { steps: [...] }.
+    if (request.method === 'GET' && request.url === '/model') return send(response, 200, { url: fakeModel.url, waiting: fakeModel.state.queue.length });
+    if (request.method === 'POST' && request.url === '/model/script') {
+      const { steps } = await readJson(request);
+      fakeModel.script(...(steps ?? []));
+      return send(response, 200, { waiting: fakeModel.state.queue.length });
     }
     return send(response, 404, { error: 'not found' });
   } catch (error) {

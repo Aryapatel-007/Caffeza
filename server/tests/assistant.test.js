@@ -3,6 +3,7 @@
  * key is needed. docs/prompts/P39-whatsapp-assistant.md section 16.
  */
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { after, afterEach, before, beforeEach, describe, it } from 'node:test';
 
 import { ALL_MODELS } from '../models/index.js';
@@ -14,9 +15,12 @@ import { checkReply } from '../services/chatbot/replyCheck.js';
 import { runDueJobs } from '../services/integrations/jobRunner.js';
 import { signMetaBody } from '../services/integrations/messaging/whatsappAdapter.js';
 import { sendTemplate } from '../services/integrations/messaging/whatsappService.js';
+import { setRazorpayBaseForTests } from '../services/razorpayClient.js';
+import { setSecretsKeyForTests } from '../utils/secretBox.js';
 import { resetClockForTests, setClockForTests } from '../utils/time.js';
 import { GOOD, startFakeMeta } from './helpers/fakeMeta.js';
 import { FAKE_AI_KEY, lastToolResult, say, startFakeModel, useTool } from './helpers/fakeModel.js';
+import { GOOD_KEYS, startFakeRazorpay } from './helpers/fakeRazorpay.js';
 import { seedFloor } from './helpers/m2Fixtures.js';
 import { clearTestDatabase, startTestDatabase, stopTestDatabase } from './helpers/testDatabase.js';
 import { request, startTestServer, stopTestServer } from './helpers/testServer.js';
@@ -301,3 +305,116 @@ describe('the reply check', () => {
     assert.deepEqual([withOptions.text, withOptions.buttons], ['Shall I book it?', ['Yes', 'No']]);
   });
 });
+
+describe('the till hears about chats', () => {
+  it('rings the inbox for a chat that needs a person, with the online page off, and tells only the till', async () => {
+    const floor = await assistantFloor();
+    ok(await request('PATCH', '/api/v1/settings', { token: floor.tokens.OWNER, body: { reason: 'Page off', features: { online: false } } }), 'online off');
+    model.script(useTool('hand_to_staff', { reason: 'Asks about catering' }), say('A person from the restaurant will reply as soon as they can.'));
+    await guestWrites(floor, 'Can you cater for 100 people at my office?');
+
+    const me = ok(await request('GET', '/api/v1/auth/me', { token: floor.tokens.CASHIER }), 'me');
+    assert.equal(me.online.chats, true, 'screens know WhatsApp is on');
+    const inbox = ok(await request('GET', '/api/v1/online/inbox', { token: floor.tokens.CASHIER }), 'inbox');
+    assert.equal(inbox.waitingChats, 1);
+    assert.ok(inbox.latestChatAt);
+    assert.equal(inbox.waitingOrders, 0, 'online orders stay off');
+
+    const chats = ok(await request('GET', '/api/v1/chats', { token: floor.tokens.CASHIER }), 'chats');
+    assert.equal(chats[0].status, 'NEEDS_STAFF');
+    assert.doesNotMatch(JSON.stringify(chats), new RegExp(GUEST), 'no phone number on a screen');
+    assert.equal((await request('GET', '/api/v1/chats', { token: floor.tokens.WAITER })).status, 403, 'a captain does not read chats');
+  });
+
+  it('closes the inbox again once WhatsApp is paused and nothing else is on', async () => {
+    const floor = await assistantFloor({ ai: false });
+    ok(await request('PATCH', '/api/v1/settings', { token: floor.tokens.OWNER, body: { reason: 'Page off', features: { online: false } } }), 'online off');
+    ok(await request('POST', '/api/v1/integrations/WHATSAPP/pause', { token: floor.tokens.OWNER }), 'pause');
+    assert.equal((await request('GET', '/api/v1/online/inbox', { token: floor.tokens.CASHIER })).body.error.code, 'FEATURE_DISABLED');
+    assert.equal(ok(await request('GET', '/api/v1/auth/me', { token: floor.tokens.CASHIER }), 'me').online.chats, false);
+  });
+});
+
+describe('deposits, and booking messages after the window', () => {
+  let razorpay;
+  before(async () => {
+    razorpay = await startFakeRazorpay();
+    setRazorpayBaseForTests(razorpay.base);
+  });
+  after(async () => {
+    setRazorpayBaseForTests(undefined);
+    setSecretsKeyForTests(undefined);
+    await razorpay.close();
+  });
+
+  it('gives the deposit and its link exactly as the tool returned them, and never another link', async () => {
+    setSecretsKeyForTests(randomBytes(32).toString('base64'));
+    const floor = await assistantFloor();
+    ok(await request('PATCH', '/api/v1/settings', { token: floor.tokens.OWNER, body: { reason: 'Deposits', online: { depositPerPersonInPaise: 10000 } } }), 'deposit');
+    ok(await request('PATCH', '/api/v1/online/site', { token: floor.tokens.OWNER, body: { publicSlug: 'deposit-cafe' } }), 'slug');
+    ok(await request('PUT', '/api/v1/settings/payments/gateway', { token: floor.tokens.OWNER, body: { ...GOOD_KEYS, reason: 'Connect Razorpay' } }), 'gateway');
+
+    let booked = null;
+    model.script(
+      useTool('request_booking', { date: TOMORROW, time: '20:00', partySize: 2, name: 'Asha' }),
+      (body) => {
+        booked = lastToolResult(body);
+        // A made-up link beside the real one: the reply check must stop it.
+        return say(`Booked *${booked.reference}*. Pay the deposit of ${booked.deposit} here: ${booked.depositLink} or at https://pay.example.com/x`);
+      },
+      () => say(`Your booking request *${booked.reference}* is in. Please pay the deposit of ${booked.deposit} here: ${booked.depositLink}`),
+    );
+    await guestWrites(floor, 'Book 8 pm tomorrow for 2, name Asha, yes go ahead');
+
+    assert.equal(booked.ok, true);
+    assert.match(booked.deposit, /200\.00/);
+    assert.ok(booked.depositLink, 'the gateway link');
+    assert.equal(sentTo().length, 1, 'the reply with a made-up link was never sent');
+    const text = textOf(lastSent());
+    assert.ok(text.includes(booked.depositLink), 'the link the tool returned');
+    assert.ok(text.includes(booked.deposit), 'the amount the tool returned');
+    assert.equal(text.includes('pay.example.com'), false);
+    assert.equal((await Reservation.findOne({ restaurantId: floor.restaurant._id }).lean()).status, 'AWAITING_PAYMENT', 'staff see it once it is paid, as on the page');
+  });
+
+  it('tells the guest with the Booking confirmed template once their window has closed', async () => {
+    const floor = await assistantFloor();
+    const inThreeDays = '2026-10-08';
+    let booked = null;
+    model.script(useTool('request_booking', { date: inThreeDays, time: '20:00', partySize: 2, name: 'Asha' }), (body) => {
+      booked = lastToolResult(body);
+      return say(`Your booking request *${booked.reference}* is in. The restaurant will confirm it shortly.`);
+    });
+    await guestWrites(floor, 'Book 8 pm on Thursday for 2, name Asha, yes');
+    assert.equal(booked.ok, true);
+
+    ok(
+      await request('POST', '/api/v1/integrations/whatsapp/templates', {
+        token: floor.tokens.OWNER,
+        body: {
+          key: 'BOOKING_CONFIRMED',
+          metaName: 'booking_confirmed',
+          category: 'UTILITY',
+          bodyText: 'Your table is confirmed: {{1}}, {{2}} at {{3}}, for {{4}}. See you then.',
+          variables: ['reference', 'date', 'time', 'partySize'],
+          example: ['R-1', 'Thursday 8 October', '8:00 pm', '2'],
+        },
+      }),
+      'template',
+    );
+    meta.approve('booking_confirmed');
+    ok(await request('POST', '/api/v1/integrations/whatsapp/templates/sync', { token: floor.tokens.OWNER }), 'sync');
+
+    // A day and an hour later the window is closed: a plain message is not allowed.
+    setClockForTests(new Date('2026-10-06T13:00:00+05:30'));
+    const [booking] = await Reservation.find({ restaurantId: floor.restaurant._id }).lean();
+    ok(await request('POST', `/api/v1/online/reservations/${booking._id}/confirm`, { token: floor.tokens.MANAGER, body: {} }), 'confirm');
+    await runDueJobs();
+
+    const message = lastSent();
+    assert.equal(message.type, 'template');
+    assert.equal(message.template.name, 'booking_confirmed');
+    assert.deepEqual(message.template.components[0].parameters.map((entry) => entry.text), [booking.reference, 'Thursday 8 October', '8:00 pm', '2']);
+  });
+});
+

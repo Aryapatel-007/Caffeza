@@ -36,6 +36,9 @@ import PaymentChip from './PaymentChip.jsx';
 import { BOOKING_DECLINE_REASONS } from './onlineReasons.js';
 import { useLiveInterval } from '../../api/live.js';
 
+/** Where a booking came from. P39 adds WhatsApp. */
+const SOURCE_WORDS = { PHONE: 'by phone', ONLINE: 'from the page', WHATSAPP: 'on WhatsApp' };
+
 const TILL_ROLES = ['OWNER', 'MANAGER', 'CASHIER'];
 const NO_SHOW_AFTER_MS = 15 * 60_000;
 
@@ -66,7 +69,7 @@ function BookingCard({ booking, canDecide, onAction }) {
             <span className="type-num">{formatTimeIst(booking.at)}</span> · {booking.guestName}, {booking.partySize}
           </p>
           <p className="type-caption text-muted">
-            {booking.reference} · {booking.source === 'PHONE' ? 'by phone' : 'from the page'}
+            {booking.reference} · {SOURCE_WORDS[booking.source] ?? 'from the page'}
             {booking.tableName ? ` · ${booking.tableName}` : ''}
           </p>
         </div>

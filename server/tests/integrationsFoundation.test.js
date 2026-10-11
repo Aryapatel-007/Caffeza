@@ -122,7 +122,7 @@ describe('a saved connection never gives its credentials back', () => {
     assert.equal((await request('GET', '/api/v1/integrations', { token: team.tokens.CASHIER })).status, 403);
     assert.equal((await request('GET', '/api/v1/integrations')).status, 401);
     const listed = (await request('GET', '/api/v1/integrations', { token: team.tokens.OWNER })).body.data;
-    assert.deepEqual(listed.map((row) => row.provider).sort(), ['PINE_LABS', 'SANDBOX_PLATFORM', 'SWIGGY', 'TALLY', 'WHATSAPP', 'ZOMATO']);
+    assert.deepEqual(listed.map((row) => row.provider).sort(), ['ANTHROPIC', 'GEMINI', 'GROQ', 'PINE_LABS', 'SANDBOX_PLATFORM', 'SWIGGY', 'TALLY', 'WHATSAPP', 'ZOMATO']);
     assert.equal(listed.find((row) => row.provider === 'SWIGGY').availability, 'WAITING_FOR_PARTNER');
   });
 

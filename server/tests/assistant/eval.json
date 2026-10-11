@@ -17,6 +17,7 @@
     { "id": "so13", "label": "STOP_OFFERS", "text": "ये ऑफर वाले मैसेज मत भेजो", "accept": ["stop_messages:OFFERS"] },
     { "id": "so14", "label": "STOP_OFFERS", "afterOffer": true, "text": "spam band karo", "accept": ["stop_messages:OFFERS", "stop_messages:ALL"] },
     { "id": "so15", "label": "STOP_OFFERS", "afterOffer": true, "text": "no thanks, don't send these deals", "accept": ["stop_messages:OFFERS"] },
+    { "id": "so16", "label": "STOP_OFFERS", "text": "I'm not interested in your promotions", "accept": ["stop_messages:OFFERS"] },
 
     { "id": "sa1", "label": "STOP_ALL", "text": "don't message me ever again", "accept": ["stop_messages:ALL"] },
     { "id": "sa2", "label": "STOP_ALL", "text": "remove my number", "accept": ["stop_messages:ALL"] },
@@ -30,6 +31,8 @@
     { "id": "sa10", "label": "STOP_ALL", "text": "I don't want any messages from you at all", "accept": ["stop_messages:ALL"] },
     { "id": "sa11", "label": "STOP_ALL", "text": "please delete my number", "accept": ["stop_messages:ALL"] },
     { "id": "sa12", "label": "STOP_ALL", "text": "stop texting me", "accept": ["stop_messages:ALL", "stop_messages:OFFERS", "ASK"] },
+    { "id": "sa13", "label": "STOP_ALL", "text": "take me off your list, no messages at all", "accept": ["stop_messages:ALL"] },
+    { "id": "sa14", "label": "STOP_ALL", "history": [["GUEST", "pls stop the offers"], ["ASSISTANT", "Done: you will get no more offers. Bills and booking messages still come; reply stop all to stop those too."]], "text": "stop all", "accept": ["stop_messages:ALL"] },
 
     { "id": "se1", "label": "STOP_EITHER", "text": "stop", "accept": ["stop_messages:OFFERS", "stop_messages:ALL", "ASK"] },
     { "id": "se2", "label": "STOP_EITHER", "text": "enough", "accept": ["stop_messages:OFFERS", "stop_messages:ALL", "ASK"] },
@@ -48,6 +51,7 @@
     { "id": "ns10", "label": "NOT_STOP", "history": [["GUEST", "I want to book a table"], ["ASSISTANT", "Sure. For which day, and how many people?"]], "text": "actually I don't want to book anymore", "accept": ["NONE", "ASK"] },
     { "id": "ns11", "label": "NOT_STOP", "text": "mat bhejo mujhe bill paper pe, WhatsApp pe hi bhejo", "accept": ["NONE", "ASK", "hand_to_staff"] },
     { "id": "ns12", "label": "NOT_STOP", "text": "the stop at Infocity, are you close to it?", "accept": ["get_restaurant_info", "NONE", "ASK"] },
+    { "id": "ns13", "label": "NOT_STOP", "text": "can you stop the music, it's too loud here", "accept": ["NONE", "hand_to_staff", "ASK"] },
 
     { "id": "bk1", "label": "BOOKING", "text": "table for 4 tomorrow at 8 pm", "accept": ["get_booking_options", "ASK"] },
     { "id": "bk2", "label": "BOOKING", "text": "can I book for this Saturday 7:30 for 6 people?", "accept": ["get_booking_options", "ASK"] },

@@ -23,6 +23,7 @@ import { INBOX_QUERY_KEY } from './OnlineAlerts.jsx';
 import { AcceptSheet, DeclineSheet, errorText } from './OnlineSheets.jsx';
 import PaymentChip from './PaymentChip.jsx';
 import { ORDER_DECLINE_REASONS } from './onlineReasons.js';
+import { chatsOn, inboxOn } from './inboxOn.js';
 import { useLiveInterval } from '../../api/live.js';
 
 const TILL_ROLES = ['OWNER', 'MANAGER', 'CASHIER'];
@@ -40,6 +41,7 @@ function minutesLeft(answerBy) {
 }
 
 export function OnlineTabs({ current, inbox }) {
+  const { user, features } = useAuth();
   const tab = (to, label, count, key) => (
     <Link
       to={to}
@@ -55,8 +57,9 @@ export function OnlineTabs({ current, inbox }) {
   );
   return (
     <nav aria-label="Online" className="flex gap-2">
-      {tab('/online', 'Takeaway', inbox?.waitingOrders ?? 0, 'takeaway')}
-      {tab('/online/bookings', 'Bookings', inbox?.waitingReservations ?? 0, 'bookings')}
+      {inboxOn(features) && tab('/online', 'Takeaway', inbox?.waitingOrders ?? 0, 'takeaway')}
+      {features.online?.enabled && tab('/online/bookings', 'Bookings', inbox?.waitingReservations ?? 0, 'bookings')}
+      {chatsOn(features, user?.role) && tab('/online/chats', 'Chats', inbox?.waitingChats ?? 0, 'chats')}
     </nav>
   );
 }

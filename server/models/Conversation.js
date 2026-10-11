@@ -9,6 +9,7 @@ import mongoose from 'mongoose';
 
 import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
+import { liveAnnouncePlugin } from './plugins/liveAnnounce.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 
 export const CONVERSATION_STATUSES = Object.freeze({ BOT: 'BOT', NEEDS_STAFF: 'NEEDS_STAFF', STAFF: 'STAFF', CLOSED: 'CLOSED' });
@@ -41,6 +42,8 @@ const conversationSchema = new mongoose.Schema({
 
 conversationSchema.plugin(baseSchemaPlugin);
 conversationSchema.plugin(tenantGuardPlugin);
+// P39. A chat that changes reaches the till's inbox and the Chats screen at once.
+conversationSchema.plugin(liveAnnouncePlugin, { topics: ['online'] });
 
 conversationSchema.index({ restaurantId: 1, branchId: 1, customerId: 1 }, { unique: true });
 conversationSchema.index({ restaurantId: 1, branchId: 1, status: 1, lastMessageAt: -1 });

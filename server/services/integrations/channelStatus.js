@@ -11,10 +11,18 @@ export async function activeOrderChannels(req) {
   return connections.map((connection) => connection.provider).filter((provider) => providerFor(provider)?.kind === PROVIDER_KINDS.ORDER_CHANNEL);
 }
 
+/**
+ * P39. Whether the WhatsApp connection is on, so chats waiting for a person
+ * reach the inbox and its alert even with the online page off.
+ */
+export async function whatsappOn(req) {
+  return Boolean(await IntegrationConnection.exists({ ...scoped(req), provider: 'WHATSAPP', status: CONNECTION_STATUSES.ACTIVE }));
+}
+
 /** P25 Part I. The card machines of an active Pine Labs connection: names and client ids only. */
 export async function activeTerminals(req) {
   const connection = await IntegrationConnection.findOne({ ...scoped(req), provider: 'PINE_LABS', status: CONNECTION_STATUSES.ACTIVE }).select('config').lean();
   return (connection?.config?.terminals ?? []).map((terminal) => ({ name: terminal.name, clientId: String(terminal.clientId) }));
 }
 
-export default { activeOrderChannels, activeTerminals };
+export default { activeOrderChannels, activeTerminals, whatsappOn };
