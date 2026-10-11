@@ -46,5 +46,7 @@ The full table, with dependencies and owners, is in
 | P35 | The same dish once on the bill, and each drink its own dish | Done, deployed and run on Z Chaat 2026-10-11. Rishi's read outstanding. |
 | P36 | One kitchen ticket per table | Done 2026-10-11. Rishi's read outstanding. |
 | P37 | WhatsApp: the connection, templates, and the receipt | Built and deployed 2026-10-11 against a fake Meta; the check on Z Chaat's real WhatsApp Business Account is owed. Rishi's read outstanding. |
+| P38 | Campaigns: offers and new dishes | Written by Arya, not saved here yet; comes after P37 has run on a real WhatsApp account. |
+| P39 | The WhatsApp assistant: questions, table bookings, and stop | Planned 2026-10-11. Waiting for Arya's go. |
 
 Prompt files that do not exist yet are added as they are written.
