@@ -82,7 +82,8 @@ export function invoiceHtml(data, { qrSvg = null, logoDataUrl = null } = {}) {
     [data.platform?.name, data.platform?.orderId],
   ].filter(([label, value]) => label && value !== null && value !== undefined && value !== '');
 
-  const lineRows = data.lines
+  // P35. The server's item rows: the same dish ordered in two rounds prints once.
+  const lineRows = (data.itemRows ?? data.lines)
     .map((line) => {
       const name = line.itemName + (line.variantName ? ` (${line.variantName})` : '');
       const addOns = line.addOnNames.length ? `<div class="muted">+ ${escapeHtml(line.addOnNames.join(', '))}</div>` : '';
@@ -186,7 +187,8 @@ export function thermalBillHtml(data, { printer, logoDataUrl = null, qrSvg = nul
     ? `${escapeHtml(data.platform.name)}: ${escapeHtml(data.platform.orderId)}`
     : `${ORDER_PLACE_WORDS[data.orderType] ?? ''}${data.tableName ? `: ${escapeHtml(data.tableName)}` : ''}`;
 
-  const items = data.lines
+  // P35. The server's item rows, the same dish once; Total Qty below is unchanged.
+  const items = (data.itemRows ?? data.lines)
     .map((line) => {
       const name = escapeHtml(line.itemName + (line.variantName ? ` (${line.variantName})` : ''));
       const each = Number.isInteger(line.lineTotalInPaise / line.quantity) ? line.lineTotalInPaise / line.quantity : line.unitPriceInPaise;

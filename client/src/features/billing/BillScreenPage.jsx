@@ -287,6 +287,17 @@ export default function BillScreenPage() {
   const revisable = Boolean(bill.revisable);
   const canRemove = revisable && (isTill || isCaptain) && bill.lines.length > 1;
   const orderLineStatus = (orderLineId) => order?.lines.find((line) => line.id === orderLineId)?.status ?? 'SERVED';
+  /**
+   * P35. The bill lists the server's item rows: the same dish ordered in two
+   * rounds is one row. A bill read before P35 has none, so each line is its own.
+   */
+  const itemRows = bill.itemRows ?? bill.lines.map((line) => ({ ...line, orderLineIds: [line.orderLineId] }));
+  const rowChoices = (row) =>
+    row.orderLineIds.map((orderLineId) => ({
+      line: bill.lines.find((line) => line.orderLineId === orderLineId),
+      status: orderLineStatus(orderLineId),
+      firedAt: order?.lines.find((line) => line.id === orderLineId)?.firedAt ?? null,
+    }));
   const removeNeedsApproval = (line) => {
     if (canManage) return false;
     const sentToKitchen = ['FIRED', 'READY', 'SERVED'].includes(orderLineStatus(line.orderLineId));
@@ -426,8 +437,8 @@ export default function BillScreenPage() {
               <span>Line total</span>
             </div>
             <ul className="divide-y divide-line">
-              {bill.lines.map((line) => (
-                <li key={line.orderLineId} className="flex items-start justify-between gap-3 py-2">
+              {itemRows.map((line) => (
+                <li key={line.orderLineIds.join('-')} className="flex items-start justify-between gap-3 py-2">
                   <div className="min-w-0">
                     <p className="type-body line-clamp-2 break-words" title={line.itemName}>
                       <span className="type-num mr-2">{line.quantity}</span>
@@ -659,6 +670,7 @@ export default function BillScreenPage() {
       {panel === 'cancel-items' && (
         <CancelItemsPanel
           bill={bill}
+          order={order}
           needsApproval={!canManage}
           onCancel={() => setPanel(null)}
           onDone={(result) => {
@@ -678,9 +690,9 @@ export default function BillScreenPage() {
       {removing && (
         <RemoveItemPanel
           bill={bill}
-          line={removing}
-          lineStatus={orderLineStatus(removing.orderLineId)}
-          needsApproval={removeNeedsApproval(removing)}
+          row={removing}
+          choices={rowChoices(removing)}
+          needsApprovalFor={(picked) => picked.some((choice) => removeNeedsApproval(choice.line))}
           onCancel={() => setRemoving(null)}
           onDone={(updated) => {
             setRemoving(null);

@@ -539,6 +539,22 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-11 Arya, P35 the same dish once on the bill, and each drink its own dish
+
+In progress. The prompt is `docs/prompts/P35-same-dish-once-and-drinks-as-dishes.md`.
+
+```
+P35 progress
+- [x] A Same dish once on the bill
+- [ ] B Each drink its own dish (code and tests)
+- [ ] B Live run on Z Chaat (needs Arya's "apply")
+- [ ] C Full check and docs
+```
+
+Tests before: 1,249, all passing.
+
+Part A: spec first (`spec item rows on the bill`). `server/utils/billLines.js` `groupBillLines`; the bill's JSON transform (`models/Bill.js`) adds `itemRows` to every bill sent back whole, so no handler can miss it, and it is never stored; `buildInvoiceData` carries it and the receipt text lists it. The bill screen, the thermal bill and the full-page invoice list `itemRows`; removing from a row of several lines asks "Which one?" ("1 × Roti, sent 8:05 pm"), and Cancel an item on a paid bill says when each of a repeated dish's lines was sent. Built differently: the remove preview gains `removedQuantity` and `removedLineTotalInPaise`, added up on the server, so the sentence "2 × Roti ₹80.00 comes off bill …" does no money arithmetic on the client. No receipt or invoice snapshot changed: no golden day bill has the same dish on two lines.
+
 ### 2026-10-11 Rishi, P34 set a new password from the sign-in screen
 
 What was built or decided:

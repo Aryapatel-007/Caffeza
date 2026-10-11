@@ -65,7 +65,7 @@ test('a water bottle taken off a printed bill, without a void', async ({ browser
   await sheet.getByRole('button', { name: 'Wrong item entered', exact: true }).click();
   await sheet.getByRole('button', { name: 'No', exact: true }).click();
   await sheet.getByRole('button', { name: 'Next' }).click();
-  await expect(sheet.getByText(/^Water Bottle ₹[\d,.]+ comes off bill .+\. The bill becomes ₹[\d,.]+\.$/)).toBeVisible();
+  await expect(sheet.getByText(/^1 × Water Bottle ₹[\d,.]+ comes off bill .+\. The bill becomes ₹[\d,.]+\.$/)).toBeVisible();
   await sheet.getByRole('button', { name: 'Manager', exact: true }).click();
   await sheet.getByLabel('Their PIN').fill('2468');
   await sheet.getByRole('button', { name: 'Remove it' }).click();

@@ -2411,7 +2411,8 @@ correction, void, print, remove-lines, apply advance and the rest), carries
 `itemRows` beside `lines`. It is the bill's lines grouped for a person to read,
 computed each time the bill is sent and **never stored**; `lines` is unchanged,
 one bill line per order line, each still tracing to its order line and kitchen
-ticket. The bill list (14.3) and the print queue carry no `itemRows`.
+ticket. Each bill in the list (14.3) carries it too, being the whole document;
+the print queue, which sends only a few fields of each bill, carries none.
 
 Two lines join one row only when all of these are the same: `menuItemId`,
 `itemName`, `variantName` (two nulls are the same), `addOnNames` as a set (the
@@ -3012,7 +3013,10 @@ POST /api/v1/bills/:billId/remove-lines
 
 P35: unchanged on the server. The bill screen lists `itemRows` (14.2); removing
 from a row made of several lines first asks which of them, and sends every
-line picked, each with its own `wasPrepared` when it reached the kitchen.
+line picked, each with its own `wasPrepared` when it reached the kitchen. The
+preview (`preview: true`) gains `removedQuantity` and `removedLineTotalInPaise`,
+the picked lines added up on the server, so the screen says "2 × Roti ₹80.00
+comes off bill …" with no money arithmetic of its own.
 
 ```json
 {

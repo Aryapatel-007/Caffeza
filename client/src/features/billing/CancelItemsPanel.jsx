@@ -8,6 +8,7 @@ import ApprovalStep, { useApproval } from '../../components/ui/ApprovalStep.jsx'
 import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
 import { LINE_CANCEL_REASONS } from '../orders/cancelReasons.js';
 import { errorMessage } from './errorCopy.js';
+import { sentWords } from './RemoveItemPanel.jsx';
 
 /**
  * Cancelling an item after the bill is made. P25 Part E, API-CONTRACT M3
@@ -20,7 +21,13 @@ import { errorMessage } from './errorCopy.js';
  * stays on the server. A cashier or captain then asks a manager to pick their
  * name and type their PIN on this same screen.
  */
-export default function CancelItemsPanel({ bill, needsApproval, onCancel, onDone }) {
+export default function CancelItemsPanel({ bill, order = null, needsApproval, onCancel, onDone }) {
+  // P35. Cancelling stays per line. When the same dish is on more than one line, each says when it was sent.
+  const repeated = new Set((bill.itemRows ?? []).filter((row) => row.orderLineIds.length > 1).flatMap((row) => row.orderLineIds));
+  const sentLabel = (orderLineId) => {
+    const orderLine = order?.lines.find((line) => line.id === orderLineId);
+    return sentWords({ status: orderLine?.status, firedAt: orderLine?.firedAt ?? null });
+  };
   const [picked, setPicked] = useState({});
   const [reason, setReason] = useState({ reasonCode: null, note: '' });
   const approval = useApproval(needsApproval);
@@ -96,6 +103,7 @@ export default function CancelItemsPanel({ bill, needsApproval, onCancel, onDone
                     <span className="type-body flex-1">
                       {line.quantity} × {line.itemName}
                       {line.variantName ? ` (${line.variantName})` : ''}
+                      {repeated.has(line.orderLineId) ? `, ${sentLabel(line.orderLineId)}` : ''}
                     </span>
                     <span className="type-num-meta">{moneyText(line.lineTotalInPaise)}</span>
                   </label>

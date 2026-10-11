@@ -17,6 +17,7 @@
  * hands paise to the client and lets it format.
  */
 import { discountReasonText } from '../config/discountReasons.js';
+import { groupBillLines } from '../utils/billLines.js';
 import { paiseToRupees } from '../utils/money.js';
 import { toIst } from '../utils/time.js';
 
@@ -165,6 +166,8 @@ export function buildInvoiceData({ restaurant, bill, receipt = {} }) {
       lineTotalInPaise: line.lineTotalInPaise,
       taxRateBps: line.taxRateBps,
     })),
+    // P35. The same dish once: what every printed bill lists. Computed, never stored.
+    itemRows: groupBillLines(bill.lines),
     itemTotalInPaise: bill.subtotalInPaise,
     discount: bill.discount
       ? {
@@ -248,7 +251,8 @@ export function layoutReceipt(data, width = 32) {
   push(row('Item', 'Amount', width));
   push(rule(width));
 
-  for (const line of data.lines) {
+  // P35. One row per dish at one price, so two rounds of Roti print once.
+  for (const line of data.itemRows ?? data.lines) {
     const wrapped = wrapName(line.itemName + (line.variantName ? ` (${line.variantName})` : ''), width);
     for (const part of wrapped.slice(0, -1)) push(part);
 

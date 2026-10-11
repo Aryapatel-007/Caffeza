@@ -246,6 +246,9 @@ export async function removeLines(req, billId, { lines, reasonCode, note = null,
           previousGrandTotalInPaise: revision.previousGrandTotalInPaise,
           newGrandTotalInPaise: revision.newGrandTotalInPaise,
           removed: revision.lines.map(({ itemName, variantName, quantity, lineTotalInPaise }) => ({ itemName, variantName, quantity, lineTotalInPaise })),
+          // P35. What goes, added up here, so the screen's "2 × Roti ₹80.00" does no money arithmetic.
+          removedQuantity: revision.lines.reduce((count, line) => count + line.quantity, 0),
+          removedLineTotalInPaise: sumPaise(...revision.lines.map((line) => line.lineTotalInPaise)),
         };
         throw new PreviewOnly();
       }

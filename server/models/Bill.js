@@ -25,6 +25,7 @@ import { cashCountRowSchema } from './CashMovement.js';
 
 import { BILL_VOID_REASON_CODES } from '../config/cancelReasons.js';
 import { DISCOUNT_FUNDERS, DISCOUNT_FUNDER_VALUES, DISCOUNT_REASON_CODES } from '../config/discountReasons.js';
+import { groupBillLines } from '../utils/billLines.js';
 import { MAX_PAISE } from '../utils/money.js';
 import { MAX_BASIS_POINTS } from '../validators/common.js';
 import { applyJsonTransform } from './plugins/jsonTransform.js';
@@ -504,6 +505,23 @@ const billSchema = new mongoose.Schema({
 
 billSchema.plugin(baseSchemaPlugin);
 billSchema.plugin(tenantGuardPlugin);
+
+/**
+ * P35. Every bill sent back whole carries `itemRows`: its lines grouped for a
+ * person to read, the same dish once (API-CONTRACT M3 14.2). Computed here,
+ * each time a bill is turned into JSON, and never stored, so no handler can
+ * send a bill without it. Only the bill itself gets it, never a line or a
+ * payment inside it.
+ */
+const baseBillJson = billSchema.get('toJSON');
+billSchema.set('toJSON', {
+  ...baseBillJson,
+  transform(document, record, options) {
+    const out = baseBillJson.transform(document, record, options) ?? record;
+    if (!document.$isSubdocument && Array.isArray(document.lines)) out.itemRows = groupBillLines(document.lines);
+    return out;
+  },
+});
 // P33. Tells open screens that read these topics to read again, after the write commits.
 billSchema.plugin(liveAnnouncePlugin, { topics: ['tables', 'print-queue'] });
 
