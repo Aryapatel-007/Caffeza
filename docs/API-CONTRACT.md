@@ -8160,3 +8160,84 @@ and every screen polls at its own interval. This is the rollback.
 ## Error codes
 
 No new HTTP error code.
+
+# P36 One kitchen ticket per table
+
+Asked for by Arya on 2026-10-11. `docs/prompts/P36-one-kitchen-ticket-per-table.md`.
+Additive: a ticket written before P36 reads and behaves exactly as before.
+
+## 1. The setting
+
+`settings.kitchen.oneTicketPerOrder`, Boolean, default `true`, on `GET` and
+`PATCH /settings` in the existing `kitchen` group (M7), OWNER to change, with the
+usual reason and audit line. Off, firing is exactly M18 section 2 (P05).
+
+## 2. Firing (changes M2 12.8 and M18 section 2)
+
+With the setting on, `POST /orders/:orderId/fire`:
+
+1. Routes every pending line to its station exactly as M18 section 2 steps 1
+   to 4.
+2. When the order already has a ticket (its most recent by `firedAt`), adds the
+   lines to it: each new ticket line carries `stationId`, `stationName`,
+   `firedAt` and `round`, the ticket's `rounds` goes up by one and its
+   `lastFiredAt` is now. No new `kotNumber` is reserved.
+3. When it has none, makes one ticket, numbered as before, `rounds: 1`. Its own
+   `stationId` and `stationName` are the station every line went to, or null
+   when the lines went to more than one.
+4. Every order line fired points its `kotId` at that ticket. Same transaction,
+   same version check, same stock deduction, once per line.
+
+The response is unchanged in shape: `{ kot, kots: [kot], order }`, plus
+`round`, the round number just sent.
+
+With the setting off, a fire still writes `stationId`, `stationName`,
+`firedAt` and `round: 1` on each new ticket line, so every ticket reads the
+same way.
+
+## 3. Reading tickets (changes M2 13.1 and M18 section 3)
+
+A ticket line's **station** is its own `stationId` and `stationName`, or the
+ticket's when the line has none (a ticket from before P36). A line's **sent
+time** is its own `firedAt`, or the ticket's. Every ticket in a response
+carries each line's station, sent time and `round` filled in that way, the
+ticket's `rounds` (1 when absent) and `lastFiredAt` (its `firedAt` when absent).
+
+`GET /kots?stationId=` returns the tickets with at least one line at that
+station. `none` returns the tickets with a line that has no station. The status
+filter is unchanged: it reads the whole ticket; a screen showing one station
+works out that station's part itself.
+
+## 4. Marking ready and undoing, for one station
+
+`PATCH /kots/:kotId/ready` and `POST /kots/:kotId/undo-ready` take an optional
+query `stationId`: only the lines at that station are marked, or taken back.
+Without it, every line, as before. A `stationId` that no line has is 422
+`BUSINESS_RULE_VIOLATED`, "Nothing on this ticket is for that station." The
+one-line endpoints are unchanged.
+
+## 5. The printed ticket (changes M18 3.1)
+
+`GET /kots/:kotId/ticket` takes an optional `round` (a whole number, 1 or more)
+and an optional `stationId`:
+
+1. With `round`, only that round's lines print, and the time beside the KOT
+   number is that round's sent time. The KOT line reads `KOT 12  ROUND 2` for any
+   round after the first.
+2. With `stationId`, only that station's lines print, under that station's name.
+3. With neither, every line prints, as before.
+4. A round or station with no line on the ticket is 422 `BUSINESS_RULE_VIOLATED`.
+
+## 6. Reports
+
+R13's kitchen section and its slowest items group by each line's station, and
+measure from each line's sent time to its `readyAt`. A round is counted in the
+range by its own sent time. The `stationId` filter matches a line's station. On
+a ticket with one round, every figure is what it was.
+
+The bill timeline (R10) shows one "Sent to the kitchen" event per round:
+`KOT 12`, then `KOT 12, round 2`.
+
+## Error codes
+
+None new.

@@ -2850,3 +2850,34 @@ The person is looked up by phone or email across the platform, through the
 existing global unique indexes on `users.phone` and `users.email`, the same
 lookup login makes. The approver is looked up inside that person's restaurant
 only.
+
+## 46. One kitchen ticket per table (P36)
+
+Additive. Every field has a default, and a ticket written before P36 reads as
+before: a line without its own station or sent time takes the ticket's.
+
+### `kots`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `rounds` | Number | 1 | How many Sends this ticket holds. Whole number, 1 or more |
+| `lastFiredAt` | Date or null | null | When the latest round was sent. Null on a ticket from before P36, which means `firedAt` |
+| `lines[].stationId` | ObjectId or null | null | The station that makes this dish, frozen when it was sent. Null: the ticket's `stationId` |
+| `lines[].stationName` | String or null | null | Frozen with it |
+| `lines[].firedAt` | Date or null | null | When this dish was sent. Null: the ticket's `firedAt` |
+| `lines[].round` | Number | 1 | Which Send of the ticket it came in, from 1 |
+
+With `settings.kitchen.oneTicketPerOrder` on, an order has one ticket: the
+first Send creates it, later Sends add lines and rounds to it, and its
+`kotNumber` never changes. Its own `stationId` and `stationName` are the one
+station every line went to, or null when they went to more than one.
+
+New index, for a station's screen: `{ restaurantId: 1, branchId: 1, 'lines.stationId': 1, createdAt: 1 }`.
+The old `{ restaurantId, branchId, stationId, createdAt }` stays, for tickets
+from before P36.
+
+### `restaurants.settings.kitchen`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `oneTicketPerOrder` | Boolean | true | One ticket per order, every round and station on it. Off: one per station per Send, as P05 |

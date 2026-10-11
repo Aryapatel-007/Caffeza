@@ -507,3 +507,15 @@ Added by P34.
 | **New password** | The password the person will sign in with from now on, at least 8 characters |
 | **Manager's phone** | On the sign-in screen, the phone number of the owner or manager approving. They cannot approve their own. |
 | **Back to sign in** | Leave the form without changing anything |
+
+---
+
+## 23. Kitchen ticket words
+
+Added by P36.
+
+| Term | Meaning |
+|---|---|
+| **Round** | One Send to the kitchen on an order. The first dishes are round 1; dishes added later are round 2, 3 and so on, on the same ticket |
+| **One kitchen ticket per table** | The setting `kitchen.oneTicketPerOrder`: an order keeps one ticket, under one KOT number, for every round and station |
+| **Added** | On the kitchen screen, the caption over a later round: "Added 7:20 pm" |
