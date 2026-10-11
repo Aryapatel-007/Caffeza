@@ -552,7 +552,7 @@ P36 progress
 - [x] Server: the setting, the ticket fields, firing, station-only ready and undo, the list filter, the printed round, R13, R10
 - [x] Kitchen screen and Settings
 - [x] Tests, full suite, lint, build, e2e
-- [ ] Push, deploy, and the P35 drinks split on Z Chaat (next)
+- [x] Push, deploy, and the P35 drinks split on Z Chaat
 ```
 
 What changed:
@@ -566,17 +566,19 @@ What changed:
 Tests: 1,269 before, 1,275 after, all passing. New: `oneTicketPerOrder.test.js` (6): two Sends on one ticket and number; two stations on one ticket, listed by each, one station marked and undone, a station with nothing on it refused; round 2 printed for one station; the setting off is P05; a ticket from before P36 still filters by its station; R13 averages 10.00 minutes for rounds sent at 7:00 and 7:10 and made at 7:15 (15.00 if measured from the first Send). Changed on purpose: three tests in `kitchen.test.js` that expected a second ticket for a second Send now expect round 2 of the same ticket; `stations.test.js` switches the setting off, as it tests P05's routing, and its "ticket from before stations" fixture clears the line stations too; the settings defaults gain the switch. The golden day and every report test pass unchanged. Lint and build pass. `npm run e2e`: all 15 specs pass, the golden day included, with no change to any spec: each station tablet now sees its own part of the one ticket.
 
 Anything the other developer needs to know:
+Deployed 2026-10-11 with P35, pushed `9134f2e..8c2e6b0` at Arya's word: Render restarted on `8c2e6b0` (health ok, database connected), and Vercel's push build serves the same main script as the local build, `index-BlvJpus3.js`. Before the push, `npm run db:indexes` on the live database: 207 present, 0 missing, the new ticket index included.
+
 Rishi: an order now has one ticket; `kots.lines[].stationId` is the station, not `kots.stationId`, which is null on a ticket that spans stations. If Z Chaat's kitchen wants a ticket per station back, it is Settings, Kitchen, with no deploy.
 
 ### 2026-10-11 Arya, P35 the same dish once on the bill, and each drink its own dish
 
-Built and checked. The live run on Z Chaat waits for Arya's "apply", and nothing is pushed yet: Arya asked to be asked before any push. The prompt is `docs/prompts/P35-same-dish-once-and-drinks-as-dishes.md`.
+Built, checked, deployed and run on Z Chaat on 2026-10-11. The prompt is `docs/prompts/P35-same-dish-once-and-drinks-as-dishes.md`.
 
 ```
 P35 progress
 - [x] A Same dish once on the bill
 - [x] B Each drink its own dish (code and tests)
-- [ ] B Live run on Z Chaat (dry run shown, waiting for Arya's "apply")
+- [x] B Live run on Z Chaat
 - [x] C Full check and docs
 ```
 
@@ -601,7 +603,7 @@ Z Chaat, Beverages: Aerated Drinks has 4 sizes. Each becomes its own dish.
 Butter Milk, Red Bull, Filter Coffee, Tapri Tea will move down 3, so the new dishes sit where Aerated Drinks was.
 Aerated Drinks will be switched off, not deleted. Open orders and old bills keep "Aerated Drinks" and the size, frozen on their lines.
 ```
-Not applied. Before `--apply`, confirm which cluster Render uses. This file's current stage says switching Render's `MONGO_URI` to the Singapore cluster (`cluster0.onbbqdp`) was in progress. If Render has switched, the run belongs against Singapore, not against this `.env`.
+Applied 2026-10-11 at 9:05 PM, at Arya's word, after checking which cluster the live server uses: its running instance (release `9134f2e`, started 05:43 UTC) had written its start row to `serverstarts` in `cluster0.dkcsfcz`, so Render is still on the Mumbai cluster, not Singapore. The apply printed the report above as done, and a second dry run printed "Nothing to do: Aerated Drinks is already switched off." Read back from the database: Beverages is Classic Cold Coffee, Water Bottle, Sprite, Diet Coke, Coke, Thums Up (each ₹70.00 at 5%, available), Butter Milk, Red Bull, Filter Coffee, Tapri Tea; Aerated Drinks is switched off, with its four sizes, not deleted.
 
 Checked by hand, 2026-10-11, through a throwaway browser script and a harness that loaded the e2e server and ran the Part B script inside its process (neither kept):
 1. A captain on a phone opened Table 3, sent 1 Roti at 7:05 pm and 1 more at 7:20 pm. The counter's bill screen showed one row, "2 Roti, 2 × ₹40.00, ₹80.00", bill total ₹84.00.
