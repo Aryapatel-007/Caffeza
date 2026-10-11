@@ -50,7 +50,7 @@ The first client, Cafezza, is archived in `docs/archive/caffeza/`.
 | Rate | 5% on every item, split CGST 2.5% and SGST 2.5% |
 | Catering | Their catering plans say "+ 5% tax" |
 | Platform delivery orders | 0% on our bill, the platform paying GST under section 9(5): `settings.delivery.platformCollectsGst` on. `TO CONFIRM` with their CA. |
-| Printed MRP items | Water Bottle ₹50 and Aerated Drinks ₹70. `TO CONFIRM`, section 15 item 7. |
+| Printed MRP items | Water Bottle ₹50, and Sprite, Diet Coke, Coke and Thums Up ₹70 each. `TO CONFIRM`, section 15 item 7. |
 
 ## 4. Invoice numbers
 
@@ -98,9 +98,12 @@ A starting point to confirm, in `setup/zchaat.json`:
 
 ## 9. Menu
 
-97 dishes in 14 categories, with descriptions, in `setup/zchaat-menu.csv`.
+100 dishes in 14 categories, with descriptions, in `setup/zchaat-menu.csv`.
 Every price is before GST, at 5%. Dishes with sizes have one row per size, 105
 rows in all.
+
+The printed menu's "Aerated Drinks" is four dishes, Sprite, Diet Coke, Coke and
+Thums Up, so each is one tap at the table and prints under its own name (P35).
 
 Two spelling mistakes on the printed menu were corrected: "Red Dargon Sizzler"
 to "Red Dragon Sizzler", and "Panner Chilly Dry" to "Paneer Chilly Dry".
@@ -158,7 +161,7 @@ The neutral tone is Warm. The second language is Gujarati.
 4. Staff: names, phone numbers and roles.
 5. Payment methods, including whether Card and UPI go through a Pine Labs machine, and which platforms they use: Swiggy, Zomato, Zomato Gold, Dineout, EazyDiner or others.
 6. Business hours, and so the business day start.
-7. **Water Bottle ₹50 and Aerated Drinks ₹70.** If these are sold at their printed MRP, GST must not be added on top. Store them before tax so the bill lands on the MRP, as was done for Cafezza's water bottle: for example ₹47.62 for ₹50, and ₹66.67 for ₹70. The menu file carries ₹50.00 and ₹70.00 until they answer.
+7. **Water Bottle ₹50, and Sprite, Diet Coke, Coke and Thums Up ₹70 each.** If these are sold at their printed MRP, GST must not be added on top. Store them before tax so the bill lands on the MRP, as was done for Cafezza's water bottle: for example ₹47.62 for ₹50, and ₹66.67 for ₹70. The menu file carries ₹50.00 and ₹70.00 until they answer.
 8. Breads, "Plain/Butter": is butter the same price? The menu file has them the same.
 9. Catering: billed as the two plan items per person with the choices in a note, as the menu file does now, or another way.
 10. Invoice prefix and starting number, set by hand on cutover day.

@@ -366,7 +366,7 @@ Breads,Tandoori Roti,Butter,69.00,5,yes,Brushed with butter
 });
 
 describe('Z Chaat\'s own files, P25', () => {
-  it('pass a dry run: 97 items in 14 categories, 105 rows with sizes, and the stations routed', async () => {
+  it('pass a dry run: 100 items in 14 categories, 105 rows with sizes, and the stations routed', async () => {
     const { config, toConfirm } = validateSetupConfig(zchaatConfig());
     assert.equal(config.restaurant.name, 'Z Chaat');
     assert.equal(config.stations.length, 4);
@@ -377,7 +377,7 @@ describe('Z Chaat\'s own files, P25', () => {
     const menu = readMenu(zchaatMenu());
     const items = menu.categories.flatMap((category) => category.items);
     assert.equal(menu.categories.length, 14);
-    assert.equal(items.length, 97);
+    assert.equal(items.length, 100);
     assert.equal(items.reduce((rows, item) => rows + Math.max(1, item.variants.length), 0), 105);
     assert.ok(items.every((item) => item.taxRateBps === 500));
 
@@ -385,7 +385,7 @@ describe('Z Chaat\'s own files, P25', () => {
     const setupSteps = await planSetup(client, config, { toConfirm });
     assert.equal(setupSteps.filter((step) => step.section === 'Stations' && step.action === 'create').length, 4);
     const menuSteps = await planMenu(client, menu, { config });
-    assert.equal(menuSteps.filter((step) => step.section === 'Items' && step.action === 'create').length, 97);
+    assert.equal(menuSteps.filter((step) => step.section === 'Items' && step.action === 'create').length, 100);
     const bhel = menuSteps.find((step) => step.section === 'Categories' && step.name === 'Bhel');
     assert.equal(bhel.detail, 'station Chaat Counter');
     const sizzler = menuSteps.find((step) => step.section === 'Categories' && step.name === 'Sizzler');
