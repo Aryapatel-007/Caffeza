@@ -10,6 +10,8 @@ import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 import { CUSTOMER_NAME_MAX_LENGTH } from './Order.js';
 
 export const CONSENT_SOURCES = Object.freeze({ STAFF: 'STAFF', ONLINE: 'ONLINE' });
+/** P39. How the restaurant first knew this guest: an order, or a WhatsApp message. */
+export const CUSTOMER_SOURCES = Object.freeze({ ORDER: 'ORDER', WHATSAPP: 'WHATSAPP' });
 
 const offersSchema = new mongoose.Schema(
   {
@@ -36,14 +38,18 @@ const historySchema = new mongoose.Schema(
 const customerSchema = new mongoose.Schema({
   phone: { type: String, required: true, trim: true, match: /^\d{10}$/ },
   name: { type: String, trim: true, maxlength: CUSTOMER_NAME_MAX_LENGTH, default: null },
-  firstVisitAt: { type: Date, required: true },
-  lastVisitAt: { type: Date, required: true },
+  // P39. Not required: a guest known only from writing on WhatsApp has had no visit. Every guest from an order has both.
+  firstVisitAt: { type: Date, default: null },
+  lastVisitAt: { type: Date, default: null },
+  source: { type: String, enum: Object.values(CUSTOMER_SOURCES), default: CUSTOMER_SOURCES.ORDER },
   lastOrderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null },
   visitCount: { type: Number, required: true, default: 0, min: 0 },
   offers: { type: offersSchema, default: () => ({}) },
   offersHistory: { type: [historySchema], default: [] },
   /** P37. When Meta said this number is not on WhatsApp. Nothing more is sent to it. */
   whatsappUnreachableAt: { type: Date, default: null },
+  /** P39. The guest asked for no messages at all on WhatsApp. Nothing is sent, bills included, until staff clear it. */
+  whatsappStoppedAt: { type: Date, default: null },
 });
 
 customerSchema.plugin(baseSchemaPlugin);

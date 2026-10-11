@@ -36,7 +36,7 @@ export const OPEN_RESERVATION_STATUSES = Object.freeze([
   RESERVATION_STATUSES.CONFIRMED,
 ]);
 
-export const RESERVATION_SOURCES = Object.freeze({ ONLINE: 'ONLINE', PHONE: 'PHONE' });
+export const RESERVATION_SOURCES = Object.freeze({ ONLINE: 'ONLINE', PHONE: 'PHONE', WHATSAPP: 'WHATSAPP' });
 
 const reservationSchema = new mongoose.Schema({
   reference: { type: String, required: true, trim: true },

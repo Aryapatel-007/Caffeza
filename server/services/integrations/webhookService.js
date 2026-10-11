@@ -7,6 +7,7 @@
  * one of the three sanctioned uses of the tenant guard's escape hatch in M21.
  */
 import { Customer } from '../../models/Customer.js';
+import { findOrCreateWhatsAppGuest } from '../customerService.js';
 import { CONNECTION_STATUSES, IntegrationConnection } from '../../models/IntegrationConnection.js';
 import { EVENT_OUTCOMES } from '../../models/IntegrationEvent.js';
 import { hashKey, secretsOf } from './connectionService.js';
@@ -76,7 +77,11 @@ export async function receiveWebhook(provider, key, rawBody, headers) {
   let events = [];
   try {
     // P37. A messaging webhook names a guest by number; it is turned into their id here, inside this restaurant.
-    const findCustomer = (phone) => Customer.findOne({ restaurantId: connection.restaurantId, phone }).select('_id').lean();
+    // P39. A guest who writes for the first time gets a record, so the assistant can answer them.
+    const findCustomer = (phone, { create = false } = {}) =>
+      create
+        ? findOrCreateWhatsAppGuest({ restaurantId: connection.restaurantId, branchId: connection.branchId }, phone)
+        : Customer.findOne({ restaurantId: connection.restaurantId, phone }).select('_id').lean();
     events = adapter.parseWebhook ? await adapter.parseWebhook({ rawBody, headers, connection, findCustomer }) : [];
   } catch (error) {
     await logEvent(connection, { direction: 'IN', kind: 'WEBHOOK', outcome: EVENT_OUTCOMES.FAILED, request: body, error: error?.message, extraSecrets: Object.values(secrets) });

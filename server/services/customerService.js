@@ -9,7 +9,7 @@
 import { CURRENT_CONSENT_VERSION } from '../config/consentText.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Bill } from '../models/Bill.js';
-import { CONSENT_SOURCES, Customer } from '../models/Customer.js';
+import { CONSENT_SOURCES, Customer, CUSTOMER_SOURCES } from '../models/Customer.js';
 import { Order } from '../models/Order.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
@@ -43,7 +43,43 @@ export function recordVisit(req, order, consent = null) {
     update.$set.offers = { given: true, textVersion: consent.textVersion, at: consent.at, source: consent.source };
     update.$push = { offersHistory: { ...consent, by: consent.source === CONSENT_SOURCES.STAFF ? req.user?.id ?? null : null } };
   }
-  return Customer.findOneAndUpdate({ ...scoped(req), phone: order.customerPhone }, update, { upsert: true, new: true });
+  return Customer.findOneAndUpdate({ ...scoped(req), phone: order.customerPhone }, update, { upsert: true, new: true }).then(async (customer) => {
+    // P39. A guest first known from WhatsApp has their first visit now.
+    if (customer && !customer.firstVisitAt) {
+      await Customer.updateOne({ ...scoped(req), _id: customer._id, firstVisitAt: null }, { $set: { firstVisitAt: at } });
+      customer.firstVisitAt = at;
+    }
+    return customer;
+  });
+}
+
+/**
+ * P39. The guest a WhatsApp number belongs to at this restaurant, made when the
+ * restaurant has never seen them: `source: WHATSAPP`, no visit yet. `phone` is
+ * the ten digits. Returns null for anything that is not an Indian mobile.
+ */
+export function findOrCreateWhatsAppGuest(ctx, phone) {
+  if (!/^[6-9]\d{9}$/.test(String(phone ?? ''))) return Promise.resolve(null);
+  return Customer.findOneAndUpdate(
+    { restaurantId: ctx.restaurantId, phone },
+    { $setOnInsert: { restaurantId: ctx.restaurantId, branchId: ctx.branchId, phone, source: CUSTOMER_SOURCES.WHATSAPP, visitCount: 0 } },
+    { upsert: true, new: true },
+  ).lean();
+}
+
+/**
+ * P39. A guest asked for no messages at all. Offers consent goes too, as any
+ * withdrawal. Returns `{ changed }`.
+ */
+export async function stopAllMessages(ctx, customerId, reason) {
+  await withdrawOffersFromMessage(ctx, customerId, reason);
+  const result = await Customer.updateOne({ restaurantId: ctx.restaurantId, _id: customerId, whatsappStoppedAt: null }, { $set: { whatsappStoppedAt: nowUtc() } });
+  return { changed: result.modifiedCount === 1 };
+}
+
+/** P39. Staff clear a full stop, when the guest asked for messages again. */
+export async function clearStopAll(ctx, customerId) {
+  await Customer.updateOne({ restaurantId: ctx.restaurantId, _id: customerId }, { $set: { whatsappStoppedAt: null } });
 }
 
 const present = (customer) => {
@@ -165,4 +201,4 @@ export async function exportCustomers(req) {
   return { csv: `${lines.join('\n')}\n`, fileName: `customers-offers-${day(nowUtc())}.csv` };
 }
 
-export default { exportCustomers, listCustomers, readCustomer, recordVisit, searchCustomers, updateCustomer, withdrawOffersFromMessage };
+export default { clearStopAll, exportCustomers, findOrCreateWhatsAppGuest, listCustomers, readCustomer, recordVisit, searchCustomers, stopAllMessages, updateCustomer, withdrawOffersFromMessage };

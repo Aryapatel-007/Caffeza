@@ -21,7 +21,7 @@ export const TEMPLATE_STATUSES = Object.freeze({
   DISABLED: 'DISABLED',
 });
 export const TEMPLATE_BODY_MAX_LENGTH = 1024;
-export const TEMPLATE_KEYS = Object.freeze({ BILL_RECEIPT: 'BILL_RECEIPT' });
+export const TEMPLATE_KEYS = Object.freeze({ BILL_RECEIPT: 'BILL_RECEIPT', BOOKING_CONFIRMED: 'BOOKING_CONFIRMED', BOOKING_DECLINED: 'BOOKING_DECLINED' });
 
 const categories = Object.values(TEMPLATE_CATEGORIES);
 

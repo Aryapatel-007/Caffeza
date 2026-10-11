@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, P36 one kitchen ticket per table, P37 WhatsApp and the receipt)
+Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, P36 one kitchen ticket per table, P37 WhatsApp and the receipt, P39 the WhatsApp assistant, in progress)
 
 ---
 
@@ -547,6 +547,28 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-11 Arya, P39 the WhatsApp assistant (paused, in progress)
+
+Paused at Arya's word. Nothing pushed: P37 (`19f813b`, `7d1de9b`, `96d365e`) and P39 are local commits, waiting for Arya's OK to push. The plan is `docs/prompts/P39-whatsapp-assistant.md`; spec `67d7696`.
+
+```
+P39 progress
+- [x] Plan and spec
+- [x] Server: conversations, the assistant, tools, reply check, chats endpoints, bookings by WhatsApp, stop all messages
+- [x] Providers: Gemini, Anthropic and Groq (Groq added at Arya's request)
+- [x] tests/assistant.test.js, 14 passing (against tests/helpers/fakeModel.js)
+- [ ] The eval: script and 80 cases written (scripts/assistantEval.js, tests/assistant/eval.json); npm scripts not added, not run yet
+- [ ] Client: provider forms, Settings Assistant section, Chats page, inbox count
+- [ ] Pinned tests (settings defaults, provider list, inbox shape), e2e, full suite, lint, build
+- [ ] Docs: GROQ and "assistant off sends nothing" into API-CONTRACT and DB-SCHEMA, INTEGRATIONS, README row
+```
+
+Next: add `assistant:eval` to `server/package.json` and the root, run `npm run assistant:eval` with Groq, and record the numbers here. Groq's free tier has a small daily token limit; the script waits on a short rate limit and stops on a long one, and `--only` and `--label` rerun part of the set.
+
+Built differently from the plan, so far: with the assistant switched off nothing is sent, and the chat waits in Chats (the plan said the fixed menu). The system prompt gains an optional fact, the last message the restaurant sent the guest, because a template is not a chat turn; P38 campaigns fill it.
+
+Groq's key is in the root `.env` only (`GROQ_API_KEY`, git-ignored), for the eval. It was pasted in a chat: rotate it once testing is done.
 
 ### 2026-10-11 Arya, P37 WhatsApp: the connection, templates and the receipt
 

@@ -21,6 +21,8 @@ export const PROVIDER_KINDS = Object.freeze({
   ACCOUNTING: 'ACCOUNTING',
   // P37. Messages to guests, on the restaurant's own number.
   MESSAGING: 'MESSAGING',
+  // P39. The model the WhatsApp assistant thinks with.
+  AI_ASSISTANT: 'AI_ASSISTANT',
 });
 export const AVAILABILITY = Object.freeze({ READY: 'READY', WAITING_FOR_PARTNER: 'WAITING_FOR_PARTNER' });
 
@@ -29,6 +31,15 @@ export const PINE_LABS_UAT_BASE_URL = 'https://www.plutuscloudserviceuat.in:8201
 
 const objectId = z.string().regex(/^[0-9a-f]{24}$/i, 'Is not a valid id.');
 const secret = (max = 200) => z.string({ error: 'Is required.' }).trim().min(1, 'Is required.').max(max);
+
+/** P39. An AI provider's address: https always; plain http only to this machine outside production, for a test's fake. */
+const aiBaseUrl = (fallback) =>
+  z
+    .string()
+    .trim()
+    .url('Must be a web address.')
+    .refine((value) => value.startsWith('https://') || (!config.isProduction && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/.*)?$/.test(value)), 'Must start with https://.')
+    .default(fallback);
 
 /** The settings every order channel has. API-CONTRACT M21 section 7.1. */
 const orderChannelConfig = {
@@ -148,6 +159,8 @@ const PROVIDERS = {
     availability: AVAILABILITY.READY,
     hasWebhook: true,
     secretFields: ['phoneNumberId', 'wabaId', 'accessToken', 'webhookVerifyToken', 'appSecret'],
+    // P39. What guests and the restaurant write stays out of the event log: it is personal data, kept in the chat for 30 days only.
+    logHiddenFields: ['text', 'body', 'title', 'button', 'interactive', 'parameters'],
     credentialSchema: z
       .object({
         phoneNumberId: z.string({ error: 'Is required.' }).trim().regex(/^\d{5,30}$/, 'Digits only, from Meta.'),
@@ -172,6 +185,54 @@ const PROVIDERS = {
       })
       .strict(),
     adapter: () => import('./messaging/whatsappAdapter.js'),
+  },
+  /** P39. Google's Gemini. Its free tier is for testing: Google may use those prompts. */
+  GEMINI: {
+    kind: PROVIDER_KINDS.AI_ASSISTANT,
+    name: 'Gemini',
+    availability: AVAILABILITY.READY,
+    hasWebhook: false,
+    secretFields: ['apiKey'],
+    credentialSchema: z.object({ apiKey: secret(300).min(20, 'At least 20 characters.') }).strict(),
+    configSchema: z
+      .object({
+        model: z.string().trim().min(3).max(80).default('gemini-2.5-flash'),
+        apiBaseUrl: aiBaseUrl('https://generativelanguage.googleapis.com/v1beta'),
+      })
+      .strict(),
+    adapter: () => import('../chatbot/providers/gemini.js'),
+  },
+  /** P39. Anthropic's Claude, for live guests: API prompts are not used for training by default. */
+  ANTHROPIC: {
+    kind: PROVIDER_KINDS.AI_ASSISTANT,
+    name: 'Anthropic',
+    availability: AVAILABILITY.READY,
+    hasWebhook: false,
+    secretFields: ['apiKey'],
+    credentialSchema: z.object({ apiKey: secret(300).min(20, 'At least 20 characters.') }).strict(),
+    configSchema: z
+      .object({
+        model: z.string().trim().min(3).max(80).default('claude-haiku-5-5'),
+        apiBaseUrl: aiBaseUrl('https://api.anthropic.com'),
+      })
+      .strict(),
+    adapter: () => import('../chatbot/providers/anthropic.js'),
+  },
+  /** P39, at Arya's request. Groq's OpenAI-shaped API. Its free tier is for testing. */
+  GROQ: {
+    kind: PROVIDER_KINDS.AI_ASSISTANT,
+    name: 'Groq',
+    availability: AVAILABILITY.READY,
+    hasWebhook: false,
+    secretFields: ['apiKey'],
+    credentialSchema: z.object({ apiKey: secret(300).min(20, 'At least 20 characters.') }).strict(),
+    configSchema: z
+      .object({
+        model: z.string().trim().min(3).max(80).default('llama-3.3-70b-versatile'),
+        apiBaseUrl: aiBaseUrl('https://api.groq.com/openai/v1'),
+      })
+      .strict(),
+    adapter: () => import('../chatbot/providers/groq.js'),
   },
 };
 

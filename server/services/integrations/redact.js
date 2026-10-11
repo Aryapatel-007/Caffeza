@@ -37,7 +37,8 @@ function scrub(value, secretNames, depth = 0) {
  */
 export function redactForLog(value, provider, { extraSecrets = [] } = {}) {
   if (value === undefined || value === null) return null;
-  const secretNames = new Set((providerFor(provider)?.secretFields ?? []).map((name) => name.toLowerCase()));
+  const registered = providerFor(provider);
+  const secretNames = new Set([...(registered?.secretFields ?? []), ...(registered?.logHiddenFields ?? [])].map((name) => name.toLowerCase()));
   let parsed = value;
   if (typeof value === 'string') {
     try {

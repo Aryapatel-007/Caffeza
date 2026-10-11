@@ -116,6 +116,27 @@ export function sendTextMessage(connection, secrets, { to, text, externalId }) {
   });
 }
 
+/** P39. A reply with up to three buttons, inside the service window. */
+export function sendInteractiveMessage(connection, secrets, { to, text, buttons, externalId }) {
+  return call(connection, secrets, {
+    method: 'POST',
+    path: `/${encodeURIComponent(secrets.phoneNumberId)}/messages`,
+    kind: 'SEND_INTERACTIVE',
+    externalId,
+    body: {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to,
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: text.slice(0, 1024) },
+        action: { buttons: buttons.slice(0, 3).map((button) => ({ type: 'reply', reply: { id: button.id, title: button.title.slice(0, 20) } })) },
+      },
+    },
+  });
+}
+
 /** Every template on the Business Account, with its state. */
 export function listTemplates(connection, secrets) {
   return call(connection, secrets, {
@@ -195,10 +216,22 @@ export async function parseWebhook({ rawBody, findCustomer }) {
         });
       }
       for (const message of value.messages ?? []) {
+        if (!message?.id) continue;
         const text = textOf(message);
-        if (!message?.id || typeof text !== 'string' || !STOP_WORDS.includes(text.trim().toUpperCase())) continue;
-        const customer = findCustomer ? await findCustomer(localNumber(message.from)) : null;
-        events.push({ type: 'OPT_OUT', externalId: String(message.id), customerId: customer ? String(customer._id) : null });
+        if (typeof text === 'string' && STOP_WORDS.includes(text.trim().toUpperCase())) {
+          const customer = findCustomer ? await findCustomer(localNumber(message.from)) : null;
+          events.push({ type: 'OPT_OUT', externalId: String(message.id), customerId: customer ? String(customer._id) : null });
+          continue;
+        }
+        // P39. Everything else a guest writes goes to the assistant, as their id, never their number.
+        const customer = findCustomer ? await findCustomer(localNumber(message.from), { create: true }) : null;
+        events.push({
+          type: 'INBOUND_MESSAGE',
+          externalId: String(message.id),
+          customerId: customer ? String(customer._id) : null,
+          text: typeof text === 'string' ? text.slice(0, 1000) : null,
+          buttonId: message.interactive?.button_reply?.id ?? message.interactive?.list_reply?.id ?? null,
+        });
       }
       // Meta's own marketing opt-out, from the guest's settings or its "Stop promotions" button.
       for (const preference of value.user_preferences ?? []) {
@@ -214,6 +247,7 @@ export async function parseWebhook({ rawBody, findCustomer }) {
 export default {
   listTemplates,
   parseWebhook,
+  sendInteractiveMessage,
   sendTemplateMessage,
   sendTextMessage,
   submitTemplate,

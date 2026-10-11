@@ -247,6 +247,17 @@ const billing = z
   })
   .strict();
 
+/** The WhatsApp assistant. P39. An empty text clears it. */
+const assistant = z
+  .object({
+    enabled: z.boolean({ error: 'Must be true or false.' }).optional(),
+    bookingsEnabled: z.boolean({ error: 'Must be true or false.' }).optional(),
+    greeting: z.string().trim().max(300, 'Up to 300 characters.').nullable().transform((value) => (value === '' ? null : value)).optional(),
+    handoffHours: z.string().trim().max(120, 'Up to 120 characters.').nullable().transform((value) => (value === '' ? null : value)).optional(),
+    dailyAiLimit: z.number({ error: 'Must be a number.' }).int('A whole number.').min(0).max(5000, 'At most 5,000.').optional(),
+  })
+  .strict();
+
 /** The kitchen. P29 Part C. */
 const kitchen = z
   .object({
@@ -537,6 +548,7 @@ export const updateSettingsSchema = z.object({
       dayClose: dayClose.optional(),
       cash: cash.optional(),
       kitchen: kitchen.optional(),
+      assistant: assistant.optional(),
       payments: payments.optional(),
       reports: reports.optional(),
       floor: floor.optional(),

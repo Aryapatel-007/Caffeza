@@ -511,6 +511,18 @@ const appearanceSettingsSchema = new mongoose.Schema(
  * No controller reaches in here directly, the same discipline as no controller
  * reading the environment and no controller touching `passwordHash`.
  */
+/** P39. The WhatsApp assistant. Off until the owner switches it on. */
+const assistantSettingsSchema = new mongoose.Schema(
+  {
+    enabled: { type: Boolean, required: true, default: false },
+    bookingsEnabled: { type: Boolean, required: true, default: true },
+    greeting: { type: String, trim: true, maxlength: 300, default: null },
+    handoffHours: { type: String, trim: true, maxlength: 120, default: null },
+    dailyAiLimit: { type: Number, required: true, default: 500, min: 0, max: 5000 },
+  },
+  { _id: false },
+);
+
 const settingsSchema = new mongoose.Schema(
   {
     /**
@@ -557,6 +569,7 @@ const settingsSchema = new mongoose.Schema(
     floor: { type: floorSettingsSchema, default: () => ({}) },
     appearance: { type: appearanceSettingsSchema, default: () => ({}) },
     online: { type: onlineSettingsSchema, default: () => ({}) },
+    assistant: { type: assistantSettingsSchema, default: () => ({}) },
   },
   { _id: false },
 );

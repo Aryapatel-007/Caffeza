@@ -183,7 +183,8 @@ async function assertUnderOpenLimit(req, phone, now) {
   }
 }
 
-export async function request(req, body) {
+/** `source`: ONLINE from the public page, WHATSAPP from the assistant (P39). Every rule is the same. */
+export async function request(req, body, { source = RESERVATION_SOURCES.ONLINE } = {}) {
   const now = nowUtc();
   const { online, dayStartMinutes } = await onlineSettings(req);
   if (!online.reservationsEnabled) throw new OnlineClosedError('This cafe is not taking bookings online.');
@@ -225,7 +226,7 @@ export async function request(req, body) {
     const doc = await Reservation.create({
       ...scoped(req),
       reference,
-      source: RESERVATION_SOURCES.ONLINE,
+      source,
       idempotencyKey: body.idempotencyKey,
       guestName: body.guestName,
       guestPhone: body.guestPhone,
@@ -287,9 +288,17 @@ export async function guestPaymentReturn(req, id, body) {
 }
 
 export async function guestCancel(req, id) {
-  const now = nowUtc();
   const doc = await Reservation.findOne({ ...scoped(req), _id: id });
   assertGuestToken(doc, req);
+  return cancelByGuest(req, id);
+}
+
+/**
+ * The guest cancels their own booking: from the page with its token, or on
+ * WhatsApp as the booking's own guest (P39). The same rules either way.
+ */
+export async function cancelByGuest(req, id) {
+  const now = nowUtc();
   const cancelled = await transition(
     req,
     id,
@@ -402,7 +411,19 @@ export async function confirm(req, id, body) {
   }
 
   const updated = await transition(req, id, now, liveFilter(now), set);
+  await tellGuestOnWhatsApp(req, updated);
   return forStaff(req, updated, now);
+}
+
+/** P39. A WhatsApp booking's guest hears the outcome on WhatsApp. Never fails the staff's action. */
+async function tellGuestOnWhatsApp(req, doc) {
+  if (doc?.source !== RESERVATION_SOURCES.WHATSAPP) return;
+  try {
+    const { tellGuestAboutBooking } = await import('./chatbot/bookingMessages.js');
+    await tellGuestAboutBooking(req, doc);
+  } catch {
+    // The booking changed; the message is a courtesy.
+  }
 }
 
 export async function decline(req, id, { reasonCode, note }) {
@@ -415,6 +436,7 @@ export async function decline(req, id, { reasonCode, note }) {
     decidedAt: now,
   });
   await refundAll(req, updated.paymentId, 'Declined by the cafe');
+  await tellGuestOnWhatsApp(req, updated);
   return forStaff(req, updated, now);
 }
 

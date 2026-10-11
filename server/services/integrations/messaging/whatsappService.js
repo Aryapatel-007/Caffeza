@@ -37,11 +37,15 @@ import {
   listTemplates as listMetaTemplates,
   localNumber,
   NOT_ON_WHATSAPP_CODE,
+  sendInteractiveMessage,
   sendTemplateMessage,
   sendTextMessage,
   submitTemplate,
   templateStatusFromMeta,
 } from './whatsappAdapter.js';
+
+/** Meta's service window: 24 hours after the guest's last message. */
+export const SERVICE_WINDOW_MS = 24 * 60 * 60_000;
 
 export const PROVIDER = 'WHATSAPP';
 export const SEND_WHATSAPP_TEMPLATE = 'SEND_WHATSAPP_TEMPLATE';
@@ -101,6 +105,8 @@ export async function sendTemplate({ restaurantId, branchId, phone, templateKey,
 
   const customer = await Customer.findOne({ restaurantId, phone: localNumber(phone) }).lean();
   if (!customer) return { queued: false, skipped: 'NO_CUSTOMER' };
+  // P39. A guest who asked for no messages at all gets none, bills included.
+  if (customer.whatsappStoppedAt) return { queued: false, skipped: 'STOPPED' };
   assertMayReceive(customer, effectiveCategory(template));
   if (customer.whatsappUnreachableAt) return { queued: false, skipped: 'UNREACHABLE' };
 
@@ -150,6 +156,7 @@ export async function runTemplateJob(job) {
   const customer = await Customer.findOne({ restaurantId: ctx.restaurantId, _id: customerId }).lean();
   if (!customer) return { refused: 'NO_CUSTOMER', customerId };
   if (customer.whatsappUnreachableAt) return { refused: 'UNREACHABLE', customerId };
+  if (customer.whatsappStoppedAt) return { refused: 'STOPPED', customerId };
   try {
     assertMayReceive(customer, effectiveCategory(template));
   } catch {
@@ -165,14 +172,25 @@ export async function runTemplateJob(job) {
   return outcomeOf(ctx, connection, customerId, answer);
 }
 
-/** Sends a plain reply, inside the service window the guest just opened. */
+/**
+ * Sends a plain reply, with buttons when given (P39), inside the service window
+ * the guest's own message opened. A guest who stopped all messages still gets
+ * the answer to a message they just wrote, and nothing else.
+ */
 export async function runTextJob(job) {
   const ctx = ctxOf(job);
   const connection = await jobConnection(job);
-  const { customerId, text } = job.payload ?? {};
+  const { customerId, text, buttons = [], replyToInboundAt = null } = job.payload ?? {};
   const customer = await Customer.findOne({ restaurantId: ctx.restaurantId, _id: customerId }).lean();
   if (!customer) return { refused: 'NO_CUSTOMER', customerId };
-  const answer = await sendTextMessage(connection, secretsOf(connection), { to: toWhatsAppNumber(customer.phone), text, externalId: String(job._id) });
+  const answering = replyToInboundAt && nowUtc().getTime() - new Date(replyToInboundAt).getTime() < SERVICE_WINDOW_MS;
+  if (customer.whatsappStoppedAt && !answering) return { refused: 'STOPPED', customerId };
+  const secrets = secretsOf(connection);
+  const to = toWhatsAppNumber(customer.phone);
+  const answer =
+    buttons.length > 0
+      ? await sendInteractiveMessage(connection, secrets, { to, text, buttons, externalId: String(job._id) })
+      : await sendTextMessage(connection, secrets, { to, text, externalId: String(job._id) });
   return outcomeOf(ctx, connection, customerId, answer);
 }
 
@@ -207,15 +225,18 @@ async function optOut(ctx, connection, event) {
   if (!event.customerId) return { ignored: 'A number with no guest record here.' };
   const { changed } = await withdrawOffersFromMessage(ctx, event.customerId, STOP_REASON);
   const restaurant = await Restaurant.findById(ctx.restaurantId).select('name').lean();
+  const text = `You will not get offers from ${restaurant?.name ?? 'us'} on WhatsApp any more. Your bills will still come here.`;
+  const at = nowUtc();
   await enqueueJob(ctx, {
     connectionId: connection._id,
     type: SEND_WHATSAPP_TEXT,
-    payload: {
-      customerId: event.customerId,
-      text: `You will not get offers from ${restaurant?.name ?? 'us'} on WhatsApp any more. Your bills will still come here.`,
-    },
+    payload: { customerId: event.customerId, text, replyToInboundAt: at.toISOString() },
     dedupeKey: `whatsapp:opt-out-reply:${event.externalId}`,
   });
+  // P39. Kept in the guest's chat, so staff see it.
+  const { openChatFor, recordReply } = await import('../../chatbot/chatTurns.js');
+  const conversation = await openChatFor(ctx, event.customerId, 'STOP', at);
+  await recordReply(ctx, conversation._id, text);
   return { withdrawn: changed };
 }
 
@@ -225,6 +246,8 @@ export function processWhatsAppEvent(job, connection) {
   const event = job.payload?.event ?? {};
   if (event.type === 'MESSAGE_STATUS') return recordDelivery(ctx, event);
   if (event.type === 'OPT_OUT') return optOut(ctx, connection, event);
+  // P39. Anything else the guest wrote, for the assistant.
+  if (event.type === 'INBOUND_MESSAGE') return import('../../chatbot/assistant.js').then(({ handleInboundMessage }) => handleInboundMessage(job, connection, event));
   return { ignored: event.type ?? 'unknown' };
 }
 

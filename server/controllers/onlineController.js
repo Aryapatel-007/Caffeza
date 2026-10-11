@@ -13,6 +13,7 @@ import { refundFailureCount, sweep } from '../services/onlinePaymentService.js';
 import * as onlineOrders from '../services/onlineOrderService.js';
 import { windowContaining } from '../services/openingHoursService.js';
 import * as reservations from '../services/reservationService.js';
+import { waitingChats } from '../services/chatbot/chatService.js';
 import { BusinessRuleError, DuplicateError, NotFoundError } from '../utils/errors.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { nowUtc } from '../utils/time.js';
@@ -109,6 +110,8 @@ export async function getInbox(req, res) {
             at: latestDoc.at,
           }
       : null,
+    // P39. WhatsApp chats the assistant handed to a person.
+    ...(await waitingChats(req)),
     pausedUntil: activePause(branch, now),
     refundFailures: onlineOn ? await refundFailureCount(req) : 0,
   });

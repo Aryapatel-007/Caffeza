@@ -112,6 +112,12 @@ const SETTING_PATHS = Object.freeze({
   'online.depositPerPersonInPaise': 'settings.online.depositPerPersonInPaise',
   'online.depositRefundCutoffMinutes': 'settings.online.depositRefundCutoffMinutes',
   'online.paymentWindowMinutes': 'settings.online.paymentWindowMinutes',
+  // P39.
+  'assistant.enabled': 'settings.assistant.enabled',
+  'assistant.bookingsEnabled': 'settings.assistant.bookingsEnabled',
+  'assistant.greeting': 'settings.assistant.greeting',
+  'assistant.handoffHours': 'settings.assistant.handoffHours',
+  'assistant.dailyAiLimit': 'settings.assistant.dailyAiLimit',
 });
 
 /** The modules a restaurant can switch off. P02. */
