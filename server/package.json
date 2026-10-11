@@ -16,6 +16,7 @@
     "purge:restaurant": "node scripts/purgeRestaurant.js",
     "sandbox:order": "node scripts/sandboxOrder.js",
     "migrate:ready-to-served": "node scripts/migrateReadyToServed.js",
+    "menu:sizes-to-dishes": "node scripts/sizesToDishes.js",
     "db:indexes": "node scripts/buildIndexes.js",
     "db:copy": "node scripts/copyDatabase.js",
     "setup:restaurant": "node scripts/setupRestaurant.js",
