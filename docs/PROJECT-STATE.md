@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen)
+Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, and each drink its own dish)
 
 ---
 
@@ -517,6 +517,8 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-10 | Z Chaat's database moves to a new Atlas cluster in AWS Singapore, during service, at Rishi's choice: copied with `npm run db:copy`, kept caught up every 30 seconds until Render's `MONGO_URI` changes, with counters always taking the higher value. The old Mumbai cluster is left untouched as the backup. | The server is in Singapore. The copy only reads the old cluster and never deletes; the catch-up's counter rule means a bill number can never be issued twice across the switch. A short pause in billing while Render restarts was asked of the restaurant. |
 | 2026-10-11 | P34: a person who cannot sign in sets a new password on the sign-in screen, approved by an owner or manager who types their own phone and PIN. The approver cannot approve their own password, and a manager cannot approve an owner's. Every refusal is one 401 with one message. | Rishi asked for it, with the owner or manager approving. The approver types a phone rather than picking a name because there is no session on that screen, and a name list would hand every staff name to anyone who knows one phone. A PIN is weaker than a password and is typed on shared screens, so it never resets its own owner's password. Accepted cost: five wrong PINs through this screen lock that manager's PIN until the owner sets it again, as everywhere else. |
 | 2026-10-11 | A root `vercel.json` (install `npm ci`, build `npm run build`, serve `client/dist`, the same `/api` forwarding as `client/vercel.json`) makes Vercel's own build on each push to `main` work, so the screens deploy on push. Deploying by hand from `client/` still works. | Vercel's push build failed every time, looking for `dist` at the top of the repo, and Rishi asked for the errors to stop. Setting only the output folder in Vercel's settings would have shipped a site with no `/api` forwarding, where every sign-in fails; the forwarding is in the file for that reason. `npm ci` keeps the lock file's versions, the reason deploys were made by hand. Tested first as a preview deployment. |
+| 2026-10-11 | A bill shows the same dish once, as item rows computed from its lines when it is read; the lines themselves are unchanged. | Z Chaat asked for 2 × Roti, not 1 × Roti twice. Each round must still trace to its own order line and kitchen ticket. |
+| 2026-10-11 | Z Chaat's Aerated Drinks became four dishes, Sprite, Diet Coke, Coke and Thums Up, through `npm run menu:sizes-to-dishes`. The old item is switched off, not deleted. | One tap per drink at the table, and the bill prints the drink's own name. Old bills keep the name they were sold under. |
 ---
 
 ## Open questions
@@ -541,19 +543,49 @@ Newest entry at the top. Keep the last ten or so, delete older ones.
 
 ### 2026-10-11 Arya, P35 the same dish once on the bill, and each drink its own dish
 
-In progress. The prompt is `docs/prompts/P35-same-dish-once-and-drinks-as-dishes.md`.
+Built and checked. The live run on Z Chaat waits for Arya's "apply", and nothing is pushed yet: Arya asked to be asked before any push. The prompt is `docs/prompts/P35-same-dish-once-and-drinks-as-dishes.md`.
 
 ```
 P35 progress
 - [x] A Same dish once on the bill
-- [ ] B Each drink its own dish (code and tests)
-- [ ] B Live run on Z Chaat (needs Arya's "apply")
-- [ ] C Full check and docs
+- [x] B Each drink its own dish (code and tests)
+- [ ] B Live run on Z Chaat (dry run shown, waiting for Arya's "apply")
+- [x] C Full check and docs
 ```
 
-Tests before: 1,249, all passing.
+Tests before: 1,249, all passing. After: 1,269, all passing (`billItemRows.test.js` 7, `sizesToDishes.test.js` 13). Lint and build pass. `npm run e2e`: 14 of 15 passed on the full run. The golden day failed once at 8:40 PM: the Live Kitchen's half-second hold on Table 18's ticket did not take, and the ticket stayed. That is P29's hold step, which P35 does not touch. The golden day passed on its own run straight after (1.9 minutes). Recorded in the known problems table.
 
 Part A: spec first (`spec item rows on the bill`). `server/utils/billLines.js` `groupBillLines`; the bill's JSON transform (`models/Bill.js`) adds `itemRows` to every bill sent back whole, so no handler can miss it, and it is never stored; `buildInvoiceData` carries it and the receipt text lists it. The bill screen, the thermal bill and the full-page invoice list `itemRows`; removing from a row of several lines asks "Which one?" ("1 × Roti, sent 8:05 pm"), and Cancel an item on a paid bill says when each of a repeated dish's lines was sent. Built differently: the remove preview gains `removedQuantity` and `removedLineTotalInPaise`, added up on the server, so the sentence "2 × Roti ₹80.00 comes off bill …" does no money arithmetic on the client. No receipt or invoice snapshot changed: no golden day bill has the same dish on two lines.
+
+Part B: `server/scripts/sizesToDishes.js`, `npm run menu:sizes-to-dishes` from the root or `server/`. A dry run by default; `--apply` writes everything in one transaction and refuses to run without one, like bill creation. Unknown arguments are refused. Built differently:
+1. The dishes after the old item in its category move down by one less than the number of sizes (`displayOrder`), so the new dishes sit exactly where the old item was. B3 did not list that field. At Z Chaat: Butter Milk, Red Bull, Filter Coffee and Tapri Tea move down 3.
+2. A moved platform mapping's `addOnMap` follows the extras to the new dish's copies, because the copies have new ids. Z Chaat's drinks have no extras and no mappings, so this changes nothing there.
+3. `--restaurant=Z Chaat` is accepted beside `--restaurant "Z Chaat"`, and a flag given twice is refused.
+Tests: `sizesToDishes.test.js` (13): B7's eleven; a failure halfway writes nothing (it fails when the switch-off runs outside the transaction, tried on purpose); and the other B5 refusals. Test 9 also checks that its capture sees this restaurant's own id, so "never reads restaurant B" cannot pass by capturing nothing.
+Z Chaat's files: `setup/zchaat-menu.csv` has four plain rows at ₹70.00, 5%. PROFILE sections 3 and 15 item 7 name the four drinks, and section 9's count is now 100 dishes (the prompt did not name it, but it would have been wrong). The setup test now expects 100 items and still 105 rows, changed on purpose.
+
+The live run, B8. The dry run ran against the cloud database in this machine's `.env` (`cluster0.dkcsfcz`, the Mumbai cluster) on 2026-10-11 at 4:09 PM, read only:
+```
+Z Chaat, Beverages: Aerated Drinks has 4 sizes. Each becomes its own dish.
+  Sprite     ₹70.00  GST 5%  available   recipe none, platform mappings none, photo none, extras none
+  Diet Coke  ₹70.00  GST 5%  available   recipe none, platform mappings none, photo none, extras none
+  Coke       ₹70.00  GST 5%  available   recipe none, platform mappings none, photo none, extras none
+  Thums Up   ₹70.00  GST 5%  available   recipe none, platform mappings none, photo none, extras none
+Butter Milk, Red Bull, Filter Coffee, Tapri Tea will move down 3, so the new dishes sit where Aerated Drinks was.
+Aerated Drinks will be switched off, not deleted. Open orders and old bills keep "Aerated Drinks" and the size, frozen on their lines.
+```
+Not applied. Before `--apply`, confirm which cluster Render uses. This file's current stage says switching Render's `MONGO_URI` to the Singapore cluster (`cluster0.onbbqdp`) was in progress. If Render has switched, the run belongs against Singapore, not against this `.env`.
+
+Checked by hand, 2026-10-11, through a throwaway browser script and a harness that loaded the e2e server and ran the Part B script inside its process (neither kept):
+1. A captain on a phone opened Table 3, sent 1 Roti at 7:05 pm and 1 more at 7:20 pm. The counter's bill screen showed one row, "2 Roti, 2 × ₹40.00, ₹80.00", bill total ₹84.00.
+2. Printed through the real print path and saved as PDF: the 80 mm thermal bill reads "Roti 2 40.00 80.00, Total Qty: 2", and the A4 invoice "Roti 2 ₹40.00 ₹80.00" (marked Duplicate, being the second print).
+3. Remove offered "Which one?" with "1 × Roti, sent 7:05 pm" and "1 × Roti, sent 7:20 pm". The 7:20 one was removed with the manager's PIN. The bill shows "1 Roti, 1 × ₹40.00" and keeps `2026-27/000001`, with "Removed: 1 × Roti, ₹84.00 to ₹42.00, after printing".
+4. After the script on that copy, the menu shows Sprite, Diet Coke, Coke and Thums Up as their own tiles, and no Aerated Drinks. Coke went on through its + and the note panel, as every dish does since 3 October. Its A4 bill reads "Coke 1 ₹70.00", with no "Aerated".
+5. The order screen, the menu and the bill screen at 380 wide: no sideways scroll.
+Not checked: a real thermal printer, a real phone, and the 130% text size.
+
+Anything the other developer needs to know:
+Rishi: a bill's JSON now carries `itemRows`, the same dish joined across rounds, and every screen and print reads it. The lines are unchanged and still one per round. `npm run menu:sizes-to-dishes` splits any one item's sizes into dishes. Which database Z Chaat runs on decides where the live run goes; see above.
 
 ### 2026-10-11 Rishi, P34 set a new password from the sign-in screen
 
@@ -1112,3 +1144,4 @@ Things that are broken or half done, so nobody rediscovers them.
 | Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |
 | The API is on Render's free plan, so it sleeps after fifteen minutes with no request, and the first screen after that waits for it to start: about a minute by Render's account. Not measured, because Z Chaat was in service all through P30; `docs/PERFORMANCE-BASELINE.md` section 1 has the command to run before opening. | Rishi, P30, 2026-10-10 | OPEN by Rishi's choice. A paid plan removes it with no code change: `plan: starter` in `render.yaml`. |
 | The server is in Singapore and the Atlas cluster in Mumbai, so every query crosses between them. | Rishi, P30, 2026-10-10 | IN PROGRESS 2026-10-10: a new cluster in AWS Singapore (`cluster0.onbbqdp`) holds a verified copy, kept caught up every 30 seconds, waiting for Rishi to set `MONGO_URI` on Render. DEPLOYMENT.md section 15. |
+| `e2e/goldenDay.spec.js` can fail at 8:40 PM: the Live Kitchen's half-second hold on Table 18's ticket does not take, and `markReady` waits for a ticket that stays. Seen once, on the full run of 2026-10-11; the golden day passed on its own run straight after. | Arya, P35, 2026-10-11 | OPEN. A test timing flake, not seen in service. If it comes back, `markReady` in `e2e/pages/kitchen.js` should wait for the hold's own confirmation instead of a fixed 700 ms press. |

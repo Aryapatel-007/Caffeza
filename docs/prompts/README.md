@@ -43,6 +43,6 @@ The full table, with dependencies and owners, is in
 | P33 | The live channel | Done 2026-10-10, on Render's free plan by Rishi's choice. Not yet checked on two real tablets. |
 | P30 (keep awake) | Keep the free server awake | Done 2026-10-10. Its prompt is numbered P30 too, written the same day as the row above; see the decision log. The three pingers still need setting up by hand, DEPLOYMENT.md section 14. Rishi's read outstanding. |
 | P34 | Set a new password from the sign-in screen | Done and deployed 2026-10-11. Arya's read outstanding. |
-| P35 | The same dish once on the bill, and each drink its own dish | In progress. |
+| P35 | The same dish once on the bill, and each drink its own dish | Done, live run waiting. Arya's "apply" for Z Chaat, and the push, are outstanding. |
 
 Prompt files that do not exist yet are added as they are written.
