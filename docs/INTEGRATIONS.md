@@ -220,6 +220,83 @@ Not yet done, because it needs Tally installed:
 
 ---
 
+## 3A. WhatsApp (P37)
+
+Each restaurant sends from its own WhatsApp Business number, on Meta's Cloud
+API directly. There is no platform fee and no middleman: the restaurant pays
+Meta per message, on its own Meta invoice, and nothing reaches our accounts.
+
+### 3A.1 Getting a WhatsApp Business Account
+
+1. A Meta Business account for the restaurant, verified with its business
+   documents (business.facebook.com, Business settings, Security centre).
+2. A Meta developer app of type Business, with the WhatsApp product added.
+3. A phone number for WhatsApp that is not already on the WhatsApp app (a
+   number on the phone app must be deleted from it first), registered in the
+   app's WhatsApp, API setup.
+4. A permanent access token: a System user in Business settings, given the
+   app and the WhatsApp Business Account, with `whatsapp_business_messaging`
+   and `whatsapp_business_management`. A temporary token from API setup lasts
+   24 hours and is for trying things only.
+5. From API setup, the **Phone number ID** and the **WhatsApp Business
+   Account ID**; from the app's Basic settings, the **App secret**.
+6. A payment method on the WhatsApp Business Account in Meta, or nothing but
+   the free service-window replies can be sent.
+
+### 3A.2 Connecting it
+
+Integrations, WhatsApp. Type the phone number ID, the account ID, the access
+token, the app secret, and a webhook verify token of our own: any string of 16
+characters or more, kept the same in Meta. Save, then **Test connection**: it
+reads the number back from Meta, and passes only when the number is on the
+Cloud API. The sheet shows the webhook address once.
+
+In the Meta app, WhatsApp, Configuration: set the callback address to that
+webhook address, the verify token to the same string, and subscribe to the
+**messages** field. Meta checks the address with a GET at that moment; it
+passes only when the verify token matches.
+
+### 3A.3 Templates
+
+A message to a guest who has not written to the restaurant in the last 24
+hours must be a template Meta has approved. On the WhatsApp sheet, **Add a
+template** starts from the Bill receipt (`BILL_RECEIPT`, a utility template):
+adapt the wording, keep `{{1}}` (the restaurant's name), `{{2}}` (the bill
+number) and `{{3}}` (the bill total), and send it to Meta, or link one already
+made in Meta's own WhatsApp Manager. Review takes from minutes to a few days;
+**Read from Meta** fetches the state. A bill is sent only once its template is
+Approved, and only with **Send the bill on WhatsApp** switched on.
+
+What gets a template rejected or moved to marketing:
+
+1. Promotional words in a utility template: an offer, a discount, "visit us
+   again for 10% off". Meta approves it as **marketing**, which costs about
+   seven times as much and needs offers consent. The sheet warns when Meta's
+   category differs from the one asked for; costs follow Meta's.
+2. Variables at the very start or end of the text, two variables side by side,
+   or more variables than words around them.
+3. A variable whose example looks unlike real data, or no example.
+4. Spelling and grammar mistakes, emojis Meta counts as promotional, or a link
+   shortener.
+5. The same text as a template already rejected.
+
+### 3A.4 Quality rating
+
+Meta scores each number Green, Yellow or Red from how guests react: blocks,
+reports, and "not interested" taps. A falling rating lowers how many guests the
+number may message in a day, and a Red one can be suspended. The receipt is
+utility and expected, so it rarely hurts the rating; P38's offers are where a
+rating is lost, which is why they need consent and a frequency cap. The test
+shows the current rating.
+
+### 3A.5 Stop
+
+A guest replying STOP, UNSUBSCRIBE or STOP PROMOTIONS, or using Meta's own
+"Stop promotions", has their offers consent withdrawn at once, with a history
+entry on the Customers screen, and is told once. Their bills still come.
+
+---
+
 ## 4. What is built and what is waiting
 
 | Part | Built | Waiting for |
@@ -231,6 +308,7 @@ Not yet done, because it needs Tally installed:
 | Pine Labs | Send an amount, read the result, cancel, expiry, one payment per approval, the bypass | Pine Labs' document: the paths, the production address, Cancel's fields, the declined and waiting codes (section 2.3) |
 | Tally file | Vouchers per day or per bill, the ledger list, held days, export again | The manual check in section 3.6 |
 | Tally bridge | Pairing, posting, ledger check, lost posts held as not known, switch off | The same manual check. Its ledger and company list request follows Tally's help page for Tally.ERP 9, and is unconfirmed on TallyPrime. |
+| WhatsApp | Connection and test, templates with their approval state, the bill sent when paid, delivery receipts, STOP | A real WhatsApp Business Account: a receipt to a staff number, its delivery receipt, and STOP, checked on it (P37 section 15) |
 | Alerts | Dead jobs, failed accepts, amount mismatches, closed-day cancellations, unknown card payments, Tally failures, on the Integrations page and in Today | Nothing |
 
 ---
@@ -258,3 +336,8 @@ Every answer here is `TO CONFIRM`. The profile is
 | File import, or the bridge on the accountant's computer | `TO CONFIRM` |
 | If the bridge: the computer's name, Node.js installed, Tally's HTTP server on | `TO CONFIRM` |
 | The manual check in section 3.6, on their version | `TO CONFIRM` |
+| WhatsApp Business Account: verified Meta business, app, number on the Cloud API | `TO CONFIRM` |
+| Phone number ID, account ID, permanent token, app secret, entered by the owner | `TO CONFIRM` |
+| The Bill receipt template approved, as utility | `TO CONFIRM` |
+| A receipt to a staff member's own number, delivered, and a second payment sending nothing | `TO CONFIRM` |
+| STOP from that number: consent withdrawn on the Customers screen | `TO CONFIRM` |

@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, P36 one kitchen ticket per table)
+Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, P36 one kitchen ticket per table, P37 WhatsApp and the receipt)
 
 ---
 
@@ -34,10 +34,12 @@ the cloud database (see the P29 entry below).
 
 The cloud database (`cluster0.dkcsfcz`, `restaurant-erp`) holds Z Chaat, set
 up with its menu and five logins, and a duplicate "zchaat" waiting on Rishi's
-choice of which stays. No bill has been made there. Next: switch Render's `MONGO_URI` to the Singapore cluster (in
-progress), then P34, re-measure. After it, the rest of the profile's section 15
-from Z Chaat, then the gates in `docs/GO-LIVE.md`, tracked in
-`docs/GO-LIVE-READINESS.md`.
+choice of which stays. No bill has been made there. Next: P38, campaigns (offers and new dishes on WhatsApp), once P37 has run on
+Z Chaat's real WhatsApp Business Account for a fortnight; P37 is built and
+deployed against a fake Meta, and waits for that account (`docs/INTEGRATIONS.md`
+section 3A). Then the rest of the profile's section 15 from Z Chaat, and the
+gates in `docs/GO-LIVE.md`, tracked in `docs/GO-LIVE-READINESS.md`. Render is
+still on the Mumbai cluster (checked 2026-10-11 from `serverstarts`).
 
 ---
 
@@ -63,7 +65,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | DONE | Every report built and proven against the golden day. Engine and R19 in P14, R2 to R10 in P15, R11 to R13 in P16, R14 to R17 in P17 (R18 is M8's read), R1 and every screen in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M20 | Floor Plan and Look | Arya | DONE | Floor plan in P19, the look in P20A and P20B. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M21 | Integrations | Arya | IN PROGRESS | Built by Rishi in P25 Parts G to L, off the listed owner. Sealed partner credentials, connections, event log, jobs, webhooks; the sandbox platform complete, Swiggy and Zomato waiting for partner approval; Pine Labs card machines from the public page, with the gaps in `docs/INTEGRATIONS.md`; Tally vouchers by file and through the bridge; alerts. Not done under BUILD-PLAN section 13: Arya has not read it, and the Tally manual check (Part K5) needs Tally installed. |
+| M21 | Integrations | Arya | IN PROGRESS | Built by Rishi in P25 Parts G to L, off the listed owner. Sealed partner credentials, connections, event log, jobs, webhooks; the sandbox platform complete, Swiggy and Zomato waiting for partner approval; Pine Labs card machines from the public page, with the gaps in `docs/INTEGRATIONS.md`; Tally vouchers by file and through the bridge; alerts. Not done under BUILD-PLAN section 13: Arya has not read it, and the Tally manual check (Part K5) needs Tally installed. P37 (2026-10-11, Arya): WhatsApp, a messaging provider on Meta's Cloud API, templates as records with their approval state, the bill sent when paid, delivery receipts and STOP; built against a fake Meta, the real-account check owed. |
 
 ---
 
@@ -520,6 +522,10 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-11 | A bill shows the same dish once, as item rows computed from its lines when it is read; the lines themselves are unchanged. | Z Chaat asked for 2 × Roti, not 1 × Roti twice. Each round must still trace to its own order line and kitchen ticket. |
 | 2026-10-11 | Z Chaat's Aerated Drinks became four dishes, Sprite, Diet Coke, Coke and Thums Up, through `npm run menu:sizes-to-dishes`. The old item is switched off, not deleted. | One tap per drink at the table, and the bill prints the drink's own name. Old bills keep the name they were sold under. |
 | 2026-10-11 | P36: an order keeps one kitchen ticket for its whole visit. Later Sends are rounds on it under the same KOT number, every line keeps the station that makes it, and a station's screen and printer show only its own dishes. `kitchen.oneTicketPerOrder`, default on; off is P05's ticket per station per Send. | Arya asked for one KOT per table after trying P35. Line-level stations keep each station's tablet, its ready tick and R13's kitchen time per station working on a shared ticket; the setting lets the kitchen go back without a deploy. |
+| 2026-10-11 | WhatsApp is an M21 provider on Meta's Cloud API, each restaurant on its own WABA with its token sealed under `INTEGRATION_SECRETS_KEY`. | The same reason P24 put each cafe on its own Razorpay: we never hold the money, and one restaurant's bad sending cannot cost another its number. Cloud API direct has no platform fee, where a BSP starts near ₹1,500 a month per number. |
+| 2026-10-11 | A template is a record with an approval state, and we price against `approvedCategory`, not the category we asked for. | Meta approves templates, not us, and re-categorises a utility template as marketing often enough that pricing against our own guess would make every cost we show an owner wrong. |
+| 2026-10-11 | A receipt is queued after the payment transaction commits, and a failure to queue never fails the payment. | A guest whose receipt is late is nothing. A guest whose payment failed because WhatsApp was down is a disaster. |
+| 2026-10-11 | P37, built differently from its prompt: the prompt was written as P34 and renumbered P37 (campaigns P38, attribution P39), at Arya's choice; it was built against a fake Meta because Z Chaat has no WhatsApp Business Account yet; the idempotency key is the integration job's `dedupeKey` on its existing unique index, not a new collection; a job names the guest by id, never by number; a 4xx from Meta is final and never retried; a delivery failure that says the number is not on WhatsApp sets `customers.whatsappUnreachableAt`; the receipt hangs on the bill becoming PAID in the model, after commit, through `utils/afterCommit.js`, which P33's live channel now shares. | The number clash would have repeated the double P30. Every other point is written into API-CONTRACT "P37" and DB-SCHEMA section 47, so the next reader does not take it for a mistake. |
 ---
 
 ## Open questions
@@ -541,6 +547,35 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-11 Arya, P37 WhatsApp: the connection, templates and the receipt
+
+Built and deployed against a fake Meta. The prompt, written as "P34", is `docs/prompts/P37-whatsapp-foundation-and-the-receipt.md`, renumbered at Arya's choice. Step 0's check failed: Z Chaat has no WhatsApp Business Account, so at Arya's choice it was built and tested against a fake Meta (`tests/helpers/fakeMeta.js`), and section 15's items 5 and 6, a real receipt to a staff number and STOP from it, wait for the account.
+
+```
+P37 progress
+- [x] Spec (`add the whatsapp provider spec`): API-CONTRACT "P37", DB-SCHEMA section 47, CONVENTIONS three codes, GLOSSARY section 24
+- [x] The provider, its test, templates (list, add or link, sync), sendTemplate, the jobs, the receipt, delivery receipts, STOP, the screens
+- [x] Tests, lint, build, e2e
+- [ ] On Z Chaat's real WABA: a receipt to a staff number delivered, a repeat payment sending nothing, STOP withdrawing consent
+```
+
+What was built:
+1. `WHATSAPP` in the M21 registry, kind `MESSAGING`: five sealed credentials, config `sendBillOnPayment` (off), `defaultLanguage`, `senderDisplayName`, `apiBaseUrl`. The test reads the number back from Meta and passes only on the Cloud API.
+2. `messagetemplates` (`models/MessageTemplate.js`), with `GET`, `POST` and `POST .../sync` under `/integrations/whatsapp/templates`: send for review, or link one made in Meta; `categoryChanged` when Meta approved it as another category.
+3. `services/integrations/messaging/whatsappAdapter.js` (every call to Meta, logged through `redactForLog`) and `whatsappService.js`: `sendTemplate` in the prompt's order, `assertMayReceive` (marketing needs live consent, utility never), the send and reply jobs, delivery receipts on the job's `result`, STOP through `customerService.withdrawOffersFromMessage`, and `queueBillReceipt`.
+4. The receipt: a bill becoming PAID, after commit (`models/Bill.js`, `utils/afterCommit.js`), with the figures from `buildInvoiceData`; never for no phone, a voided bill, a No Charge order or a platform order; swallowed if it cannot be queued.
+5. The hook: `GET /hooks/WHATSAPP/:key` answers Meta's handshake; the POST is checked against `X-Hub-Signature-256`.
+6. Screens: WhatsApp on Integrations, with its settings and a templates panel (`WhatsAppTemplates.jsx`).
+
+Tests: 1,275 before, 1,288 after, all passing. New: `whatsapp.test.js` (13), including the golden-day B05 receipt (₹795.00, one send, none on a second payment), a rolled-back payment queuing nothing (fails when the receipt skips the commit check, tried on purpose), the payment succeeding while Meta is down, STOP with its history entry and one reply while the bill still goes, a bad signature refused, and a number not on WhatsApp marked unreachable. Changed on purpose: `integrationsFoundation.test.js`'s list of providers gains WHATSAPP. The golden day is unchanged. Lint and build pass. `npm run e2e`: all 16 specs pass, with the new `e2e/whatsapp.spec.js`: a counter bills and takes cash through the screens for a table whose guest gave a mobile, the fake Meta receives one `bill_receipt` with the restaurant name, the bill number and ₹795.00, and a second payment is refused and sends nothing.
+
+`grep -rn "phone" server/services/integrations/`: guest numbers only in a message body's `to`, which `redactForLog` hides; the `phoneNumberId` in Meta's addresses is the restaurant's own number's id, not a guest's; a webhook turns a sender's number into their guest id at once.
+
+Messages sent: none to a real number, so no real cost and no Meta rejection yet.
+
+Anything the other developer needs to know:
+Rishi: to switch it on at Z Chaat, follow `docs/INTEGRATIONS.md` section 3A: the account, the connection and its test, the webhook in Meta, then the Bill receipt template, and only then "Send the bill on WhatsApp".
 
 ### 2026-10-11 Arya, P36 one kitchen ticket per table
 
