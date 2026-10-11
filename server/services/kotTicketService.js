@@ -71,7 +71,8 @@ export function renderKotTicket({ kot, order = null, firedByName = null, width =
   push(centre((kot.stationName ?? 'Kitchen').toUpperCase(), width));
   push(rule(width, '='));
 
-  const left = `KOT ${kot.kotNumber}`;
+  // P36. A later round prints as its own slip, under the same KOT number.
+  const left = kot.round > 1 ? `KOT ${kot.kotNumber}  ROUND ${kot.round}` : `KOT ${kot.kotNumber}`;
   const right = formatTimeIst12(kot.firedAt);
   push(left + ' '.repeat(Math.max(1, width - left.length - right.length)) + right);
 

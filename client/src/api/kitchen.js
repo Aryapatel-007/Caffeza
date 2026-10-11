@@ -35,8 +35,9 @@ export function listKots({ status, page, limit, stationId } = {}) {
  * The ticket as plain text, laid out by the server at 32 or 48 characters.
  * P05. `reprint` adds a REPRINT line.
  */
-export function getKotTicket(kotId, { width = 48, reprint = false } = {}) {
-  return api.get(`/kots/${kotId}/ticket${toQuery({ width, reprint: reprint ? 'true' : undefined })}`);
+export function getKotTicket(kotId, { width = 48, reprint = false, round, stationId } = {}) {
+  // P36. `round` prints only that Send; `stationId` only that station's dishes.
+  return api.get(`/kots/${kotId}/ticket${toQuery({ width, reprint: reprint ? 'true' : undefined, round, stationId })}`);
 }
 
 export function getKot(kotId) {
@@ -55,8 +56,9 @@ export function markKotLineReady(kotId, lineId) {
 }
 
 /** The whole ticket in one tap, for when a table's food goes out together. */
-export function markKotReady(kotId) {
-  return api.patch(`/kots/${kotId}/ready`, undefined);
+export function markKotReady(kotId, { stationId } = {}) {
+  // P36. With a station, only that station's dishes on the ticket.
+  return api.patch(`/kots/${kotId}/ready${toQuery({ stationId })}`, undefined);
 }
 
 /**
@@ -69,6 +71,6 @@ export function undoKotLineReady(kotId, lineId) {
 }
 
 /** P29 Part E. Every ready dish on the ticket, back to the kitchen. */
-export function undoKotReady(kotId) {
-  return api.post(`/kots/${kotId}/undo-ready`, undefined);
+export function undoKotReady(kotId, { stationId } = {}) {
+  return api.post(`/kots/${kotId}/undo-ready${toQuery({ stationId })}`, undefined);
 }

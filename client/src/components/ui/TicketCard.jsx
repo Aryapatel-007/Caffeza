@@ -1,3 +1,6 @@
+import { Fragment } from 'react';
+
+import { formatTimeIst } from '../../utils/formatDate.js';
 import { useEffect, useRef, useState } from 'react';
 
 import { CrossIcon, TickIcon } from './icons/index.jsx';
@@ -77,11 +80,17 @@ export default function TicketCard({
       )}
 
       <ul className="flex flex-1 flex-col gap-1 px-2 py-2">
-        {lines.map((line) => {
+        {lines.map((line, index) => {
           const isDone = line.status === 'READY';
           const isCancelled = line.status === 'CANCELLED';
+          // P36. A later Send on the same ticket starts under its own caption.
+          const startsRound = (line.round ?? 1) > 1 && (index === 0 || lines[index - 1].round !== line.round);
           return (
-            <li key={line.id} className={['flex items-stretch gap-1', isDone ? 'opacity-60' : ''].join(' ')}>
+            <Fragment key={line.id}>
+            {startsRound && (
+              <li className="type-caption border-t border-line px-2 pt-2 text-muted">Added {formatTimeIst(line.firedAt)}</li>
+            )}
+            <li className={['flex items-stretch gap-1', isDone ? 'opacity-60' : ''].join(' ')}>
               <button
                 type="button"
                 disabled={isBusy || isDone || isCancelled}
@@ -125,6 +134,7 @@ export default function TicketCard({
                 </button>
               )}
             </li>
+            </Fragment>
           );
         })}
       </ul>

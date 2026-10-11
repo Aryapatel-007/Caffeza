@@ -232,7 +232,17 @@ export async function readBillDetail(req, billId, ctx) {
     }
   }
   for (const kot of kots) {
-    add(kot.firedAt, 'Sent to the kitchen', `KOT ${kot.kotNumber}${kot.stationName ? `, ${kot.stationName}` : ''}`);
+    // P36. One event per round, each at its own sent time.
+    const rounds = new Map();
+    for (const line of kot.lines ?? []) {
+      const round = line.round ?? 1;
+      if (!rounds.has(round)) rounds.set(round, line.firedAt ?? kot.firedAt);
+    }
+    if (rounds.size === 0) rounds.set(1, kot.firedAt);
+    for (const [round, at] of [...rounds].sort((a, b) => a[0] - b[0])) {
+      const station = kot.stationName ? `, ${kot.stationName}` : '';
+      add(at, 'Sent to the kitchen', `KOT ${kot.kotNumber}${round > 1 ? `, round ${round}` : ''}${station}`);
+    }
   }
   add(bill.billedAt, 'Billed', bill.billNumber);
   if (bill.discount) {

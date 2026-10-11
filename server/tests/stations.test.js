@@ -66,6 +66,16 @@ async function stationFloor() {
     await createMenuItem(tokens.OWNER, { name: 'Caffe Latte', priceInPaise: 22000, categoryId: coffeeCategory.id })
   ).body.data;
 
+  /**
+   * P36. These tests are about P05's routing, a ticket per station per Send,
+   * so they switch one ticket per order off; tests/oneTicketPerOrder covers it on.
+   */
+  const off = await request('PATCH', '/api/v1/settings', {
+    token: tokens.OWNER,
+    body: { reason: 'A ticket per station', kitchen: { oneTicketPerOrder: false } },
+  });
+  assert.equal(off.status, 200, JSON.stringify(off.body));
+
   return { ...floor, kitchen, bar, pastaCategory, coffeeCategory, pasta, latte };
 }
 
@@ -257,6 +267,8 @@ describe('station endpoints', () => {
       kotNumber: 999,
       stationId: null,
       stationName: null,
+      // P36. A ticket that old has no station on its lines either.
+      lines: orphan.toObject().lines.map((line) => ({ ...line, stationId: null, stationName: null })),
     });
 
     const bar = await request('GET', `/api/v1/kots?stationId=${floor.bar.id}`, { token: floor.tokens.KITCHEN });

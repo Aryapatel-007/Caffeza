@@ -107,14 +107,21 @@ export default function KitchenDisplayPage() {
       return next;
     });
 
+  /** P36. Whether this screen's part of a ticket is done: every live dish of the chosen station ready. */
+  const stationStatus = (kot) => {
+    const lines = (stationFilter ? kot.lines.filter((line) => line.stationId === stationFilter) : kot.lines).filter((line) => line.status !== 'CANCELLED');
+    return lines.every((line) => line.status === 'READY') ? 'COMPLETED' : 'OPEN';
+  };
+
   const markReady = useMutation({
+    // P36. The whole ticket from a station's screen is that station's dishes only.
     mutationFn: ({ kotId, lineId }) =>
-      lineId ? markKotLineReady(kotId, lineId) : markKotReady(kotId),
+      lineId ? markKotLineReady(kotId, lineId) : markKotReady(kotId, { stationId: stationFilter }),
     onSuccess: (kot, { lineId, label }) => {
       setError(null);
       setNotice(null);
       setLastTick({ kotId: kot.id, lineId: lineId ?? null, label, at: Date.now() });
-      if (kot.status === 'COMPLETED') {
+      if (stationStatus(kot) === 'COMPLETED') {
         keepJustDone((current) => [{ kot, doneAt: Date.now() }, ...current.filter((entry) => entry.kot.id !== kot.id)]);
       }
       queryClient.invalidateQueries({ queryKey: ['kots'] });
@@ -125,7 +132,7 @@ export default function KitchenDisplayPage() {
   });
 
   const undo = useMutation({
-    mutationFn: ({ kotId, lineId }) => (lineId ? undoKotLineReady(kotId, lineId) : undoKotReady(kotId)),
+    mutationFn: ({ kotId, lineId }) => (lineId ? undoKotLineReady(kotId, lineId) : undoKotReady(kotId, { stationId: stationFilter })),
     onSuccess: (kot) => {
       setError(null);
       setLastTick(null);
@@ -141,9 +148,9 @@ export default function KitchenDisplayPage() {
   });
 
   /** Fetches the server-laid-out ticket and prints it. Never throws. */
-  async function printKot(kotId, { reprint = false } = {}) {
+  async function printKot(kotId, { reprint = false, round, stationId } = {}) {
     try {
-      const { text } = await getKotTicket(kotId, { width: charactersFor(device.printer), reprint });
+      const { text } = await getKotTicket(kotId, { width: charactersFor(device.printer), reprint, round, stationId });
       await printText(text, device.printer);
       setNotPrinted((current) => {
         const next = new Set(current);
@@ -169,7 +176,15 @@ export default function KitchenDisplayPage() {
   const printing = useRef(false);
   useEffect(() => {
     if (!device.autoPrintKots || !stationFilter || !tickets.isSuccess || printing.current) return;
-    const onScreen = (tickets.data?.data ?? []).map((kot) => kot.id);
+    /**
+     * P36. One slip per round of a ticket with this station's dishes in it,
+     * remembered as "ticket:round". A ticket id on its own, remembered before
+     * P36, stands for its first round.
+     */
+    const onScreen = (tickets.data?.data ?? []).flatMap((kot) =>
+      [...new Set(kot.lines.filter((line) => line.stationId === stationFilter).map((line) => line.round ?? 1))].map((round) => `${kot.id}:${round}`),
+    );
+    const printedBefore = (key) => device.printedKotIds.includes(key) || (key.endsWith(':1') && device.printedKotIds.includes(key.slice(0, -2)));
     const seedKey = `${device.autoPrintArmedAt ?? 0}:${stationFilter}`;
 
     if (device.autoPrintSeededFor !== seedKey) {
@@ -180,7 +195,7 @@ export default function KitchenDisplayPage() {
       return;
     }
 
-    const fresh = onScreen.filter((id) => !device.printedKotIds.includes(id));
+    const fresh = onScreen.filter((key) => !printedBefore(key));
     if (fresh.length === 0) return;
 
     printing.current = true;
@@ -188,7 +203,10 @@ export default function KitchenDisplayPage() {
     // again from the next poll.
     updateDevice((current) => ({ printedKotIds: rememberPrinted(current.printedKotIds, fresh) }));
     (async () => {
-      for (const id of fresh) await printKot(id);
+      for (const key of fresh) {
+        const [id, round] = key.split(':');
+        await printKot(id, { round: Number(round), stationId: stationFilter });
+      }
       printing.current = false;
     })();
     // printKot reads the device width; the dependencies below are what decide
@@ -197,16 +215,26 @@ export default function KitchenDisplayPage() {
 
   const clock = useMinuteClock();
   const targets = new Map((stations.data ?? []).map((station) => [station.id, station.targetMinutes ?? DEFAULT_TARGET_MINUTES]));
-  const targetFor = (kot) => targets.get(kot.stationId) ?? DEFAULT_TARGET_MINUTES;
-  const minutesOpen = (kot) => Math.floor((clock - new Date(kot.firedAt).getTime()) / 60_000);
+  const targetFor = (kot) => targets.get(stationFilter ?? kot.stationId) ?? DEFAULT_TARGET_MINUTES;
+  // P36. The ticket is timed from the oldest dish still to make, so a round added later is not late on arrival.
+  const minutesOpen = (kot) => Math.floor((clock - new Date(kot.waitingSince).getTime()) / 60_000);
   const isLate = (kot) => minutesOpen(kot) >= targetFor(kot);
 
-  // DESIGN-SYSTEM 8b: oldest first, late tickets moved to the front.
-  const kots = [...(tickets.data?.data ?? [])].sort(
-    (a, b) => Number(isLate(b)) - Number(isLate(a)) || new Date(a.firedAt) - new Date(b.firedAt),
-  );
+  // P36. A station sees only its own dishes on a ticket, and only while one is still to make.
+  const kots = (tickets.data?.data ?? [])
+    .map((kot) => {
+      const lines = stationFilter ? kot.lines.filter((line) => line.stationId === stationFilter) : kot.lines;
+      const pending = lines.filter((line) => line.status === 'PENDING');
+      const since = (pending.length > 0 ? pending : lines).map((line) => new Date(line.firedAt ?? kot.firedAt).getTime());
+      return { ...kot, lines, waitingSince: new Date(Math.min(...since, Date.parse(kot.lastFiredAt ?? kot.firedAt))) };
+    })
+    .filter((kot) => kot.lines.some((line) => line.status === 'PENDING'))
+    // DESIGN-SYSTEM 8b: oldest first, late tickets moved to the front.
+    .sort((a, b) => Number(isLate(b)) - Number(isLate(a)) || a.waitingSince - b.waitingSince);
   const lateCount = kots.filter(isLate).length;
-  const recentDone = justDone.filter((entry) => clock - entry.doneAt < JUST_DONE_MS && (!stationFilter || entry.kot.stationId === stationFilter));
+  const recentDone = justDone.filter(
+    (entry) => clock - entry.doneAt < JUST_DONE_MS && (!stationFilter || entry.kot.lines?.some((line) => line.stationId === stationFilter)),
+  );
   const nameOf = (kot, lineId) => kot.lines.find((line) => line.id === lineId)?.itemName ?? 'That dish';
 
   return (
@@ -296,10 +324,10 @@ export default function KitchenDisplayPage() {
               <TicketCard
                 kotNumber={kot.kotNumber}
                 place={kot.tableName ?? `Order ${kot.orderNumber}`}
-                subtitle={[ORDER_TYPE_LABELS[kot.orderType] ?? kot.orderType, `#${kot.orderNumber}`, kot.stationName, `Fired ${formatTimeIst(kot.firedAt)}`]
+                subtitle={[ORDER_TYPE_LABELS[kot.orderType] ?? kot.orderType, `#${kot.orderNumber}`, kot.stationName, `Fired ${formatTimeIst(kot.firedAt)}`, kot.rounds > 1 ? `${kot.rounds} rounds` : null]
                   .filter(Boolean)
                   .join(' · ')}
-                firedAt={kot.firedAt}
+                firedAt={kot.waitingSince}
                 targetMinutes={targetFor(kot)}
                 lines={kot.lines}
                 notPrinted={notPrinted.has(kot.id)}

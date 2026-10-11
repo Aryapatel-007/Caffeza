@@ -63,7 +63,7 @@ const DEFAULTS = {
   billing: { captainsMayBill: true, captainsMayTakePayment: false, reviseUnpaidBills: true, printBeforePayment: true },
   // P28.
   approvals: { lineCancel: true, paidIn: true, managerTasks: true, revisePrintedBill: true },
-  kitchen: { readyMeansServed: true },
+  kitchen: { readyMeansServed: true, oneTicketPerOrder: true },
   dayClose: { showCashDifferenceToManager: false },
   cash: {
     denominations: DEFAULT_DENOMINATIONS.map((entry) => ({ ...entry })),

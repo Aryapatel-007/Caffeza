@@ -371,6 +371,13 @@ export default function SettingsPage() {
               checked={form.kitchen.readyMeansServed}
               onChange={set('kitchen', 'readyMeansServed')}
             />
+            {/* P36. */}
+            <Checkbox
+              label="One kitchen ticket per table"
+              hint="Every round and every station on one ticket, under one KOT number; each station still sees only its own dishes. Off: a ticket for each station every time the captain sends."
+              checked={form.kitchen.oneTicketPerOrder ?? true}
+              onChange={set('kitchen', 'oneTicketPerOrder')}
+            />
           </Section>
         )}
 

@@ -87,25 +87,38 @@ async function wholeBillTotal(baseMatch) {
   return whole?.total ?? 0;
 }
 
-/** Every line marked ready on a ticket fired in the range, with its minutes. */
+/**
+ * Every line marked ready that was sent in the range, with its minutes. P36:
+ * a line goes by its own station and sent time, and a line from before P36,
+ * which has neither, by its ticket's, so a one-round ticket reads as before.
+ */
 async function kitchenLines(req, baseMatch, params) {
   const { start, end } = await instantsFor(req, params.from, params.to);
   return Kot.aggregate([
+    // Any ticket with a round inside the range: begun before its end, last sent after its start.
+    { $match: { ...tenantOf(baseMatch), firedAt: { $lt: end }, $or: [{ lastFiredAt: { $gte: start } }, { firedAt: { $gte: start } }] } },
+    { $unwind: '$lines' },
     {
-      $match: {
-        ...tenantOf(baseMatch),
-        firedAt: { $gte: start, $lt: end },
-        ...(params.stationId ? { stationId: new mongoose.Types.ObjectId(params.stationId) } : {}),
+      $addFields: {
+        lineStationId: { $ifNull: ['$lines.stationId', '$stationId'] },
+        lineStationName: { $ifNull: ['$lines.stationName', '$stationName'] },
+        lineFiredAt: { $ifNull: ['$lines.firedAt', '$firedAt'] },
       },
     },
-    { $unwind: '$lines' },
-    { $match: { 'lines.status': { $ne: 'CANCELLED' }, 'lines.readyAt': { $ne: null } } },
+    {
+      $match: {
+        'lines.status': { $ne: 'CANCELLED' },
+        'lines.readyAt': { $ne: null },
+        lineFiredAt: { $gte: start, $lt: end },
+        ...(params.stationId ? { lineStationId: new mongoose.Types.ObjectId(params.stationId) } : {}),
+      },
+    },
     {
       $group: {
-        _id: { station: { $ifNull: ['$stationName', NO_STATION] }, item: '$lines.itemName', variant: { $ifNull: ['$lines.variantName', null] } },
+        _id: { station: { $ifNull: ['$lineStationName', NO_STATION] }, item: '$lines.itemName', variant: { $ifNull: ['$lines.variantName', null] } },
         itemsMade: { $sum: '$lines.quantity' },
         lines: { $sum: 1 },
-        minutes: { $sum: minutesExpr('$firedAt', '$lines.readyAt') },
+        minutes: { $sum: minutesExpr('$lineFiredAt', '$lines.readyAt') },
       },
     },
   ]);

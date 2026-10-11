@@ -5,11 +5,14 @@
  * in this file. The kitchen reads tickets and marks food ready; everything else
  * about a ticket is decided on the floor.
  */
+import mongoose from 'mongoose';
+
 import { Kot, KOT_LINE_STATUSES } from '../models/Kot.js';
 import { Order } from '../models/Order.js';
 import { User } from '../models/User.js';
-import { KOT_STATUSES, loadKotInTenant, markKotLinesReady, serialiseKot, undoKotReady } from '../services/kitchenService.js';
+import { KOT_STATUSES, lineStationId, loadKotInTenant, markKotLinesReady, serialiseKot, undoKotReady } from '../services/kitchenService.js';
 import { renderKotTicket } from '../services/kotTicketService.js';
+import { BusinessRuleError } from '../utils/errors.js';
 import { sendList, sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
 
@@ -29,8 +32,19 @@ export async function listKots(req, res) {
   const { page, limit, status, stationId } = req.query;
 
   const filter = { ...scoped(req) };
-  // P05. One station's tickets, or "none" for the ones with no station.
-  if (stationId !== undefined) filter.stationId = stationId === 'none' ? null : stationId;
+  /**
+   * P05. One station's tickets, or "none" for the ones with no station.
+   * P36: a ticket can hold several stations' dishes, so a station's tickets
+   * are those with a line there; a line from before P36 has no station of its
+   * own and goes by the ticket's.
+   */
+  if (stationId === 'none') {
+    filter.stationId = null;
+    filter['lines.stationId'] = null;
+  } else if (stationId !== undefined) {
+    const station = new mongoose.Types.ObjectId(stationId);
+    filter.$or = [{ 'lines.stationId': station }, { stationId: station }];
+  }
 
   /**
    * The status is derived from the lines, but "still to cook" is a plain fact
@@ -85,7 +99,7 @@ export async function markKotLineReady(req, res) {
 
 /** PATCH /kots/:kotId/ready */
 export async function markKotReady(req, res) {
-  const kot = await markKotLinesReady(req, { kotId: req.params.kotId });
+  const kot = await markKotLinesReady(req, { kotId: req.params.kotId, stationId: req.query.stationId ?? null });
   return sendSuccess(res, kot);
 }
 
@@ -96,7 +110,7 @@ export async function undoKotLineReady(req, res) {
 
 /** POST /kots/:kotId/undo-ready. P29 Part E. Every READY line on the ticket. */
 export async function undoKotTicketReady(req, res) {
-  return sendSuccess(res, await undoKotReady(req, { kotId: req.params.kotId }));
+  return sendSuccess(res, await undoKotReady(req, { kotId: req.params.kotId, stationId: req.query.stationId ?? null }));
 }
 
 /**
@@ -115,9 +129,23 @@ export async function getKotTicket(req, res) {
     User.findOne({ restaurantId: req.restaurantId, _id: kot.firedBy }).select('name').lean(),
   ]);
 
-  const { width, reprint } = req.query;
+  const { width, reprint, round, stationId } = req.query;
+
+  // P36. One round, one station's dishes, or both; neither prints the whole ticket.
+  const whole = serialiseKot(kot);
+  const lines = whole.lines.filter(
+    (line) => (round === undefined || line.round === round) && (!stationId || lineStationId(kot, line) === String(stationId)),
+  );
+  if (lines.length === 0) throw new BusinessRuleError('Nothing on this ticket is for that round or station.');
+  const station = stationId ? lines[0].stationName : whole.stationName;
   const text = renderKotTicket({
-    kot,
+    kot: {
+      ...whole,
+      lines,
+      stationName: station,
+      round: round ?? null,
+      firedAt: round === undefined ? whole.firedAt : lines[0].firedAt,
+    },
     order,
     firedByName: firedBy?.name ?? null,
     width,
