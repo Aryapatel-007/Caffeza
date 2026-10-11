@@ -56,6 +56,15 @@ const kotLineSchema = new mongoose.Schema(
     },
 
     readyAt: { type: Date, default: null },
+    /**
+     * P36. The station that makes this dish, and when and in which round it
+     * was sent, frozen at the Send. Null on a ticket from before P36: the
+     * ticket's own station and `firedAt` stand for every line then.
+     */
+    stationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Station', default: null },
+    stationName: { type: String, trim: true, default: null },
+    firedAt: { type: Date, default: null },
+    round: { type: Number, min: 1, validate: wholeNumber, default: 1 },
   },
   { _id: true },
 );
@@ -85,6 +94,13 @@ const kotSchema = new mongoose.Schema({
    */
   stationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Station', default: null },
   stationName: { type: String, trim: true, default: null },
+  /**
+   * P36. With `kitchen.oneTicketPerOrder` on, an order keeps this one ticket:
+   * later Sends add lines as new rounds, under the same `kotNumber`.
+   */
+  rounds: { type: Number, min: 1, validate: wholeNumber, default: 1 },
+  /** P36. When the latest round was sent. Null means `firedAt`. */
+  lastFiredAt: { type: Date, default: null },
 });
 
 kotSchema.plugin(baseSchemaPlugin);
@@ -102,6 +118,8 @@ kotSchema.index({ restaurantId: 1, orderId: 1 });
 
 /** The station filter on the kitchen screen. P05. */
 kotSchema.index({ restaurantId: 1, branchId: 1, stationId: 1, createdAt: 1 });
+/** P36. A station's tickets, now that one ticket can hold several stations' dishes. */
+kotSchema.index({ restaurantId: 1, branchId: 1, 'lines.stationId': 1, createdAt: 1 });
 
 kotSchema.index({ restaurantId: 1, kotNumber: 1 }, { unique: true });
 

@@ -510,6 +510,9 @@ export const kotTicketSchema = z.object({
         .default('32')
         .transform(Number),
       reprint: queryBoolean,
+      // P36. One round, and one station's dishes.
+      round: z.coerce.number({ error: 'Must be a round number.' }).int('Must be a round number.').min(1, 'Must be a round number.').optional(),
+      stationId: objectId.optional(),
     })
     .strict('Is not an option on a ticket.'),
 });
@@ -525,4 +528,8 @@ export const readKotSchema = z.object({ params: kotIdParam });
  * optimistic concurrency solving a problem the kitchen does not have.
  */
 export const markKotLineReadySchema = z.object({ params: kotLineParams });
-export const markKotReadySchema = z.object({ params: kotIdParam });
+/** P36. `stationId` marks, or takes back, only that station's dishes on the ticket. */
+export const markKotReadySchema = z.object({
+  params: kotIdParam,
+  query: z.object({ stationId: objectId.optional() }).strict('Is not an option here.'),
+});

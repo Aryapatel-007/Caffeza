@@ -541,6 +541,27 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-11 Arya, P36 one kitchen ticket per table (paused part-way)
+
+In progress, paused at Arya's request. The prompt is `docs/prompts/P36-one-kitchen-ticket-per-table.md`. Asked for after trying P35 locally: one ticket per table for its whole visit, every round and every station on it, later Sends added to the same ticket under the same KOT number. Arya also chose to apply the P35 drinks split on Z Chaat's live menu with this deploy, and to push once everything is built.
+
+```
+P36 progress
+- [x] Spec (`spec one kitchen ticket per table`): API-CONTRACT "P36", DB-SCHEMA section 46, GLOSSARY section 23
+- [x] `kots` fields (lines[].stationId, stationName, firedAt, round; rounds, lastFiredAt) and the lines.stationId index
+- [x] `settings.kitchen.oneTicketPerOrder` (model, settingsService path, validator), default on
+- [x] Validators: ticket `round` and `stationId`; `stationId` query on PATCH /kots/:kotId/ready and POST /kots/:kotId/undo-ready
+- [ ] `fireOrder` in kitchenService.js: append to the order's ticket as a new round (draft not yet in the file)
+- [ ] `serialiseKot` effective station, sent time and round per line
+- [ ] markKotLinesReady and undoKotReady by station; kotController list filter, ticket round and station
+- [ ] kotTicketService "KOT 12  ROUND 2"; R13 kitchen by line station and sent time; R10 timeline per round
+- [ ] Kitchen screen: station's own lines, lateness from the oldest pending line, "Added 7:20 pm", auto-print per round, Settings checkbox
+- [ ] Tests (prompt section 4), pinned settings defaults, full suite, e2e
+- [ ] Push (P35 and P36), deploy, then `npm run menu:sizes-to-dishes -- --restaurant "Z Chaat" --item "Aerated Drinks" --apply` on the live database and a second run showing "Nothing to do"
+```
+
+Nothing is pushed: P35's five commits and P36's so far are local only.
+
 ### 2026-10-11 Arya, P35 the same dish once on the bill, and each drink its own dish
 
 Built and checked. The live run on Z Chaat waits for Arya's "apply", and nothing is pushed yet: Arya asked to be asked before any push. The prompt is `docs/prompts/P35-same-dish-once-and-drinks-as-dishes.md`.
