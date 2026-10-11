@@ -2405,6 +2405,34 @@ Roles: all six. A waiter needs to read the bill they are carrying to a table.
 
 404 `NOT_FOUND` if it belongs to another restaurant. Never 403.
 
+**`itemRows` (P35).** Every bill sent back as a whole document, by this read
+and by every write that answers with the bill (create, discount, payment,
+correction, void, print, remove-lines, apply advance and the rest), carries
+`itemRows` beside `lines`. It is the bill's lines grouped for a person to read,
+computed each time the bill is sent and **never stored**; `lines` is unchanged,
+one bill line per order line, each still tracing to its order line and kitchen
+ticket. The bill list (14.3) and the print queue carry no `itemRows`.
+
+Two lines join one row only when all of these are the same: `menuItemId`,
+`itemName`, `variantName` (two nulls are the same), `addOnNames` as a set (the
+same names in any order), `unitPriceInPaise` and `taxRateBps`. So a price
+changed between two rounds, a different size and different extras stay
+separate rows.
+
+```json
+"itemRows": [
+  { "itemName": "Roti", "variantName": null, "addOnNames": [], "quantity": 2, "unitPriceInPaise": 4000,
+    "taxRateBps": 500, "lineTotalInPaise": 8000, "orderLineIds": ["6601…", "6602…"] }
+]
+```
+
+`quantity` and `lineTotalInPaise` are the sums of the row's lines, added with
+`sumPaise`; `addOnNames` is the first line's; `orderLineIds` are every line's
+`orderLineId`, in bill order. Rows are in the order of each row's first line.
+Built by `groupBillLines` in `server/utils/billLines.js`, the only place lines
+are grouped; the client never groups them itself. A row's line totals add up
+exactly to `subtotalInPaise`.
+
 ### 14.3 List bills
 
 ```
@@ -2668,6 +2696,12 @@ receipt text and this data are built by **one** function in
 returns it as it is. So every amount on the thermal receipt and on the full page
 is the same number, read from the same object. A test compares them for every
 golden day bill.
+
+P35: the data carries `itemRows` beside `lines`, built from the same
+`groupBillLines` as 14.2, and the receipt text, the thermal bill and the
+full-page invoice all list `itemRows`, so the same dish ordered in two rounds
+prints once. "Total Qty" is unchanged: the rows' quantities add up to the
+lines'.
 
 ```json
 {
@@ -2975,6 +3009,10 @@ bill that cannot be revised keeps 16.4 and 16.7 exactly as they are.
 ```
 POST /api/v1/bills/:billId/remove-lines
 ```
+
+P35: unchanged on the server. The bill screen lists `itemRows` (14.2); removing
+from a row made of several lines first asks which of them, and sends every
+line picked, each with its own `wasPrepared` when it reached the kitchen.
 
 ```json
 {
