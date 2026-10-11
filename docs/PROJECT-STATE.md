@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, P36 one kitchen ticket per table, P37 WhatsApp and the receipt, P39 the WhatsApp assistant, in progress)
+Last updated: 2026-10-12 by Arya (P39 the WhatsApp assistant). Before that, 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, P36 one kitchen ticket per table, P37 WhatsApp and the receipt)
 
 ---
 
@@ -36,7 +36,9 @@ The cloud database (`cluster0.dkcsfcz`, `restaurant-erp`) holds Z Chaat, set
 up with its menu and five logins, and a duplicate "zchaat" waiting on Rishi's
 choice of which stays. No bill has been made there. Next: P38, campaigns (offers and new dishes on WhatsApp), once P37 has run on
 Z Chaat's real WhatsApp Business Account for a fortnight; P37 is built and
-deployed against a fake Meta, and waits for that account (`docs/INTEGRATIONS.md`
+deployed against a fake Meta, and waits for that account. P39, the WhatsApp
+assistant, is built against a fake Meta and a fake model and checked on Groq
+with `npm run assistant:eval`; it waits for the same account and a paid AI key (`docs/INTEGRATIONS.md`
 section 3A). Then the rest of the profile's section 15 from Z Chaat, and the
 gates in `docs/GO-LIVE.md`, tracked in `docs/GO-LIVE-READINESS.md`. Render is
 still on the Mumbai cluster (checked 2026-10-11 from `serverstarts`).
@@ -65,7 +67,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | DONE | Every report built and proven against the golden day. Engine and R19 in P14, R2 to R10 in P15, R11 to R13 in P16, R14 to R17 in P17 (R18 is M8's read), R1 and every screen in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M20 | Floor Plan and Look | Arya | DONE | Floor plan in P19, the look in P20A and P20B. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M21 | Integrations | Arya | IN PROGRESS | Built by Rishi in P25 Parts G to L, off the listed owner. Sealed partner credentials, connections, event log, jobs, webhooks; the sandbox platform complete, Swiggy and Zomato waiting for partner approval; Pine Labs card machines from the public page, with the gaps in `docs/INTEGRATIONS.md`; Tally vouchers by file and through the bridge; alerts. Not done under BUILD-PLAN section 13: Arya has not read it, and the Tally manual check (Part K5) needs Tally installed. P37 (2026-10-11, Arya): WhatsApp, a messaging provider on Meta's Cloud API, templates as records with their approval state, the bill sent when paid, delivery receipts and STOP; built against a fake Meta, the real-account check owed. |
+| M21 | Integrations | Arya | IN PROGRESS | Built by Rishi in P25 Parts G to L, off the listed owner. Sealed partner credentials, connections, event log, jobs, webhooks; the sandbox platform complete, Swiggy and Zomato waiting for partner approval; Pine Labs card machines from the public page, with the gaps in `docs/INTEGRATIONS.md`; Tally vouchers by file and through the bridge; alerts. Not done under BUILD-PLAN section 13: Arya has not read it, and the Tally manual check (Part K5) needs Tally installed. P37 (2026-10-11, Arya): WhatsApp, a messaging provider on Meta's Cloud API, templates as records with their approval state, the bill sent when paid, delivery receipts and STOP; built against a fake Meta, the real-account check owed. P39 (2026-10-12, Arya): the WhatsApp assistant, a new kind `AI_ASSISTANT` (Anthropic, Groq, Gemini), conversations, Chats, bookings on WhatsApp and stop in any words; Rishi's read outstanding. |
 
 ---
 
@@ -525,6 +527,13 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-11 | WhatsApp is an M21 provider on Meta's Cloud API, each restaurant on its own WABA with its token sealed under `INTEGRATION_SECRETS_KEY`. | The same reason P24 put each cafe on its own Razorpay: we never hold the money, and one restaurant's bad sending cannot cost another its number. Cloud API direct has no platform fee, where a BSP starts near ₹1,500 a month per number. |
 | 2026-10-11 | A template is a record with an approval state, and we price against `approvedCategory`, not the category we asked for. | Meta approves templates, not us, and re-categorises a utility template as marketing often enough that pricing against our own guess would make every cost we show an owner wrong. |
 | 2026-10-11 | A receipt is queued after the payment transaction commits, and a failure to queue never fails the payment. | A guest whose receipt is late is nothing. A guest whose payment failed because WhatsApp was down is a disaster. |
+| 2026-10-12 | P39: the model understands the guest and words the reply; the server's tools act, and every tool takes the guest from the conversation, never from the model. A reply check refuses any rupee amount, time, link or booking reference that did not come from a tool, the facts or the guest's own words, and any claim that messages stopped without `stop_messages`; a refused reply goes back once, then the chat goes to a person. | An AI that invents a price, a free table or a deposit link in the restaurant's name is worse than none. The model chooses; the restaurant's data and rules decide. |
+| 2026-10-12 | P39: a stop is scope OFFERS unless the guest plainly asks to stop everything or remove their number; ALL also stops bills and only staff clear it, on the chat, at the guest's request. The prompt asks a question only when it cannot tell whether the guest wants to stop at all. | Arya asked that it not be stubborn. The first eval run on the old wording chose "stop all" for a bare stop and asked "offers or all?" after "I don't want these", which made the guest say it twice. With the new wording the second run missed no stop. |
+| 2026-10-12 | P39, built differently from the plan: with the assistant switched off nothing is sent and the chat waits in Chats; the fixed menu is only for no AI key or a used daily limit. | An owner who switches the assistant off expects it to say nothing. |
+| 2026-10-12 | Groq is a third AI provider, at Arya's request, with `openai/gpt-oss-120b` as its default at low reasoning effort. Gemini and Groq are labelled testing only. | Groq retired `llama-3.3-70b-versatile`, the model first written in. gpt-oss's thinking counts against the reply's length, so low effort keeps short replies from coming back empty. A free tier may keep what guests write and has small limits, so it is for testing, said on the sheet. |
+| 2026-10-12 | A chat that needs a person rings the online alert whenever WhatsApp is on, even with the online page off: `GET /online/inbox` answers while WhatsApp is on, `/auth/me` `online.chats` says so, and conversations announce on the live channel's `online` topic. Chats are for OWNER, MANAGER and CASHIER. | A guest waiting for a person is the same as a request waiting for an answer, and Z Chaat may use WhatsApp without the online page. The takeaway screen still needs online orders or a platform. |
+| 2026-10-12 | `npm run assistant:eval` is the check on the system prompt: 82 labelled guest messages in English, Hindi, Gujarati and Hinglish, sent once each to a real model with the real prompt and tools. The bar is no clear stop missed, nothing that is not a stop taken as one, and 95% overall. It is run by hand, with a key from the root `.env`, never in `npm test`. | A prompt is code nobody can unit test. The eval is how a change to it is known to be better or worse, and the numbers go here each time. |
+| 2026-10-12 | Attribution and campaign reporting is P40. P37's prompt had numbered it P39, which the assistant took the same day. | The double P30 again, avoided. |
 | 2026-10-11 | P37, built differently from its prompt: the prompt was written as P34 and renumbered P37 (campaigns P38, attribution P39), at Arya's choice; it was built against a fake Meta because Z Chaat has no WhatsApp Business Account yet; the idempotency key is the integration job's `dedupeKey` on its existing unique index, not a new collection; a job names the guest by id, never by number; a 4xx from Meta is final and never retried; a delivery failure that says the number is not on WhatsApp sets `customers.whatsappUnreachableAt`; the receipt hangs on the bill becoming PAID in the model, after commit, through `utils/afterCommit.js`, which P33's live channel now shares. | The number clash would have repeated the double P30. Every other point is written into API-CONTRACT "P37" and DB-SCHEMA section 47, so the next reader does not take it for a mistake. |
 ---
 
@@ -548,27 +557,40 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
-### 2026-10-11 Arya, P39 the WhatsApp assistant (paused, in progress)
+### 2026-10-12 Arya, P39 the WhatsApp assistant
 
-Paused at Arya's word. Nothing pushed: P37 (`19f813b`, `7d1de9b`, `96d365e`) and P39 are local commits, waiting for Arya's OK to push. The plan is `docs/prompts/P39-whatsapp-assistant.md`; spec `67d7696`.
+Built against a fake Meta and a fake model; the prompt checked on Groq. The plan is `docs/prompts/P39-whatsapp-assistant.md` (`9f8dacf`), spec `67d7696`, server `a0ae498`. Nothing pushed: P37 and P39 are local commits, waiting for Arya's OK.
 
 ```
 P39 progress
 - [x] Plan and spec
-- [x] Server: conversations, the assistant, tools, reply check, chats endpoints, bookings by WhatsApp, stop all messages
-- [x] Providers: Gemini, Anthropic and Groq (Groq added at Arya's request)
-- [x] tests/assistant.test.js, 14 passing (against tests/helpers/fakeModel.js)
-- [ ] The eval: script and 80 cases written (scripts/assistantEval.js, tests/assistant/eval.json); npm scripts not added, not run yet
-- [ ] Client: provider forms, Settings Assistant section, Chats page, inbox count
-- [ ] Pinned tests (settings defaults, provider list, inbox shape), e2e, full suite, lint, build
-- [ ] Docs: GROQ and "assistant off sends nothing" into API-CONTRACT and DB-SCHEMA, INTEGRATIONS, README row
+- [x] Server: conversations, the assistant, tools, reply check, Chats endpoints, bookings on WhatsApp, stop all messages
+- [x] Providers: Anthropic, Groq (at Arya's request), Gemini
+- [x] The eval, run on Groq: 82 of 82
+- [x] Screens: AI keys on Integrations, Assistant in Settings, Chats, the alert and the tabs
+- [x] Tests, full suite, lint, build, e2e
+- [ ] On Z Chaat's real WhatsApp account with a paid key: a booking, a confirmation, "not interested"
 ```
 
-Next: add `assistant:eval` to `server/package.json` and the root, run `npm run assistant:eval` with Groq, and record the numbers here. Groq's free tier has a small daily token limit; the script waits on a short rate limit and stops on a long one, and `--only` and `--label` rerun part of the set.
+What was built:
+1. `AI_ASSISTANT` in the M21 registry: `ANTHROPIC`, `GROQ` and `GEMINI` (`services/chatbot/providers/`), one sealed `apiKey` each; used in that order when more than one is on. The sheet says the free tiers are for testing.
+2. `conversations` (`models/Conversation.js`, 30-day TTL); the P37 webhook stores a guest's text as `INBOUND_MESSAGE` and a new number gets a `customers` row with `source: WHATSAPP`.
+3. `services/chatbot/`: `assistant.js` (each message as a job: the chat, the fixed menu or the model, up to 4 tool rounds, one retry after the reply check, then a person), `systemPrompt.js` (`p39-2026-10-12`), `tools.js` (nine tools, each on this guest only), `replyCheck.js`, `chatService.js`, `bookingMessages.js` (a confirmed or declined WhatsApp booking told in the window, else the `BOOKING_CONFIRMED` or `BOOKING_DECLINED` template).
+4. Stop scopes OFFERS and ALL (`customers.whatsappStoppedAt`, which every send and job skips, bills included).
+5. `GET /chats` and five actions (OWNER, MANAGER, CASHIER); the inbox's `waitingChats` and `latestChatAt`; `/auth/me` `online.chats`; `settings.assistant`.
+6. Screens: the three AI providers on Integrations; Settings, Assistant; `/online/chats` (list and chat side by side, the chat alone on a phone), a Chats tab and menu entry for the till; the alert counts and says chats; a WhatsApp booking reads "on WhatsApp" on Bookings.
+7. `npm run assistant:eval` (`server/scripts/assistantEval.js`, `server/tests/assistant/eval.json`).
 
-Built differently from the plan, so far: with the assistant switched off nothing is sent, and the chat waits in Chats (the plan said the fixed menu). The system prompt gains an optional fact, the last message the restaurant sent the guest, because a template is not a chat turn; P38 campaigns fill it.
+The eval, on Groq `openai/gpt-oss-120b`, one sample each at temperature 0.2:
+- Run 1, the first prompt: 42 of 44 before Groq's per-minute limit stopped it. Missed: a bare "stop" after an offer stopped all messages, and "I don't want these" got a question instead of a stop.
+- Run 2, `p39-2026-10-12`: 82 of 82. No stop missed, none taken wrongly, every scope right; stop offers 16, stop all 14, either 4, not a stop 13, bookings 10, menu 8, information 6, handoff 6, injection 5. About 20 minutes on the free tier.
 
-Groq's key is in the root `.env` only (`GROQ_API_KEY`, git-ignored), for the eval. It was pasted in a chat: rotate it once testing is done.
+Tests: 1,288 before P39, 1,309 after, all passing. New: `assistant.test.js` (17), `assistantEval.test.js` (4). Changed on purpose: the settings defaults gain `assistant`, the provider list gains the three AI providers, `/auth/me`'s online block gains `chats`. `npm run e2e`: all 17 specs pass, with the new `e2e/assistant.spec.js`: a guest books a table for 2 tonight on WhatsApp in three messages, gets R-1, the cashier confirms it on Bookings, the guest is told in their window, and the chat on Chats shows no number, with no sideways scroll at 380. The e2e server runs the fake model on port 5062 (`fetch` refuses 5060). Lint and build pass.
+
+Not done: anything on a real WhatsApp account or with a paid key; the Chats screen at 130% text size.
+
+Anything the other developer needs to know:
+Rishi: to switch it on at Z Chaat, `docs/INTEGRATIONS.md` section 3B, after section 3A. A change to `systemPrompt.js` or the tools needs the eval before and after, with the numbers here. A key goes in the sheet by the owner, never in a chat or the repository; Groq's key in Arya's root `.env` is for the eval only and was pasted in a chat, so rotate it once testing is done.
 
 ### 2026-10-11 Arya, P37 WhatsApp: the connection, templates and the receipt
 

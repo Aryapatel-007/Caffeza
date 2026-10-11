@@ -4,6 +4,8 @@ Saved 2026-10-11 from Arya's prompt, written as "P34". This repo's P34 to P36
 were already taken (the password reset, the same dish once, one kitchen ticket
 per table), so at Arya's choice it is P37, campaigns are P38 and attribution
 P39; the references below are renumbered to match and nothing else is changed.
+(2026-10-12: the WhatsApp assistant took P39 the same day, so attribution is
+now P40.)
 Z Chaat has no WhatsApp Business Account connected yet, so at Arya's choice it
 is built and tested against a fake Meta, and the check against a real WABA
 (section 15 item 5 and 6) waits for one.
@@ -180,7 +182,7 @@ Add a golden-day test: paying B05 with `sendBillOnPayment` on queues exactly one
 ## 14. Out of scope
 
 Campaigns, offers, new dishes, audiences, segments. P38.
-Attribution and campaign reporting. P39.
+Attribution and campaign reporting. P40 (was P39; the assistant took that number).
 A PDF of the bill as a document attachment. Text first; the document header is a second approval and a storage decision.
 A template designer. The owner writes a handful of templates.
 SMS and email. SMS in India needs DLT registration per template and per sender, which is weeks of paperwork for a worse channel.

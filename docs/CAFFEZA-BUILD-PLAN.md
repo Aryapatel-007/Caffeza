@@ -109,6 +109,7 @@ Each prompt names its model at the top.
 | P35 | The same dish once on the bill, and each drink its own dish | M3, M1 | P29 | Arya | Opus, high |
 | P36 | One kitchen ticket per table | M2, M18, M19 | P35 | Arya | Opus, high |
 | P37 | WhatsApp: the connection, templates, and the receipt | M21, M22 | P29 | Arya | Opus, high |
+| P39 | The WhatsApp assistant: questions, table bookings, and stop | M21, M14, M22 | P37 | Arya | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

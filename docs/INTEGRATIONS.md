@@ -295,6 +295,66 @@ A guest replying STOP, UNSUBSCRIBE or STOP PROMOTIONS, or using Meta's own
 "Stop promotions", has their offers consent withdrawn at once, with a history
 entry on the Customers screen, and is told once. Their bills still come.
 
+## 3B. The WhatsApp assistant (P39)
+
+The assistant answers guests who write to the restaurant's WhatsApp number:
+the menu, the hours, table bookings, their booking or takeaway, and stopping
+messages. Anything else goes to **Chats** (`/online/chats`) for a person. It
+needs WhatsApp connected (section 3A) and one AI key.
+
+### 3B.1 The AI key
+
+On Integrations, under AI assistant, connect one of:
+
+| Provider | For | Where the key comes from |
+|---|---|---|
+| Anthropic | Real guests. A paid key is not used for training by default. | console.anthropic.com, API keys. Model `claude-haiku-5-5`. |
+| Groq | Testing only, on its free tier, which has a small daily limit | console.groq.com, API keys. Model `openai/gpt-oss-120b`. |
+| Gemini | Testing only, on its free tier: guests' messages may be used by Google | aistudio.google.com, Get API key. Model `gemini-2.5-flash`. |
+
+The sheet says the same about the free tiers. With more than one on, the
+assistant uses Anthropic, then Groq, then Gemini. A key is typed into the sheet
+by the owner, sealed, and shown only as its last four characters; never paste
+one into a chat, a document or the repository. **Test connection** asks the
+model for one word.
+
+### 3B.2 Switching it on
+
+Settings, Assistant: **Answer guests on WhatsApp**, and **Take table bookings
+on WhatsApp** (a booking waits for staff to confirm, like one from the page).
+The greeting and "When a person replies" are optional. **AI replies a day, at
+most** (500) keeps a free key inside its limit: after it, and whenever no AI key
+is on, guests get three fixed buttons (Book a table, Opening hours, Talk to
+us). With the assistant off nothing is sent, and every message waits in Chats.
+
+### 3B.3 Booking templates
+
+Inside the 24 hours after the guest last wrote, a confirmed or declined booking
+is told as a plain message. After that it needs two utility templates, added on
+the WhatsApp sheet like the Bill receipt: **Booking confirmed**
+(`BOOKING_CONFIRMED`: reference, date, time, party size) and **Booking
+declined** (`BOOKING_DECLINED`: reference, reason). Without them, a guest whose
+window has closed is not told; staff call.
+
+### 3B.4 Stopping
+
+The keywords in section 3A.5 still work without the AI. Anything else that
+means stop ("pls stop", "not interested", "band karo", "મેસેજ ના કરશો") the
+assistant understands: offers stop, and bills still come, unless the guest
+plainly asks to stop everything or to remove their number. Then nothing more is
+sent, bills included, until staff turn messages back on from the chat, at the
+guest's request.
+
+### 3B.5 Before changing the prompt
+
+`npm run assistant:eval` sends about 80 labelled guest messages to the real
+model with the real prompt, using a key from the root `.env` (`GROQ_API_KEY`,
+`GEMINI_API_KEY` or `ANTHROPIC_API_KEY`; git-ignored). The bar: no clear stop
+missed, nothing that is not a stop taken as one, and 95% right. Run it before
+and after any change to `services/chatbot/systemPrompt.js` or the tools, and
+write the numbers into PROJECT-STATE. On Groq's free tier a full run takes
+about 20 minutes and can reach the daily token limit; `-- --from <id>` resumes.
+
 ---
 
 ## 4. What is built and what is waiting
@@ -309,6 +369,7 @@ entry on the Customers screen, and is told once. Their bills still come.
 | Tally file | Vouchers per day or per bill, the ledger list, held days, export again | The manual check in section 3.6 |
 | Tally bridge | Pairing, posting, ledger check, lost posts held as not known, switch off | The same manual check. Its ledger and company list request follows Tally's help page for Tally.ERP 9, and is unconfirmed on TallyPrime. |
 | WhatsApp | Connection and test, templates with their approval state, the bill sent when paid, delivery receipts, STOP | A real WhatsApp Business Account: a receipt to a staff number, its delivery receipt, and STOP, checked on it (P37 section 15) |
+| WhatsApp assistant | Anthropic, Groq and Gemini keys, answers from the restaurant's data, bookings, stop in any words, Chats, booking messages | The same WhatsApp account, a paid AI key, and a real guest's chat checked on it (P39 section 16) |
 | Alerts | Dead jobs, failed accepts, amount mismatches, closed-day cancellations, unknown card payments, Tally failures, on the Integrations page and in Today | Nothing |
 
 ---
@@ -341,3 +402,7 @@ Every answer here is `TO CONFIRM`. The profile is
 | The Bill receipt template approved, as utility | `TO CONFIRM` |
 | A receipt to a staff member's own number, delivered, and a second payment sending nothing | `TO CONFIRM` |
 | STOP from that number: consent withdrawn on the Customers screen | `TO CONFIRM` |
+| The assistant: a paid AI key (Anthropic) entered by the owner, the assistant switched on in Settings | `TO CONFIRM` |
+| The Booking confirmed and Booking declined templates approved, as utility | `TO CONFIRM` |
+| A staff member books a table on WhatsApp, the booking is confirmed on Bookings, and they are told | `TO CONFIRM` |
+| "Not interested" from that number: offers stop, and the next bill still comes | `TO CONFIRM` |

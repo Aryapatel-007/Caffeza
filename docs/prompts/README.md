@@ -47,6 +47,7 @@ The full table, with dependencies and owners, is in
 | P36 | One kitchen ticket per table | Done 2026-10-11. Rishi's read outstanding. |
 | P37 | WhatsApp: the connection, templates, and the receipt | Built and deployed 2026-10-11 against a fake Meta; the check on Z Chaat's real WhatsApp Business Account is owed. Rishi's read outstanding. |
 | P38 | Campaigns: offers and new dishes | Written by Arya, not saved here yet; comes after P37 has run on a real WhatsApp account. |
-| P39 | The WhatsApp assistant: questions, table bookings, and stop | Planned 2026-10-11. Waiting for Arya's go. |
+| P39 | The WhatsApp assistant: questions, table bookings, and stop | Built 2026-10-12 against a fake Meta and a fake model; the eval run on Groq. Waits for P37's real WhatsApp account and a paid AI key. Rishi's read outstanding. |
+| P40 | Attribution and campaign reporting | Not written yet. Numbered P39 in P37's prompt; the assistant took that number. |
 
 Prompt files that do not exist yet are added as they are written.
