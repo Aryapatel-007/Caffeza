@@ -7,6 +7,7 @@ import ErrorMessage from '../../components/ui/ErrorMessage.jsx';
 import Input from '../../components/ui/Input.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeProvider.jsx';
+import ResetPasswordForm from './ResetPasswordForm.jsx';
 
 /**
  * Sign in. P22, DESIGN-SYSTEM sections 4d and 11b.
@@ -60,6 +61,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // P34. The sign-in form, or Forgot password in its place.
+  const [isResetting, setIsResetting] = useState(false);
 
   // Where they were headed before ProtectedRoute sent them here.
   const destination = location.state?.from?.pathname ?? '/dashboard';
@@ -96,7 +99,24 @@ export default function LoginPage() {
     }
   }
 
-  const form = (
+  // P34. Once a manager has approved the new password, sign in with it.
+  async function signInAfterReset(credentials) {
+    await login(credentials);
+    navigate(destination, { replace: true });
+  }
+
+  const resetForm = (
+    <ResetPasswordForm
+      initialIdentifier={identifier}
+      onDone={signInAfterReset}
+      onCancel={() => {
+        setIsResetting(false);
+        setError(null);
+      }}
+    />
+  );
+
+  const signInForm = (
     <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
       <Input
         label="Phone or email"
@@ -126,10 +146,21 @@ export default function LoginPage() {
       <Button type="submit" size="lg" fullWidth isLoading={isSubmitting}>
         Sign in
       </Button>
+
+      <Button variant="quiet" fullWidth onClick={() => setIsResetting(true)} disabled={isSubmitting}>
+        Forgot password?
+      </Button>
     </form>
   );
 
-  const greeting = (
+  const form = isResetting ? resetForm : signInForm;
+
+  const greeting = isResetting ? (
+    <>
+      <h2 className="type-title text-ink">Set a new password</h2>
+      <p className="type-body mt-1 text-muted">With an owner or manager beside you.</p>
+    </>
+  ) : (
     <>
       <h2 className="type-title text-ink">Welcome back</h2>
       <p className="type-body mt-1 text-muted">Sign in to start your shift.</p>

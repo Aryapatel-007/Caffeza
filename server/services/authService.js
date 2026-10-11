@@ -9,6 +9,7 @@
  *
  * should return nothing, forever.
  */
+import { ROLES } from '../config/roles.js';
 import { User } from '../models/User.js';
 import { InvalidPinError, PinLockedError } from '../utils/errors.js';
 import { compare, DUMMY_HASH, hash } from './passwordService.js';
@@ -70,6 +71,34 @@ export async function verifyCredentials({ phone, email }, password) {
   if (user.isActive === false) return { failure: LOGIN_FAILURE.USER_INACTIVE, user };
 
   return { user };
+}
+
+/**
+ * P34. The person setting a new password on the sign-in screen, and the owner
+ * or manager approving it. Returns `{ user, approver }`, or null when either is
+ * missing; the caller turns null into the same 401 as every other failure.
+ *
+ * The person is found the way login finds them, across the platform, because
+ * nobody is signed in yet: the fourth escape-hatch lookup in this file. The
+ * approver is found inside the person's own restaurant only, so a phone at
+ * another restaurant never approves anything here.
+ */
+export async function findPasswordResetPair({ phone, email }, approverPhone) {
+  const filter = email ? { email: email.toLowerCase() } : { phone };
+  const user = await User.findOne(filter).setOptions({ skipTenantGuard: true });
+  if (!user || user.isSystem || user.isActive === false) return null;
+
+  const approver = await User.findOne({
+    restaurantId: user.restaurantId,
+    phone: approverPhone,
+    isActive: true,
+    role: { $in: [ROLES.OWNER, ROLES.MANAGER] },
+  })
+    .select('_id role branchId')
+    .lean();
+  if (!approver || approver.isSystem) return null;
+
+  return { user, approver };
 }
 
 /**

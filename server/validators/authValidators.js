@@ -72,3 +72,30 @@ export const changePasswordSchema = z.object({
     newPassword: password,
   }),
 });
+
+/**
+ * P34. Setting a new password from the sign-in screen, API-CONTRACT 1.7.
+ *
+ * The person is named as at login, by exactly one of phone or email. The
+ * approver types their own phone and PIN: there is no session on this screen
+ * to read a list of names with, so `approverId` is not accepted here.
+ */
+export const passwordResetSchema = z.object({
+  body: z
+    .object({
+      phone: phoneIndia.optional(),
+      email: email.optional(),
+      newPassword: password,
+      approval: z
+        .object({
+          approverPhone: phoneIndia,
+          pin: z.string({ error: 'Must be text.' }).trim().regex(/^\d{4,6}$/, 'A PIN is 4 to 6 digits.'),
+        })
+        .strict('Is not a field you can set here.'),
+    })
+    .strict('Is not a field you can set here.')
+    .refine((body) => Boolean(body.phone) !== Boolean(body.email), {
+      error: 'Send exactly one of phone or email.',
+      path: ['phone'],
+    }),
+});

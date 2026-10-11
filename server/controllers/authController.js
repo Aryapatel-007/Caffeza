@@ -33,6 +33,7 @@ import {
   InvalidCredentialsError,
   InvalidRefreshTokenError,
 } from '../utils/errors.js';
+import { resetPasswordFromSignIn } from '../services/passwordResetService.js';
 import { sendSuccess } from '../utils/response.js';
 import { nowUtc } from '../utils/time.js';
 import { activeOrderChannels, activeTerminals } from '../services/integrations/channelStatus.js';
@@ -326,4 +327,15 @@ export async function changePassword(req, res) {
   logger.info({ userId: req.user.id, restaurantId: req.restaurantId, sessionsRevoked }, 'Password changed.');
 
   return sendSuccess(res, { passwordChanged: true });
+}
+
+/**
+ * POST /auth/password-reset. P34, API-CONTRACT 1.7.
+ *
+ * Public. A person who cannot sign in sets a new password while an owner or
+ * manager beside them approves it with their own phone and PIN. Issues no
+ * token: the screen signs in afterwards through the ordinary login.
+ */
+export async function passwordReset(req, res) {
+  return sendSuccess(res, await resetPasswordFromSignIn(req, req.body));
 }

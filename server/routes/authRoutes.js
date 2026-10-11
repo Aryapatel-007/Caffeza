@@ -12,6 +12,7 @@ import {
   logout,
   logoutAll,
   me,
+  passwordReset,
   refresh,
 } from '../controllers/authController.js';
 import { authenticate } from '../middleware/authenticate.js';
@@ -19,12 +20,18 @@ import { authLimiter, refreshLimiter } from '../middleware/rateLimit.js';
 import { requireCsrfHeader } from '../middleware/requireCsrfHeader.js';
 import { tenant } from '../middleware/tenant.js';
 import { validate } from '../middleware/validate.js';
-import { changePasswordSchema, loginSchema } from '../validators/authValidators.js';
+import { changePasswordSchema, loginSchema, passwordResetSchema } from '../validators/authValidators.js';
 
 const router = Router();
 
 // Public. The strict limiter keys on IP plus the submitted phone, hashed.
 router.post('/auth/login', authLimiter, validate(loginSchema), login);
+
+/**
+ * P34. Public, behind the same limiter as login, keyed the same way. A wrong
+ * PIN here also counts toward the approver's five-try lock, as everywhere.
+ */
+router.post('/auth/password-reset', authLimiter, validate(passwordResetSchema), passwordReset);
 
 /**
  * Public. The credential is the `refreshToken` cookie, sent by the browser.

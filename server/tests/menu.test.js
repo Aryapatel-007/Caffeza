@@ -178,7 +178,7 @@ describe('tenancy', () => {
      * tenant leak, not a refactor.
      */
     assert.deepEqual(counts, {
-      'services/authService.js': 3,
+      'services/authService.js': 4, // P34: findPasswordResetPair, the person on the sign-in screen's reset, found as login finds them
       // P23. Finding a public page's branch by its address, before any tenant is known.
       'services/publicSiteService.js': 1,
       // P25 Part G. A webhook's connection by its key's hash, and the job runner's claim.

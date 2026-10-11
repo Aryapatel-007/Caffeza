@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-10 by Rishi (P33 the live channel, silent printing, the move to a Singapore database)
+Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen)
 
 ---
 
@@ -515,6 +515,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-10 | Screens on Vercel open the live channel on the server's own address, named by `/auth/me` (`LIVE_ORIGIN`, else Render's `RENDER_EXTERNAL_URL`). | Vercel's rewrite of `/api` does not carry a WebSocket. The token travels in Socket.IO's handshake, not the refresh cookie, so the one-address design the cookie needs is untouched. |
 | 2026-10-10 | Bills print with no dialog by opening the till through a launcher (`tools/silent-printing/`) that starts Chrome with `--kiosk-printing` in a profile of its own. | A web page cannot skip Chrome's print dialog; Chrome started with that flag can. A separate profile keeps the flag off everyday browsing and never remembers "Save as PDF" as the printer. The server still never talks to a printer. |
 | 2026-10-10 | Z Chaat's database moves to a new Atlas cluster in AWS Singapore, during service, at Rishi's choice: copied with `npm run db:copy`, kept caught up every 30 seconds until Render's `MONGO_URI` changes, with counters always taking the higher value. The old Mumbai cluster is left untouched as the backup. | The server is in Singapore. The copy only reads the old cluster and never deletes; the catch-up's counter rule means a bill number can never be issued twice across the switch. A short pause in billing while Render restarts was asked of the restaurant. |
+| 2026-10-11 | P34: a person who cannot sign in sets a new password on the sign-in screen, approved by an owner or manager who types their own phone and PIN. The approver cannot approve their own password, and a manager cannot approve an owner's. Every refusal is one 401 with one message. | Rishi asked for it, with the owner or manager approving. The approver types a phone rather than picking a name because there is no session on that screen, and a name list would hand every staff name to anyone who knows one phone. A PIN is weaker than a password and is typed on shared screens, so it never resets its own owner's password. Accepted cost: five wrong PINs through this screen lock that manager's PIN until the owner sets it again, as everywhere else. |
 ---
 
 ## Open questions
@@ -536,6 +537,18 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-11 Rishi, P34 set a new password from the sign-in screen
+
+What was built or decided:
+Asked for by Rishi. Spec first (`da3c015`): API-CONTRACT 1.7, DB-SCHEMA section 45, GLOSSARY section 22, `docs/prompts/P34-set-password-from-sign-in.md`.
+1. Server: `POST /api/v1/auth/password-reset`, public, behind the login limiter. `authService.findPasswordResetPair` finds the person as login does (a fourth `skipTenantGuard` in `authService.js`, on purpose; the four tripwire copies say 4) and the approver by phone inside that restaurant only. `services/passwordResetService.js` refuses self-approval and a manager approving an owner (`assertCanResetPassword`), checks the PIN with `verifyPin`, sets the password, revokes every session and audits `USER_PASSWORD_RESET` with the approver as actor and `details.source: "SIGN_IN_SCREEN"`.
+2. Client: "Forgot password?" on the sign-in screen opens `features/auth/ResetPasswordForm.jsx` in place of the form; on success it signs in with the new password.
+
+Tests: `passwordReset.test.js` (5): the reset and its audit line, an owner approving a manager by email, ten refusals with one identical body, the PIN lock after five, bad shapes. Removing the self-approval rule fails the refusal test, tried on purpose. `e2e/passwordReset.spec.js`: a cashier on a phone, a wrong PIN refused, then signed in with the new password, no sideways scroll. Full suite: 1,244 passing; `passwordReset.test.js` did not start in that run because the in-memory database failed under load (SystemOverloadedError in its `before`), and on its own with `menu.test.js` and `auth.test.js` all 86 pass. `npm run e2e` for the new spec and the golden day: both pass. Lint and build pass. Not checked: a real phone, and Z Chaat itself (not deployed).
+
+Anything the other developer needs to know:
+Arya: the approver needs a PIN set on the Staff screen, or nothing can be approved. A restaurant with one owner still cannot reset the owner's password this way. Reaches Z Chaat only after a Render deploy (push) and a Vercel deploy from `client/`.
 
 ### 2026-10-10 Rishi, P33 the live channel, silent printing, the Singapore database
 

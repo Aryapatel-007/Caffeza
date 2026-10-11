@@ -11,6 +11,18 @@ export function login({ phone, email, password }) {
   return api.post('/auth/login', email ? { email, password } : { phone, password });
 }
 
+/**
+ * P34. A new password from the sign-in screen, approved by an owner or manager
+ * typing their own phone and PIN. Issues no session: sign in afterwards.
+ */
+export function resetPassword({ phone, email, newPassword, approverPhone, pin }) {
+  return api.post('/auth/password-reset', {
+    ...(email ? { email } : { phone }),
+    newPassword,
+    approval: { approverPhone, pin },
+  });
+}
+
 export function logout() {
   // No body. The server revokes the session named by the refreshToken cookie
   // and clears it. `api.post` sends the X-Requested-With header the endpoint

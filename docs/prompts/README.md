@@ -42,6 +42,6 @@ The full table, with dependencies and owners, is in
 | P32 | The client's weight | Done 2026-10-10. Not yet checked on a device at Z Chaat. |
 | P33 | The live channel | Done 2026-10-10, on Render's free plan by Rishi's choice. Not yet checked on two real tablets. |
 | P30 (keep awake) | Keep the free server awake | Done 2026-10-10. Its prompt is numbered P30 too, written the same day as the row above; see the decision log. The three pingers still need setting up by hand, DEPLOYMENT.md section 14. Rishi's read outstanding. |
-| P34 | Set a new password from the sign-in screen | In progress |
+| P34 | Set a new password from the sign-in screen | Built 2026-10-11, not yet deployed. Arya's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.
