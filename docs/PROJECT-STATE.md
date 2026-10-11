@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, and each drink its own dish)
+Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, P36 one kitchen ticket per table)
 
 ---
 
@@ -519,6 +519,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-11 | A root `vercel.json` (install `npm ci`, build `npm run build`, serve `client/dist`, the same `/api` forwarding as `client/vercel.json`) makes Vercel's own build on each push to `main` work, so the screens deploy on push. Deploying by hand from `client/` still works. | Vercel's push build failed every time, looking for `dist` at the top of the repo, and Rishi asked for the errors to stop. Setting only the output folder in Vercel's settings would have shipped a site with no `/api` forwarding, where every sign-in fails; the forwarding is in the file for that reason. `npm ci` keeps the lock file's versions, the reason deploys were made by hand. Tested first as a preview deployment. |
 | 2026-10-11 | A bill shows the same dish once, as item rows computed from its lines when it is read; the lines themselves are unchanged. | Z Chaat asked for 2 × Roti, not 1 × Roti twice. Each round must still trace to its own order line and kitchen ticket. |
 | 2026-10-11 | Z Chaat's Aerated Drinks became four dishes, Sprite, Diet Coke, Coke and Thums Up, through `npm run menu:sizes-to-dishes`. The old item is switched off, not deleted. | One tap per drink at the table, and the bill prints the drink's own name. Old bills keep the name they were sold under. |
+| 2026-10-11 | P36: an order keeps one kitchen ticket for its whole visit. Later Sends are rounds on it under the same KOT number, every line keeps the station that makes it, and a station's screen and printer show only its own dishes. `kitchen.oneTicketPerOrder`, default on; off is P05's ticket per station per Send. | Arya asked for one KOT per table after trying P35. Line-level stations keep each station's tablet, its ready tick and R13's kitchen time per station working on a shared ticket; the setting lets the kitchen go back without a deploy. |
 ---
 
 ## Open questions
@@ -541,26 +542,31 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
-### 2026-10-11 Arya, P36 one kitchen ticket per table (paused part-way)
+### 2026-10-11 Arya, P36 one kitchen ticket per table
 
-In progress, paused at Arya's request. The prompt is `docs/prompts/P36-one-kitchen-ticket-per-table.md`. Asked for after trying P35 locally: one ticket per table for its whole visit, every round and every station on it, later Sends added to the same ticket under the same KOT number. Arya also chose to apply the P35 drinks split on Z Chaat's live menu with this deploy, and to push once everything is built.
+Built and checked. The prompt is `docs/prompts/P36-one-kitchen-ticket-per-table.md`, written at Arya's request after trying P35 locally ("for one table different kots are created, i want a single kot only"). Asked which "one" was meant, Arya chose one ticket per table for its whole visit, every round and every station on it.
 
 ```
 P36 progress
 - [x] Spec (`spec one kitchen ticket per table`): API-CONTRACT "P36", DB-SCHEMA section 46, GLOSSARY section 23
-- [x] `kots` fields (lines[].stationId, stationName, firedAt, round; rounds, lastFiredAt) and the lines.stationId index
-- [x] `settings.kitchen.oneTicketPerOrder` (model, settingsService path, validator), default on
-- [x] Validators: ticket `round` and `stationId`; `stationId` query on PATCH /kots/:kotId/ready and POST /kots/:kotId/undo-ready
-- [ ] `fireOrder` in kitchenService.js: append to the order's ticket as a new round (draft not yet in the file)
-- [ ] `serialiseKot` effective station, sent time and round per line
-- [ ] markKotLinesReady and undoKotReady by station; kotController list filter, ticket round and station
-- [ ] kotTicketService "KOT 12  ROUND 2"; R13 kitchen by line station and sent time; R10 timeline per round
-- [ ] Kitchen screen: station's own lines, lateness from the oldest pending line, "Added 7:20 pm", auto-print per round, Settings checkbox
-- [ ] Tests (prompt section 4), pinned settings defaults, full suite, e2e
-- [ ] Push (P35 and P36), deploy, then `npm run menu:sizes-to-dishes -- --restaurant "Z Chaat" --item "Aerated Drinks" --apply` on the live database and a second run showing "Nothing to do"
+- [x] Server: the setting, the ticket fields, firing, station-only ready and undo, the list filter, the printed round, R13, R10
+- [x] Kitchen screen and Settings
+- [x] Tests, full suite, lint, build, e2e
+- [ ] Push, deploy, and the P35 drinks split on Z Chaat (next)
 ```
 
-Nothing is pushed: P35's five commits and P36's so far are local only.
+What changed:
+1. `settings.kitchen.oneTicketPerOrder`, default on for every restaurant, OWNER on Settings, Kitchen ("One kitchen ticket per table"). Off is P05 exactly.
+2. `fireOrder` (`services/kitchenService.js`): the first Send makes the order's ticket; every later Send pushes its lines onto it as a new round, `rounds` up by one, `lastFiredAt` now, the same `kotNumber`. Each line freezes `stationId`, `stationName`, `firedAt` and `round`. A ticket's own station is the one station every line went to, or null. The response gains `round`.
+3. `serialiseKot` fills each line's station and sent time from the ticket's for a ticket written before P36, so old tickets read as before.
+4. `GET /kots?stationId=` matches a line at that station; `PATCH /kots/:id/ready` and `POST /kots/:id/undo-ready` take `?stationId=` to mark or take back one station's dishes; `GET /kots/:id/ticket` takes `round` and `stationId` and prints `KOT 12  ROUND 2` for a later round.
+5. R13's kitchen time and slowest items go by each line's own station and sent time; R10's bill timeline shows one "Sent to the kitchen" per round.
+6. Kitchen screen: a station sees only its own dishes on a ticket and only while one is still to make; a ticket is timed from its oldest dish still to make; a later round sits under "Added 7:20 pm"; holding the ticket from a station's screen marks that station's dishes only; auto-print prints each round once per station, remembered as `ticket:round` (a ticket id remembered before P36 counts as its round 1).
+
+Tests: 1,269 before, 1,275 after, all passing. New: `oneTicketPerOrder.test.js` (6): two Sends on one ticket and number; two stations on one ticket, listed by each, one station marked and undone, a station with nothing on it refused; round 2 printed for one station; the setting off is P05; a ticket from before P36 still filters by its station; R13 averages 10.00 minutes for rounds sent at 7:00 and 7:10 and made at 7:15 (15.00 if measured from the first Send). Changed on purpose: three tests in `kitchen.test.js` that expected a second ticket for a second Send now expect round 2 of the same ticket; `stations.test.js` switches the setting off, as it tests P05's routing, and its "ticket from before stations" fixture clears the line stations too; the settings defaults gain the switch. The golden day and every report test pass unchanged. Lint and build pass. `npm run e2e`: all 15 specs pass, the golden day included, with no change to any spec: each station tablet now sees its own part of the one ticket.
+
+Anything the other developer needs to know:
+Rishi: an order now has one ticket; `kots.lines[].stationId` is the station, not `kots.stationId`, which is null on a ticket that spans stations. If Z Chaat's kitchen wants a ticket per station back, it is Settings, Kitchen, with no deploy.
 
 ### 2026-10-11 Arya, P35 the same dish once on the bill, and each drink its own dish
 

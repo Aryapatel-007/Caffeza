@@ -44,6 +44,6 @@ The full table, with dependencies and owners, is in
 | P30 (keep awake) | Keep the free server awake | Done 2026-10-10. Its prompt is numbered P30 too, written the same day as the row above; see the decision log. The three pingers still need setting up by hand, DEPLOYMENT.md section 14. Rishi's read outstanding. |
 | P34 | Set a new password from the sign-in screen | Done and deployed 2026-10-11. Arya's read outstanding. |
 | P35 | The same dish once on the bill, and each drink its own dish | Done, live run waiting. Arya's "apply" for Z Chaat, and the push, are outstanding. |
-| P36 | One kitchen ticket per table | In progress, paused. See PROJECT-STATE. |
+| P36 | One kitchen ticket per table | Done 2026-10-11. Rishi's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.
