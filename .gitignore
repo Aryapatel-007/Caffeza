@@ -56,3 +56,6 @@ e2e/screenshots/
 # P25. Partner documents (often under NDA) and restaurant data exports. Never commit.
 partner-docs/
 backups/
+
+# Vercel CLI link and build output at the repo root
+.vercel

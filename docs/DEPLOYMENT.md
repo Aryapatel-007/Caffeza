@@ -347,8 +347,16 @@ change adds an index; the server refuses to start while one is missing.
 outgoing address, so the entry is `0.0.0.0/0`; the database password is then
 the only lock, so keep it long and rotate it if it was ever shared.
 
-**Vercel, every deploy:** from `client/`, so the pinned library versions in the
-root `package-lock.json` are used, never a fresh install on Vercel:
+**Vercel, every deploy:** a push to `main` deploys the screens on its own
+(from 2026-10-11). The root `vercel.json` tells Vercel's build to install with
+`npm ci`, so the pinned versions in the root `package-lock.json` are used, to
+build with `npm run build`, and to serve `client/dist`. It carries the same
+`/api` forwarding to Render as `client/vercel.json`; **change both together**.
+Without the root file Vercel looked for `dist` at the top of the repo and failed
+every push.
+
+By hand, when needed (a deploy without a push, or a rollback to this machine's
+build), from `client/`:
 
 ```
 vercel build --prod
@@ -358,9 +366,11 @@ vercel deploy --prebuilt --prod
 On a machine that has never deployed, once: `npx vercel login`, then from
 `client/` `npx vercel link --yes --project zchaat-pos --scope aryas-projects-0d1567ce`
 and `npx vercel pull --yes --environment=production`. They write `client/.vercel/`
-and `client/.env.local` (a Vercel token), both git-ignored. Vercel also starts its
-own build on every push to `main`, and that build fails every time, as the
-decision log says; a failed build never replaces the live site, so ignore it.
+and `client/.env.local` (a Vercel token), both git-ignored.
+
+Every push to `main` also rebuilds and restarts the server on Render, a docs
+change included, which pauses the screens for about a minute. Push during
+service only when it has to be now.
 
 **What the free plan costs.** The server sleeps after 15 minutes with no
 request and takes about a minute to wake, so the first screen after a quiet
