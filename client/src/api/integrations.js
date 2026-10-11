@@ -39,3 +39,8 @@ export function saveFile({ blob, fileName }) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+// P37. WhatsApp templates: Meta approves them, so each is a record with a state.
+export const listWhatsAppTemplates = () => api.get('/integrations/whatsapp/templates');
+export const addWhatsAppTemplate = (body) => api.post('/integrations/whatsapp/templates', body);
+export const syncWhatsAppTemplates = () => api.post('/integrations/whatsapp/templates/sync', {});

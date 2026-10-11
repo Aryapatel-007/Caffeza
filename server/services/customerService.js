@@ -123,6 +123,22 @@ export async function updateCustomer(req, id, { name, offersConsent, reason = nu
   return readCustomer(req, id);
 }
 
+/**
+ * P37. A guest withdrew offers consent themselves, by replying STOP on
+ * WhatsApp. Kept in the history like any withdrawal, with source ONLINE, no
+ * staff member, and the reason. Returns `{ changed }`; nothing changes for a
+ * guest who had not agreed. `ctx` carries `restaurantId`.
+ */
+export async function withdrawOffersFromMessage(ctx, customerId, reason) {
+  const customer = await Customer.findOne({ restaurantId: ctx.restaurantId, _id: customerId });
+  if (!customer || customer.offers?.given !== true) return { changed: false };
+  const entry = { given: false, textVersion: customer.offers.textVersion ?? null, at: nowUtc(), source: CONSENT_SOURCES.ONLINE, by: null, reason };
+  customer.offers = { given: false, textVersion: entry.textVersion, at: entry.at, source: CONSENT_SOURCES.ONLINE };
+  customer.offersHistory.push(entry);
+  await customer.save();
+  return { changed: true };
+}
+
 const csvCell = (value) => {
   const text = value === null || value === undefined ? '' : String(value);
   // A leading = + - @ would run as a formula in a spreadsheet.
@@ -149,4 +165,4 @@ export async function exportCustomers(req) {
   return { csv: `${lines.join('\n')}\n`, fileName: `customers-offers-${day(nowUtc())}.csv` };
 }
 
-export default { exportCustomers, listCustomers, readCustomer, recordVisit, searchCustomers, updateCustomer };
+export default { exportCustomers, listCustomers, readCustomer, recordVisit, searchCustomers, updateCustomer, withdrawOffersFromMessage };

@@ -198,3 +198,24 @@ export const acknowledgeAlertSchema = z.object({
     })
     .strict('Is not a field you can set here.'),
 });
+
+/* P37. WhatsApp templates. ------------------------------------------------ */
+
+export const listWhatsAppTemplatesSchema = z.object({ query: z.object({}).strict() });
+
+export const createWhatsAppTemplateSchema = z.object({
+  body: z
+    .object({
+      key: z.string().trim().regex(/^[A-Z][A-Z0-9_]{1,59}$/, 'Capitals, digits and underscores, like BILL_RECEIPT.'),
+      metaName: z.string().trim().regex(/^[a-z0-9_]{1,512}$/, 'Lowercase letters, digits and underscores, as Meta requires.'),
+      category: z.enum(['UTILITY', 'MARKETING', 'AUTHENTICATION'], { error: 'Must be UTILITY, MARKETING or AUTHENTICATION.' }),
+      language: z.string().trim().regex(/^[a-z]{2}(_[A-Z]{2})?$/, 'Like en, gu or en_US.').default('en'),
+      bodyText: z.string().trim().min(1, 'Is required.').max(1024, 'Up to 1,024 characters.'),
+      variables: z.array(z.string().trim().regex(/^[a-zA-Z][a-zA-Z0-9]{0,39}$/, 'A word, like billTotal.')).max(20).default([]),
+      example: z.array(z.string().trim().min(1).max(200)).max(20).default([]),
+      submit: z.boolean().default(true),
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+export const syncWhatsAppTemplatesSchema = z.object({ body: z.object({}).strict().optional() });

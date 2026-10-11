@@ -35,6 +35,13 @@ export const PROVIDER_FIELDS = Object.freeze({
     { path: 'autoCancelMinutes', kind: 'number', label: 'The machine gives up after, minutes', min: 1, max: 30 },
     { path: 'postbackEnabled', kind: 'check', label: 'Pine Labs tells us when a payment finishes' },
   ],
+  // P37. The restaurant's own WhatsApp Business number.
+  WHATSAPP: [
+    { path: 'sendBillOnPayment', kind: 'check', label: 'Send the bill on WhatsApp', hint: 'When a bill is paid and the guest gave a mobile. Needs an approved Bill receipt template.' },
+    { path: 'defaultLanguage', kind: 'text', label: 'Language of the templates', hint: 'Like en or gu.' },
+    { path: 'senderDisplayName', kind: 'text', label: 'Name shown on the screens', optional: true },
+    { path: 'apiBaseUrl', kind: 'text', label: 'Meta Cloud API address', hint: 'Leave as it is unless Meta says otherwise.' },
+  ],
   TALLY: [
     { path: 'version', kind: 'select', label: 'Tally version', options: [{ value: 'TALLY_PRIME', label: 'TallyPrime' }, { value: 'TALLY_ERP9', label: 'Tally.ERP 9' }] },
     { path: 'companyName', kind: 'text', label: 'Company name, exactly as in Tally' },
@@ -51,9 +58,10 @@ export const PROVIDER_DEFAULTS = Object.freeze({
   ZOMATO: { autoAccept: false, autoFire: true, defaultPrepMinutes: 20 },
   PINE_LABS: { baseUrl: 'https://www.plutuscloudserviceuat.in:8201', paths: { upload: '', status: '', cancel: '' }, storeId: '', terminals: [{ name: 'Counter', clientId: '' }], autoCancelMinutes: 5, postbackEnabled: false },
   TALLY: { version: 'TALLY_PRIME', companyName: '', granularity: 'DAILY_SUMMARY', delivery: 'FILE', exportPayouts: false },
+  WHATSAPP: { sendBillOnPayment: false, defaultLanguage: 'en', senderDisplayName: '', apiBaseUrl: 'https://graph.facebook.com/v21.0' },
 });
 
-export const DEFAULT_ENVIRONMENT = Object.freeze({ SANDBOX_PLATFORM: 'SANDBOX', PINE_LABS: 'UAT', TALLY: 'PRODUCTION', SWIGGY: 'PRODUCTION', ZOMATO: 'PRODUCTION' });
+export const DEFAULT_ENVIRONMENT = Object.freeze({ SANDBOX_PLATFORM: 'SANDBOX', PINE_LABS: 'UAT', TALLY: 'PRODUCTION', SWIGGY: 'PRODUCTION', ZOMATO: 'PRODUCTION', WHATSAPP: 'PRODUCTION' });
 
 export const valueAt = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
 
@@ -64,4 +72,14 @@ export function withValue(object, path, value) {
 
 /** Readable words for a credential field name, like securityToken. */
 export const credentialLabel = (field) =>
-  ({ merchantId: 'Merchant ID', securityToken: 'Security token', webhookSecret: 'Signing secret' })[field] ?? field;
+  ({
+    merchantId: 'Merchant ID',
+    securityToken: 'Security token',
+    webhookSecret: 'Signing secret',
+    // P37, WhatsApp. The names Meta's screens use.
+    phoneNumberId: 'Phone number ID',
+    wabaId: 'WhatsApp Business Account ID',
+    accessToken: 'Access token',
+    webhookVerifyToken: 'Webhook verify token',
+    appSecret: 'App secret',
+  })[field] ?? field;

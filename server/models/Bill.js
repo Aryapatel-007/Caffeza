@@ -25,6 +25,7 @@ import { cashCountRowSchema } from './CashMovement.js';
 
 import { BILL_VOID_REASON_CODES } from '../config/cancelReasons.js';
 import { DISCOUNT_FUNDERS, DISCOUNT_FUNDER_VALUES, DISCOUNT_REASON_CODES } from '../config/discountReasons.js';
+import { runAfterCommit } from '../utils/afterCommit.js';
 import { groupBillLines } from '../utils/billLines.js';
 import { MAX_PAISE } from '../utils/money.js';
 import { MAX_BASIS_POINTS } from '../validators/common.js';
@@ -513,6 +514,23 @@ billSchema.plugin(tenantGuardPlugin);
  * send a bill without it. Only the bill itself gets it, never a line or a
  * payment inside it.
  */
+/**
+ * P37. A bill that has just become PAID queues the guest's bill on WhatsApp,
+ * once the write is in: after the transaction commits, never inside one that
+ * could still roll back. The receipt module never throws, and its own
+ * idempotency key means a bill saved again sends nothing more.
+ */
+billSchema.pre('save', function noteBecamePaid() {
+  this.$locals.becamePaid = this.isModified('status') && this.status === 'PAID';
+});
+billSchema.post('save', function queueReceiptWhenPaid(document) {
+  if (!document.$locals?.becamePaid) return;
+  document.$locals.becamePaid = false;
+  runAfterCommit(document.$session?.() ?? null, () =>
+    import('../services/integrations/messaging/whatsappService.js').then(({ queueBillReceipt }) => queueBillReceipt(document)),
+  );
+});
+
 const baseBillJson = billSchema.get('toJSON');
 billSchema.set('toJSON', {
   ...baseBillJson,

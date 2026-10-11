@@ -12,7 +12,7 @@ import { applyJsonTransform } from './plugins/jsonTransform.js';
 import { baseSchemaPlugin } from './plugins/baseSchema.js';
 import { tenantGuardPlugin } from './plugins/tenantGuard.js';
 
-export const INTEGRATION_PROVIDERS = Object.freeze(['SWIGGY', 'ZOMATO', 'SANDBOX_PLATFORM', 'PINE_LABS', 'TALLY']);
+export const INTEGRATION_PROVIDERS = Object.freeze(['SWIGGY', 'ZOMATO', 'SANDBOX_PLATFORM', 'PINE_LABS', 'TALLY', 'WHATSAPP']);
 export const INTEGRATION_ENVIRONMENTS = Object.freeze(['SANDBOX', 'UAT', 'PRODUCTION']);
 export const CONNECTION_STATUSES = Object.freeze({ DRAFT: 'DRAFT', ACTIVE: 'ACTIVE', PAUSED: 'PAUSED', ERROR: 'ERROR' });
 export const LAST_ERROR_MAX_LENGTH = 300;

@@ -27,6 +27,8 @@ import { readBill } from '../services/billService.js';
 import { getSettings } from '../services/settingsService.js';
 import { cancelTerminalPayment, readTerminalPayment, startTerminalPayment } from '../services/integrations/terminals/terminalService.js';
 import { sendList, sendSuccess } from '../utils/response.js';
+// P37. Imported here so its job handlers are registered wherever the integrations routes are.
+import { createTemplate, listTemplates, syncTemplates } from '../services/integrations/messaging/whatsappService.js';
 
 /** GET /integrations */
 export async function getIntegrations(req, res) {
@@ -160,4 +162,19 @@ export async function getAlerts(req, res) {
 /** POST /integrations/alerts/acknowledge */
 export async function postAcknowledgeAlert(req, res) {
   return sendSuccess(res, await acknowledgeAlert(req, req.body));
+}
+
+/** GET /integrations/whatsapp/templates. P37. */
+export async function getWhatsAppTemplates(req, res) {
+  return sendSuccess(res, await listTemplates(req));
+}
+
+/** POST /integrations/whatsapp/templates. P37. OWNER. */
+export async function postWhatsAppTemplate(req, res) {
+  return res.status(201).json({ success: true, data: await createTemplate(req, req.body) });
+}
+
+/** POST /integrations/whatsapp/templates/sync. P37. */
+export async function postSyncWhatsAppTemplates(req, res) {
+  return sendSuccess(res, await syncTemplates(req));
 }

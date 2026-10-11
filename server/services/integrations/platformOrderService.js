@@ -514,6 +514,11 @@ export async function processWebhookEvent(job) {
   const ctx = ctxOf(job);
   const connection = await loadConnection(ctx, job.connectionId);
   const event = job.payload?.event ?? {};
+  // P37. WhatsApp's delivery receipts and opt-outs.
+  if (providerFor(connection.provider)?.kind === PROVIDER_KINDS.MESSAGING) {
+    const { processWhatsAppEvent } = await import('./messaging/whatsappService.js');
+    return processWhatsAppEvent(job, connection);
+  }
   if (providerFor(connection.provider)?.kind !== PROVIDER_KINDS.ORDER_CHANNEL) {
     // A card machine's postback (Part I) is processed by its own module.
     const terminals = await import('./terminals/terminalService.js').catch(() => null);

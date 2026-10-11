@@ -141,6 +141,10 @@ export const ERROR_CODES = Object.freeze({
   BILL_NOT_REVISABLE: 'BILL_NOT_REVISABLE',
   WAITING_FOR_KITCHEN: 'WAITING_FOR_KITCHEN',
   ORDER_ALREADY_BILLED: 'ORDER_ALREADY_BILLED',
+  // P37.
+  TEMPLATE_NOT_APPROVED: 'TEMPLATE_NOT_APPROVED',
+  MESSAGING_NOT_CONNECTED: 'MESSAGING_NOT_CONNECTED',
+  GUEST_OPTED_OUT: 'GUEST_OPTED_OUT',
 });
 
 /**
@@ -825,5 +829,26 @@ export class OrderAlreadyBilledError extends AppError {
       statusCode: 422,
       code: ERROR_CODES.ORDER_ALREADY_BILLED,
     });
+  }
+}
+
+/** P37. A WhatsApp send against a template Meta has not approved: refused, never queued. */
+export class TemplateNotApprovedError extends AppError {
+  constructor(message = 'Meta has not approved this template yet, so it cannot be sent.') {
+    super(message, { statusCode: 422, code: ERROR_CODES.TEMPLATE_NOT_APPROVED });
+  }
+}
+
+/** P37. The restaurant's WhatsApp is not connected, or not switched on. */
+export class MessagingNotConnectedError extends AppError {
+  constructor(message = 'WhatsApp is not connected. An owner connects it in Integrations.') {
+    super(message, { statusCode: 422, code: ERROR_CODES.MESSAGING_NOT_CONNECTED });
+  }
+}
+
+/** P37. A marketing message to a guest without live offers consent. */
+export class GuestOptedOutError extends AppError {
+  constructor(message = 'This guest has not agreed to offers, so no marketing message goes to them.') {
+    super(message, { statusCode: 422, code: ERROR_CODES.GUEST_OPTED_OUT });
   }
 }

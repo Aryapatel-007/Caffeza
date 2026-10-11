@@ -42,6 +42,8 @@ const customerSchema = new mongoose.Schema({
   visitCount: { type: Number, required: true, default: 0, min: 0 },
   offers: { type: offersSchema, default: () => ({}) },
   offersHistory: { type: [historySchema], default: [] },
+  /** P37. When Meta said this number is not on WhatsApp. Nothing more is sent to it. */
+  whatsappUnreachableAt: { type: Date, default: null },
 });
 
 customerSchema.plugin(baseSchemaPlugin);

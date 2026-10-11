@@ -18,8 +18,8 @@
  * it on their next poll.
  */
 import { announce } from '../../services/live/bus.js';
+import { runAfterCommit } from '../../utils/afterCommit.js';
 
-const COMMITTED = ['TRANSACTION_COMMITTED', 'TRANSACTION_COMMITTED_EMPTY'];
 const QUERY_WRITES = ['updateOne', 'updateMany', 'findOneAndUpdate', 'replaceOne', 'deleteOne', 'deleteMany', 'findOneAndDelete'];
 
 /** The restaurant a value names, when it names exactly one. */
@@ -30,26 +30,10 @@ function oneId(value) {
   return null;
 }
 
-/** Announce now, or when this session's transaction commits. */
+/** Announce now, or when this session's transaction commits (utils/afterCommit.js, shared with P37's receipt). */
 function announceAfterCommit(session, topics, restaurantId, branchId) {
   if (!restaurantId) return;
-  const send = () => topics.forEach((topic) => announce(topic, restaurantId, branchId));
-  if (!session || typeof session.inTransaction !== 'function' || !session.inTransaction()) {
-    send();
-    return;
-  }
-  if (!session.liveAnnouncements) {
-    session.liveAnnouncements = [];
-    session.once('ended', () => {
-      try {
-        // The state itself: the driver's `isCommitted` is true for an aborted transaction too.
-        if (COMMITTED.includes(session.transaction?.state)) session.liveAnnouncements.forEach((later) => later());
-      } finally {
-        session.liveAnnouncements = [];
-      }
-    });
-  }
-  session.liveAnnouncements.push(send);
+  runAfterCommit(session, () => topics.forEach((topic) => announce(topic, restaurantId, branchId)));
 }
 
 export function liveAnnouncePlugin(schema, { topics }) {

@@ -6,6 +6,7 @@
  * SHA-256 of the key in the address, before the restaurant is known, which is
  * one of the three sanctioned uses of the tenant guard's escape hatch in M21.
  */
+import { Customer } from '../../models/Customer.js';
 import { CONNECTION_STATUSES, IntegrationConnection } from '../../models/IntegrationConnection.js';
 import { EVENT_OUTCOMES } from '../../models/IntegrationEvent.js';
 import { hashKey, secretsOf } from './connectionService.js';
@@ -19,13 +20,36 @@ export const PROCESS_WEBHOOK_EVENT = 'PROCESS_WEBHOOK_EVENT';
  * Returns `{ status, body }` for the route to send. Never says why a key was
  * not found, and never echoes anything the partner sent.
  */
-export async function receiveWebhook(provider, key, rawBody, headers) {
+/** The connection a webhook address belongs to, with its sealed credentials, or null. */
+function connectionForKey(provider, key) {
   const registered = providerFor(provider);
-  if (!registered?.hasWebhook || typeof key !== 'string' || key.length < 16) return { status: 404 };
-
-  const connection = await IntegrationConnection.findOne({ webhookKeyHash: hashKey(key), provider })
+  if (!registered?.hasWebhook || typeof key !== 'string' || key.length < 16) return null;
+  return IntegrationConnection.findOne({ webhookKeyHash: hashKey(key), provider })
     .select('+credentials')
     .setOptions({ skipTenantGuard: true });
+}
+
+/**
+ * P37. A partner's subscription handshake (Meta's GET with `hub.challenge`).
+ * Returns `{ status, text }`: the challenge back when the partner's adapter
+ * accepts it, else 403. Found by the same key as the POST.
+ */
+export async function verifySubscription(provider, key, query) {
+  const connection = await connectionForKey(provider, key);
+  if (!connection) return { status: 404 };
+  const adapter = await adapterFor(provider);
+  if (!adapter.verifySubscription) return { status: 404 };
+  let challenge = null;
+  try {
+    challenge = adapter.verifySubscription({ query, secrets: secretsOf(connection) });
+  } catch {
+    challenge = null;
+  }
+  return challenge ? { status: 200, text: challenge } : { status: 403 };
+}
+
+export async function receiveWebhook(provider, key, rawBody, headers) {
+  const connection = await connectionForKey(provider, key);
   if (!connection) return { status: 404 };
 
   const body = rawBody?.toString('utf8') ?? '';
@@ -51,7 +75,9 @@ export async function receiveWebhook(provider, key, rawBody, headers) {
 
   let events = [];
   try {
-    events = adapter.parseWebhook ? await adapter.parseWebhook({ rawBody, headers, connection }) : [];
+    // P37. A messaging webhook names a guest by number; it is turned into their id here, inside this restaurant.
+    const findCustomer = (phone) => Customer.findOne({ restaurantId: connection.restaurantId, phone }).select('_id').lean();
+    events = adapter.parseWebhook ? await adapter.parseWebhook({ rawBody, headers, connection, findCustomer }) : [];
   } catch (error) {
     await logEvent(connection, { direction: 'IN', kind: 'WEBHOOK', outcome: EVENT_OUTCOMES.FAILED, request: body, error: error?.message, extraSecrets: Object.values(secrets) });
     return { status: 400 };
@@ -81,4 +107,4 @@ export async function receiveWebhook(provider, key, rawBody, headers) {
   return { status: 200, body: { received: true } };
 }
 
-export default { PROCESS_WEBHOOK_EVENT, receiveWebhook };
+export default { PROCESS_WEBHOOK_EVENT, receiveWebhook, verifySubscription };

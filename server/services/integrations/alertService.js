@@ -42,6 +42,9 @@ const JOB_WORDS = Object.freeze({
   pushMenu: 'send the menu',
   PROCESS_WEBHOOK_EVENT: 'read an event it sent',
   CHECK_TERMINAL: 'check a card machine payment',
+  // P37.
+  SEND_WHATSAPP_TEMPLATE: 'send a message to a guest',
+  SEND_WHATSAPP_TEXT: 'reply to a guest',
 });
 
 function jobSentence(job, providerName) {

@@ -34,6 +34,9 @@ import {
   postTest,
   postWebhookKey,
   putIntegration,
+  getWhatsAppTemplates,
+  postSyncWhatsAppTemplates,
+  postWhatsAppTemplate,
 } from '../controllers/integrationController.js';
 import {
   getBridges,
@@ -52,6 +55,9 @@ import { tenant } from '../middleware/tenant.js';
 import { validate } from '../middleware/validate.js';
 import {
   acceptPlatformOrderSchema,
+  createWhatsAppTemplateSchema,
+  listWhatsAppTemplatesSchema,
+  syncWhatsAppTemplatesSchema,
   deleteMappingSchema,
   handedOverSchema,
   importMappingsSchema,
@@ -101,6 +107,10 @@ router.post('/integrations/tally/exports/:id/send', ...managers, validate(tallyE
 router.post('/integrations/tally/bridges/pairing-code', ...owner, validate(pairingCodeSchema), postPairingCode);
 router.get('/integrations/tally/bridges', ...managers, validate(listBridgesSchema), getBridges);
 router.post('/integrations/tally/bridges/:id/revoke', ...owner, validate(tallyBridgeIdSchema), postRevokeBridge);
+// P37. WhatsApp templates, before the provider routes.
+router.get('/integrations/whatsapp/templates', ...managers, validate(listWhatsAppTemplatesSchema), getWhatsAppTemplates);
+router.post('/integrations/whatsapp/templates', ...owner, validate(createWhatsAppTemplateSchema), postWhatsAppTemplate);
+router.post('/integrations/whatsapp/templates/sync', ...managers, validate(syncWhatsAppTemplatesSchema), postSyncWhatsAppTemplates);
 router.put('/integrations/:provider', ...owner, validate(saveIntegrationSchema), putIntegration);
 router.post('/integrations/:provider/test', ...owner, validate(providerActionSchema), postTest);
 router.post('/integrations/:provider/pause', ...owner, validate(providerActionSchema), postPause);

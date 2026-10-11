@@ -31,6 +31,7 @@ import { IntegrationJob } from './IntegrationJob.js';
 import { Kot } from './Kot.js';
 import { MenuItem } from './MenuItem.js';
 import { MenuPhoto } from './MenuPhoto.js';
+import { MessageTemplate } from './MessageTemplate.js';
 import { OnlineOrder } from './OnlineOrder.js';
 import { OnlinePayment } from './OnlinePayment.js';
 import { Order } from './Order.js';
@@ -71,6 +72,7 @@ export const ALL_MODELS = Object.freeze([
   Kot,
   MenuItem,
   MenuPhoto,
+  MessageTemplate,
   OnlineOrder,
   OnlinePayment,
   Order,

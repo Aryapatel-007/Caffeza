@@ -19,6 +19,8 @@ export const PROVIDER_KINDS = Object.freeze({
   ORDER_CHANNEL: 'ORDER_CHANNEL',
   PAYMENT_TERMINAL: 'PAYMENT_TERMINAL',
   ACCOUNTING: 'ACCOUNTING',
+  // P37. Messages to guests, on the restaurant's own number.
+  MESSAGING: 'MESSAGING',
 });
 export const AVAILABILITY = Object.freeze({ READY: 'READY', WAITING_FOR_PARTNER: 'WAITING_FOR_PARTNER' });
 
@@ -135,6 +137,41 @@ const PROVIDERS = {
       })
       .strict(),
     adapter: () => import('./tally/adapter.js'),
+  },
+  /**
+   * P37. The restaurant's own WhatsApp Business Account, on Meta's Cloud API
+   * directly: no platform fee, and the restaurant pays Meta per message.
+   */
+  WHATSAPP: {
+    kind: PROVIDER_KINDS.MESSAGING,
+    name: 'WhatsApp',
+    availability: AVAILABILITY.READY,
+    hasWebhook: true,
+    secretFields: ['phoneNumberId', 'wabaId', 'accessToken', 'webhookVerifyToken', 'appSecret'],
+    credentialSchema: z
+      .object({
+        phoneNumberId: z.string({ error: 'Is required.' }).trim().regex(/^\d{5,30}$/, 'Digits only, from Meta.'),
+        wabaId: z.string({ error: 'Is required.' }).trim().regex(/^\d{5,30}$/, 'Digits only, from Meta.'),
+        accessToken: secret(1000).min(20, 'At least 20 characters.'),
+        webhookVerifyToken: secret(200).min(16, 'At least 16 characters.'),
+        appSecret: secret(200).min(16, 'At least 16 characters.'),
+      })
+      .strict(),
+    configSchema: z
+      .object({
+        sendBillOnPayment: z.boolean().default(false),
+        defaultLanguage: z.string().trim().min(2).max(15).default('en'),
+        senderDisplayName: z.string().trim().max(60).nullable().default(null),
+        // https always; plain http only to this machine outside production, for a test's fake Meta.
+        apiBaseUrl: z
+          .string()
+          .trim()
+          .url('Must be a web address.')
+          .refine((value) => value.startsWith('https://') || (!config.isProduction && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/.*)?$/.test(value)), 'Must start with https://.')
+          .default('https://graph.facebook.com/v21.0'),
+      })
+      .strict(),
+    adapter: () => import('./messaging/whatsappAdapter.js'),
   },
 };
 

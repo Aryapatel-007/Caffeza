@@ -10,7 +10,7 @@
 import express, { Router } from 'express';
 
 import { webhookLimiter } from '../middleware/rateLimit.js';
-import { receiveWebhook } from '../services/integrations/webhookService.js';
+import { receiveWebhook, verifySubscription } from '../services/integrations/webhookService.js';
 import { sendSuccess } from '../utils/response.js';
 import { NotFoundError, UnauthenticatedError } from '../utils/errors.js';
 
@@ -18,6 +18,17 @@ export const HOOKS_PATH = '/hooks';
 export const WEBHOOK_BODY_LIMIT = '256kb';
 
 const router = Router();
+
+/**
+ * P37. Meta's subscription handshake: a GET with `hub.challenge`, answered with
+ * the challenge as plain text when `hub.verify_token` is the connection's own.
+ */
+router.get('/:provider/:webhookKey', webhookLimiter, async (req, res) => {
+  const outcome = await verifySubscription(req.params.provider, req.params.webhookKey, req.query);
+  if (outcome.status === 404) throw new NotFoundError();
+  if (outcome.status !== 200) return res.status(403).type('text/plain').send('Forbidden');
+  return res.status(200).type('text/plain').send(outcome.text);
+});
 
 router.post(
   '/:provider/:webhookKey',

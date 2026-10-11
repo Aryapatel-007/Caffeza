@@ -23,6 +23,8 @@ export const APP_PORT = 5055;
 export const CONTROL_PORT = 5056;
 /** P24. A fake Razorpay, so a guest can pay and come back in the browser test. */
 export const FAKE_RAZORPAY_PORT = 5057;
+/** P37. A fake Meta Cloud API, so a bill paid in the browser test is sent on WhatsApp. */
+export const FAKE_META_PORT = 5059;
 const HOST = '127.0.0.1';
 
 if (process.env.NODE_ENV !== 'test') {
@@ -69,6 +71,8 @@ await startTestServer();
 
 const { startFakeRazorpay } = await import('../tests/helpers/fakeRazorpay.js');
 await startFakeRazorpay({ port: FAKE_RAZORPAY_PORT, host: HOST });
+const { startFakeMeta } = await import('../tests/helpers/fakeMeta.js');
+const fakeMeta = await startFakeMeta({ port: FAKE_META_PORT, host: HOST });
 
 const app = createApp({ serveClient: true });
 const httpServer = await new Promise((resolve) => {
@@ -120,7 +124,17 @@ const control = http.createServer(async (request, response) => {
       setClockForTests(instant);
       return send(response, 200, { at: instant.toISOString() });
     }
-    if (request.method === 'POST' && request.url === '/reset') return send(response, 200, await reset());
+    if (request.method === 'POST' && request.url === '/reset') {
+      Object.assign(fakeMeta.state, { templates: [], messages: [], requests: [] });
+      return send(response, 200, await reset());
+    }
+    // P37. What the fake Meta was sent, and its reviewer approving a template.
+    if (request.method === 'GET' && request.url === '/meta') return send(response, 200, { url: fakeMeta.url, messages: fakeMeta.state.messages });
+    if (request.method === 'POST' && request.url === '/meta/approve') {
+      const { name } = await readJson(request);
+      fakeMeta.approve(name);
+      return send(response, 200, { approved: name });
+    }
     return send(response, 404, { error: 'not found' });
   } catch (error) {
     return send(response, 500, { error: error.message });

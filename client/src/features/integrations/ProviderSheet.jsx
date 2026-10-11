@@ -12,6 +12,7 @@ import { errorText } from '../online/OnlineSheets.jsx';
 
 import ConfigFields from './ConfigFields.jsx';
 import EventLog from './EventLog.jsx';
+import WhatsAppTemplates from './WhatsAppTemplates.jsx';
 import { connectionChip } from './integrationWords.js';
 import { credentialLabel, DEFAULT_ENVIRONMENT, ENVIRONMENTS, PROVIDER_DEFAULTS, PROVIDER_FIELDS } from './providerForms.js';
 
@@ -129,6 +130,7 @@ export default function ProviderSheet({ entry, canEdit, onClose, onToast }) {
                 Ledger mapping, exports and bridges
               </Link>
             )}
+            {entry.provider === 'WHATSAPP' && connection?.status === 'ACTIVE' && <WhatsAppTemplates canEdit={canEdit} onToast={onToast} />}
             {connection && <EventLog provider={entry.provider} />}
           </>
         )}

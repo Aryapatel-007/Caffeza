@@ -6,6 +6,7 @@ export const KIND_WORDS = Object.freeze({
   ORDER_CHANNEL: 'Order channel',
   PAYMENT_TERMINAL: 'Payment terminal',
   ACCOUNTING: 'Accounting',
+  MESSAGING: 'Messages to guests',
 });
 
 /** A connection's status as a StateChip state and word. */
