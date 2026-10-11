@@ -551,9 +551,11 @@ Added by P39.
 | **Chat** | One guest's WhatsApp conversation with the restaurant |
 | **Chats** | The screen where staff read and answer chats |
 | **Needs a person** | A chat the assistant handed over, waiting for staff |
+| **With staff** | A chat a person has replied to; the assistant stays quiet until it is handed back |
 | **Hand back** | Give a chat back to the assistant |
 | **Stop offers** | The guest wants no promotions. Bills and booking messages still go |
 | **Stop all messages** | The guest wants nothing from the restaurant on WhatsApp, bills included |
-| **Fixed menu** | The three buttons a guest gets when the assistant is off or out of its daily limit |
-| **AI key** | The key to Gemini or Anthropic the assistant uses |
+| **Fixed menu** | The three buttons a guest gets when no AI key is on or the assistant is out of its daily limit. With the assistant off, nothing is sent |
+| **AI key** | The key to Anthropic, Groq or Gemini the assistant uses |
 | **Window open** | The guest wrote in the last 24 hours, so staff can reply freely |
+| **Window closed** | The guest last wrote more than 24 hours ago; WhatsApp allows no free reply, so staff call instead |

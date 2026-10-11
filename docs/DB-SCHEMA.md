@@ -2974,7 +2974,7 @@ Two more keys the restaurant may add: `BOOKING_CONFIRMED` and `BOOKING_DECLINED`
 
 ### `integrationconnections`
 
-`provider` gains `GEMINI` and `ANTHROPIC`.
+`provider` gains `GEMINI`, `ANTHROPIC` and `GROQ` (Groq added at Arya's request).
 
 ### `restaurants.settings.assistant`
 

@@ -8394,18 +8394,23 @@ nothing.
 
 ## 1. The AI providers
 
-New M21 provider kind `AI_ASSISTANT`, two providers, set up like every M21
+New M21 provider kind `AI_ASSISTANT`, three providers, set up like every M21
 provider (`PUT /integrations/:provider`, `POST .../test`, pause, resume):
 
 | Provider | Credentials (sealed) | Config |
 |---|---|---|
 | `GEMINI` | `apiKey` | `model` (default `gemini-2.5-flash`), `apiBaseUrl` (default `https://generativelanguage.googleapis.com/v1beta`) |
 | `ANTHROPIC` | `apiKey` | `model` (default `claude-haiku-5-5`), `apiBaseUrl` (default `https://api.anthropic.com`) |
+| `GROQ` | `apiKey` | `model` (default `openai/gpt-oss-120b`), `apiBaseUrl` (default `https://api.groq.com/openai/v1`) |
 
 https always; plain http only to this machine outside production, for the fake
 in tests. The key travels in a header, never in an address. The test asks the
-model for one word and passes only when it answers. When both are on, the
-assistant uses `ANTHROPIC`. Neither has a webhook.
+model for one word and passes only when it answers. When more than one is on,
+the assistant uses `ANTHROPIC`, then `GROQ`, then `GEMINI`. None has a webhook.
+Groq was added at Arya's request; its OpenAI-shaped API takes `tools` and
+answers `tool_calls`, and a gpt-oss model is asked for low reasoning effort,
+because its thinking counts against the reply's length. The free tiers of
+Gemini and Groq are for testing, and the sheet says so.
 
 ## 2. Settings
 
@@ -8427,9 +8432,12 @@ For each message, in order:
    `lastInboundAt` set: the 24-hour window is open.
 2. A conversation waiting for, or with, a person (`NEEDS_STAFF`, `STAFF`): the
    assistant is quiet.
-3. The assistant off, no AI connection on, or the day's `dailyAiLimit` used: the
-   **fixed menu**, three buttons (Book a table, Opening hours, Talk to us),
-   answered without a model.
+3. The assistant off: nothing is sent, and the chat waits in Chats for a
+   person. No AI connection on, or the day's `dailyAiLimit` used: the **fixed
+   menu**, three buttons (Book a table, Opening hours, Talk to us), answered
+   without a model. Built differently from the plan, which sent the fixed menu
+   with the assistant off too: an owner who switches the assistant off expects
+   it to say nothing.
 4. Otherwise the model, with the system prompt (P39 section 11), the last 12
    turns and the tools (P39 section 9), up to 4 rounds of tool calls.
 5. **The reply check.** Every rupee amount, time, link and reference in the reply
@@ -8477,8 +8485,14 @@ POST /api/v1/chats/:chatId/clear-stop  { reason }: the guest asked to get messag
 ```
 
 A chat in the list: `{ id, status, guestFirstName, lastMessageAt, lastText,
-windowOpen, handoffReason }`. `GET /online/inbox` gains `waitingChats` (chats
-needing a person) and `latestChatAt`, and the online alert counts them.
+windowOpen, handoffReason, stoppedAll }`. `GET /online/inbox` gains
+`waitingChats` (chats needing a person) and `latestChatAt`, and the online
+alert counts them for OWNER, MANAGER and CASHIER. The inbox answers while
+online orders are on, a delivery platform is on, or, from P39, the WhatsApp
+connection is on, so a chat rings the till with the online page off.
+`GET /auth/me` `online` gains `chats`: whether the WhatsApp connection is on.
+A change to a chat is announced on the live channel's `online` topic, so the
+inbox and the Chats screen read again at once.
 
 ## Error codes
 
