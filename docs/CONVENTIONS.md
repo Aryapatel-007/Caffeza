@@ -270,6 +270,14 @@ WAITING_FOR_KITCHEN        422  money taken on a bill whose order has items not 
 ORDER_ALREADY_BILLED       422  undoing ready in the kitchen on an order that has a live bill
 ```
 
+Added by P37:
+
+```
+TEMPLATE_NOT_APPROVED      422  a WhatsApp send against a template Meta has not approved
+MESSAGING_NOT_CONNECTED    422  the restaurant's WhatsApp connection is missing or not on
+GUEST_OPTED_OUT            422  a marketing message to a guest without live offers consent
+```
+
 ### Paging
 
 Every list endpoint takes `?page=1&limit=50`.

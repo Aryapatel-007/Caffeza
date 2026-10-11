@@ -2881,3 +2881,51 @@ from before P36.
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `oneTicketPerOrder` | Boolean | true | One ticket per order, every round and station on it. Off: one per station per Send, as P05 |
+
+## 47. WhatsApp: templates and the receipt (P37)
+
+### `messagetemplates` (new)
+
+One per template a restaurant sends on WhatsApp. Configuration, scoped like
+everything else.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `key` | String | | Ours, like `BILL_RECEIPT`. Unique per restaurant and branch |
+| `metaName` | String | | The name registered with Meta: lowercase letters, digits, underscores |
+| `category` | enum | | `UTILITY`, `MARKETING` or `AUTHENTICATION`: what we asked for |
+| `approvedCategory` | enum or null | null | What Meta decided. Every price is worked out from this, never `category` |
+| `language` | String | `en` | |
+| `bodyText` | String | | With numbered variables, `{{1}}`, as Meta stores it. Up to 1,024 characters |
+| `variables` | [String] | [] | What fills each numbered variable, in order |
+| `example` | [String] | [] | The example values sent to Meta for review |
+| `status` | enum | `DRAFT` | `DRAFT`, `PENDING`, `APPROVED`, `REJECTED`, `PAUSED`, `DISABLED` |
+| `rejectionReason` | String or null | null | What Meta said |
+| `metaTemplateId` | String or null | null | Meta's id for it |
+| `lastSyncedAt` | Date or null | null | |
+| `createdBy` | ObjectId | | |
+
+Indexes: `{ restaurantId, branchId, key }` unique; `{ restaurantId, branchId, metaName, language }`.
+
+### `integrationconnections`
+
+`provider` gains `WHATSAPP`. No new field: its credentials sit in the sealed
+`credentials` box and its settings in `config`, as every provider's do.
+
+### `integrationjobs`
+
+New job types `SEND_WHATSAPP_TEMPLATE` and `SEND_WHATSAPP_TEXT`. Their
+`payload` names the guest by `customerId`, never by number. `result` gains, on
+a sent message, `messageId`, `customerId`, `deliveryStatus` (`SENT`,
+`DELIVERED`, `READ`, `FAILED`) and `deliveryAt`; on a refusal from Meta,
+`failed` and `message`. The idempotency key is the job's `dedupeKey`
+(`whatsapp:bill:<billId>:receipt`), on the existing unique index.
+
+### `customers`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `whatsappUnreachableAt` | Date or null | null | When Meta said this number is not on WhatsApp. Nothing more is sent to it |
+
+A STOP writes `offers.given: false` and an `offersHistory` entry with source
+`ONLINE`, `by: null` and the reason "Replied STOP on WhatsApp".

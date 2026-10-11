@@ -8241,3 +8241,149 @@ The bill timeline (R10) shows one "Sent to the kitchen" event per round:
 ## Error codes
 
 None new.
+
+# P37 M21 WhatsApp: the connection, templates and the receipt
+
+`docs/prompts/P37-whatsapp-foundation-and-the-receipt.md`. Additive. Built and
+tested against a fake Meta; Z Chaat has no WhatsApp Business Account connected
+yet.
+
+## 1. The provider
+
+`WHATSAPP`, kind `MESSAGING`, in the M21 registry. Meta's Cloud API, called
+directly, on each restaurant's own WhatsApp Business Account (WABA).
+
+Credentials, sealed under `INTEGRATION_SECRETS_KEY`, shown only as their last
+four characters, never logged, returned or audited: `phoneNumberId`, `wabaId`,
+`accessToken`, `webhookVerifyToken` (our own string, at least 16 characters),
+`appSecret`.
+
+Config: `sendBillOnPayment` (default false), `defaultLanguage` (default `en`),
+`senderDisplayName` (or null), and `apiBaseUrl` (default
+`https://graph.facebook.com/v21.0`; https always, plain http only to this
+machine outside production, for the fake in tests).
+
+`POST /integrations/WHATSAPP/test` reads the number back from Meta
+(`GET {apiBaseUrl}/{phoneNumberId}`) and passes only when Meta answers with
+that id and the number is on the Cloud API (`platform_type: CLOUD_API`). The
+message names the business and its quality rating. Success switches the
+connection on, as every provider's test does.
+
+## 2. Templates
+
+A template is a record with a state (DB-SCHEMA section 47), never a string in
+the code.
+
+### 2.1 List
+
+```
+GET /api/v1/integrations/whatsapp/templates
+```
+
+OWNER, MANAGER. Every template of this branch, oldest first, each with
+`categoryChanged: true` when Meta approved it in another category than we
+asked for (`approvedCategory` differs from `category`); the screen warns on it.
+
+### 2.2 Add
+
+```
+POST /api/v1/integrations/whatsapp/templates
+{ "key": "BILL_RECEIPT", "metaName": "bill_receipt", "category": "UTILITY",
+  "language": "en", "bodyText": "Thanks for visiting {{1}}! ...",
+  "variables": ["restaurantName", "billNumber", "billTotal"],
+  "example": ["Z Chaat", "2026-27/000148", "₹795.00"], "submit": true }
+```
+
+OWNER. `key` is ours, unique per branch, capitals and underscores. `metaName`
+is lowercase letters, digits and underscores, as Meta requires. `variables`
+names what fills `{{1}}`, `{{2}}` and so on, in order, and must have one entry
+per numbered variable in `bodyText`, as must `example`. With `submit: true`
+(the default) the template is sent to Meta for review and takes the state Meta
+answers, normally `PENDING`. With `submit: false` it is linked to a template
+already made by hand in Meta's own screens, and read back at the next sync. A
+connection that is not on is 422 `MESSAGING_NOT_CONNECTED`. No template
+designer.
+
+### 2.3 Sync
+
+```
+POST /api/v1/integrations/whatsapp/templates/sync
+```
+
+OWNER, MANAGER. Reads every template from Meta and updates the matching
+records (by `metaName` and `language`): `status`, `approvedCategory`,
+`rejectionReason`, `lastSyncedAt`. A Meta template with no record is left
+alone. Returns the list as 2.1.
+
+## 3. Sending
+
+One way in, `sendTemplate` in `services/integrations/messaging/whatsappService.js`,
+which in this order:
+
+1. Finds this branch's WhatsApp connection: not `ACTIVE` is 422
+   `MESSAGING_NOT_CONNECTED`.
+2. Finds the template by `key`: not `APPROVED` is 422 `TEMPLATE_NOT_APPROVED`.
+   Refused, never queued.
+3. Finds the guest, by mobile, at this restaurant. A marketing template
+   (`approvedCategory: MARKETING`) to a guest without live offers consent is
+   422 `GUEST_OPTED_OUT`. A utility template is never consent-gated: a guest who
+   opted out of offers still gets their bill. A guest whose number Meta said is
+   not on WhatsApp is skipped, `skipped: "UNREACHABLE"`; one with no record at
+   this restaurant, `skipped: "NO_CUSTOMER"`.
+4. Queues the send as an integration job with the idempotency key as its
+   `dedupeKey`, on the existing unique index `{ restaurantId, dedupeKey }`: the
+   same key again queues nothing and answers `duplicate: true`.
+
+The job carries the guest's id, never the number; the number is read when the
+job runs. The job checks the connection is on and the template still
+`APPROVED`, calls `POST {apiBaseUrl}/{phoneNumberId}/messages`, stores the
+message id Meta returns on the job's `result`, and writes an event line through
+`redactForLog`. A network or 5xx failure retries on the M21 ladder (30 s, 2 min,
+10 min, 30 min, 2 h, then DEAD). A 4xx from Meta is final: the event is FAILED,
+the job ends with `result.failed`, and it is never retried.
+
+## 4. The receipt
+
+When a bill's status becomes `PAID`, after the write commits (never inside a
+transaction that could still roll back), and only when: the WhatsApp
+connection is on with `sendBillOnPayment`, the order has a customer mobile,
+the bill is not a platform order's, and the template `BILL_RECEIPT` is
+`APPROVED`. Its variables come from `buildInvoiceData` and nothing is computed:
+`restaurantName` (the restaurant's name), `billNumber`, and `billTotal` (the bill
+total through `paiseToRupees` with the rupee sign, like `₹795.00`). The
+idempotency key is `bill:<billId>:receipt`, so a bill sends at most one
+receipt however often it is saved. A failure to queue is logged and swallowed:
+it never fails the payment. A No Charge order has no bill, and a voided bill is
+never paid, so neither sends.
+
+## 5. The webhook
+
+```
+GET  /api/v1/hooks/WHATSAPP/:webhookKey?hub.mode=subscribe&hub.verify_token=…&hub.challenge=…
+POST /api/v1/hooks/WHATSAPP/:webhookKey
+```
+
+The GET is Meta's subscription handshake: with `hub.mode=subscribe` and the
+connection's `webhookVerifyToken`, it answers 200 with `hub.challenge` as plain
+text; anything else is 403. The POST is verified with `appSecret` against
+`X-Hub-Signature-256` over the raw body (mounted before the JSON parser, as
+every M21 hook is), stored, then processed by a job; a duplicate changes
+nothing.
+
+1. **Delivery receipts.** `sent`, `delivered`, `read` and `failed` are recorded
+   against the job that sent the message (`result.deliveryStatus`,
+   `result.deliveryAt`). A `failed` that says the number is not on WhatsApp
+   (Meta's error 131026) marks the guest unreachable, and nothing more is sent
+   to them.
+2. **STOP.** A guest replying STOP, UNSUBSCRIBE or STOP PROMOTIONS, or Meta's own
+   marketing opt-out preference, withdraws their offers consent at once through
+   `customerService`: `offers.given: false`, with an `offersHistory` entry of
+   source `ONLINE` and the reason "Replied STOP on WhatsApp". They are told once,
+   inside the free service window, that offers stop and bills continue. Their
+   receipts continue. A number with no guest record changes nothing and is not
+   answered.
+
+## Error codes
+
+`TEMPLATE_NOT_APPROVED` 422, `MESSAGING_NOT_CONNECTED` 422, `GUEST_OPTED_OUT`
+422. CONVENTIONS section 3.

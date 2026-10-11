@@ -519,3 +519,22 @@ Added by P36.
 | **Round** | One Send to the kitchen on an order. The first dishes are round 1; dishes added later are round 2, 3 and so on, on the same ticket |
 | **One kitchen ticket per table** | The setting `kitchen.oneTicketPerOrder`: an order keeps one ticket, under one KOT number, for every round and station |
 | **Added** | On the kitchen screen, the caption over a later round: "Added 7:20 pm" |
+
+---
+
+## 24. Messaging words
+
+Added by P37.
+
+| Term | Meaning |
+|---|---|
+| **WhatsApp** | The restaurant's own WhatsApp Business number, connected in Integrations |
+| **Template** | A message Meta has to approve before it can be sent to a guest who has not just written to the restaurant. Each has our name for it, like Bill receipt |
+| **Utility** | A template about something the guest did, like their bill. About ₹0.145 a message. Never needs offers consent |
+| **Marketing** | A template that promotes something, like an offer. About ₹1.09 a message. Only to guests who agreed to offers |
+| **Approval state** | Where Meta's review of a template stands: Draft, Waiting for Meta, Approved, Rejected, Paused or Switched off |
+| **Approved as** | The category Meta approved a template in, which can differ from the one asked for. Costs follow it |
+| **Opt-out** | The guest replied STOP: offers stop at once; bills continue |
+| **Delivery receipt** | Meta telling us a message was sent, delivered, read, or failed |
+| **Service window** | The 24 hours after a guest writes to the restaurant, when a plain reply needs no template |
+| **Send the bill on WhatsApp** | The setting that sends a guest their bill when it is paid |
