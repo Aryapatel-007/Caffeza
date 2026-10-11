@@ -493,3 +493,17 @@ Added by P30.
 | **Went to sleep during working hours** | A business date with more than 2 wakes, not deploys, inside working hours: the pingers did not keep it awake. |
 | **Pinger** | An outside service that calls the server's wake address every few minutes, so it never sleeps in working hours |
 | **Reload this screen** | After a write the server may not have received while it woke: read the screen's data again, without sending the write twice |
+
+---
+
+## 22. Password words
+
+Added by P34.
+
+| Term | Meaning |
+|---|---|
+| **Forgot password?** | The link on the sign-in screen to set a new password with a manager's approval |
+| **Set password** | Save the new password, once a manager has approved it |
+| **New password** | The password the person will sign in with from now on, at least 8 characters |
+| **Manager's phone** | On the sign-in screen, the phone number of the owner or manager approving. They cannot approve their own. |
+| **Back to sign in** | Leave the form without changing anything |

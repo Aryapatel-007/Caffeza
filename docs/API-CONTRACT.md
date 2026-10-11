@@ -288,6 +288,76 @@ Failure 422 `BUSINESS_RULE_VIOLATED` if `newPassword` equals `currentPassword`.
 
 On success, revoke every refresh token for this user and clear the `refreshToken` cookie on this device. The caller must log in again. A password change that leaves old sessions alive is not a password change.
 
+### 1.7 Set a new password from the sign-in screen (P34)
+
+```
+POST /api/v1/auth/password-reset
+```
+
+Public: no token. Behind the login limiter (`authLimiter`), keyed on the address
+and the submitted phone. For a person who cannot sign in, with an owner or
+manager beside them to approve it.
+
+Request, with exactly one of `phone` or `email`, as at login:
+
+```json
+{
+  "phone": "9000003003",
+  "newPassword": "a new one",
+  "approval": { "approverPhone": "9000003002", "pin": "2468" }
+}
+```
+
+`newPassword` follows the login rules: 8 to 128 characters, not trimmed.
+`approval.pin` is 4 to 6 digits. Unknown fields are a 400.
+
+Response 200:
+
+```json
+{ "success": true, "data": { "passwordSet": true } }
+```
+
+No token is issued. The screen signs in through `POST /auth/login` with the new
+password.
+
+The server:
+
+1. Finds the person by phone or email across the platform, as login does. The
+   one new `skipTenantGuard` use in `authService.js`.
+2. Finds the approver by `approverPhone` **inside the person's restaurant only**:
+   active, OWNER or MANAGER, not the integration user.
+3. Refuses when the approver is the person, and when a MANAGER would approve an
+   OWNER (`assertCanResetPassword`).
+4. Checks the PIN with `verifyPin`: five wrong tries lock it until an owner sets
+   it again on the Staff screen, as for every P28 approval.
+5. Replaces the password with `setPassword`, which stamps `passwordChangedAt`,
+   and revokes every refresh token of the person (`PASSWORD_CHANGED`).
+6. Writes `USER_PASSWORD_RESET` with the approver as actor, `entityId` the
+   person, and `details: { role, source: "SIGN_IN_SCREEN" }`.
+
+Failure 401 `INVALID_CREDENTIALS`, one body for every reason: an unknown phone
+or email, an inactive person, the integration user, an unknown or wrong
+approver, a person approving themselves, a manager approving an owner, a wrong
+PIN, a PIN not set, and a locked PIN:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "The password was not changed. Check both phone numbers and the PIN. Five wrong PINs lock it until the owner sets it again."
+  }
+}
+```
+
+Every path costs one bcrypt comparison, so the answer and its timing never say
+which phone exists or who works where. Failure 400 `VALIDATION_FAILED` for a
+bad shape. Failure 429 `RATE_LIMITED` from the login limiter.
+
+Why the approver types a phone and does not pick a name, as P28 screens do: the
+name list is read with a session, and on this screen there is none. A list here
+would give every staff name to anyone who knows one phone number.
+
 ---
 
 ## 2. Restaurant and branch endpoints
@@ -4189,7 +4259,7 @@ Each of these is an action an owner would want to see and which today leaves not
 | `USER_DEACTIVATED` | `USER` | M0-C | Someone removing a colleague's access |
 | `USER_REACTIVATED` | `USER` | M0-C | Someone restoring an account that was switched off for a reason |
 | `USER_ROLE_CHANGED` | `USER` | M0-C | A manager promoting an accomplice to a role that can void bills |
-| `USER_PASSWORD_RESET` | `USER` | M0-C | A manager resetting someone's password is a way to use their account |
+| `USER_PASSWORD_RESET` | `USER` | M0-C, and P34 from the sign-in screen with the approver as actor and `details.source: "SIGN_IN_SCREEN"` | A manager resetting someone's password is a way to use their account |
 | `USER_PIN_RESET` | `USER` | M0-D | Same, for the attendance clock |
 | `MENU_PRICE_CHANGED` | `MENU_ITEM` | M1 | A price quietly moved before or after a shift |
 | `RECIPE_CHANGED` | `RECIPE` | M4 | Changing a recipe changes how much stock a sale deducts. It is the cleanest way to hide theft in this system. |

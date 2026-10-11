@@ -105,6 +105,7 @@ Each prompt names its model at the top.
 | P32 | The client's weight | M20 | P30 | Rishi | Opus, high |
 | P33 | The live channel | M2, M14, M18 | P30, P31 | Rishi | Opus, high |
 | P30 (keep awake) | Keep the free server awake | Hosting | The Render and Vercel deploy | Arya | Sonnet, high |
+| P34 | Set a new password from the sign-in screen | M0 | P28 | Rishi | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

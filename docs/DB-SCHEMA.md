@@ -2838,3 +2838,15 @@ seed wipe skip, because no restaurant owns its documents.
 Indexes: `{ startedAt: -1 }`, with `expireAfterSeconds` of 60 days: a start
 older than 60 days is removed by the database. Written once per start, never
 updated, never read by a report or a bill.
+
+## 45. Setting a password from the sign-in screen (P34)
+
+No collection and no field. `auditlogs` already has `USER_PASSWORD_RESET`; a
+reset from the sign-in screen writes it with the approving OWNER or MANAGER as
+`actorId` and `details: { role, source: "SIGN_IN_SCREEN" }`. A reset from the
+Staff screen has no `source`, and reads as it always has.
+
+The person is looked up by phone or email across the platform, through the
+existing global unique indexes on `users.phone` and `users.email`, the same
+lookup login makes. The approver is looked up inside that person's restaurant
+only.
