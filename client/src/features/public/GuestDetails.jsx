@@ -7,7 +7,7 @@
 export function GuestDetails({ site, details, onChange, notePlaceholder }) {
   const set = (field) => (event) => onChange((current) => ({ ...current, [field]: event.target.value }));
   const phoneOk = details.phone === '' || /^[6-9]\d{9}$/.test(details.phone);
-  const field = 'type-body min-h-12 rounded-lg border border-line bg-surface px-3';
+  const field = 'type-body min-h-12 w-full rounded-lg border-2 border-masala/25 bg-cream px-3 text-masala focus:border-masala';
   return (
     <div className="grid gap-4">
       <label className="grid gap-1">
@@ -16,16 +16,21 @@ export function GuestDetails({ site, details, onChange, notePlaceholder }) {
       </label>
       <label className="grid gap-1">
         <span className="type-label">Mobile number</span>
-        <input
-          autoComplete="tel-national"
-          inputMode="numeric"
-          maxLength={10}
-          value={details.phone}
-          onChange={(event) => onChange((current) => ({ ...current, phone: event.target.value.replace(/\D/g, '') }))}
-          aria-invalid={!phoneOk || undefined}
-          className={field}
-        />
-        <span className={`type-caption ${phoneOk ? 'text-muted' : 'text-alert'}`}>
+        <span className="flex items-stretch gap-2">
+          <span aria-hidden="true" className="flex min-h-12 items-center rounded-lg border-2 border-masala/25 bg-saffron-tint px-3 font-anek font-[700]">
+            +91
+          </span>
+          <input
+            autoComplete="tel-national"
+            inputMode="numeric"
+            maxLength={10}
+            value={details.phone}
+            onChange={(event) => onChange((current) => ({ ...current, phone: event.target.value.replace(/\D/g, '') }))}
+            aria-invalid={!phoneOk || undefined}
+            className={field}
+          />
+        </span>
+        <span className={`type-caption ${phoneOk ? 'text-masala-soft' : 'text-alert'}`}>
           {phoneOk ? 'The cafe calls this number if anything changes.' : 'Enter a 10 digit mobile number.'}
         </span>
       </label>
@@ -38,7 +43,7 @@ export function GuestDetails({ site, details, onChange, notePlaceholder }) {
           type="checkbox"
           checked={details.consent}
           onChange={(event) => onChange((current) => ({ ...current, consent: event.target.checked }))}
-          className="mt-1 size-5 accent-[var(--color-accent)]"
+          className="mt-1 size-5 flex-none accent-[var(--color-stall)]"
         />
         <span className="type-body">{site.consentText}</span>
       </label>

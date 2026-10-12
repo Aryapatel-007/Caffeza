@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, P36 one kitchen ticket per table)
+Last updated: 2026-10-12 by Rishi (P38 the public page as a street-food signboard)
 
 ---
 
@@ -520,6 +520,11 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-11 | A bill shows the same dish once, as item rows computed from its lines when it is read; the lines themselves are unchanged. | Z Chaat asked for 2 × Roti, not 1 × Roti twice. Each round must still trace to its own order line and kitchen ticket. |
 | 2026-10-11 | Z Chaat's Aerated Drinks became four dishes, Sprite, Diet Coke, Coke and Thums Up, through `npm run menu:sizes-to-dishes`. The old item is switched off, not deleted. | One tap per drink at the table, and the bill prints the drink's own name. Old bills keep the name they were sold under. |
 | 2026-10-11 | P36: an order keeps one kitchen ticket for its whole visit. Later Sends are rounds on it under the same KOT number, every line keeps the station that makes it, and a station's screen and printer show only its own dishes. `kitchen.oneTicketPerOrder`, default on; off is P05's ticket per station per Send. | Arya asked for one KOT per table after trying P35. Line-level stations keep each station's tablet, its ready tick and R13's kitchen time per station working on a shared ticket; the setting lets the kitchen go back without a deploy. |
+| 2026-10-12 | P38: the public page is restyled as a street-food signboard, in the restaurant's own brand colour (`brandHex`, `onBrandHex`, the accent when unset), with its own tokens under `[data-public]`: cream, chit, saffron, masala, leaf. | Rishi asked for a traditional, artwork look for Z Chaat's site from Stitch mock-ups. The brand pair is per restaurant, so no client colour is written in code; the brand classes stay limited to BrandLogo and the sign-in screen, and the page uses `stall` tokens instead. |
+| 2026-10-12 | P38: nothing on the public page that the restaurant's records do not hold. The mock-ups' FSSAI number, reviews, rating, founding year, second address, ingredient claims, "pure veg", hours, dishes, sizes and catering contents were left out. | A public page that states a licence number or reviews nobody gave is a false claim made in the restaurant's name. The tagline is the owner's own page note. |
+| 2026-10-12 | Z Chaat takes no payment online: guests pay at the counter by the QR code, card or cash, and bookings take no deposit; the cafe confirms the table. The public page says so whenever no gateway is connected. | Rishi's word, 2026-10-12. The online-payment branch stays in the code for a restaurant that connects Razorpay. |
+| 2026-10-12 | Later the same day: Z Chaat's table bookings take an advance of ₹50 a person, paid online when booking through Z Chaat's own Razorpay, taken off the bill, like Zomato. Takeaway stays paid at the counter. This narrows the row above to takeaway. | Rishi's choice, from three offered (online, by QR after confirming, at the counter). Per person because the deposit setting already exists (`depositPerPersonInPaise`); a flat per-booking amount would have needed a new setting. Needs Razorpay connected in Settings, Payments, and `PAYMENT_SECRETS_KEY` on the server. |
+| 2026-10-12 | P38: a dish on a kitchen ticket is marked ready by a Cooking / Ready switch, not by tapping its row; switching it off is the undo. | Rishi asked for an on/off switch. A switch shows the state in place and cannot be set by brushing the row. The tested helper `tickDish` now uses the switch, changed on purpose. |
 ---
 
 ## Open questions
@@ -541,6 +546,21 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-12 Rishi, P38 the public page as a street-food signboard, a booking advance, the kitchen's ready switch
+
+What was built or decided:
+Asked for by Rishi, with Google Stitch mock-ups. `docs/prompts/P38-street-food-public-page.md`. Client only: no endpoint or field changed.
+1. `client/src/index.css`: public page tokens under `[data-public]` (`stall` from the restaurant's brand colour, `cream`, `chit`, `saffron`, `masala`, `leaf`), and still decorations (festoon, sawtooth, chit shadow).
+2. `features/public/`: a signboard top bar with a call button; step chits; tickets and rubber stamps; the home page with a signboard hero, the two actions, a dish strip, menu sections as stickers, Visit us with Open in Maps; the menu with search, menu chits, and on a wide screen the sections on the left and the order as a paper bill on the right; one-tap kitchen requests on a dish; tear-off calendar dates and an occasion on a booking; token-style status pages with Call and Directions.
+3. Takeaway says to pay at the counter (QR code, card or cash). A booking shows its advance on the "Your table" chit: ₹50 a person × the party, paid online now, taken off the bill, refunded if not confirmed or cancelled in time, kept if cancelled late; with no deposit set it says no advance payment.
+5. The kitchen: each dish on a ticket has a Cooking / Ready switch (`components/ui/TicketCard.jsx`); tapping the row no longer marks it. `e2e/pages/kitchen.js` `tickDish` uses the switch, changed on purpose.
+4. Nothing from the mock-ups that the records do not hold: see the decision log.
+
+Tests: `designGuard`, `onlineClient`, `clientNameGuard`: 16 passing. Browser: `online` (3), `kitchenUndo`, `liveChannel` and the golden day all pass; the online specs unchanged, the kitchen ones through the switch. One run failed at startup with "Invalid CSRF token" from another local server and passed on rerun. Lint and build pass. Checked in Chromium at 390 and 1280 wide on the e2e server, with the brand colour and a page note set: home, menu, dish sheet, details, order status, booking and booking ticket, no sideways scroll. The full `npm test` was not run (no server code changed). Not checked: a real phone, 130% text size.
+
+Anything the other developer needs to know:
+Not committed and not pushed. For Z Chaat's live page: Settings, Online, set the page note to their tagline ("Swaad bhi, Yaad bhi!"), the booking deposit per person to ₹50 and "takeaway paid online" off; Settings, Payments, connect Z Chaat's own Razorpay (it needs `PAYMENT_SECRETS_KEY` set on Render first); check the brand colours (Appearance). Until Razorpay is connected the page shows no advance.
 
 ### 2026-10-11 Arya, P36 one kitchen ticket per table
 

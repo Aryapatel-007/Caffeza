@@ -28,9 +28,11 @@ const prefersReducedMotion = () =>
  *   └──────────────────┘
  *
  * Items in `ticket-item`, the narrower width, so long dish names fit one line
- * more often. One tap on an item marks it ready; the whole row is the target,
- * at least 56 px, with space between rows. P29 Part E: a ready item stays,
- * struck through and faded, with its own Undo, until the whole ticket is done.
+ * more often. P38: each item has a Cooking / Ready switch, at least 56 px
+ * tall; switched on it is ready, switched off again it goes back to the
+ * kitchen (P29's undo). Tapping the dish itself does nothing, so a brushed
+ * row never marks food ready. A ready item stays, struck through and faded,
+ * until the whole ticket is done.
  * Marking the whole ticket needs the footer held for half a second, the fill
  * showing how long is left; with reduced motion it asks "Mark all 6 ready?"
  * instead. The time edge runs against the station's target and turns `alert`
@@ -90,13 +92,8 @@ export default function TicketCard({
             {startsRound && (
               <li className="type-caption border-t border-line px-2 pt-2 text-muted">Added {formatTimeIst(line.firedAt)}</li>
             )}
-            <li className={['flex items-stretch gap-1', isDone ? 'opacity-60' : ''].join(' ')}>
-              <button
-                type="button"
-                disabled={isBusy || isDone || isCancelled}
-                onClick={() => onLineReady(line.id)}
-                className="flex min-h-14 min-w-0 flex-1 items-start gap-3 rounded-lg px-2 py-2 text-left hover:bg-sunken disabled:cursor-default disabled:hover:bg-transparent"
-              >
+            <li className="flex items-center gap-2 rounded-lg px-2 py-2">
+              <div className={['flex min-w-0 flex-1 items-start gap-3', isDone ? 'opacity-60' : ''].join(' ')}>
                 <span className="type-num-tile w-8 flex-none text-right">{line.quantity}</span>
                 <span className="min-w-0 flex-1">
                   <span
@@ -110,28 +107,18 @@ export default function TicketCard({
                   {line.notes && <span className="type-body block pl-3 italic text-ink">{line.notes}</span>}
                   {isCancelled && <StateChip state="alert" word="Cancelled, do not make" size="sm" className="mt-1" />}
                 </span>
-                {isDone && (
-                  <span className="mt-1 flex-none text-ok">
-                    <TickIcon />
-                    <span className="sr-only">Ready</span>
-                  </span>
-                )}
-                {isCancelled && (
-                  <span className="mt-1 flex-none text-alert" aria-hidden="true">
-                    <CrossIcon />
-                  </span>
-                )}
-              </button>
-              {isDone && onLineUndo && (
-                <button
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() => onLineUndo(line.id)}
-                  aria-label={`Undo ${line.itemName} ready`}
-                  className="type-label min-h-14 flex-none rounded-lg border border-line px-3 text-ink hover:bg-sunken disabled:opacity-50"
-                >
-                  Undo
-                </button>
+              </div>
+              {isCancelled ? (
+                <span className="mt-1 flex-none text-alert" aria-hidden="true">
+                  <CrossIcon />
+                </span>
+              ) : (
+                <ReadySwitch
+                  name={line.itemName}
+                  isReady={isDone}
+                  disabled={isBusy || (isDone && !onLineUndo)}
+                  onChange={() => (isDone ? onLineUndo(line.id) : onLineReady(line.id))}
+                />
               )}
             </li>
             </Fragment>
@@ -150,6 +137,35 @@ export default function TicketCard({
       </footer>
       <TimeEdge since={firedAt} targetMinutes={targetMinutes} state="open" />
     </article>
+  );
+}
+
+/**
+ * P38. One dish's switch: Cooking (off) or Ready (on). A real switch for
+ * screen readers, named after the dish, with the state in words beside the
+ * knob so it never relies on colour. The knob slides; nothing loops.
+ */
+function ReadySwitch({ name, isReady, disabled, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={isReady}
+      aria-label={`${name} ready`}
+      disabled={disabled}
+      onClick={onChange}
+      className="flex min-h-14 flex-none items-center gap-2 rounded-full px-1 disabled:opacity-50"
+    >
+      <span className={`type-label w-16 text-right ${isReady ? 'text-ok' : 'text-muted'}`}>{isReady ? 'Ready' : 'Cooking'}</span>
+      <span
+        aria-hidden="true"
+        className={['relative flex h-9 w-16 flex-none items-center rounded-full border-2 transition-colors duration-150', isReady ? 'border-ok bg-ok' : 'border-line bg-sunken'].join(' ')}
+      >
+        <span
+          className={['absolute top-0.5 size-7 rounded-full bg-surface shadow transition-transform duration-150', isReady ? 'translate-x-[1.85rem]' : 'translate-x-0.5'].join(' ')}
+        />
+      </span>
+    </button>
   );
 }
 

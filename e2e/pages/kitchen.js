@@ -26,7 +26,7 @@ export async function markReady(page, station, place) {
   }
 }
 
-/** P29 Part E. Ticks one dish ready on a place's ticket, by tapping its row. */
+/** P29 Part E. Ticks one dish ready on a place's ticket. P38: by its Cooking / Ready switch. */
 export async function tickDish(page, place, dish) {
-  await tickets(page, place).first().locator('li', { hasText: dish }).getByRole('button').first().click();
+  await tickets(page, place).first().getByRole('switch', { name: `${dish} ready` }).click();
 }
