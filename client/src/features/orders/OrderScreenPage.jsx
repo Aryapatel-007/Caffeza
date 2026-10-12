@@ -185,8 +185,10 @@ export default function OrderScreenPage() {
   // P26. A served table, with no bill yet, can order more: the menu shows again.
   // P29. So can one whose bill nothing is paid on yet: the dishes revise that bill.
   const hasBill = Boolean(order.billId);
-  const canAddMore = order.status === 'READY_TO_BILL' && (!hasBill || Boolean(billQuery.data?.revisable));
-  const showMenu = isOpen || (canAddMore && addingMore);
+  // P39. A captain changes nothing on an order whose bill has printed: the counter does.
+  const captainLockedOut = user?.role === 'WAITER' && hasBill && (billQuery.data?.printCount ?? 0) > 0;
+  const canAddMore = order.status === 'READY_TO_BILL' && (!hasBill || Boolean(billQuery.data?.revisable)) && !captainLockedOut;
+  const showMenu = (isOpen || (canAddMore && addingMore)) && !captainLockedOut;
   // P28. A cashier may too, with a PIN, when the owner allows it.
   const canCancelOrder = CAN_CANCEL_ORDER.includes(user?.role) || (user?.role === 'CASHIER' && approvals.managerTasks);
   const canMove = isOpen && order.orderType === 'DINE_IN';
@@ -296,6 +298,9 @@ export default function OrderScreenPage() {
           )}
           {(!isOpen || hasBill) && <BillOrderButton order={order} />}
         </div>
+        {captainLockedOut && (
+          <p className="type-caption mt-2 rounded-lg bg-sunken px-3 py-2 text-muted">This bill has been printed. Only the counter or a manager can change it now.</p>
+        )}
       </header>
 
       {showMenu ? (

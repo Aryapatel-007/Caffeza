@@ -91,6 +91,23 @@ export function assertCanTakePayment(actor, bill, billing = {}) {
   throw new ForbiddenError('Only the counter can take payment on this bill.');
 }
 
+/** P39. What a captain is told when a printed bill's items would change. */
+export const PRINTED_BILL_MESSAGE = 'This bill has been printed. Only the counter or a manager can change it now.';
+
+/**
+ * Changing a bill's items. P39, API-CONTRACT P39.
+ *
+ * A captain (WAITER) adds and removes items freely until the bill is first
+ * printed. After that only the counter may: a printed bill is what the guest
+ * has been shown, and a captain lowering it is where money goes missing. A
+ * manager's PIN does not lift this. The till roles are never stopped here.
+ */
+export function assertCaptainMayChangeBill(actor, bill) {
+  if (actor?.role === ROLES.WAITER && (bill?.printCount ?? 0) > 0) {
+    throw new ForbiddenError(PRINTED_BILL_MESSAGE);
+  }
+}
+
 /** Correcting a payment's method. P08. Moving money between cash and UPI after the fact. */
 export function assertCanCorrectPayment(actor) {
   if (!isManagerOrAbove(actor.role)) {

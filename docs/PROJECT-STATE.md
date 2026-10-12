@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-12 by Rishi (P38 the public page as a street-food signboard)
+Last updated: 2026-10-12 by Rishi (P38 the public page, P39 a captain cannot change a printed bill)
 
 ---
 
@@ -525,6 +525,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-12 | Z Chaat takes no payment online: guests pay at the counter by the QR code, card or cash, and bookings take no deposit; the cafe confirms the table. The public page says so whenever no gateway is connected. | Rishi's word, 2026-10-12. The online-payment branch stays in the code for a restaurant that connects Razorpay. |
 | 2026-10-12 | Later the same day: Z Chaat's table bookings take an advance of ₹50 a person, paid online when booking through Z Chaat's own Razorpay, taken off the bill, like Zomato. Takeaway stays paid at the counter. This narrows the row above to takeaway. | Rishi's choice, from three offered (online, by QR after confirming, at the counter). Per person because the deposit setting already exists (`depositPerPersonInPaise`); a flat per-booking amount would have needed a new setting. Needs Razorpay connected in Settings, Payments, and `PAYMENT_SECRETS_KEY` on the server. |
 | 2026-10-12 | P38: a dish on a kitchen ticket is marked ready by a Cooking / Ready switch, not by tapping its row; switching it off is the undo. | Rishi asked for an on/off switch. A switch shows the state in place and cannot be set by brushing the row. The tested helper `tickDish` now uses the switch, changed on purpose. |
+| 2026-10-12 | P39: a captain (WAITER) cannot change a bill's items once it has printed: no removing, adding, cancelling after billing or reopening, and a manager's PIN does not lift it. Before the first print a captain adds and removes as before. A fixed rule, not a setting. | Rishi asked for it. The printed bill is what the guest was shown, and a captain lowering it afterwards is where money goes missing. The check runs before any PIN is read, so a refused captain never uses up a manager's PIN attempts. |
 ---
 
 ## Open questions
@@ -546,6 +547,19 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-12 Rishi, P39 a captain cannot change a printed bill
+
+What was built or decided:
+Asked for by Rishi. Spec first (`spec a captain unable to change a printed bill`): `docs/prompts/P39-captain-locked-after-print.md`, API-CONTRACT "P39".
+1. `billPermissionService.assertCaptainMayChangeBill`: a WAITER and a bill with `printCount` above 0 is 403 FORBIDDEN, "This bill has been printed. Only the counter or a manager can change it now."
+2. Called on the four ways a bill's items change: `removeLines` (preview included), `addLinesToBilledOrder` (adding dishes to an order with a live bill), `cancelLinesAfterBilling` and `reopenBill`, the last two before any PIN is checked, and only for a captain, so no other role's behaviour moves.
+3. Screens: a captain on a printed bill sees no Remove, Add to this bill, Add items or Cancel an item, and reads the sentence; on the order screen no menu and no Add more dishes once the bill has printed.
+
+Tests: `captainPrintedBill.test.js` (5): before printing a captain previews a removal and adds a dish; after it each of the four is 403 with the sentence, PIN or not, the bill unchanged, and the cashier still removes with the PIN. With the rule switched off, 4 of 5 fail, tried on purpose. The billing test files (97) pass. Browser: captainBilling, billRevision, cancelAfterBilling, addAfterBilling and the golden day pass. Lint and build pass.
+
+Anything the other developer needs to know:
+Note: on `main` the captain's bill screen still offers "Print here" beside the counter print. The commit that made a captain's Print bill print only at the counter (`9c52aa3`) is on the branch `backup/p37-local-profile-2026-10-12`, set aside by the reset to Arya's commit on 2026-10-12; `git cherry-pick 9c52aa3` brings it back.
 
 ### 2026-10-12 Rishi, P38 the public page as a street-food signboard, a booking advance, the kitchen's ready switch
 

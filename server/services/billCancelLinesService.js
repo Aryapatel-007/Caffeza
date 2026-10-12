@@ -15,6 +15,8 @@
  */
 import mongoose from 'mongoose';
 
+import { ROLES } from '../config/roles.js';
+
 import { LINE_CANCEL_REASONS } from '../config/cancelReasons.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Bill } from '../models/Bill.js';
@@ -28,7 +30,7 @@ import { nowUtc } from '../utils/time.js';
 import { recordAudit } from './auditService.js';
 import { approverFor } from './approvalService.js';
 import { carryPayments, leftoversWithoutBill } from './billCarryService.js';
-import { assertNotVoided } from './billPermissionService.js';
+import { assertCaptainMayChangeBill, assertNotVoided } from './billPermissionService.js';
 import { billCreationErrorFor, createBillInSession, readBill, voidBillInSession } from './billService.js';
 import { assertDayOpen, todayBusinessDate } from './dayLockService.js';
 import { cancelLineInSession } from './lineCancelService.js';
@@ -48,6 +50,9 @@ const ORDER_REASON_FOR = Object.freeze({ GUEST_LEFT: 'GUEST_LEFT', PLATFORM_CANC
  */
 export async function cancelLinesAfterBilling(req, billId, { lines, reasonCode, note = null, approval = null, preview = false }) {
   const settings = await getSettings(req.restaurantId, { req });
+  // P39. A captain is refused at a printed bill before any PIN is checked, so
+  // a refusal never uses up a manager's PIN attempts. Other roles read on as before.
+  if (req.user?.role === ROLES.WAITER) assertCaptainMayChangeBill(req.user, await readBill(req, billId));
   const approvedBy = await approverFor(req, approval, settings.billing, { preview });
 
   const existing = await readBill(req, billId);

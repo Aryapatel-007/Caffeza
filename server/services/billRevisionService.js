@@ -29,6 +29,7 @@ import { computeBillTotals, resolveDiscountAmount } from '../utils/tax.js';
 import { nowUtc } from '../utils/time.js';
 import { recordAudit } from './auditService.js';
 import { approverIfNeeded } from './approvalService.js';
+import { assertCaptainMayChangeBill } from './billPermissionService.js';
 import { applyTotals, billCreationErrorFor, readBill, toBillLine } from './billService.js';
 import { assertDayOpen, isDayClosed, todayBusinessDate } from './dayLockService.js';
 import { cancelLineInSession } from './lineCancelService.js';
@@ -160,6 +161,8 @@ function revisionLine(line, wasPrepared = null) {
 export async function removeLines(req, billId, { lines, reasonCode, note = null, approval = null, preview = false }) {
   const settings = await getSettings(req.restaurantId, { req });
   const bill = await readBill(req, billId);
+  // P39. A captain is stopped at a printed bill before anything else is said about it.
+  assertCaptainMayChangeBill(req.user, bill);
 
   // A closed day answers first, before any rule about the bill.
   await assertDayOpen(req, [bill.businessDate, await todayBusinessDate(req)]);
@@ -272,6 +275,8 @@ export async function removeLines(req, billId, { lines, reasonCode, note = null,
 export async function addLinesToBilledOrder(req, { order, version, snapshotLines }) {
   const bill = await Bill.findOne({ ...scoped(req), _id: order.billId, isVoided: false });
   if (!bill) throw new BusinessRuleError('This order is waiting to be billed. It cannot be changed.');
+  // P39. New dishes would revise a bill the guest may already hold on paper.
+  assertCaptainMayChangeBill(req.user, bill);
   await assertDayOpen(req, [bill.businessDate, await todayBusinessDate(req)]);
   const { revisable, reason } = await revisability(req, bill);
   if (!revisable) throw new BillNotRevisableError(reason);

@@ -256,6 +256,8 @@ export default function BillScreenPage() {
   const isTill = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER].includes(user?.role);
   // P25 Part D. A captain takes payment only when the owner allows both billing settings.
   const isCaptain = user?.role === ROLES.WAITER;
+  // P39. Once the bill has printed, a captain changes no item on it; the counter does.
+  const captainLockedOut = isCaptain && (bill.printCount ?? 0) > 0;
   const captainMayTakePayment =
     isCaptain && features?.billing?.captainsMayBill && features?.billing?.captainsMayTakePayment && bill.orderType !== 'DELIVERY';
   const canTakePayment = isTill || Boolean(captainMayTakePayment);
@@ -277,7 +279,7 @@ export default function BillScreenPage() {
   const canCancelItems =
     !bill.isVoided &&
     !(bill.orderType === 'DELIVERY' && bill.platform?.code) &&
-    (isTill || (isCaptain && Boolean(features?.billing?.captainsMayBill)));
+    (isTill || (isCaptain && Boolean(features?.billing?.captainsMayBill) && !captainLockedOut));
 
   /**
    * P29 Part B. A bill nothing is paid on is revised, not voided: each item can
@@ -285,7 +287,7 @@ export default function BillScreenPage() {
    * P26 flows, which void and re-bill, stay as they are.
    */
   const revisable = Boolean(bill.revisable);
-  const canRemove = revisable && (isTill || isCaptain) && bill.lines.length > 1;
+  const canRemove = revisable && (isTill || (isCaptain && !captainLockedOut)) && bill.lines.length > 1;
   const orderLineStatus = (orderLineId) => order?.lines.find((line) => line.id === orderLineId)?.status ?? 'SERVED';
   /**
    * P35. The bill lists the server's item rows: the same dish ordered in two
@@ -372,6 +374,9 @@ export default function BillScreenPage() {
             >
               Receipt preview
             </Link>
+            {captainLockedOut && !bill.isVoided && (
+              <p className="type-caption flex min-h-12 items-center px-3 text-muted">This bill has been printed. Only the counter or a manager can change it now.</p>
+            )}
             {canCancelItems && (
               <button
                 type="button"
