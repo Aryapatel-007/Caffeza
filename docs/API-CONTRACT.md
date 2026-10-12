@@ -8241,3 +8241,31 @@ The bill timeline (R10) shows one "Sent to the kitchen" event per round:
 ## Error codes
 
 None new.
+
+---
+
+# P39 A captain cannot change a printed bill
+
+`docs/prompts/P39-captain-locked-after-print.md`. Changes the permissions of
+M3 16.4, 16.6, 16.8.1 and 16.8.2 for one role. No new endpoint, field or code.
+
+A `WAITER` is refused, with 403 `FORBIDDEN` and the message "This bill has
+been printed. Only the counter or a manager can change it now.", when the
+bill's `printCount` is above 0, on:
+
+| Endpoint | When |
+|---|---|
+| `POST /bills/:billId/remove-lines` | always, a `preview` included |
+| `POST /orders/:orderId/lines` | when the order has a live bill, so the lines would revise it |
+| `POST /bills/:billId/cancel-lines` | always, a `preview` included |
+| `POST /bills/:billId/reopen` | always |
+
+A manager's `approval` does not lift it. It is checked after the bill is
+found and before any other rule about it, so a captain never learns more about
+a printed bill than that it is printed. Before the first print, and for
+`OWNER`, `MANAGER` and `CASHIER` always, everything is as before.
+
+## Error codes
+
+None new.
+
