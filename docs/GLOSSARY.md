@@ -519,3 +519,26 @@ Added by P36.
 | **Round** | One Send to the kitchen on an order. The first dishes are round 1; dishes added later are round 2, 3 and so on, on the same ticket |
 | **One kitchen ticket per table** | The setting `kitchen.oneTicketPerOrder`: an order keeps one ticket, under one KOT number, for every round and station |
 | **Added** | On the kitchen screen, the caption over a later round: "Added 7:20 pm" |
+| **Cooking** | A dish's switch on the kitchen screen, off: not ready yet (P38) |
+| **Ready** | The same switch, on: the dish is ready. Switching it off again is the undo (P38) |
+
+---
+
+## 25. Public page words
+
+Added by P38, for the restaurant's public page. Section 15 still holds its main words.
+
+| Term | Meaning |
+|---|---|
+| **On the menu** | The strip of dishes on the home page, those with photos first |
+| **Menu sections** | The restaurant's menu categories, as tiles on the home page and a list beside the menu |
+| **Search the menu** | Find a dish by its name or description |
+| **Visit us** | The address, today's hours, the phone and a link to the map |
+| **Open in Maps** | Opens the address in Google Maps |
+| **Pay at the counter** | No online payment: the guest pays when they collect, by the QR code at the counter, card or cash |
+| **No advance payment** | A booking takes no deposit |
+| **Takeaway token** | The order's reference, shown large on the status page, to show at the counter |
+| **Order chit** | The order's lines and estimated bill total, on the details step |
+| **Note to the kitchen** | The one-tap requests and the note on a dish |
+| **Celebrating something?** | The optional occasion on a booking, sent in its note |
+| **Booking advance** | The deposit on the public page, in the words guests know: the deposit per person × the party, paid online when booking |

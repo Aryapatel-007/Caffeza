@@ -45,5 +45,6 @@ The full table, with dependencies and owners, is in
 | P34 | Set a new password from the sign-in screen | Done and deployed 2026-10-11. Arya's read outstanding. |
 | P35 | The same dish once on the bill, and each drink its own dish | Done, deployed and run on Z Chaat 2026-10-11. Rishi's read outstanding. |
 | P36 | One kitchen ticket per table | Done 2026-10-11. Rishi's read outstanding. |
+| P38 | The public page as a street-food signboard | Built 2026-10-12, not committed. Client only. Arya's read outstanding. (P37 is on the branch `backup/p37-local-profile-2026-10-12`.) |
 
 Prompt files that do not exist yet are added as they are written.
