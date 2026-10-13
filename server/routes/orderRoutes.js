@@ -23,6 +23,7 @@ import {
   markLineServed,
   moveOrderToTable,
   undoSend,
+  reduceOrderLine,
 } from '../controllers/orderController.js';
 import {
   getKot,
@@ -55,6 +56,7 @@ import {
   editOrderLineSchema,
   fireOrderSchema,
   undoSendSchema,
+  reduceOrderLineSchema,
   listKotsSchema,
   listOrdersSchema,
   listTablesSchema,
@@ -145,6 +147,8 @@ router.patch(
   markLineServed,
 );
 router.post('/orders/:orderId/fire', ...floor, validate(fireOrderSchema), fireOrder);
+// P42. Lower a sent dish's quantity; the same roles as cancelling a line.
+router.post('/orders/:orderId/lines/:lineId/reduce', ...floor, validate(reduceOrderLineSchema), reduceOrderLine);
 // P41. The same roles as firing.
 router.post('/orders/:orderId/undo-send', ...floor, validate(undoSendSchema), undoSend);
 router.patch('/orders/:orderId/table', ...floor, validate(moveOrderTableSchema), moveOrderToTable);

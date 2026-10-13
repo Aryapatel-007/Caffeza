@@ -277,12 +277,36 @@ export function ScreenLoading() {
 }
 
 export default function AppShell({ children }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const places = useMainPlaces();
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => setMoreOpen(false), [pathname]);
+
+  /**
+   * P42. The kitchen login: the ticket board and a bar with who is signed in
+   * and Sign out. No rail, no bottom bar, no More: nothing but the tickets.
+   */
+  if (user?.role === 'KITCHEN') {
+    return (
+      <div className="v2 flex h-full flex-col bg-ground text-ink">
+        <header className="flex min-h-12 flex-none items-center justify-between gap-3 border-b border-line bg-surface px-4 print:hidden">
+          <TopBarMark isService />
+          <span className="flex items-center gap-3">
+            <span className="type-caption truncate text-muted">{user?.name}</span>
+            <button type="button" onClick={logout} className="type-label min-h-12 rounded-lg px-3 text-muted hover:bg-sunken hover:text-ink">
+              Sign out
+            </button>
+          </span>
+        </header>
+        <LiveConnection />
+        <div className="relative min-h-0 flex-1 overflow-y-auto print:overflow-visible">
+          <Suspense fallback={<ScreenLoading />}>{children}</Suspense>
+        </div>
+      </div>
+    );
+  }
 
   if (FULL_SCREEN_PATHS.includes(pathname)) {
     return (

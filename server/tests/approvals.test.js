@@ -65,27 +65,36 @@ const cancelLine = (token, order, line, extra = {}) =>
   });
 
 describe('cancelling an item the kitchen has', () => {
-  it('needs the PIN from a captain: refused without, refused with a wrong one, allowed with the right one, and audited', async () => {
+  // P42 changed this on purpose: the PIN is for a dish that was made. One sent and not made needs none.
+  it('needs the PIN from a captain for a made dish: refused without, refused with a wrong one, allowed with the right one, and audited', async () => {
     const floor = await floorWithManagerPin();
     const { order, sent } = await orderWithSentAndUnsent(floor);
 
-    const without = await cancelLine(floor.tokens.WAITER, order, sent, { wasPrepared: false });
+    const without = await cancelLine(floor.tokens.WAITER, order, sent, { wasPrepared: true });
     assert.equal(without.status, 403);
     assert.match(without.body.error.message, /manager has to approve/);
 
-    const wrong = await cancelLine(floor.tokens.WAITER, order, sent, { wasPrepared: false, approval: floor.wrong });
+    const wrong = await cancelLine(floor.tokens.WAITER, order, sent, { wasPrepared: true, approval: floor.wrong });
     assert.equal(wrong.status, 401);
     assert.equal(wrong.body.error.code, 'INVALID_PIN');
 
-    const right = await cancelLine(floor.tokens.WAITER, order, sent, { wasPrepared: false, approval: floor.good });
+    const right = await cancelLine(floor.tokens.WAITER, order, sent, { wasPrepared: true, approval: floor.good });
     assert.equal(right.status, 200, JSON.stringify(right.body));
     const cancelled = right.body.data.lines.find((line) => line.id === sent.id);
     assert.equal(cancelled.status, 'CANCELLED');
     assert.equal(String(cancelled.cancelApprovedBy), floor.managerId);
 
-    const audit = await AuditLog.findOne({ restaurantId: floor.restaurant._id, action: 'LINE_CANCELLED_APPROVED' }).lean();
-    assert.ok(audit, 'an approved cancel writes its own audit line');
+    const audit = await AuditLog.findOne({ restaurantId: floor.restaurant._id, action: 'LINE_CANCELLED_AFTER_PREP' }).lean();
+    assert.ok(audit, 'a made dish thrown away is audited');
     assert.equal(audit.details.approvedBy, floor.managerId);
+  });
+
+  it('P42: needs no PIN from a captain for a sent dish the kitchen has not made', async () => {
+    const floor = await floorWithManagerPin();
+    const { order, sent } = await orderWithSentAndUnsent(floor);
+    const notMade = await cancelLine(floor.tokens.WAITER, order, sent, { wasPrepared: false });
+    assert.equal(notMade.status, 200, JSON.stringify(notMade.body));
+    assert.equal(notMade.body.data.lines.find((line) => line.id === sent.id).cancelApprovedBy, null);
   });
 
   it('needs no PIN for a line never sent, for an owner, or when the owner switches it off', async () => {
@@ -102,7 +111,7 @@ describe('cancelling an item the kitchen has', () => {
     const floor2 = await floorWithManagerPin();
     assert.equal((await setApprovals(floor2, { lineCancel: false })).status, 200);
     const second = await orderWithSentAndUnsent(floor2);
-    const off = await cancelLine(floor2.tokens.WAITER, second.order, second.sent, { wasPrepared: false });
+    const off = await cancelLine(floor2.tokens.WAITER, second.order, second.sent, { wasPrepared: true });
     assert.equal(off.status, 200);
   });
 });
@@ -210,7 +219,7 @@ describe('the approvers list', () => {
     assert.ok(approvers.every((person) => Object.keys(person).sort().join() === 'hasPin,id,name,role'));
 
     const { order, sent } = await orderWithSentAndUnsent(floor);
-    const noPin = await cancelLine(floor.tokens.WAITER, order, sent, { wasPrepared: false, approval: { approverId: owner.id, pin: PIN } });
+    const noPin = await cancelLine(floor.tokens.WAITER, order, sent, { wasPrepared: true, approval: { approverId: owner.id, pin: PIN } });
     assert.equal(noPin.status, 401);
     assert.equal(noPin.body.error.code, 'INVALID_PIN');
   });

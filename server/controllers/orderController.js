@@ -18,6 +18,7 @@ import {
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import {
   Order,
+  MADE_LINE_STATUSES,
   ORDER_LINE_STATUSES,
   PREPARED_LINE_STATUSES,
   ORDER_STATUSES,
@@ -25,6 +26,7 @@ import {
 } from '../models/Order.js';
 import { recordAudit } from '../services/auditService.js';
 import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/kitchenService.js';
+import { changeSentNote, reduceSentLine } from '../services/sentLineService.js';
 import { undoSend as undoSendToKitchen } from '../services/undoSendService.js';
 // M4. wasPrepared: false means the kitchen had already deducted for this line
 // and it was never actually made, so the ingredients go back. Keyed on the
@@ -199,9 +201,16 @@ export async function editOrderLine(req, res) {
   assertNoLiveBill(order);
 
   const line = findLine(order, lineId);
+  // P42. A dish sent but not made takes a new note, which reaches its kitchen ticket.
+  if (line.status === ORDER_LINE_STATUSES.FIRED && quantity === undefined && notes !== undefined) {
+    const updated = await changeSentNote(req, { order, line, version, notes });
+    return sendSuccess(res, serialiseOrder(updated));
+  }
   if (line.status !== ORDER_LINE_STATUSES.PENDING) {
     throw new BusinessRuleError(
-      'The kitchen already has this one. It can be cancelled, but not changed.',
+      line.status === ORDER_LINE_STATUSES.FIRED
+        ? 'Lower the quantity of a sent dish with Change.'
+        : 'The kitchen has already made this one. It can be cancelled, but not changed.',
     );
   }
 
@@ -259,13 +268,13 @@ export async function cancelOrderLine(req, res) {
   assertWasPreparedRule(line.status, wasPrepared);
 
   /**
-   * P28. A cashier or captain cancelling a dish the kitchen already has needs
-   * an owner's or manager's PIN. Taking back a line never sent costs nothing,
-   * so it needs none.
+   * P28, narrowed by P42. A cashier or captain cancelling a dish that was made
+   * (the kitchen marked it ready, or they say it was made) needs an owner's or
+   * manager's PIN. A dish not made yet costs nothing to take back.
    */
   const { approvals } = await getSettings(req.restaurantId, { req });
-  const sentToKitchen = [...PREPARED_LINE_STATUSES].includes(line.status);
-  const approvedBy = await approverIfNeeded(req, approval, approvals.lineCancel && sentToKitchen);
+  const made = MADE_LINE_STATUSES.includes(line.status) || wasPrepared === true;
+  const approvedBy = await approverIfNeeded(req, approval, approvals.lineCancel && made);
 
   const inventoryOn = await isFeatureOn(req, 'inventory');
 
@@ -305,6 +314,12 @@ export async function fireOrder(req, res) {
   // P05: `kots` is every ticket, one per station; `kot` is the first of them.
   // P36: with one ticket per order, `kots` is that ticket, and `round` the Send just made.
   return sendSuccess(res, { kot, kots, order, round });
+}
+
+/** POST /orders/:orderId/lines/:lineId/reduce. P42: lower a sent dish's quantity. */
+export async function reduceOrderLine(req, res) {
+  const order = await reduceSentLine(req, { orderId: req.params.orderId, lineId: req.params.lineId, ...req.body });
+  return sendSuccess(res, order);
 }
 
 /** POST /orders/:orderId/undo-send. P41: take the last Send back within the minute. */

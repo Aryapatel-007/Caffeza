@@ -22,15 +22,17 @@ const READY_SERVED = { state: 'served', word: 'Ready' };
 /**
  * The lines on an order, densest thing on the screen.
  *
- * A list, not cards: this is read, not tapped. Only a PENDING line can be
- * edited, because once the kitchen has it the dish is being cooked and the only
- * honest option is to cancel it and say whether it was made.
+ * A list, not cards: this is read, not tapped. A PENDING line has its
+ * stepper and Cancel line. A sent line has Change (P42): fewer of it, a new
+ * note while the kitchen has not made it, removing it, or swapping it.
  */
 export default function OrderLineList({
   lines,
   isBusy,
   onChangeQuantity,
   onCancelLine,
+  // P42. A sent dish changes through the Change sheet: quantity, note, remove or swap.
+  onChangeSentLine = null,
   onServeLine,
   // P29. The order has a bill: its lines change only through the bill.
   locked = false,
@@ -125,8 +127,20 @@ export default function OrderLineList({
                   </button>
                 )}
 
+                {/* P42. A sent dish: Change, for its quantity, note, removal or swap. */}
+                {!isPending && onChangeSentLine && (line.status !== 'SERVED' || readyMeansServed) && !locked && (
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => onChangeSentLine(line)}
+                    className="type-button min-h-12 rounded-lg border border-ink bg-surface px-4 hover:bg-sunken disabled:opacity-60"
+                  >
+                    Change
+                  </button>
+                )}
+
                 {/* P29: when the kitchen's ready serves the dish, a served line is one the kitchen just made, and may still be cancelled. */}
-                {(line.status !== 'SERVED' || readyMeansServed) && !locked && (
+                {(isPending || !onChangeSentLine) && (line.status !== 'SERVED' || readyMeansServed) && !locked && (
                   <button
                     type="button"
                     disabled={isBusy}

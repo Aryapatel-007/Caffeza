@@ -118,6 +118,9 @@ export const PREPARED_LINE_STATUSES = Object.freeze([
   ORDER_LINE_STATUSES.SERVED,
 ]);
 
+/** P42. A line the kitchen has made (marked ready). Taking one back needs the lineCancel approval. */
+export const MADE_LINE_STATUSES = Object.freeze([ORDER_LINE_STATUSES.READY, ORDER_LINE_STATUSES.SERVED]);
+
 export const CUSTOMER_NAME_MAX_LENGTH = 100;
 export const LINE_NOTES_MAX_LENGTH = 200;
 export const CANCEL_REASON_MAX_LENGTH = 200;

@@ -15,8 +15,11 @@ import Spinner from './ui/Spinner.jsx';
  * the role, and the restaurantId on every request. If a screen is reachable
  * but the API says no, the API wins. That is the correct outcome.
  */
+/** P42. The kitchen login sees the ticket board and nothing else. */
+const KITCHEN_ONLY_PATH = '/kitchen';
+
 export default function ProtectedRoute({ children }) {
-  const { isAuthenticated, isRestoring } = useAuth();
+  const { isAuthenticated, isRestoring, user } = useAuth();
   const location = useLocation();
 
   if (isRestoring) {
@@ -30,6 +33,11 @@ export default function ProtectedRoute({ children }) {
   if (!isAuthenticated) {
     // Remember where they were headed, so login can send them back there.
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  // P42. Any other address, Home included, opens the kitchen board for the kitchen login.
+  if (user?.role === 'KITCHEN' && location.pathname !== KITCHEN_ONLY_PATH) {
+    return <Navigate to={KITCHEN_ONLY_PATH} replace />;
   }
 
   return <AppShell>{children}</AppShell>;

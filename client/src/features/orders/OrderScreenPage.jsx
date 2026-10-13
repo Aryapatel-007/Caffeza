@@ -15,6 +15,7 @@ import {
   cancelOrderLine,
   editOrderLine,
   fireOrder,
+  reduceOrderLine,
   undoSend,
   getOrder,
   giveNoCharge,
@@ -32,6 +33,7 @@ import MenuPicker from './MenuPicker.jsx';
 import MoveTablePanel from './MoveTablePanel.jsx';
 import NoChargePanel from './NoChargePanel.jsx';
 import OrderLineList from './OrderLineList.jsx';
+import SentLineSheet, { MADE } from './SentLineSheet.jsx';
 import { errorMessage, shouldRefetch } from './errorCopy.js';
 import { placeLabel } from './orderLabel.js';
 
@@ -96,6 +98,9 @@ export default function OrderScreenPage() {
   // P26. Opened from a bill's Add items, the menu shows at once.
   const [searchParams] = useSearchParams();
   const [addingMore, setAddingMore] = useState(() => searchParams.get('add') === '1');
+  // P42. The sent dish being changed, and the dish a swap is replacing, for the menu's banner.
+  const [changingLine, setChangingLine] = useState(null);
+  const [swapFor, setSwapFor] = useState(null);
   /**
    * P40. A manager's approval for adding to a printed bill, kept in memory for
    * this visit once a dish has gone on with it, so the next dishes need no
@@ -269,6 +274,7 @@ export default function OrderScreenPage() {
         })
       }
       onCancelLine={(line) => setCancelling({ kind: 'line', line })}
+      onChangeSentLine={(line) => setChangingLine(line)}
       onFire={fire}
       onCancelOrder={() => setCancelling({ kind: 'order' })}
       onNoCharge={() => setCancelling({ kind: 'noCharge' })}
@@ -350,6 +356,17 @@ export default function OrderScreenPage() {
       {showMenu ? (
         <div className={isCounter ? 'flex flex-1 flex-col gap-4 lg:flex-row lg:items-start' : 'contents'}>
           <div className={isCounter ? 'flex min-w-0 flex-1 flex-col gap-4' : 'contents'}>
+          {/* P42. A swap: the old dish is off, the replacement is picked here and sent. */}
+          {swapFor && (
+            <div role="status" className="flex items-center justify-between gap-3 rounded-lg border border-line border-l-[3px] border-l-open bg-surface px-4 py-2">
+              <p className="type-body">
+                Pick the replacement for <span className="font-semibold">{swapFor}</span>, then send it.
+              </p>
+              <button type="button" onClick={() => setSwapFor(null)} className="type-label min-h-12 flex-none px-2 text-muted hover:text-ink">
+                Dismiss
+              </button>
+            </div>
+          )}
           <MenuPicker
             tree={menuQuery.data}
             isPending={menuQuery.isPending}
@@ -458,6 +475,7 @@ export default function OrderScreenPage() {
               onDone: () => {
                 if (approval) setPrintedBillApproval(approval);
                 setPickingItem(null);
+                setSwapFor(null);
               },
               // A refused PIN is forgotten, so the next dish asks again.
               onFailed: (error) => {
@@ -483,13 +501,55 @@ export default function OrderScreenPage() {
         />
       )}
 
+      {/* P42. Change a sent dish: fewer, a new note, remove it, or swap it. */}
+      {changingLine && (
+        <SentLineSheet
+          key={changingLine.id}
+          line={changingLine}
+          needsApproval={!approvesOwn && approvals.lineCancel}
+          isBusy={write.isPending}
+          onClose={() => setChangingLine(null)}
+          onSave={({ quantity, notes, ...answers }) =>
+            run({
+              run: async () => {
+                let current = order;
+                if (quantity !== undefined) current = await reduceOrderLine(order.id, changingLine.id, { version: current.version, quantity, ...answers });
+                if (notes !== undefined) current = await editOrderLine(order.id, changingLine.id, { version: current.version, notes });
+                return current;
+              },
+              successMessage: `${changingLine.itemName} changed. The kitchen can see it.`,
+              onDone: () => setChangingLine(null),
+            })
+          }
+          onRemove={(answers) =>
+            run({
+              run: () => cancelOrderLine(order.id, changingLine.id, { version: order.version, ...answers }),
+              successMessage: `${changingLine.itemName} removed. The kitchen can see it.`,
+              onDone: () => setChangingLine(null),
+            })
+          }
+          onSwap={(answers) =>
+            run({
+              run: () => cancelOrderLine(order.id, changingLine.id, { version: order.version, ...answers }),
+              onDone: () => {
+                setSwapFor(changingLine.itemName);
+                setChangingLine(null);
+                setIsReviewing(false);
+                setAddingMore(true);
+              },
+            })
+          }
+        />
+      )}
+
       {cancelling?.kind === 'line' && (
         <CancelPanel
           title={`Cancel ${cancelling.line.itemName}`}
           reasons={LINE_CANCEL_REASONS}
           description="It stays on the order, marked cancelled, with the reason."
           needsWasPrepared={REACHED_KITCHEN.includes(cancelling.line.status)}
-          needsApproval={!approvesOwn && approvals.lineCancel && REACHED_KITCHEN.includes(cancelling.line.status)}
+          needsApproval={!approvesOwn && approvals.lineCancel && MADE.includes(cancelling.line.status)}
+          approvalWhenMade={!approvesOwn && approvals.lineCancel}
           isBusy={write.isPending}
           onCancel={() => setCancelling(null)}
           onConfirm={(answers) =>
@@ -593,6 +653,7 @@ function OrderDetails({
   onChangeQuantity,
   onServeLine,
   onCancelLine,
+  onChangeSentLine,
   onFire,
   onCancelOrder,
   onNoCharge,
@@ -611,6 +672,7 @@ function OrderDetails({
           onChangeQuantity={onChangeQuantity}
           onServeLine={onServeLine}
           onCancelLine={onCancelLine}
+          onChangeSentLine={onChangeSentLine}
         />
       </div>
 

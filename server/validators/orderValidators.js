@@ -420,6 +420,25 @@ export const cancelOrderLineSchema = z.object({
     .superRefine(requireNoteForOther),
 });
 
+/** P42. Lower a sent line's quantity: the new quantity, and 12.6's answers for the part taken off. */
+export const reduceOrderLineSchema = z.object({
+  params: orderLineParams,
+  body: z
+    .object({
+      version,
+      quantity: z
+        .number({ error: 'Must be a number.' })
+        .int('Must be a whole number.')
+        .min(MIN_LINE_QUANTITY, 'Must be at least 1.')
+        .max(MAX_LINE_QUANTITY, `Cannot be more than ${MAX_LINE_QUANTITY}.`),
+      ...reasonFields(LINE_CANCEL_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
+      wasPrepared: z.boolean({ error: 'Must be true or false.' }),
+      approval: approval.optional(),
+    })
+    .strict('Is not a field you can set here.')
+    .superRefine(requireNoteForOther),
+});
+
 export const fireOrderSchema = z.object({
   params: orderIdParam,
   body: z.object({ version }).strict('Is not a field you can set here.'),

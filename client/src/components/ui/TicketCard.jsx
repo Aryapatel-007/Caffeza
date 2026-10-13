@@ -107,6 +107,8 @@ export default function TicketCard({
                   {line.addOnNames?.length > 0 && <span className="type-body block pl-3 text-muted">+ {line.addOnNames.join(', ')}</span>}
                   {line.notes && <span className="type-body block pl-3 italic text-ink">{line.notes}</span>}
                   {isCancelled && <StateChip state="alert" word="Cancelled, do not make" size="sm" className="mt-1" />}
+                  {/* P42. The floor changed its quantity or note after it was sent. */}
+                  {!isCancelled && line.changedAt && <StateChip state="open" word="Changed" size="sm" className="mt-1" />}
                 </span>
               </div>
               {isCancelled ? (

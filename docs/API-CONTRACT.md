@@ -7878,7 +7878,7 @@ This is how P25 Part E already answers.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `approvals.lineCancel` | Boolean | true | A CASHIER or WAITER cancelling a line the kitchen has made (READY or SERVED; before P42 also FIRED) needs an approval |
+| `approvals.lineCancel` | Boolean | true | A CASHIER or WAITER cancelling a line that was made (READY or SERVED, or cancelled with `wasPrepared: true`; before P42 every sent line) needs an approval |
 | `approvals.paidIn` | Boolean | true | A CASHIER's `PAID_IN` needs an approval |
 | `approvals.managerTasks` | Boolean | true | A CASHIER may void a bill, cancel a whole order, give No Charge and record a `PAID_OUT` with an approval. Off: OWNER and MANAGER only, as before P28. |
 
@@ -7891,7 +7891,7 @@ Every one takes `approval` as an optional field beside its existing body.
 
 | Endpoint | Roles before P28 | Roles from P28 | Needs an approval when |
 |---|---|---|---|
-| `POST /orders/:orderId/lines/:lineId/cancel` (12.6) | OWNER, MANAGER, CASHIER, WAITER | the same | The caller is a CASHIER or WAITER, the line is READY or SERVED (P42; FIRED before it), and `lineCancel` is on |
+| `POST /orders/:orderId/lines/:lineId/cancel` (12.6) | OWNER, MANAGER, CASHIER, WAITER | the same | The caller is a CASHIER or WAITER, the line was made (READY or SERVED, or `wasPrepared: true`; P42, every sent line before it), and `lineCancel` is on |
 | `POST /cash-movements` (M16) | `PAID_OUT` OWNER, MANAGER; others also CASHIER | the same, plus a CASHIER's `PAID_OUT` | A CASHIER's `PAID_IN` with `paidIn` on; a CASHIER's `PAID_OUT` always (refused when `managerTasks` is off). `OPENING_FLOAT` never. |
 | `POST /bills/:billId/void` (14.6) | OWNER, MANAGER | plus CASHIER | A CASHIER, always; refused when `managerTasks` is off |
 | `POST /orders/:orderId/cancel` (12.10) | OWNER, MANAGER | plus CASHIER | A CASHIER, always; refused when `managerTasks` is off |
@@ -8381,11 +8381,12 @@ endpoint, two narrowed rules, one new field. No new error code.
 
 ## 1. Who needs a PIN to cancel a sent line (changes 12.6 and P28 section 3)
 
-`approvals.lineCancel` applies to a line the kitchen has **made**: `READY` or
-`SERVED`. A `FIRED` line is cancelled by OWNER, MANAGER, CASHIER or WAITER with
-no approval. `wasPrepared` is still required for every sent line, as 12.6
-says; the order screen sends `false` for a `FIRED` line and `true` for a made
-one.
+`approvals.lineCancel` applies to a line that was **made**: `READY` or
+`SERVED`, or any sent line cancelled with `wasPrepared: true`. A `FIRED` line
+cancelled with `wasPrepared: false` needs no approval from OWNER, MANAGER,
+CASHIER or WAITER. `wasPrepared` is still required for every sent line, as
+12.6 says; the order screen sends `false` for a `FIRED` line unless the person
+ticks "Already made by the kitchen", and `true` for a `READY` or `SERVED` one.
 
 ## 2. 12.6a Lower the quantity of a sent line
 

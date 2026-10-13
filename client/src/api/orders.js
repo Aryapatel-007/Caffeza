@@ -101,7 +101,19 @@ export function addOrderLines(orderId, { version, lines, approval }) {
   return api.post(`/orders/${orderId}/lines`, { version, lines, ...(approval ? { approval } : {}) });
 }
 
-/** Quantity and notes only, and only while the line is still PENDING. */
+/** P42. Lowers a sent line's quantity; the part taken off is cancelled with 12.6's answers. */
+export function reduceOrderLine(orderId, lineId, { version, quantity, reasonCode, note, wasPrepared, approval }) {
+  return api.post(`/orders/${orderId}/lines/${lineId}/reduce`, {
+    version,
+    quantity,
+    reasonCode,
+    ...(note ? { note } : {}),
+    wasPrepared,
+    ...(approval ? { approval } : {}),
+  });
+}
+
+/** Quantity and notes while the line is PENDING; P42: the note alone while it is FIRED. */
 export function editOrderLine(orderId, lineId, { version, quantity, notes }) {
   const body = { version };
   if (quantity !== undefined) body.quantity = quantity;

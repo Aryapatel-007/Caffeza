@@ -16,7 +16,7 @@ Anyone taking orders (OWNER, MANAGER, CASHIER, WAITER, never KITCHEN) does each 
 
 ## When a PIN is asked
 
-A sent dish the kitchen has **not** marked ready (`FIRED`) changes with no PIN and no questions: the reason is "Guest changed the order" and it counts as not made, so its stock comes back. A dish the kitchen **has** marked ready (`READY` or `SERVED`) is cooked: removing it or lowering its quantity asks for a reason and, for a cashier or captain, the manager's PIN while `approvals.lineCancel` is on, exactly as cancelling does today, and counts as made. A cooked dish's note cannot change.
+A sent dish the kitchen has **not** marked ready (`FIRED`) changes with no PIN and no questions: the reason is "Guest changed the order" and it counts as not made, so its stock comes back. A kitchen sometimes cooks a dish before ticking it, so the sheet has "Already made by the kitchen" to tick; ticked, it is treated as cooked. A dish the kitchen **has** marked ready (`READY` or `SERVED`), or one ticked as already made, is cooked: removing it or lowering its quantity asks for a reason and, for a cashier or captain, the manager's PIN while `approvals.lineCancel` is on, exactly as cancelling does today, and counts as made. A cooked dish's note cannot change.
 
 This narrows `approvals.lineCancel` from "the kitchen has it" to "the kitchen has made it", at the owner's word.
 
