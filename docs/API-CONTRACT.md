@@ -3096,7 +3096,8 @@ Response 200: the revised bill, read as `GET /bills/:billId`.
 directly, without `reopen`. In one transaction the lines are pushed, the order
 moves back to `OPEN` and clears `readyToBillAt` (it keeps `billId`), and the
 bill is rebuilt as in 16.8.1 step 2 with a revision of kind `ADDED`, `lines` the
-added lines, no reason, no approval. `BILL_REVISED` is written with
+added lines, no reason, and an approval only when P40 asks for one (a printed
+bill, a CASHIER, `approvals.revisePrintedBill` on). `BILL_REVISED` is written with
 `amountInPaise` the amount the bill went up by. The new lines are then sent to
 the kitchen as usual (12.8).
 
@@ -4071,7 +4072,7 @@ default, so a restaurant saved before P29 reads back complete.
 |---|---|---|---|
 | `billing.reviseUnpaidBills` | Boolean | true | An unpaid bill is revised, not voided, when an item is removed or added (M3 section 16.8). Off: 16.4 and 16.7 exactly as before P29. |
 | `billing.printBeforePayment` | Boolean | true | The bill screen asks for the print before the payment (M3 section 16.9). Read by the client only. |
-| `approvals.revisePrintedBill` | Boolean | true | A CASHIER or WAITER removing an item from a bill already printed needs a manager's PIN (16.8.1) |
+| `approvals.revisePrintedBill` | Boolean | true | A CASHIER or WAITER removing an item from a bill already printed needs a manager's PIN (16.8.1); from P40 a CASHIER adding dishes to one does too (16.8.2) |
 | `kitchen.readyMeansServed` | Boolean | true | The kitchen's ready serves the line, and the floor has no served step (M2 section 13). New group `kitchen`. |
 | `cash.expenseCategories` | List | ten, M16 section 9.2 | `[{ code, label, isActive }]`, at most 30. `code` is 2 to 30 capital letters, digits or `_`, unique, and never changes once used; `label` 1 to 40 characters. `OTHER` is always present and active. A PATCH replaces the list. |
 | `cash.usualFloatInPaise` | Number | 200000 | Whole paise, 0 to 10,00,000 rupees. What Day Close proposes to keep in the drawer for tomorrow (M16 section 9.4). |
@@ -8269,3 +8270,29 @@ a printed bill than that it is printed. Before the first print, and for
 
 None new.
 
+---
+
+# P40 A manager's PIN to add to a printed bill
+
+`docs/prompts/P40-pin-to-change-a-printed-bill.md`. Changes M2 12.4 and M3
+16.8.2. No new endpoint or code; one new optional body field.
+
+`POST /orders/:orderId/lines` takes an optional `approval: { approverId, pin }`,
+the P28 shape. When the order has a live bill that the lines would revise
+(16.8.2) and that bill's `printCount` is above 0, the caller is a `CASHIER`, and
+`approvals.revisePrintedBill` is on, the approval is required and checked by
+the P28 rules: missing, or not an active owner or manager here, is 403
+`FORBIDDEN` "A manager has to approve this. Pick their name and type their
+PIN."; a wrong PIN is 401 from `verifyPin`. An `OWNER` or `MANAGER` approves
+their own. In every other case `approval` is accepted and ignored.
+
+Checked in this order: P39's captain refusal, `DAY_CLOSED`, `BILL_NOT_REVISABLE`,
+then the approval, all before anything is written.
+
+The revision of kind `ADDED` stores `approvedBy` (null when the actor approved
+themselves), and `BILL_REVISED` carries it in `details.approvedBy`, as a removal
+does (16.8.1 steps 4 and 5).
+
+## Error codes
+
+None new.
