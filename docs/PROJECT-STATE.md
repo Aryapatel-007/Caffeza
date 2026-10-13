@@ -564,6 +564,8 @@ Asked for by Rishi. Spec first (`spec other with the mode of payment`): `docs/pr
 
 Tests: `payments.test.js` gains one: Other with no mode, or blank, refused and the bill unchanged; with Cheque recorded as the reference; Cash still needs none. Switching the rule off on purpose fails it. Browser: new `e2e/otherPayment.spec.js`. Full `npm test`: 1,300 passing, 0 failing. Lint and build pass.
 
+Deployed 2026-10-13 at 7:49 PM, at Rishi's word: pushed `abe9bd4..52631ee`. Render runs `52631ee`, database connected; Vercel serves `index-CL-9vhZV.js`, which has the mode picker. Switching Other on in Z Chaat's records from this machine was refused by the session's permission check, so it is left to the owner, in Settings, Payment methods.
+
 Anything the other developer needs to know:
 `OTHER` stays switched off for every restaurant until its owner switches it on (Settings, Payment methods). A payment corrected to Other (P08's correction) is not asked for a mode; that path was left as it was.
 
