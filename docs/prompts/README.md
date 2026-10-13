@@ -48,5 +48,6 @@ The full table, with dependencies and owners, is in
 | P38 | The public page as a street-food signboard, the booking advance, the kitchen's ready switch | Done and deployed 2026-10-12. Arya's read outstanding. (P37 is on the branch `backup/p37-local-profile-2026-10-12`.) |
 | P39 | A captain cannot change a printed bill | Built 2026-10-12. Arya's read outstanding. |
 | P40 | A manager's PIN to add to a printed bill | Built 2026-10-13. Arya's read outstanding. |
+| P41 | Kitchen text on one line, Recall, Undo after Send, the floor as tiles | Built 2026-10-13. Arya's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.

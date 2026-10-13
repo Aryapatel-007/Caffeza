@@ -220,7 +220,7 @@ Built on a 4px rhythm. Sizes in pixels, at the default text size.
 | `button` | Anek | 16 / 20 | 600 | 100 | Buttons |
 | `caption` | Anek | 13 / 18 | 440 | 100 | Secondary text |
 | `tile-name` | Anek | 22 / 26 | 660 | 112 | Table names on the floor, read across a room |
-| `ticket-item` | Anek | 18 / 24 | 560 | 92 | Items on a kitchen ticket |
+| `ticket-item` | Anek | 16 / 20 | 560 | 92 | Items on a kitchen ticket, on one line (P41) |
 | `dense` | Anek | 14 / 20 | 460 | 82 | Report table text |
 | `num` | Plex Mono | 15 / 20 | 500 | | Numbers in rows |
 | `num-tile` | Plex Mono | 20 / 24 | 600 | | Amounts on tiles |
@@ -540,7 +540,7 @@ A test fails the build if any component contains a raw hex colour, or any versio
 4. **No client's name in the product.** With no logo, every place above shows the wordmark: the restaurant's, then its name, then the product's, "Restaurant ERP". The sign-in screen, the top bar and the dashboard used to fall back to a hardcoded "Caffeza", and the sign-in screen carried Caffeza's city and a tagline; all three are gone.
 5. **Spacing.** Padding, margin and gap use only 4, 8, 12, 16, 24, 32 and 48. P22 moved every other value to the nearest step: 2 to 4, 6 to 8, 10 to 12, 14 to 12, 20 to 16, 28 to 32, and 40 and 64 of vertical padding to 48. An offset that lines one thing up with another is not spacing and takes that other thing's size instead: the 28px indent under the balance seal's icon (20px icon, 8px gap), the 64px chart axis column, the 32px a table tile keeps clear for its corner menu, and the 20px at a table tile's foot, which is 16px plus its 4px time edge.
 6. **Tap targets.** `Button`'s `sm` size is 48px tall like the others; it was 40. Pager buttons, the table order arrows, the recipe quantity field and the inline Void are 48px.
-7. **Names.** An item name wraps to two lines on a menu tile, an order line, a kitchen ticket and a bill line, then ends with an ellipsis, with the full name as the element's title. A table name wraps at spaces only, never inside a word.
+7. **Names.** An item name wraps to two lines on a menu tile, an order line and a bill line, then ends with an ellipsis, with the full name as the element's title. On a kitchen ticket it stays on one line (P41), smaller, ending with an ellipsis only when even that cannot hold it. A table name wraps at spaces only, never inside a word.
 8. **Prices never wrap.** `Money` is `whitespace-nowrap`, and a price in a column or a repeated row is `tabular`.
 9. **Loading.** `Spinner` no longer spins: it draws the screen's shape in `sunken`, still, a heading and rows. Screens that showed "Loading..." text show it too. A button that is working shows three still dots. A test fails on `animate-spin`, `animate-pulse`, `animate-ping` or `animate-bounce` anywhere in the client.
 10. **Empty lists say what to do next.** Page-level lists use `EmptyState` with a next step; an empty list inside a card keeps its one quiet line and gains the next step.

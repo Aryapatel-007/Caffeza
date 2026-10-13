@@ -6,7 +6,7 @@
 
 ## What to build
 
-Restyle the restaurant's public page, `client/src/features/public/`, in the look of the mock-ups: a hand-painted signboard in the restaurant's own brand colour, a cream page, chit-paper cards with a hard ink shadow, saffron for what is chosen, saffron festoons, rubber stamps for states, tear-off calendar dates and token tickets. Phone first; on a wide screen the menu has its sections on the left and the order as a paper bill on the right.
+Restyle the restaurant's public page, `client/src/features/public/`, in the look of the mock-ups: a hand-painted signboard in the restaurant's own brand colour, a cream page, chit-paper cards with a hard ink shadow, saffron for what is chosen, saffron festoons, rubber stamps for states, tear-off caledar dates and token tickets. Phone first; on a wide screen the menu has its sections on the left and the order as a paper bill on the right.
 
 ## Rules
 

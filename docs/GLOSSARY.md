@@ -542,3 +542,16 @@ Added by P38, for the restaurant's public page. Section 15 still holds its main 
 | **Note to the kitchen** | The one-tap requests and the note on a dish |
 | **Celebrating something?** | The optional occasion on a booking, sent in its note |
 | **Booking advance** | The deposit on the public page, in the words guests know: the deposit per person × the party, paid online when booking |
+
+---
+
+## 26. Recall and undo words
+
+Added by P41.
+
+| Term | Meaning |
+|---|---|
+| **Recall** | On the kitchen screen: bring a finished ticket back to the board, its dishes back to Cooking |
+| **Finished** | A ticket whose dishes are all ready, listed under Recall for 60 minutes |
+| **Undo** | On the order screen, for 60 seconds after Send to kitchen: take that Send back. The dishes leave the kitchen and are on the order again, not sent. |
+| **Sent to the kitchen by mistake** | The cancel reason an Undo writes on the dishes it took back |

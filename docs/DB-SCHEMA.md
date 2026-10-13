@@ -2881,3 +2881,10 @@ from before P36.
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `oneTicketPerOrder` | Boolean | true | One ticket per order, every round and station on it. Off: one per station per Send, as P05 |
+
+## 47. Kitchen recall and undo after Send (P41)
+
+No new collection or field.
+
+`orders.lines[].cancelReasonCode` gains `SENT_BY_MISTAKE`, written only by
+`POST /orders/:orderId/undo-send`. `auditlogs.action` gains `KOT_SEND_UNDONE`.

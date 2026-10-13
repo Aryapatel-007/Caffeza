@@ -2120,6 +2120,10 @@ query. This is noted in the known problems table.
 `stationId` (P05), optional: a station id returns only that station's tickets;
 the word `none` returns only tickets with no station.
 
+`sort` (P41), optional: `recent` sorts by when the ticket last changed
+(`updatedAt`), newest first, instead of oldest first. With `status=COMPLETED`
+it is the kitchen's Recall list.
+
 ### 13.2 Read one ticket
 
 ```
@@ -4344,6 +4348,7 @@ Added by P29:
 |---|---|---|---|---|
 | `BILL_REVISED` | `BILL` | M3, P29 Part B | Yes | An unpaid bill's items changed under the same number. `details` carry the kind, the revision, the lines, the totals before and after, whether it was printed, and the approver. A cut after printing is where till fraud hides. |
 | `KITCHEN_READY_UNDONE` | `ORDER` | M2, P29 Part E | Yes | A dish ticked ready by mistake, ticked back. Not an alert, but a fact worth keeping. |
+| `KOT_SEND_UNDONE` | `ORDER` | M2, P41 | Yes | A Send to kitchen taken back within 60 seconds, before anything was ready. `details` carry the lines, the item names, the tickets and the table. |
 | `CASH_TAKEN_OUT` | `CASH` | M16, P29 Part F | No | Cash removed from the drawer that is not an expense: a bank deposit, or cash given to the owner |
 | `OPENING_FLOAT_DIFFERED` | `CASH` | M16, P29 Part F | No | The float counted in the morning was not what was kept in the drawer the night before. `details` carry both amounts. |
 
@@ -8292,6 +8297,73 @@ then the approval, all before anything is written.
 The revision of kind `ADDED` stores `approvedBy` (null when the actor approved
 themselves), and `BILL_REVISED` carries it in `details.approvedBy`, as a removal
 does (16.8.1 steps 4 and 5).
+
+## Error codes
+
+None new.
+
+---
+
+# P41 Kitchen recall, undo after Send, the floor as tiles
+
+`docs/prompts/P41-kitchen-recall-undo-send-floor-tiles.md`. One new endpoint,
+one new query parameter, one new reason code, one new audit action. The
+kitchen text and the floor are client only.
+
+## 1. `GET /kots?sort=recent`
+
+See 13.1. Any other value of `sort` is 400.
+
+## 2. Undo a Send
+
+```
+POST /api/v1/orders/:orderId/undo-send
+{ "version": 7 }
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER, the same as firing (12.8).
+
+The **last Send** is the order's sent lines (`FIRED`, `READY` or `SERVED`)
+whose `firedAt` is the latest `firedAt` on the order. Lines cancelled since are
+left out of it.
+
+Refused, in this order:
+
+1. The order belongs to another restaurant, or does not exist: 404.
+2. The order is not `OPEN`: 422, as 12.4.
+3. The order has a live bill: 422 `BUSINESS_RULE_VIOLATED`, "This table has a
+   bill. Change the items from the bill."
+4. Nothing has been sent: 422 `BUSINESS_RULE_VIOLATED`, "Nothing has been sent
+   to the kitchen yet."
+5. The last Send is more than 60 seconds old (`UNDO_SEND_WINDOW_MS`, a server
+   constant): 422 `BUSINESS_RULE_VIOLATED`, "Too late to undo. Cancel the dishes
+   instead."
+6. Any line of the last Send is `READY` or `SERVED`: 422
+   `BUSINESS_RULE_VIOLATED`, "The kitchen has already marked some of these
+   ready. Cancel them instead."
+7. `version` is stale: 409 `VERSION_CONFLICT`.
+
+What happens, in **one transaction**:
+
+1. Each line of the last Send is cancelled through `cancelLineInSession`, with
+   `reasonCode: SENT_BY_MISTAKE`, no note, `wasPrepared: false` and no
+   approval. Its kitchen ticket line becomes `CANCELLED`, and with inventory on
+   its deducted stock comes back.
+2. For each, a new `PENDING` line is pushed with a new id and the same
+   `menuItemId`, `itemName`, `variantId`, `variantName`, `unitPriceInPaise`,
+   `taxRateBps`, `menuTaxRateBps`, `quantity`, `addOns`, `notes`,
+   `priceSource`, `categoryId` and `categoryName`, `addedBy` the caller and
+   `addedAt` now. The order is `OPEN` with `readyToBillAt` null.
+3. `KOT_SEND_UNDONE` is written, entity `ORDER`, `entityLabel` "Order
+   {orderNumber}", `reason` the item names, `details: { lineIds, itemNames,
+   kotIds, tableName }`. A MANAGER may read it.
+
+Response 200: the order, as `GET /orders/:orderId`.
+
+## 3. Reason code
+
+`LINE_CANCEL_REASONS` gains `SENT_BY_MISTAKE`, "Sent to the kitchen by
+mistake", appended before `OTHER`, server and client.
 
 ## Error codes
 
