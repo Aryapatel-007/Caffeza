@@ -564,8 +564,10 @@ Asked for by Rishi. Spec first (`spec kitchen recall, undo after send, ...`): `d
 
 Tests: `undoSend.test.js` (7): the undo and its kitchen lines, stock back and taken again on the next Send, the audit line; only the last Send; refused after 60 s, once ready, with nothing sent, for another restaurant, and stale; `sort=recent`. Widening the window on purpose fails the 60-second test. Browser: new `e2e/recallUndoSend.spec.js` (a captain on a phone sends and undoes; the kitchen recalls a finished ticket with a long dish name, which shows on one line; no Plan or Tiles switch on the floor), and kitchenUndo, liveChannel, printedBillAdd, addAfterBilling, billRevision pass. The golden day failed once with a `toHaveCount` timeout while the full server suite ran beside it, and passed on the rerun and again on its own (1.5 min). Full `npm test`: 1,293 passing, 0 failing. Lint and build pass.
 
+Deployed 2026-10-13 at 6:21 PM, at Rishi's word: pushed `1da0579..97bb3b5`. Render runs `97bb3b5`, database connected; Vercel serves `index-CBLt_66Z.js`, which has the Undo bar; `POST /orders/:id/undo-send` answers 401 without a sign-in, so the route is live.
+
 Anything the other developer needs to know:
-Not pushed or deployed. The e2e helper `sendToKitchen` still clicks Dismiss, which the Undo bar now has.
+The e2e helper `sendToKitchen` still clicks Dismiss, which the Undo bar now has.
 
 ### 2026-10-13 Rishi, P40 a manager's PIN to add to a printed bill
 
