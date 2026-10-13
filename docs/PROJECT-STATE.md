@@ -564,8 +564,10 @@ Asked for by Rishi, with his answers to four questions (all four changes; a PIN 
 
 Tests: `sentLines.test.js` (5): 3 lowered to 2 with no PIN, the ticket, one portion of stock back, then the rest removed returns exactly what was taken; a note on the order and ticket; a dish said to be made needs the PIN; a made dish needs the PIN to lower or remove, returns nothing, and keeps its note; refused to the kitchen login, for a quantity not lower and for a dish not sent. Counting only deductions on purpose (the old return) fails the first. `approvals.test.js`: two tests changed on purpose to a made dish, which is what needs the PIN now, and one added for a sent dish not made needing none. Browser: new `e2e/editSentDish.spec.js` (a captain on a phone lowers, re-notes, removes and swaps; a kitchen login is sent to its board from Home and `/floor`, has no navigation, and sees Changed and Cancelled); `e2e/pages/order.js` `cancelLine` removes a sent dish through Change. All 18 browser specs pass, the golden day included. Full `npm test`: 1,299 passing, 0 failing. Lint and build pass.
 
+Deployed 2026-10-13 at 7:08 PM, at Rishi's word: pushed `97bb3b5..5ae9fcb`. Render runs `5ae9fcb`, database connected; Vercel serves `index-D4HvuAAT.js`, which has the Change sheet; `POST /orders/:id/lines/:lineId/reduce` answers 401 without a sign-in.
+
 Anything the other developer needs to know:
-Not pushed or deployed. A kitchen tablet's printer and station are set while a manager is signed in on it (This device), since the kitchen login no longer reaches that page.
+A kitchen tablet's printer and station are set while a manager is signed in on it (This device), since the kitchen login no longer reaches that page.
 
 ### 2026-10-13 Rishi, P41 kitchen recall, undo after Send, one-line ticket names, floor as tiles
 
