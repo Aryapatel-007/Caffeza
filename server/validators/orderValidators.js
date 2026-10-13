@@ -425,6 +425,9 @@ export const fireOrderSchema = z.object({
   body: z.object({ version }).strict('Is not a field you can set here.'),
 });
 
+/** P41. Undo the last Send: the version, nothing else. */
+export const undoSendSchema = fireOrderSchema;
+
 export const markLineServedSchema = z.object({
   params: orderLineParams,
   body: z.object({ version }).strict('Is not a field you can set here.'),
@@ -499,6 +502,8 @@ export const listKotsSchema = z.object({
     stationId: z.union([z.literal('none'), objectId], {
       error: 'Must be a station id, or none.',
     }).optional(),
+    // P41. Newest change first, for the kitchen's Recall list.
+    sort: z.enum(['recent'], { error: 'Must be recent.' }).optional(),
   }),
 });
 

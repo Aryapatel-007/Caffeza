@@ -27,8 +27,9 @@ const prefersReducedMotion = () =>
  *   │████████░░░░░░░░░░│
  *   └──────────────────┘
  *
- * Items in `ticket-item`, the narrower width, so long dish names fit one line
- * more often. P38: each item has a Cooking / Ready switch, at least 56 px
+ * Items in `ticket-item`, small and narrow, so a name fits one line (P41),
+ * beside a compact switch with its word under the knob. A name too long even
+ * then wraps; it is never cut off, because a cook must read all of it. P38: each item has a Cooking / Ready switch, at least 56 px
  * tall; switched on it is ready, switched off again it goes back to the
  * kitchen (P29's undo). Tapping the dish itself does nothing, so a brushed
  * row never marks food ready. A ready item stays, struck through and faded,
@@ -81,7 +82,7 @@ export default function TicketCard({
         <p className="type-label border-b border-line bg-alert-tint px-4 py-2 text-alert">Not printed. Tap Reprint.</p>
       )}
 
-      <ul className="flex flex-1 flex-col gap-1 px-2 py-2">
+      <ul className="flex flex-1 flex-col gap-0.5 px-2 py-1">
         {lines.map((line, index) => {
           const isDone = line.status === 'READY';
           const isCancelled = line.status === 'CANCELLED';
@@ -92,13 +93,13 @@ export default function TicketCard({
             {startsRound && (
               <li className="type-caption border-t border-line px-2 pt-2 text-muted">Added {formatTimeIst(line.firedAt)}</li>
             )}
-            <li className="flex items-center gap-2 rounded-lg px-2 py-2">
-              <div className={['flex min-w-0 flex-1 items-start gap-3', isDone ? 'opacity-60' : ''].join(' ')}>
-                <span className="type-num-tile w-8 flex-none text-right">{line.quantity}</span>
+            <li className="flex items-center gap-2 rounded-lg px-1 py-1">
+              <div className={['flex min-w-0 flex-1 items-baseline gap-2', isDone ? 'opacity-60' : ''].join(' ')}>
+                <span className="type-num w-7 flex-none text-right font-semibold">{line.quantity}</span>
                 <span className="min-w-0 flex-1">
                   <span
                     title={line.variantName ? `${line.itemName} · ${line.variantName}` : line.itemName}
-                    className={['type-ticket-item line-clamp-2 break-words', isDone || isCancelled ? 'text-muted line-through' : ''].join(' ')}
+                    className={['type-ticket-item block break-words', isDone || isCancelled ? 'text-muted line-through' : ''].join(' ')}
                   >
                     {line.itemName}
                     {line.variantName && <span className="text-muted"> · {line.variantName}</span>}
@@ -142,8 +143,9 @@ export default function TicketCard({
 
 /**
  * P38. One dish's switch: Cooking (off) or Ready (on). A real switch for
- * screen readers, named after the dish, with the state in words beside the
- * knob so it never relies on colour. The knob slides; nothing loops.
+ * screen readers, named after the dish, with the state in words so it never
+ * relies on colour. P41: the word sits under the knob, so the switch is
+ * narrow and the dish name gets the width. The knob slides; nothing loops.
  */
 function ReadySwitch({ name, isReady, disabled, onChange }) {
   return (
@@ -154,17 +156,17 @@ function ReadySwitch({ name, isReady, disabled, onChange }) {
       aria-label={`${name} ready`}
       disabled={disabled}
       onClick={onChange}
-      className="flex min-h-14 flex-none items-center gap-2 rounded-full px-1 disabled:opacity-50"
+      className="flex min-h-14 w-14 flex-none flex-col items-center justify-center gap-0.5 rounded-lg disabled:opacity-50"
     >
-      <span className={`type-label w-16 text-right ${isReady ? 'text-ok' : 'text-muted'}`}>{isReady ? 'Ready' : 'Cooking'}</span>
       <span
         aria-hidden="true"
-        className={['relative flex h-9 w-16 flex-none items-center rounded-full border-2 transition-colors duration-150', isReady ? 'border-ok bg-ok' : 'border-line bg-sunken'].join(' ')}
+        className={['relative flex h-7 w-12 flex-none items-center rounded-full border-2 transition-colors duration-150', isReady ? 'border-ok bg-ok' : 'border-line bg-sunken'].join(' ')}
       >
         <span
-          className={['absolute top-0.5 size-7 rounded-full bg-surface shadow transition-transform duration-150', isReady ? 'translate-x-[1.85rem]' : 'translate-x-0.5'].join(' ')}
+          className={['absolute top-0.5 size-5 rounded-full bg-surface shadow transition-transform duration-150', isReady ? 'translate-x-[1.35rem]' : 'translate-x-0.5'].join(' ')}
         />
       </span>
+      <span className={`type-caption ${isReady ? 'text-ok' : 'text-muted'}`}>{isReady ? 'Ready' : 'Cooking'}</span>
     </button>
   );
 }

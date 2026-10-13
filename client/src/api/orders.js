@@ -127,6 +127,11 @@ export function fireOrder(orderId, version) {
   return api.post(`/orders/${orderId}/fire`, { version });
 }
 
+/** P41. Takes the last Send back, within a minute and before anything is ready. Returns the order. */
+export function undoSend(orderId, version) {
+  return api.post(`/orders/${orderId}/undo-send`, { version });
+}
+
 /**
  * Only a READY line can be served. When the last live line is served the
  * server moves the order to READY_TO_BILL by itself; there is no call for that

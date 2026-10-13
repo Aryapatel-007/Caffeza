@@ -26,6 +26,8 @@ export const LINE_CANCEL_REASONS = freezeList([
   { code: 'GUEST_LEFT', label: 'Guest left' },
   // P25 Part H. Appended only.
   { code: 'PLATFORM_CANCELLED', label: 'Cancelled by the platform' },
+  // P41. Written by Undo after a Send; appended only.
+  { code: 'SENT_BY_MISTAKE', label: 'Sent to the kitchen by mistake' },
   { code: 'OTHER', label: 'Other' },
 ]);
 

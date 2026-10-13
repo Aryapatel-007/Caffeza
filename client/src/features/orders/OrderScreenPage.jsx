@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
@@ -15,6 +15,7 @@ import {
   cancelOrderLine,
   editOrderLine,
   fireOrder,
+  undoSend,
   getOrder,
   giveNoCharge,
   markLineServed,
@@ -35,6 +36,9 @@ import { errorMessage, shouldRefetch } from './errorCopy.js';
 import { placeLabel } from './orderLabel.js';
 
 import Spinner from '../../components/ui/Spinner.jsx';
+
+/** P41. How long the Undo bar stays after a Send. Matches the server's UNDO_SEND_WINDOW_MS. */
+const UNDO_SEND_MS = 60_000;
 
 /** Only these two may cancel a whole order. The server is what enforces it. */
 const CAN_CANCEL_ORDER = ['OWNER', 'MANAGER'];
@@ -98,6 +102,22 @@ export default function OrderScreenPage() {
    * second PIN. Never stored on the device; leaving the screen forgets it.
    */
   const [printedBillApproval, setPrintedBillApproval] = useState(null);
+  /**
+   * P41. The last Send, for its Undo bar. The server allows the undo for 60
+   * seconds and only while nothing is ready; the bar shows for the same minute
+   * and the server has the last word.
+   */
+  const [lastSendAt, setLastSendAt] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!lastSendAt) return undefined;
+    const tick = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+      if (current - lastSendAt >= UNDO_SEND_MS) setLastSendAt(null);
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [lastSendAt]);
 
   const orderQuery = useQuery({
     queryKey: ['order', orderId],
@@ -215,8 +235,21 @@ export default function OrderScreenPage() {
   const fire = () =>
     run({
       run: () => fireOrder(order.id, order.version),
-      successMessage: 'Sent to the kitchen.',
-      onDone: () => setIsReviewing(false),
+      onDone: () => {
+        setIsReviewing(false);
+        // P41. The bar says "Sent to the kitchen." with its Undo, instead of a toast.
+        setToast(null);
+        setNow(Date.now());
+        setLastSendAt(Date.now());
+      },
+    });
+
+  const undoLastSend = () =>
+    run({
+      run: () => undoSend(order.id, order.version),
+      successMessage: 'Taken back from the kitchen. The dishes are on the order, not sent.',
+      onDone: () => setLastSendAt(null),
+      onFailed: () => setLastSendAt(null),
     });
 
   const details = (
@@ -512,6 +545,32 @@ export default function OrderScreenPage() {
             })
           }
         />
+      )}
+
+      {/* P41. Undo for a minute after a Send. */}
+      {lastSendAt && (
+        <div
+          role="status"
+          className="v2 fixed inset-x-4 bottom-20 z-40 mx-auto flex max-w-xl items-center gap-3 rounded-[10px] border border-line border-l-[3px] border-l-ok bg-surface px-4 py-3 text-ink shadow-float sm:inset-x-auto sm:bottom-5 sm:left-1/2 sm:w-[36rem] sm:-translate-x-1/2"
+        >
+          <p className="type-body flex-1">
+            Sent to the kitchen.{' '}
+            <span className="type-caption text-muted">
+              Undo for <span className="type-num-meta">{Math.max(0, Math.ceil((UNDO_SEND_MS - (now - lastSendAt)) / 1000))}</span> s
+            </span>
+          </p>
+          <button
+            type="button"
+            disabled={write.isPending}
+            onClick={undoLastSend}
+            className="type-button min-h-12 flex-none rounded-lg bg-accent px-5 text-on-accent hover:brightness-110 disabled:opacity-50"
+          >
+            Undo
+          </button>
+          <button type="button" onClick={() => setLastSendAt(null)} className="type-label min-h-12 flex-none px-2 text-muted hover:text-ink">
+            Dismiss
+          </button>
+        </div>
       )}
 
       <Toast tone={toast?.tone} message={toast?.message} onDismiss={() => setToast(null)} />

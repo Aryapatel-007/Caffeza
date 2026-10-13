@@ -6,7 +6,7 @@
 
 ## A. Dish names on one line
 
-On a kitchen ticket the dish name is smaller (`ticket-item` 16 / 20 instead of 18 / 24) and never wraps: one line, ending in "…" only when even the smaller size cannot hold it, with the full name as its title. The quantity shrinks with it. Add-ons and notes stay as they are. DESIGN-SYSTEM 13c rule 7 gains this exception.
+On a kitchen ticket the dish name is smaller and narrower (`ticket-item` 15 / 20 at 88% width instead of 18 / 24 at 92%), and the Cooking / Ready switch is compact, its word under the knob, so the name has the row's width. The kitchen board shows three tickets across from 1024 px wide and four from 1536. Together these put Z Chaat's names, up to 30 characters, on one line. A name too long even then wraps: it is never cut off, because a cook must read all of it. The quantity shrinks with it. Add-ons and notes stay as they are. DESIGN-SYSTEM 13c rule 7 gains this exception.
 
 ## B. Recall
 

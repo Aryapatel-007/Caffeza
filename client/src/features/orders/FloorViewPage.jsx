@@ -25,31 +25,11 @@ const spokenName = (name) => (/^table\b/i.test(name) ? name : `Table ${name}`);
 
 const ALL = '__all__';
 const UNASSIGNED = 'Unassigned';
-const GRID_COLUMNS = 24;
-const GRID_ROWS = 16;
-
-const viewKey = (section) => `floor-view:${section}`;
-function rememberedView(section) {
-  try {
-    return window.localStorage.getItem(viewKey(section));
-  } catch {
-    return null;
-  }
-}
-function rememberView(section, view) {
-  try {
-    window.localStorage.setItem(viewKey(section), view);
-  } catch {
-    // Blocked storage: the default view is used next time.
-  }
-}
 
 /**
- * The floor. M2, with P19's floor plan.
+ * The floor. M2.
  *
- * Each section shows as a plan, its tables where they stand in the room, when
- * at least one of its tables has a place; otherwise, or by choice, as tiles.
- * The choice is remembered per section on this device. Every table says its
+ * Each section shows its tables as tiles (P41 removed P19's plan view). Every table says its
  * state in a word: Free, Open, Served or Bill printed, and Long when it has run
  * past the restaurant's threshold. Tables waiting to pay are also listed in a
  * billing strip at the top, newest first.
@@ -292,99 +272,26 @@ function tileProps(table, target) {
 
 const STATE_WORDS = { OPEN: 'open', SERVED: 'served', BILL_PRINTED: 'bill printed' };
 
-/** One section: its plan when any table has a place, else tiles, and the choice remembered. */
+/**
+ * One section, as tiles. P41: the floor plan view and its Plan / Tiles switch
+ * are gone at the owner's request; the positions saved in Arrange tables are
+ * kept, and Arrange tables still sets the section order.
+ */
 function FloorSection({ name, tables, target, onTap, onMove }) {
-  const placed = tables.filter((table) => table.layout);
-  const canPlan = placed.length > 0;
-  const [view, setView] = useState(() => rememberedView(name) ?? (canPlan ? 'plan' : 'tiles'));
-  const showPlan = canPlan && view === 'plan';
-
-  const choose = (next) => {
-    setView(next);
-    rememberView(name, next);
-  };
-
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="type-heading">{name}</h2>
-        {canPlan && (
-          <div className="flex rounded-lg border border-line bg-surface p-1" role="group" aria-label={`${name} view`}>
-            {[
-              ['plan', 'Plan'],
-              ['tiles', 'Tiles'],
-            ].map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={view === key}
-                onClick={() => choose(key)}
-                className={['type-label min-h-10 rounded-md px-4', view === key ? 'bg-sunken text-ink' : 'text-muted hover:text-ink'].join(' ')}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {showPlan ? (
-        <>
-          <div className="relative w-full overflow-hidden rounded-[10px] border border-line bg-sunken" style={{ aspectRatio: `${GRID_COLUMNS} / ${GRID_ROWS}` }}>
-            {placed.map((table) => (
-              <div
-                key={table.id}
-                className="absolute p-[0.4%]"
-                style={{
-                  left: `${(table.layout.x / GRID_COLUMNS) * 100}%`,
-                  top: `${(table.layout.y / GRID_ROWS) * 100}%`,
-                  width: `${(table.layout.w / GRID_COLUMNS) * 100}%`,
-                  height: `${(table.layout.h / GRID_ROWS) * 100}%`,
-                }}
-              >
-                <TableTile
-                  {...tileProps(table, target)}
-                  fill
-                  shape={table.layout.shape}
-                  onTap={() => onTap(table)}
-                  menu={table.occupancy.isOccupied && <TableMenu table={table} onMove={() => onMove(table)} small />}
-                />
-              </div>
-            ))}
-          </div>
-          {tables.length > placed.length && (
-            <div>
-              <p className="type-caption mb-2 text-muted">Not on the plan yet</p>
-              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-                {tables
-                  .filter((table) => !table.layout)
-                  .map((table) => (
-                    <li key={table.id}>
-                      <TableTile
-                        {...tileProps(table, target)}
-                        compact
-                        onTap={() => onTap(table)}
-                        menu={table.occupancy.isOccupied && <TableMenu table={table} onMove={() => onMove(table)} />}
-                      />
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          )}
-        </>
-      ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {tables.map((table) => (
-            <li key={table.id}>
-              <TableTile
-                {...tileProps(table, target)}
-                onTap={() => onTap(table)}
-                menu={table.occupancy.isOccupied && <TableMenu table={table} onMove={() => onMove(table)} />}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+      <h2 className="type-heading">{name}</h2>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {tables.map((table) => (
+          <li key={table.id}>
+            <TableTile
+              {...tileProps(table, target)}
+              onTap={() => onTap(table)}
+              menu={table.occupancy.isOccupied && <TableMenu table={table} onMove={() => onMove(table)} />}
+            />
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

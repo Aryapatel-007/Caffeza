@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-13 by Rishi (P40 deployed, Z Chaat's trial orders and bills removed before go-live)
+Last updated: 2026-10-13 by Rishi (P41 kitchen recall, undo after Send, one-line ticket names, floor as tiles)
 
 ---
 
@@ -525,6 +525,8 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-12 | Z Chaat takes no payment online: guests pay at the counter by the QR code, card or cash, and bookings take no deposit; the cafe confirms the table. The public page says so whenever no gateway is connected. | Rishi's word, 2026-10-12. The online-payment branch stays in the code for a restaurant that connects Razorpay. |
 | 2026-10-12 | Later the same day: Z Chaat's table bookings take an advance of ₹50 a person, paid online when booking through Z Chaat's own Razorpay, taken off the bill, like Zomato. Takeaway stays paid at the counter. This narrows the row above to takeaway. | Rishi's choice, from three offered (online, by QR after confirming, at the counter). Per person because the deposit setting already exists (`depositPerPersonInPaise`); a flat per-booking amount would have needed a new setting. Needs Razorpay connected in Settings, Payments, and `PAYMENT_SECRETS_KEY` on the server. |
 | 2026-10-12 | P38: a dish on a kitchen ticket is marked ready by a Cooking / Ready switch, not by tapping its row; switching it off is the undo. | Rishi asked for an on/off switch. A switch shows the state in place and cannot be set by brushing the row. The tested helper `tickDish` now uses the switch, changed on purpose. |
+| 2026-10-13 | P41: a Send to kitchen can be undone for 60 seconds, before the kitchen marks anything ready, with no reason or PIN. It cancels the sent lines (`SENT_BY_MISTAKE`, stock returned) and puts unsent copies back with new line ids, rather than moving the lines back to unsent. | Rishi asked for an undo after Send. Copies keep stock right: deductions are keyed on the line id, so a line sent twice under one id would not be deducted the second time after its stock had been returned. The minute and the "nothing ready" rule keep it from becoming a way round the PIN for a cancel after cooking. Audited as `KOT_SEND_UNDONE`. |
+| 2026-10-13 | P41: the kitchen's Recall (finished tickets of the last hour, from every screen, newest first, via `GET /kots?sort=recent`) replaces the "Just done" row, and the floor shows tiles only. A kitchen ticket's dish name is 15 px on one line beside a narrower switch, three tickets across from 1024 px, and wraps rather than being cut when even that cannot hold it. | Rishi asked for PetPooja's recall, one-line names and no floor plan. "Just done" only knew this tablet's own ticks. Saved table positions stay, so the plan could come back. A cook must read the whole name, so a long one wraps rather than ending in "…". |
 | 2026-10-13 | Z Chaat's trial orders, bills (`2026-27/000001` to `000049`), kitchen tickets, online orders, bookings, guest records, activity log and number counters were hard deleted, and bills restart at `2026-27/000001`. This breaks CLAUDE.md's "never hard delete a bill or order" once, on purpose. | Rishi, before Z Chaat starts real billing on the evening of 13 October: every one of the 49 bills was a trial and none reached a paying guest (his answer, asked twice, including the 4 orders opened that afternoon). Backed up first to the git-ignored `backups/Z-Chaat-orders-before-reset-2026-10-13T12-09-27-083Z/`. Menu, tables, stations, staff, payment methods, settings and the two hand-entered stock receipts were kept. From here on the rule holds without exception. |
 | 2026-10-13 | P40: a cashier adding dishes to a printed bill needs a manager's PIN, under the same `approvals.revisePrintedBill` switch as removing. On the order screen the PIN is asked on the first dish and kept in memory for the rest of that visit. | Rishi asked that, once printed, only the counter changes a bill and always with a PIN. Removing, cancelling after payment and reopening already asked; adding was the one way a cashier could raise a printed bill with nobody's approval. One PIN per visit, not per dish, because a table adding three dishes would otherwise call the manager three times; leaving the screen or a refused PIN forgets it. |
 | 2026-10-12 | P39: a captain (WAITER) cannot change a bill's items once it has printed: no removing, adding, cancelling after billing or reopening, and a manager's PIN does not lift it. Before the first print a captain adds and removes as before. A fixed rule, not a setting. | Rishi asked for it. The printed bill is what the guest was shown, and a captain lowering it afterwards is where money goes missing. The check runs before any PIN is read, so a refused captain never uses up a manager's PIN attempts. |
@@ -549,6 +551,21 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-13 Rishi, P41 kitchen recall, undo after Send, one-line ticket names, floor as tiles
+
+What was built or decided:
+Asked for by Rishi. Spec first (`spec kitchen recall, undo after send, ...`): `docs/prompts/P41-kitchen-recall-undo-send-floor-tiles.md`, API-CONTRACT "P41" and 13.1, DB-SCHEMA section 47, GLOSSARY section 26, DESIGN-SYSTEM's `ticket-item` and 13c rule 7.
+1. `POST /orders/:orderId/undo-send` (`services/undoSendService.js`, `UNDO_SEND_WINDOW_MS` 60 s): the last Send's lines cancelled through `cancelLineInSession` with `SENT_BY_MISTAKE` and unsent copies pushed, in one transaction; refused after a minute, once anything is ready, with a bill, or with nothing sent. `LINE_CANCEL_REASONS` gains `SENT_BY_MISTAKE` (server and client), `auditlogs` gains `KOT_SEND_UNDONE` (a manager may read it).
+2. `GET /kots?sort=recent`: newest change first.
+3. Order screen: after Send, a bar "Sent to the kitchen. Undo for N s" with Undo and Dismiss, for a minute, in place of the toast.
+4. Kitchen: Recall button and sheet (tickets finished in the last hour, Recall puts one back through undo-ready); the "Just done" row removed; ticket names 15 px on one line, the switch's word under its knob, three tickets across from 1024 px.
+5. Floor: tiles only; the Plan / Tiles switch and the plan drawing removed. Arrange tables and the saved positions stay.
+
+Tests: `undoSend.test.js` (7): the undo and its kitchen lines, stock back and taken again on the next Send, the audit line; only the last Send; refused after 60 s, once ready, with nothing sent, for another restaurant, and stale; `sort=recent`. Widening the window on purpose fails the 60-second test. Browser: new `e2e/recallUndoSend.spec.js` (a captain on a phone sends and undoes; the kitchen recalls a finished ticket with a long dish name, which shows on one line; no Plan or Tiles switch on the floor), and kitchenUndo, liveChannel, printedBillAdd, addAfterBilling, billRevision pass. The golden day failed once with a `toHaveCount` timeout while the full server suite ran beside it, and passed on the rerun and again on its own (1.5 min). Full `npm test`: 1,293 passing, 0 failing. Lint and build pass.
+
+Anything the other developer needs to know:
+Not pushed or deployed. The e2e helper `sendToKitchen` still clicks Dismiss, which the Undo bar now has.
 
 ### 2026-10-13 Rishi, P40 a manager's PIN to add to a printed bill
 

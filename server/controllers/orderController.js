@@ -25,6 +25,7 @@ import {
 } from '../models/Order.js';
 import { recordAudit } from '../services/auditService.js';
 import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/kitchenService.js';
+import { undoSend as undoSendToKitchen } from '../services/undoSendService.js';
 // M4. wasPrepared: false means the kitchen had already deducted for this line
 // and it was never actually made, so the ingredients go back. Keyed on the
 // ledger, not on the flag alone -- see stockMovementService.js.
@@ -304,6 +305,12 @@ export async function fireOrder(req, res) {
   // P05: `kots` is every ticket, one per station; `kot` is the first of them.
   // P36: with one ticket per order, `kots` is that ticket, and `round` the Send just made.
   return sendSuccess(res, { kot, kots, order, round });
+}
+
+/** POST /orders/:orderId/undo-send. P41: take the last Send back within the minute. */
+export async function undoSend(req, res) {
+  const order = await undoSendToKitchen(req, { orderId: req.params.orderId, version: req.body.version });
+  return sendSuccess(res, order);
 }
 
 /**

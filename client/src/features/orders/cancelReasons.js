@@ -16,6 +16,8 @@ export const LINE_CANCEL_REASONS = [
   { code: 'QUALITY', label: 'Quality complaint' },
   { code: 'GUEST_LEFT', label: 'Guest left' },
   { code: 'PLATFORM_CANCELLED', label: 'Cancelled by the platform' },
+  // P41. Written by Undo after a Send.
+  { code: 'SENT_BY_MISTAKE', label: 'Sent to the kitchen by mistake' },
   { code: 'OTHER', label: 'Other' },
 ];
 

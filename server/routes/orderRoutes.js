@@ -22,6 +22,7 @@ import {
   listOrders,
   markLineServed,
   moveOrderToTable,
+  undoSend,
 } from '../controllers/orderController.js';
 import {
   getKot,
@@ -53,6 +54,7 @@ import {
   createTableSchema,
   editOrderLineSchema,
   fireOrderSchema,
+  undoSendSchema,
   listKotsSchema,
   listOrdersSchema,
   listTablesSchema,
@@ -143,6 +145,8 @@ router.patch(
   markLineServed,
 );
 router.post('/orders/:orderId/fire', ...floor, validate(fireOrderSchema), fireOrder);
+// P41. The same roles as firing.
+router.post('/orders/:orderId/undo-send', ...floor, validate(undoSendSchema), undoSend);
 router.patch('/orders/:orderId/table', ...floor, validate(moveOrderTableSchema), moveOrderToTable);
 
 /**
