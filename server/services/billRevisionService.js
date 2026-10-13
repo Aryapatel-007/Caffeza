@@ -272,14 +272,21 @@ export async function removeLines(req, billId, { lines, reasonCode, note = null,
  * keeping its bill, and the bill is revised, in one transaction. Returns the
  * updated order. Throws the reason when the bill cannot be revised.
  */
-export async function addLinesToBilledOrder(req, { order, version, snapshotLines }) {
+export async function addLinesToBilledOrder(req, { order, version, snapshotLines, approval = null }) {
   const bill = await Bill.findOne({ ...scoped(req), _id: order.billId, isVoided: false });
   if (!bill) throw new BusinessRuleError('This order is waiting to be billed. It cannot be changed.');
   // P39. New dishes would revise a bill the guest may already hold on paper.
   assertCaptainMayChangeBill(req.user, bill);
   await assertDayOpen(req, [bill.businessDate, await todayBusinessDate(req)]);
-  const { revisable, reason } = await revisability(req, bill);
+  const settings = await getSettings(req.restaurantId, { req });
+  const { revisable, reason } = await revisability(req, bill, { settings });
   if (!revisable) throw new BillNotRevisableError(reason);
+  /**
+   * P40. Raising a printed bill needs a manager, as lowering one does (16.8.1):
+   * the guest has been shown a total, and only the counter, with a PIN, may
+   * change it. A captain never reaches here (P39).
+   */
+  const approvedBy = await approverIfNeeded(req, approval, settings.approvals.revisePrintedBill && (bill.printCount ?? 0) > 0);
 
   const session = await mongoose.startSession();
   let updated;
@@ -298,7 +305,7 @@ export async function addLinesToBilledOrder(req, { order, version, snapshotLines
       const inSession = await Bill.findOne({ ...scoped(req), _id: bill._id }).session(session);
       await reviseInSession(
         req,
-        { bill: inSession, order: updated, kind: REVISION_KINDS.ADDED, changedLines: added.map((line) => revisionLine(line)) },
+        { bill: inSession, order: updated, kind: REVISION_KINDS.ADDED, changedLines: added.map((line) => revisionLine(line)), approvedBy },
         session,
       );
     });

@@ -133,7 +133,7 @@ export async function getOrder(req, res) {
  */
 export async function addOrderLines(req, res) {
   const { orderId } = req.params;
-  const { version, lines } = req.body;
+  const { version, lines, approval = null } = req.body;
 
   const order = await loadOrderInTenant(req, orderId);
   // P26. A served table orders more: a READY_TO_BILL order with no live bill reopens.
@@ -152,7 +152,7 @@ export async function addOrderLines(req, res) {
   const snapshotLines = await buildLineSnapshots(req, lines, { taxTreatment: order.taxTreatment });
 
   if (revisesBill) {
-    const revised = await addLinesToBilledOrder(req, { order, version, snapshotLines });
+    const revised = await addLinesToBilledOrder(req, { order, version, snapshotLines, approval });
     req.log?.info(
       { actorId: req.user.id, orderId: String(revised._id), orderNumber: revised.orderNumber, addedLines: snapshotLines.length },
       'Lines added to a billed order; its bill was revised.',

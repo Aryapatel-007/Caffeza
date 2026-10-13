@@ -92,6 +92,12 @@ export default function OrderScreenPage() {
   // P26. Opened from a bill's Add items, the menu shows at once.
   const [searchParams] = useSearchParams();
   const [addingMore, setAddingMore] = useState(() => searchParams.get('add') === '1');
+  /**
+   * P40. A manager's approval for adding to a printed bill, kept in memory for
+   * this visit once a dish has gone on with it, so the next dishes need no
+   * second PIN. Never stored on the device; leaving the screen forgets it.
+   */
+  const [printedBillApproval, setPrintedBillApproval] = useState(null);
 
   const orderQuery = useQuery({
     queryKey: ['order', orderId],
@@ -137,9 +143,10 @@ export default function OrderScreenPage() {
       }
       variables.onDone?.();
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       if (shouldRefetch(error)) orderQuery.refetch();
       setToast({ tone: 'error', message: errorMessage(error) });
+      variables.onFailed?.(error);
     },
   });
 
@@ -189,6 +196,10 @@ export default function OrderScreenPage() {
   const captainLockedOut = user?.role === 'WAITER' && hasBill && (billQuery.data?.printCount ?? 0) > 0;
   const canAddMore = order.status === 'READY_TO_BILL' && (!hasBill || Boolean(billQuery.data?.revisable)) && !captainLockedOut;
   const showMenu = (isOpen || (canAddMore && addingMore)) && !captainLockedOut;
+  // P40. A dish going onto a printed bill needs a manager, unless one already approved this visit.
+  const addsToPrintedBill =
+    !approvesOwn && hasBill && !billQuery.data?.isVoided && (approvals.revisePrintedBill ?? true) && (billQuery.data?.printCount ?? 0) > 0;
+  const addNeedsApproval = addsToPrintedBill && !printedBillApproval;
   // P28. A cashier may too, with a PIN, when the owner allows it.
   const canCancelOrder = CAN_CANCEL_ORDER.includes(user?.role) || (user?.role === 'CASHIER' && approvals.managerTasks);
   const canMove = isOpen && order.orderType === 'DINE_IN';
@@ -405,13 +416,22 @@ export default function OrderScreenPage() {
         <LineOptionsPanel
           item={pickingItem}
           isBusy={write.isPending}
+          needsApproval={addNeedsApproval}
           onCancel={() => setPickingItem(null)}
-          onConfirm={(line) =>
+          onConfirm={(line, approvalBody) => {
+            const approval = addsToPrintedBill ? (approvalBody.approval ?? printedBillApproval) : undefined;
             run({
-              run: () => addOrderLines(order.id, { version: order.version, lines: [line] }),
-              onDone: () => setPickingItem(null),
-            })
-          }
+              run: () => addOrderLines(order.id, { version: order.version, lines: [line], approval }),
+              onDone: () => {
+                if (approval) setPrintedBillApproval(approval);
+                setPickingItem(null);
+              },
+              // A refused PIN is forgotten, so the next dish asks again.
+              onFailed: (error) => {
+                if (error?.status === 401 || error?.status === 403) setPrintedBillApproval(null);
+              },
+            });
+          }}
         />
       )}
 

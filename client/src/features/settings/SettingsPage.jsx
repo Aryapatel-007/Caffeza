@@ -334,10 +334,10 @@ export default function SettingsPage() {
               checked={form.approvals.managerTasks}
               onChange={set('approvals', 'managerTasks')}
             />
-            {/* P29 Part B. */}
+            {/* P29 Part B, and P40 for adding. */}
             <Checkbox
-              label="Removing an item from a bill already printed"
-              hint="The guest has seen the printed bill. Lowering it after the guest paid in cash is the commonest till fraud, and the cash count cannot catch it."
+              label="Removing or adding items on a bill already printed"
+              hint="The guest has seen the printed bill, so only a manager may change it. Lowering it after the guest paid in cash is the commonest till fraud, and the cash count cannot catch it. Captains cannot change a printed bill at all."
               checked={form.approvals.revisePrintedBill}
               onChange={set('approvals', 'revisePrintedBill')}
             />

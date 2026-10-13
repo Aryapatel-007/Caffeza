@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { MinusIcon, PlusIcon } from '../../components/ui/icons/index.jsx';
+import ApprovalStep, { useApproval } from '../../components/ui/ApprovalStep.jsx';
 import Money, { moneyText } from '../../components/ui/Money.jsx';
 import Sheet from '../../components/ui/Sheet.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
@@ -17,7 +18,13 @@ import StateChip from '../../components/ui/StateChip.jsx';
 /** The requests a cafe hears most, one tap each. Jain is asked for in most Gujarat restaurants. */
 const QUICK_NOTES = ['Less spicy', 'Extra spicy', 'No onion', 'Jain', 'Less sugar', 'No ice'];
 
-export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) {
+/**
+ * `needsApproval`, P40: the dish would go onto a bill already printed, so a
+ * manager picks their name and types their PIN before it goes on. The approval
+ * is handed back with the line, as `onConfirm(line, approvalBody)`.
+ */
+export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, needsApproval = false }) {
+  const approval = useApproval(needsApproval);
   // P04. Start on the first size that can actually be ordered.
   const [variantId, setVariantId] = useState(
     item.variants.find((variant) => variant.isAvailable !== false)?.id ?? null,
@@ -94,13 +101,16 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
   );
 
   const pick = () =>
-    onConfirm({
-      menuItemId: item.id,
-      ...(variantId ? { variantId } : {}),
-      quantity,
-      ...(addOnIds.length > 0 ? { addOnIds } : {}),
-      ...(notes.trim() ? { notes: notes.trim() } : {}),
-    });
+    onConfirm(
+      {
+        menuItemId: item.id,
+        ...(variantId ? { variantId } : {}),
+        quantity,
+        ...(addOnIds.length > 0 ? { addOnIds } : {}),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      },
+      approval.body,
+    );
 
   const choice = (selected, out) =>
     [
@@ -119,7 +129,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
           <button
             type="button"
             // Every size out of stock means nothing here can be ordered.
-            disabled={isBusy || (item.variants.length > 0 && !variantId)}
+            disabled={isBusy || (item.variants.length > 0 && !variantId) || !approval.ready}
             onClick={pick}
             className="flex min-h-14 flex-1 items-center justify-between gap-2 rounded-lg bg-accent px-4 text-on-accent hover:brightness-110 disabled:opacity-60"
           >
@@ -197,6 +207,11 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
       )}
 
       {noteField}
+
+      {needsApproval && (
+        <p className="type-caption mt-4 text-muted">This bill has been printed. A manager approves adding to it.</p>
+      )}
+      <ApprovalStep approval={approval} />
     </Sheet>
   );
 }

@@ -367,6 +367,8 @@ export const addOrderLinesSchema = z.object({
     .object({
       version,
       lines: lines.min(1, 'Send at least one line.'),
+      // P40. Read only when the lines would revise a printed bill.
+      approval: approval.optional(),
     })
     .strict('Is not a field you can set here.'),
 });

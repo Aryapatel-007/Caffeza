@@ -96,8 +96,9 @@ export function createOrder(body) {
  * VERSION_CONFLICT carrying `currentVersion`, and the screen reloads rather
  * than overwriting a colleague's work. See features/orders/errorCopy.js.
  */
-export function addOrderLines(orderId, { version, lines }) {
-  return api.post(`/orders/${orderId}/lines`, { version, lines });
+export function addOrderLines(orderId, { version, lines, approval }) {
+  // P40. A manager's approval, sent only when the lines revise a printed bill.
+  return api.post(`/orders/${orderId}/lines`, { version, lines, ...(approval ? { approval } : {}) });
 }
 
 /** Quantity and notes only, and only while the line is still PENDING. */
