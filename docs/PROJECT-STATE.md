@@ -558,6 +558,8 @@ Asked for by Rishi: before the print a captain adds and removes freely; after it
 
 Tests: `printedBillAdd.test.js` (6): a cashier without a PIN 403 and the bill unchanged, a wrong PIN 401, with the PIN revised and the manager named on the revision and the audit line; a manager without one, a cashier before printing, and with the switch off. With the rule switched off, 3 of 6 fail, tried on purpose. With the billing, order, approvals, settings and guard tests: 134 passing. Browser: new `e2e/printedBillAdd.spec.js` (PIN on the first dish, none on the second, two approved revisions), plus billRevision, captainBilling, addAfterBilling and the golden day, all passing. Lint and build pass. The full `npm test` was not run.
 
+Also 2026-10-13, at Rishi's request: two more captain logins on live Z Chaat (`cluster0.dkcsfcz`), Govind (9000003006) and Captain 3 (9000003007), made with `authService.createUserWithPassword`, the code `POST /users` uses, by a one-off script that was not kept. Their passwords were given to Rishi once, in the chat, and are not written here. Z Chaat now has owner, manager, two cashiers (Z Chaat Cashier, Khuman singh), three captains (Shivam, Govind, Captain 3) and the kitchen. Neither the owner nor the manager has a PIN yet.
+
 Anything the other developer needs to know:
 Not pushed or deployed. A cashier at Z Chaat will now be asked for the manager's PIN when adding to a printed bill, so the manager needs a PIN set on the Staff screen.
 
