@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-13 by Rishi (P40 a manager's PIN to add to a printed bill)
+Last updated: 2026-10-13 by Rishi (P40 deployed, Z Chaat's trial orders and bills removed before go-live)
 
 ---
 
@@ -525,6 +525,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-12 | Z Chaat takes no payment online: guests pay at the counter by the QR code, card or cash, and bookings take no deposit; the cafe confirms the table. The public page says so whenever no gateway is connected. | Rishi's word, 2026-10-12. The online-payment branch stays in the code for a restaurant that connects Razorpay. |
 | 2026-10-12 | Later the same day: Z Chaat's table bookings take an advance of ₹50 a person, paid online when booking through Z Chaat's own Razorpay, taken off the bill, like Zomato. Takeaway stays paid at the counter. This narrows the row above to takeaway. | Rishi's choice, from three offered (online, by QR after confirming, at the counter). Per person because the deposit setting already exists (`depositPerPersonInPaise`); a flat per-booking amount would have needed a new setting. Needs Razorpay connected in Settings, Payments, and `PAYMENT_SECRETS_KEY` on the server. |
 | 2026-10-12 | P38: a dish on a kitchen ticket is marked ready by a Cooking / Ready switch, not by tapping its row; switching it off is the undo. | Rishi asked for an on/off switch. A switch shows the state in place and cannot be set by brushing the row. The tested helper `tickDish` now uses the switch, changed on purpose. |
+| 2026-10-13 | Z Chaat's trial orders, bills (`2026-27/000001` to `000049`), kitchen tickets, online orders, bookings, guest records, activity log and number counters were hard deleted, and bills restart at `2026-27/000001`. This breaks CLAUDE.md's "never hard delete a bill or order" once, on purpose. | Rishi, before Z Chaat starts real billing on the evening of 13 October: every one of the 49 bills was a trial and none reached a paying guest (his answer, asked twice, including the 4 orders opened that afternoon). Backed up first to the git-ignored `backups/Z-Chaat-orders-before-reset-2026-10-13T12-09-27-083Z/`. Menu, tables, stations, staff, payment methods, settings and the two hand-entered stock receipts were kept. From here on the rule holds without exception. |
 | 2026-10-13 | P40: a cashier adding dishes to a printed bill needs a manager's PIN, under the same `approvals.revisePrintedBill` switch as removing. On the order screen the PIN is asked on the first dish and kept in memory for the rest of that visit. | Rishi asked that, once printed, only the counter changes a bill and always with a PIN. Removing, cancelling after payment and reopening already asked; adding was the one way a cashier could raise a printed bill with nobody's approval. One PIN per visit, not per dish, because a table adding three dishes would otherwise call the manager three times; leaving the screen or a refused PIN forgets it. |
 | 2026-10-12 | P39: a captain (WAITER) cannot change a bill's items once it has printed: no removing, adding, cancelling after billing or reopening, and a manager's PIN does not lift it. Before the first print a captain adds and removes as before. A fixed rule, not a setting. | Rishi asked for it. The printed bill is what the guest was shown, and a captain lowering it afterwards is where money goes missing. The check runs before any PIN is read, so a refused captain never uses up a manager's PIN attempts. |
 ---
@@ -560,8 +561,12 @@ Tests: `printedBillAdd.test.js` (6): a cashier without a PIN 403 and the bill un
 
 Also 2026-10-13, at Rishi's request: two more captain logins on live Z Chaat (`cluster0.dkcsfcz`), Govind (9000003006) and Captain 3 (9000003007), made with `authService.createUserWithPassword`, the code `POST /users` uses, by a one-off script that was not kept. Their passwords were given to Rishi once, in the chat, and are not written here. Z Chaat now has owner, manager, two cashiers (Z Chaat Cashier, Khuman singh), three captains (Shivam, Govind, Captain 3) and the kitchen. Neither the owner nor the manager has a PIN yet.
 
+Deployed 2026-10-13: pushed `a7e1cc0..1da0579` (P39, P40 and the logins). Render runs `1da0579`, database connected; Vercel's push build serves `index-Bi3UNBzi.js`, the same build tested here, with the PIN step in it, and `/api` reaches Render.
+
+Then, at Rishi's word, Z Chaat's trial data was removed so real billing starts clean (decision log, 2026-10-13): 49 orders, 49 bills, 74 kitchen tickets, 7 online orders, 10 bookings, 7 guests, 106 audit lines and 5 counters, by a one-off script, not kept, that backed each collection up and read it back, then deleted in one transaction, scoped to Z Chaat. Counts deleted matched the backup exactly. Orders 46 to 49 had been opened by staff minutes before; Rishi confirmed they were tests.
+
 Anything the other developer needs to know:
-Not pushed or deployed. A cashier at Z Chaat will now be asked for the manager's PIN when adding to a printed bill, so the manager needs a PIN set on the Staff screen.
+A cashier at Z Chaat will now be asked for the manager's PIN when adding to a printed bill, so the manager needs a PIN set on the Staff screen.
 
 ### 2026-10-12 Rishi, P39 a captain cannot change a printed bill
 
