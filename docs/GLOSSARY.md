@@ -569,3 +569,14 @@ Added by P42.
 | **Swap for another dish** | Remove a sent dish and pick its replacement, which goes to the kitchen |
 | **Changed** | On a kitchen ticket: the dish's quantity or note changed after it was sent |
 | **Already made** | A dish the kitchen has marked ready. Changing it needs a reason, and a manager's PIN for a cashier or captain. |
+
+---
+
+## 28. Other payment words
+
+Added by P43.
+
+| Term | Meaning |
+|---|---|
+| **Other** | The built-in payment method for a way of paying the restaurant has no method for. Switched off until the owner switches it on. |
+| **Mode of payment** | On an Other payment, how it was paid: Cheque, Bank transfer, Wallet, Coupon, or what the cashier types. Stored as the payment's reference. |

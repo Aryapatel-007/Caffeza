@@ -2550,6 +2550,10 @@ we record which method was used (BUILD-PLAN section 4).
 payment would take the paid amount above the grand total. Overpayment is
 refused rather than stored, because change given in cash is not a payment.
 
+P43: for `method: "OTHER"`, `reference` is the mode of payment and is required,
+422 `BUSINESS_RULE_VIOLATED` "Say how it was paid, for example Cheque." without
+it.
+
 ### 14.6 Void a bill
 
 ```
@@ -8432,6 +8436,23 @@ exactly what it did before.
 
 Date or null, default null. Set when a sent line's quantity or note changes.
 The kitchen screen shows "Changed" on such a line.
+
+## Error codes
+
+None new.
+
+---
+
+# P43 Other, with the mode of payment
+
+`docs/prompts/P43-other-payment-mode.md`. No new endpoint, field or code.
+
+`POST /bills/:billId/payments` (14.5) with `method: "OTHER"` requires
+`reference`, the mode of payment, 1 to 100 characters after trimming; without
+it, 422 `BUSINESS_RULE_VIOLATED`, "Say how it was paid, for example Cheque."
+Checked after the method rules, so a restaurant with `OTHER` switched off still
+answers `PAYMENT_METHOD_NOT_ALLOWED`. Every other method's `reference` stays
+optional.
 
 ## Error codes
 

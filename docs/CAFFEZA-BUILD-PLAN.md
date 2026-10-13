@@ -113,6 +113,7 @@ Each prompt names its model at the top.
 | P40 | A manager's PIN to add to a printed bill | M3, M2 | P39 | Rishi | Opus, high |
 | P41 | Kitchen text on one line, Recall, Undo after Send, the floor as tiles | M18, M2, M20 | P36, P38 | Rishi | Opus, high |
 | P42 | Changing a dish after it is sent; the kitchen login sees only tickets | M2, M18, M20 | P41 | Rishi | Opus, high |
+| P43 | Other, with the mode of payment | M10, M3 | P08 | Rishi | Sonnet, medium |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.
