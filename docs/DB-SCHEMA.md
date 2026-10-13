@@ -957,6 +957,7 @@ to mark lines ready or cancelled.
 | `notes` | String | no | Trimmed, max 200 characters |
 | `status` | String | yes | Enum `PENDING`, `READY`, `CANCELLED` |
 | `readyAt` | Date | no | UTC |
+| `changedAt` | Date | no | P42. UTC. Default null. When a sent line's quantity or note was changed. |
 
 Indexes: `{ restaurantId: 1, branchId: 1, createdAt: 1 }` for the kitchen
 display, `{ restaurantId: 1, orderId: 1 }`, and
@@ -2888,3 +2889,11 @@ No new collection or field.
 
 `orders.lines[].cancelReasonCode` gains `SENT_BY_MISTAKE`, written only by
 `POST /orders/:orderId/undo-send`. `auditlogs.action` gains `KOT_SEND_UNDONE`.
+
+## 48. Changing a sent dish (P42)
+
+`kots.lines[]` gains `changedAt` (above). Lowering a sent line's quantity
+splits it: the line keeps the new quantity, and a cancelled line with the same
+snapshot holds the difference, so reports read the cancelled quantity as for
+any cancel. Its stock comes back as `CANCELLATION_RETURN` movements on the
+original line, keyed `{lineId}:{ingredientId}:CANCELLATION_RETURN:{newLineId}`.

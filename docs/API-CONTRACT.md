@@ -1893,7 +1893,10 @@ Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
 new line, not an edit, because the snapshot on a line has to stay the thing that
 was actually ordered.
 
-422 `BUSINESS_RULE_VIOLATED` if the line has already been fired.
+422 `BUSINESS_RULE_VIOLATED` if the line has already been fired. P42: a `FIRED`
+line takes `notes` alone (its quantity changes through 12.6a), and its kitchen
+ticket line takes the same note with `changedAt` set; a `READY` or `SERVED` line
+is still refused.
 
 P29: 422 `BUSINESS_RULE_VIOLATED` also when the order has a live bill, "This
 table has a bill. Change the items from the bill." The same rule applies to
@@ -7875,7 +7878,7 @@ This is how P25 Part E already answers.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `approvals.lineCancel` | Boolean | true | A CASHIER or WAITER cancelling a line the kitchen has (FIRED, READY or SERVED) needs an approval |
+| `approvals.lineCancel` | Boolean | true | A CASHIER or WAITER cancelling a line the kitchen has made (READY or SERVED; before P42 also FIRED) needs an approval |
 | `approvals.paidIn` | Boolean | true | A CASHIER's `PAID_IN` needs an approval |
 | `approvals.managerTasks` | Boolean | true | A CASHIER may void a bill, cancel a whole order, give No Charge and record a `PAID_OUT` with an approval. Off: OWNER and MANAGER only, as before P28. |
 
@@ -7888,7 +7891,7 @@ Every one takes `approval` as an optional field beside its existing body.
 
 | Endpoint | Roles before P28 | Roles from P28 | Needs an approval when |
 |---|---|---|---|
-| `POST /orders/:orderId/lines/:lineId/cancel` (12.6) | OWNER, MANAGER, CASHIER, WAITER | the same | The caller is a CASHIER or WAITER, the line is FIRED, READY or SERVED, and `lineCancel` is on |
+| `POST /orders/:orderId/lines/:lineId/cancel` (12.6) | OWNER, MANAGER, CASHIER, WAITER | the same | The caller is a CASHIER or WAITER, the line is READY or SERVED (P42; FIRED before it), and `lineCancel` is on |
 | `POST /cash-movements` (M16) | `PAID_OUT` OWNER, MANAGER; others also CASHIER | the same, plus a CASHIER's `PAID_OUT` | A CASHIER's `PAID_IN` with `paidIn` on; a CASHIER's `PAID_OUT` always (refused when `managerTasks` is off). `OPENING_FLOAT` never. |
 | `POST /bills/:billId/void` (14.6) | OWNER, MANAGER | plus CASHIER | A CASHIER, always; refused when `managerTasks` is off |
 | `POST /orders/:orderId/cancel` (12.10) | OWNER, MANAGER | plus CASHIER | A CASHIER, always; refused when `managerTasks` is off |
@@ -8364,6 +8367,70 @@ Response 200: the order, as `GET /orders/:orderId`.
 
 `LINE_CANCEL_REASONS` gains `SENT_BY_MISTAKE`, "Sent to the kitchen by
 mistake", appended before `OTHER`, server and client.
+
+## Error codes
+
+None new.
+
+---
+
+# P42 Changing a dish after it is sent
+
+`docs/prompts/P42-edit-a-sent-kot-and-a-kitchen-only-screen.md`. One new
+endpoint, two narrowed rules, one new field. No new error code.
+
+## 1. Who needs a PIN to cancel a sent line (changes 12.6 and P28 section 3)
+
+`approvals.lineCancel` applies to a line the kitchen has **made**: `READY` or
+`SERVED`. A `FIRED` line is cancelled by OWNER, MANAGER, CASHIER or WAITER with
+no approval. `wasPrepared` is still required for every sent line, as 12.6
+says; the order screen sends `false` for a `FIRED` line and `true` for a made
+one.
+
+## 2. 12.6a Lower the quantity of a sent line
+
+```
+POST /api/v1/orders/:orderId/lines/:lineId/reduce
+{ "version": 7, "quantity": 2, "reasonCode": "MODIFICATION", "note": null,
+  "wasPrepared": false, "approval": { "approverId": "...", "pin": "2468" } }
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. `quantity` a whole number, at least 1
+and below the line's quantity. `reasonCode`, `note`, `wasPrepared` and
+`approval` follow 12.6 exactly, for the part being taken off.
+
+Refused: the order not open, or with a live bill, as 12.6; the line `PENDING`
+(422, "Change the quantity of a dish not sent yet with its stepper."),
+`CANCELLED` (422), or `quantity` not below its quantity (400).
+
+In **one transaction**:
+
+1. The line's `quantity` becomes `quantity`.
+2. A new line is pushed with a new id, the line's snapshot, `status`, `kotId`,
+   `firedAt`, `readyAt` and `servedAt`, and `quantity` the difference.
+3. Its kitchen ticket line takes the new `quantity` and `changedAt` now, and a
+   ticket line for the difference is pushed beside it (same station, round
+   and sent time, pointing at the new line).
+4. The new line is cancelled through `cancelLineInSession` with the request's
+   reason, `wasPrepared` and approval, so its ticket line is `CANCELLED`, a made
+   one writes `LINE_CANCELLED_AFTER_PREP`, and an approved one
+   `LINE_CANCELLED_APPROVED`.
+5. With inventory on and `wasPrepared: false`, the difference's share of what
+   was deducted for the line comes back as `CANCELLATION_RETURN` movements
+   on the line, keyed `{lineId}:{ingredientId}:CANCELLATION_RETURN:{newLineId}`.
+
+Response 200: the order.
+
+## 3. Stock returned on a cancel
+
+`returnStockForCancelledLine` returns, per ingredient, what was deducted for
+the line less what has already come back for it. A line never reduced returns
+exactly what it did before.
+
+## 4. `kots.lines[].changedAt`
+
+Date or null, default null. Set when a sent line's quantity or note changes.
+The kitchen screen shows "Changed" on such a line.
 
 ## Error codes
 

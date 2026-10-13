@@ -555,3 +555,17 @@ Added by P41.
 | **Finished** | A ticket whose dishes are all ready, listed under Recall for 60 minutes |
 | **Undo** | On the order screen, for 60 seconds after Send to kitchen: take that Send back. The dishes leave the kitchen and are on the order again, not sent. |
 | **Sent to the kitchen by mistake** | The cancel reason an Undo writes on the dishes it took back |
+
+---
+
+## 27. Changing a sent dish
+
+Added by P42.
+
+| Term | Meaning |
+|---|---|
+| **Change** | On a sent dish: lower its quantity, change its note, remove it or swap it |
+| **Remove dish** | Take a sent dish off the order and the kitchen ticket |
+| **Swap for another dish** | Remove a sent dish and pick its replacement, which goes to the kitchen |
+| **Changed** | On a kitchen ticket: the dish's quantity or note changed after it was sent |
+| **Already made** | A dish the kitchen has marked ready. Changing it needs a reason, and a manager's PIN for a cashier or captain. |
