@@ -406,12 +406,13 @@ export default function OrderScreenPage() {
               </button>
 
               <div className="flex flex-none items-center gap-2">
+                {/* Shown on a phone too: it is the way to the sent dishes and their Change (P42). */}
                 <button
                   type="button"
                   onClick={() => setIsReviewing(true)}
-                  className="type-button hidden min-h-12 items-center rounded-lg px-4 hover:bg-sunken md:flex"
+                  className="type-button flex min-h-12 items-center rounded-lg border border-ink px-3 hover:bg-sunken md:border-transparent md:px-4"
                 >
-                  Review order
+                  Review<span className="hidden md:inline">&nbsp;order</span>
                 </button>
                 <button
                   type="button"

@@ -554,6 +554,10 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-13 Rishi, Review on a phone's order screen
+
+Rishi could not find Change on a captain's phone: the order screen's Review order button was hidden below tablet width, so the only way to the sent dishes was tapping the item count, which does not look like a button. Review now shows on every width (`OrderScreenPage.jsx`), "Review" on a phone. `e2e/editSentDish.spec.js` reaches the lines through it on a phone; it, the recall spec and the golden day pass. Committed; not pushed at the time of writing, because Render restarts on every push.
+
 ### 2026-10-13 Rishi, P42 changing a sent dish, the kitchen login sees only tickets
 
 What was built or decided:

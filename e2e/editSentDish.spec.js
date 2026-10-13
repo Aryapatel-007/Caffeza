@@ -55,7 +55,8 @@ test('a captain changes sent dishes, and the kitchen login sees only its tickets
   const page = captain.page;
   await page.goto(`/orders/${order.id}`);
   const openLines = async () => {
-    await page.getByRole('button', { name: /Item total, before GST/ }).click();
+    // The Review button, visible on a phone, is the way to the sent dishes.
+    await page.getByRole('button', { name: 'Review', exact: true }).click();
     return page.getByRole('dialog').first();
   };
   const changeSheet = (dish) => page.getByRole('dialog', { name: `Change ${dish}` });
@@ -92,6 +93,7 @@ test('a captain changes sent dishes, and the kitchen login sees only its tickets
   await expect(page.getByText('Pick the replacement for Half & Half Pizza, then send it.')).toBeVisible();
   await page.getByRole('button', { name: 'Add Chilli Garlic Noodle Bowl', exact: true }).click();
   await addFromPanel(page);
+  await page.screenshot({ path: 'e2e/screenshots/captain-review-bar-send.png' });
   await sendToKitchen(page);
 
   const after = await api('GET', `/orders/${order.id}`, captainToken);
@@ -109,5 +111,6 @@ test('a captain changes sent dishes, and the kitchen login sees only its tickets
   await expect(ticket).toContainText('Chilli Garlic Noodle Bowl');
   await expect(ticket.locator('li').filter({ hasText: 'Creamy Pesto Pasta' }).filter({ hasText: 'Changed' }).first()).toBeVisible();
   await expect(ticket.locator('li').filter({ hasText: 'Caffe Latte' }).filter({ hasText: 'Cancelled, do not make' })).toBeVisible();
+  await page.screenshot({ path: 'e2e/screenshots/captain-review-bar.png' });
   await kitchen.page.screenshot({ path: 'e2e/screenshots/kitchen-only.png', fullPage: true });
 });
