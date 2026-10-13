@@ -23,6 +23,9 @@ import MethodButtons from './MethodButtons.jsx';
  * one tap on a method and one on Record payment. Methods are the restaurant's
  * configured ones this bill may use, passed in; the server still decides.
  */
+/** P43. The modes Other is most often, one tap each. Anything else is typed. */
+const OTHER_MODES = ['Cheque', 'Bank transfer', 'Wallet', 'Coupon'];
+
 export default function InlinePayment({ billId, methods, outstandingInPaise, isBusy, error, onConfirm, onTerminalFinished }) {
   // Until one is picked, the first allowed method is selected. Derived, because
   // the methods may still be loading when this mounts.
@@ -47,6 +50,7 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
   const [typed, setTyped] = useState(null);
   const amountInPaise = typed === null ? outstandingInPaise : parseRupeesToPaise(typed);
   const isCash = method?.code === 'CASH';
+  const isOther = method?.code === 'OTHER';
   const tenderedInPaise = countedTotal(counts, denominations);
   const changeInPaise = tenderedInPaise - (amountInPaise ?? 0);
   const change = changeInPaise > 0 ? suggestChange(changeInPaise, denominations) : null;
@@ -65,7 +69,39 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
 
       {method && (
         <div className="rounded-[10px] border border-line bg-surface p-4">
-          {method.code !== 'CASH' && (
+          {/* P43. Other says how it was paid, and the payment waits for it. */}
+          {isOther && (
+            <fieldset className="mb-4">
+              <legend className="mb-1 type-label">Mode of payment</legend>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {OTHER_MODES.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={reference === mode}
+                    onClick={() => setReference(mode)}
+                    className={[
+                      'type-label min-h-12 rounded-lg border px-4',
+                      reference === mode ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
+                    ].join(' ')}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                aria-label="Mode of payment"
+                value={reference}
+                onChange={(event) => setReference(event.target.value)}
+                maxLength={100}
+                placeholder="Or type it, for example Paytm wallet"
+                className="min-h-12 w-full rounded-lg border border-muted bg-surface px-4 type-body placeholder:text-muted"
+              />
+              {!reference.trim() && <p className="type-caption mt-1 text-muted">Pick or type how it was paid to record it.</p>}
+            </fieldset>
+          )}
+          {method.code !== 'CASH' && !isOther && (
             <label className="mb-4 block">
               <span className="mb-1 block type-label text-muted">
                 Reference (optional)
@@ -129,6 +165,7 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
             confirmLabel={method.terminalProvider && !byHand ? 'Send to machine' : <Bilingual k="recordPayment" align="center" />}
             cancelLabel="Reset"
             busy={isBusy || toMachine.isPending}
+            disabled={isOther && !reference.trim()}
             error={toMachine.isError ? errorMessage(toMachine.error) : error}
             onCancel={() => {
               setReference('');
@@ -137,6 +174,8 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
             onConfirm={(raw) => {
               const amount = parseRupeesToPaise(raw);
               if (amount === null || amount <= 0) return;
+              // P43. The server refuses Other with no mode; say so here instead of sending it.
+              if (isOther && !reference.trim()) return;
               if (method.terminalProvider && !byHand) {
                 if (device.terminalClientId) toMachine.mutate(amount);
                 return;

@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-13 by Rishi (P42 changing a sent dish, the kitchen login sees only tickets)
+Last updated: 2026-10-13 by Rishi (P43 Other with the mode of payment)
 
 ---
 
@@ -525,6 +525,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-12 | Z Chaat takes no payment online: guests pay at the counter by the QR code, card or cash, and bookings take no deposit; the cafe confirms the table. The public page says so whenever no gateway is connected. | Rishi's word, 2026-10-12. The online-payment branch stays in the code for a restaurant that connects Razorpay. |
 | 2026-10-12 | Later the same day: Z Chaat's table bookings take an advance of ₹50 a person, paid online when booking through Z Chaat's own Razorpay, taken off the bill, like Zomato. Takeaway stays paid at the counter. This narrows the row above to takeaway. | Rishi's choice, from three offered (online, by QR after confirming, at the counter). Per person because the deposit setting already exists (`depositPerPersonInPaise`); a flat per-booking amount would have needed a new setting. Needs Razorpay connected in Settings, Payments, and `PAYMENT_SECRETS_KEY` on the server. |
 | 2026-10-12 | P38: a dish on a kitchen ticket is marked ready by a Cooking / Ready switch, not by tapping its row; switching it off is the undo. | Rishi asked for an on/off switch. A switch shows the state in place and cannot be set by brushing the row. The tested helper `tickDish` now uses the switch, changed on purpose. |
+| 2026-10-13 | P43: an Other payment must say its mode (Cheque, Bank transfer, Wallet, Coupon, or typed), stored as the payment's `reference`. | Rishi asked for Other with its mode. A field already shown on the bill and kept per payment carries it, so no schema change; reports keep these payments under Other. |
 | 2026-10-13 | P42: anyone but the kitchen login changes a sent dish from the order screen's Change: fewer of it, a new note, remove it, or swap it. `approvals.lineCancel` now asks the PIN only for a dish that was made: marked ready, or said to be made ("Already made by the kitchen"). A dish sent but not made changes with no PIN and no questions. | Rishi asked for it, and chose the PIN "only once it's cooked". A kitchen often cooks before ticking, so "made" is the kitchen's tick or the person's word, which keeps thrown-away food audited and the golden day's Thecha cancel (made, PIN) unchanged. Lowering a quantity splits the line, so the part taken off is an ordinary cancelled line for reports; only its share of stock comes back, and a later remove returns what is still out, never more. Nothing prints; the kitchen screen shows Changed or Cancelled. |
 | 2026-10-13 | P42: the KITCHEN login sees only the ticket board: no rail, bottom bar, Home or Availability; any other address opens the board; the bar has only the name and Sign out. | Rishi asked for "only KOT". Availability and This device go with it: a manager marks dishes out of stock, and sets a kitchen tablet's printer while signed in on it. The server's permissions are unchanged. |
 | 2026-10-13 | P41: a Send to kitchen can be undone for 60 seconds, before the kitchen marks anything ready, with no reason or PIN. It cancels the sent lines (`SENT_BY_MISTAKE`, stock returned) and puts unsent copies back with new line ids, rather than moving the lines back to unsent. | Rishi asked for an undo after Send. Copies keep stock right: deductions are keyed on the line id, so a line sent twice under one id would not be deducted the second time after its stock had been returned. The minute and the "nothing ready" rule keep it from becoming a way round the PIN for a cancel after cooking. Audited as `KOT_SEND_UNDONE`. |
@@ -553,6 +554,18 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-13 Rishi, P43 Other with the mode of payment
+
+What was built or decided:
+Asked for by Rishi. Spec first (`spec other with the mode of payment`): `docs/prompts/P43-other-payment-mode.md`, API-CONTRACT 14.5 and "P43", GLOSSARY section 28.
+1. Server: `recordPayment` (`services/billService.js`) refuses an `OTHER` payment with no `reference`: 422, "Say how it was paid, for example Cheque.", after the method rules, so a restaurant with Other off still answers `PAYMENT_METHOD_NOT_ALLOWED`. The mode is the payment's `reference`; no new field.
+2. Payment panel (`InlinePayment.jsx`): Other shows "Mode of payment" with Cheque, Bank transfer, Wallet and Coupon one tap each, or typed; the keypad waits until it is filled. The bill shows "Other · Cheque".
+
+Tests: `payments.test.js` gains one: Other with no mode, or blank, refused and the bill unchanged; with Cheque recorded as the reference; Cash still needs none. Switching the rule off on purpose fails it. Browser: new `e2e/otherPayment.spec.js`. Full `npm test`: 1,300 passing, 0 failing. Lint and build pass.
+
+Anything the other developer needs to know:
+`OTHER` stays switched off for every restaurant until its owner switches it on (Settings, Payment methods). A payment corrected to Other (P08's correction) is not asked for a mode; that path was left as it was.
 
 ### 2026-10-13 Rishi, Review on a phone's order screen
 

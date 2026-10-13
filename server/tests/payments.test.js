@@ -247,6 +247,35 @@ describe('configuring payment methods', () => {
 });
 
 describe('taking a payment', () => {
+  it('P43: Other needs its mode of payment, kept as the reference; Cash still needs nothing', async () => {
+    const floor = await seedFloor();
+    const { tokens } = floor;
+    await goldenMethods(tokens.OWNER);
+    const other = (await listMethods(tokens.OWNER, '?includeInactive=true')).body.data.find((method) => method.code === 'OTHER');
+    assert.equal((await updateMethod(tokens.OWNER, other.id, { isActive: true })).status, 200);
+
+    const bill = await dineInBill(floor);
+    const noMode = await pay(tokens.CASHIER, bill.id, { method: 'OTHER', amountInPaise: 100 });
+    assert.equal(noMode.status, 422);
+    assert.equal(noMode.body.error.code, 'BUSINESS_RULE_VIOLATED');
+    assert.equal(noMode.body.error.message, 'Say how it was paid, for example Cheque.');
+    const blank = await pay(tokens.CASHIER, bill.id, { method: 'OTHER', amountInPaise: 100, reference: '   ' });
+    assert.equal(blank.status, 422);
+
+    const unchanged = (await request('GET', `/api/v1/bills/${bill.id}`, { token: tokens.CASHIER })).body.data;
+    assert.equal(unchanged.payments.length, 0);
+
+    const cheque = await pay(tokens.CASHIER, bill.id, { method: 'OTHER', amountInPaise: 100, reference: 'Cheque' });
+    assert.equal(cheque.status, 200, JSON.stringify(cheque.body));
+    const recorded = cheque.body.data.payments.at(-1);
+    assert.equal(recorded.method, 'OTHER');
+    assert.equal(recorded.methodName, 'Other');
+    assert.equal(recorded.reference, 'Cheque');
+
+    const cash = await pay(tokens.CASHIER, bill.id, { method: 'CASH', amountInPaise: 100 });
+    assert.equal(cash.status, 200, JSON.stringify(cash.body));
+  });
+
   it('refuses an inactive method, a method not for this order type, and the wrong platform', async () => {
     const floor = await seedFloor();
     const { tokens } = floor;
