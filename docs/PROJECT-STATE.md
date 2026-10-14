@@ -558,6 +558,10 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-14 Rishi, P46 and P47 deployed
+
+Pushed `ace8ed9..95d26fd` at Rishi's word: Render runs `95d26fd`, database connected; Vercel serves `index-Csv-3vcc.js`. On Z Chaat, as the owner through `POST /menu-items`: "Open item" in Sides (routed to the Kitchen station), 5% GST. Other was already switched on there.
+
 ### 2026-10-14 Rishi, P47 Other modes kept in Settings
 
 What was built or decided:
