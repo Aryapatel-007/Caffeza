@@ -38,6 +38,12 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, ne
   const isOpen = item.isOpenItem === true;
   const [openName, setOpenName] = useState('');
   const [openPrice, setOpenPrice] = useState('');
+  // P48. Extras typed at the table: a name and a price each, at most five.
+  const [extras, setExtras] = useState([]);
+  const typedExtras = extras
+    .map((extra) => ({ name: extra.name.trim(), priceInPaise: parseRupeesToPaise(extra.price) }))
+    .filter((extra) => extra.name && extra.priceInPaise !== null && extra.priceInPaise > 0);
+  const extrasReady = extras.every((extra) => (!extra.name.trim() && !extra.price.trim()) || (extra.name.trim() && (parseRupeesToPaise(extra.price) ?? 0) > 0));
   const openPriceInPaise = isOpen ? parseRupeesToPaise(openPrice) : null;
   const openReady = !isOpen || (openName.trim().length > 0 && openPriceInPaise !== null && openPriceInPaise > 0);
 
@@ -53,7 +59,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, ne
    * anywhere and it is not a bill: the server computes the real line total from
    * the snapshot it writes, and M3 owns tax.
    */
-  const previewTotal = (unitPrice + addOnTotal) * quantity;
+  const previewTotal = (unitPrice + addOnTotal + typedExtras.reduce((total, extra) => total + extra.priceInPaise, 0)) * quantity;
 
   const toggleAddOn = (id) =>
     setAddOnIds((current) =>
@@ -117,6 +123,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, ne
         ...(addOnIds.length > 0 ? { addOnIds } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(isOpen ? { openItem: { name: openName.trim(), priceInPaise: openPriceInPaise } } : {}),
+        ...(!isOpen && typedExtras.length > 0 ? { extras: typedExtras } : {}),
       },
       approval.body,
     );
@@ -138,7 +145,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, ne
           <button
             type="button"
             // Every size out of stock means nothing here can be ordered.
-            disabled={isBusy || (item.variants.length > 0 && !variantId) || !approval.ready || !openReady}
+            disabled={isBusy || (item.variants.length > 0 && !variantId) || !approval.ready || !openReady || !extrasReady}
             onClick={pick}
             className="flex min-h-14 flex-1 items-center justify-between gap-2 rounded-lg bg-accent px-4 text-on-accent hover:brightness-110 disabled:opacity-60"
           >
@@ -219,6 +226,52 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, ne
                 </label>
               );
             })}
+          </div>
+        </fieldset>
+      )}
+
+      {/* P48. An extra with its own price, typed here, like "Extra butter ₹15". Not on an open item. */}
+      {!isOpen && (
+        <fieldset className="mb-6">
+          <legend className="type-label mb-2">Extras with a price</legend>
+          <div className="flex flex-col gap-2">
+            {extras.map((extra, index) => (
+              <div key={index} className="flex items-end gap-2">
+                <Input
+                  className="flex-1"
+                  label={`Extra ${index + 1}`}
+                  value={extra.name}
+                  maxLength={40}
+                  placeholder="e.g. Extra butter"
+                  onChange={(event) => setExtras((current) => current.map((entry, at) => (at === index ? { ...entry, name: event.target.value } : entry)))}
+                />
+                <Input
+                  className="w-24"
+                  label="₹"
+                  inputMode="decimal"
+                  value={extra.price}
+                  placeholder="15"
+                  onChange={(event) => setExtras((current) => current.map((entry, at) => (at === index ? { ...entry, price: event.target.value } : entry)))}
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove extra ${index + 1}`}
+                  onClick={() => setExtras((current) => current.filter((_, at) => at !== index))}
+                  className="flex size-12 flex-none items-center justify-center rounded-lg text-muted hover:bg-sunken hover:text-ink"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {extras.length < 5 && (
+              <button
+                type="button"
+                onClick={() => setExtras((current) => [...current, { name: '', price: '' }])}
+                className="type-label min-h-12 self-start rounded-lg border border-line px-4 hover:bg-sunken"
+              >
+                + Extra
+              </button>
+            )}
           </div>
         </fieldset>
       )}

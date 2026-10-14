@@ -1,3 +1,4 @@
+import BillNoSearch from './BillNoSearch.jsx';
 import { Suspense, useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
@@ -335,7 +336,11 @@ export default function AppShell({ children }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-12 flex-none items-center justify-between gap-3 border-b border-line bg-surface px-4 print:hidden">
           <TopBarMark isService={isServicePath(pathname)} />
-          <span className="type-caption truncate text-muted">{user?.name}</span>
+          <span className="flex items-center gap-3">
+            {/* P48. Recall Bill, as on PetPooja: the till finds a bill by its number. */}
+            {['OWNER', 'MANAGER', 'CASHIER'].includes(user?.role) && <BillNoSearch />}
+            <span className="type-caption truncate text-muted">{user?.name}</span>
+          </span>
         </header>
 
         <LiveConnection />

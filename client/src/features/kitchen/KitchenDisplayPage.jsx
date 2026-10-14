@@ -344,8 +344,8 @@ export default function KitchenDisplayPage() {
           <EmptyState title="All caught up" description="Nothing is waiting. New tickets appear here on their own." />
         )}
 
-        {/* P41. Three across from 1024 px, four from 1536, so a dish name has room for one line. */}
-        <ul className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        {/* P48. Dense, as PetPooja's: four across from 1024 px, five from 1280, six from 1536, so a service fits one screen. */}
+        <ul className="grid items-start gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {kots.map((kot) => (
             <li key={kot.id}>
               <TicketCard

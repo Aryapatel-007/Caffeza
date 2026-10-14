@@ -532,3 +532,34 @@ and before anyone opens a screen:
 6. Open one screen, read the floor and a closed day's report, and compare a
    day's totals with the old cluster's before switching anything else off.
 
+## 16. The test site (P48 Part I)
+
+A second copy of the app where staff practise, at
+`https://zchaat-pos-test.onrender.com`, with its own database,
+`restaurant-erp-test` on the same Atlas cluster. Nothing there touches a real
+bill or a real invoice number. One Render service serves both the screens and
+the API: the Dockerfile builds the client and the server serves it, so there is
+no second Vercel project.
+
+**What is in it.** On 2026-10-14 the test database got its indexes
+(`npm run db:indexes` with `MONGO_URI` pointing at it) and a copy of Z Chaat's
+setup only: the restaurant, branch, staff logins (same phones and passwords),
+categories, menu, tables, stations and payment methods. No orders, bills,
+guests or activity log. It is renamed "Z Chaat (TEST)", its day-end email list
+is empty (so it never emails the real inbox) and it has no payment gateway.
+
+**Creating the service (once, in Render's dashboard).**
+1. New, Blueprint, this repository; Blueprint path `render.test.yaml`.
+2. `MONGO_URI`: the same as the live one with the database name changed from
+   `/restaurant-erp` to `/restaurant-erp-test`. Check it twice: the live
+   database name here would make the test site a second live till.
+3. Apply. The first build takes several minutes. Open
+   `https://zchaat-pos-test.onrender.com` and sign in with any Z Chaat login.
+
+It deploys every push to `main`, like the live server, and sleeps when idle on
+the free plan: the first screen after a sleep waits about a minute.
+
+**Starting it fresh.** Delete the test database's orders, bills, kitchen
+tickets, customers, audit lines and counters (scoped to the TEST restaurant),
+never the live one's.
+

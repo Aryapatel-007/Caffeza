@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-14 by Rishi (P46 open item, P47 Other modes)
+Last updated: 2026-10-14 by Rishi (P48 PetPooja's way; kitchen bell off by default; test database)
 
 ---
 
@@ -525,6 +525,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-12 | Z Chaat takes no payment online: guests pay at the counter by the QR code, card or cash, and bookings take no deposit; the cafe confirms the table. The public page says so whenever no gateway is connected. | Rishi's word, 2026-10-12. The online-payment branch stays in the code for a restaurant that connects Razorpay. |
 | 2026-10-12 | Later the same day: Z Chaat's table bookings take an advance of ₹50 a person, paid online when booking through Z Chaat's own Razorpay, taken off the bill, like Zomato. Takeaway stays paid at the counter. This narrows the row above to takeaway. | Rishi's choice, from three offered (online, by QR after confirming, at the counter). Per person because the deposit setting already exists (`depositPerPersonInPaise`); a flat per-booking amount would have needed a new setting. Needs Razorpay connected in Settings, Payments, and `PAYMENT_SECRETS_KEY` on the server. |
 | 2026-10-12 | P38: a dish on a kitchen ticket is marked ready by a Cooking / Ready switch, not by tapping its row; switching it off is the undo. | Rishi asked for an on/off switch. A switch shows the state in place and cannot be set by brushing the row. The tested helper `tickDish` now uses the switch, changed on purpose. |
+| 2026-10-14 | P48: the floor, Recall Bill, the cash change helper and the counter screen follow PetPooja, which Z Chaat's staff know; each send is its own KOT; typed extras beside menu add-ons; the kitchen bell off by default. | Rishi asked for PetPooja's screens as they are, "a 1-2 step process". The state words stay on the tiles, so colour never carries a state alone. A test database rather than test bills in the live one, which CLAUDE.md forbids. |
 | 2026-10-14 | P46: an open item is a real menu item marked open, whose name and price staff type at the table; everyone who takes orders may add one, with no PIN. | Rishi's choice. A placeholder dish gives the typed line a category (so a kitchen station) and a GST rate, and every bill, report and ticket keeps working on frozen lines. Never on the guests' page or a platform: only staff may price a dish. |
 | 2026-10-14 | P44: the day-end message is plain text in the manager's own words (GLOSSARY section 29), built from Day Close's figures and R3, emailed through Resend to the owner's chosen addresses at Day Close and on a button; the Day End page lays the day out in PetPooja's three steps. | Rishi asked for both, with PetPooja's screens as the model the manager knows. One set of figures means the message, Day Close and R2 never disagree. The email goes only to addresses the owner set, so it may carry the cash a blind manager does not see on screen. No Resend SDK: one HTTPS call, as Razorpay. |
 | 2026-10-14 | A sign-in lasts 365 days, renewed on every refresh (`REFRESH_TOKEN_TTL` default `365d`, was `30d`), so a device stays signed in until Sign out. Firebase SMS sign-in was considered and not built. | Rishi wants captains and the kitchen never asked to sign in again. Sessions already renewed every 15 minutes in use, so 30 days only ended a device left unused for a month. Firebase phone sign-in would add a 6-digit SMS code to every new sign-in, a billed SMS plan and a rewrite of M0, and Rishi chose to keep phone and password. A lost device's session still ends when the owner switches the person off or resets their password. 365, not more: Chrome caps a cookie at 400 days. |
@@ -557,6 +558,26 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-14 Rishi, P48 PetPooja's way, the bell off by default, and a test database
+
+What was built or decided:
+Asked for by Rishi with PetPooja's Table View, Billing screen and Recall Bill; his answers: a separate test site, add-ons both from the menu and typed, Recall on a table shows only, the three-column screen on the counter computer only. Spec first (`spec petpooja's floor, recall, ...` and `spec the table history read`): `docs/prompts/P48-petpooja-floor-recall-change-counter.md`, API-CONTRACT "P48", DB-SCHEMA section 52, GLOSSARY section 33.
+A. Z Chaat's `kitchen.oneTicketPerOrder` switched off, as the owner through `PATCH /settings`: a new KOT for every Send (live, 2026-10-14).
+B. Kitchen board denser: four to six tickets across, `ticket-item` 14 px, smaller header, switch and footer (tap targets 48 px).
+C. Cash: **Guest gave** (tap each note) above the keypad, and **Give back ₹X** large with the notes and coins to return; the tender goes to the server as P25's `tender`.
+D. Floor: PetPooja's square tiles with their words (Blank, Running KOT, Running, Printed) and fills, a legend, 🖨 (the bill, or the order to bill) and 👁 under each busy table.
+E. Recall Bill: a **Bill No** box in the top bar for the till; `GET /bills?number=` (any date, voided too).
+F. 👁: `GET /tables/:tableId/history` (`services/tableHistoryService.js`) and `TableHistorySheet.jsx`: today's orders, each send with KOT numbers, time and who sent it, cancellations with reason and who, the bill. Read-only.
+G. Typed extras: `extras: [{ name, priceInPaise }]` on a line, frozen as add-ons with `addOnId: null`, taxed at the dish's rate, refused from a guest; **+ Extra** on the dish sheet and the delivery page.
+H. Counter screen: the till's orders open beside the menu with the categories down the left; **KOT & Print** prints the new tickets on this device. A dish card on the counter stacks its price above its stepper (found by the golden day: the + was cut off).
+I. Test database `restaurant-erp-test` on the same cluster: indexes built, then Z Chaat's setup copied (restaurant, branch, 8 logins with their passwords, 14 categories, 102 dishes, 14 tables, 4 stations, 4 payment methods, 2 ingredients) by a one-off script, renamed "Z Chaat (TEST)", day-end emails cleared, no gateway. `npm run db:copy` refuses one cluster, so it was not used. `render.test.yaml` and DEPLOYMENT.md section 16 describe the Render service if wanted; Rishi chose to run it on this Mac: `MONGO_URI=<test> PORT=5011 CLIENT_ORIGIN=http://localhost:5174 npm run dev`.
+J. P45's bell is off by default (`kitchenSound: false`), at Rishi's word; a device turns it on with Sound on.
+
+Tests: `recallAndExtras.test.js` (4): the number lookup, voided too, scoped; extras on the line, KOT and bill at the dish's rate; refusals; the history. Full `npm test`: 1,318 passing. Browser: new `e2e/petpooja.spec.js` (floor, history, Bill No, Guest gave, counter with an extra and KOT & Print, a busy kitchen), `kitchenBell.spec.js` changed on purpose to start from Sound off; all 24 browser specs pass. Lint and build pass.
+
+Anything the other developer needs to know:
+An older dev session on this Mac (ports 5001 and 5173) reads `.env`, which points at the live database: anything done on localhost:5173 is real.
 
 ### 2026-10-14 Rishi, P46 and P47 deployed
 

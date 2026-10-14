@@ -63,13 +63,13 @@ export default function TicketCard({
         isLate ? 'border-[3px] border-alert' : 'border border-line',
       ].join(' ')}
     >
-      <header className="flex items-start justify-between gap-2 border-b border-line px-4 py-3">
+      <header className="flex items-start justify-between gap-2 border-b border-line px-3 py-2">
         <div className="min-w-0">
           <p className="flex flex-wrap items-baseline gap-x-3">
-            <span className="type-num-tile">KOT {kotNumber}</span>
-            <span className="type-heading truncate">{place}</span>
+            <span className="type-num font-semibold">KOT {kotNumber}</span>
+            <span className="type-label truncate">{place}</span>
           </p>
-          {subtitle && <p className="type-caption mt-1 text-muted">{subtitle}</p>}
+          {subtitle && <p className="type-caption text-muted">{subtitle}</p>}
         </div>
         {onReprint && (
           <button type="button" onClick={onReprint} className="type-label min-h-12 flex-none rounded-lg px-2 text-muted hover:bg-sunken hover:text-ink">
@@ -82,7 +82,7 @@ export default function TicketCard({
         <p className="type-label border-b border-line bg-alert-tint px-4 py-2 text-alert">Not printed. Tap Reprint.</p>
       )}
 
-      <ul className="flex flex-1 flex-col gap-0.5 px-2 py-1">
+      <ul className="flex flex-1 flex-col px-1 py-0.5">
         {lines.map((line, index) => {
           const isDone = line.status === 'READY';
           const isCancelled = line.status === 'CANCELLED';
@@ -93,7 +93,7 @@ export default function TicketCard({
             {startsRound && (
               <li className="type-caption border-t border-line px-2 pt-2 text-muted">Added {formatTimeIst(line.firedAt)}</li>
             )}
-            <li className="flex items-center gap-2 rounded-lg px-1 py-1">
+            <li className="flex items-center gap-1 rounded-lg px-1">
               <div className={['flex min-w-0 flex-1 items-baseline gap-2', isDone ? 'opacity-60' : ''].join(' ')}>
                 <span className="type-num w-7 flex-none text-right font-semibold">{line.quantity}</span>
                 <span className="min-w-0 flex-1">
@@ -158,14 +158,14 @@ function ReadySwitch({ name, isReady, disabled, onChange }) {
       aria-label={`${name} ready`}
       disabled={disabled}
       onClick={onChange}
-      className="flex min-h-14 w-14 flex-none flex-col items-center justify-center gap-0.5 rounded-lg disabled:opacity-50"
+      className="flex min-h-12 w-12 flex-none flex-col items-center justify-center rounded-lg disabled:opacity-50"
     >
       <span
         aria-hidden="true"
-        className={['relative flex h-7 w-12 flex-none items-center rounded-full border-2 transition-colors duration-150', isReady ? 'border-ok bg-ok' : 'border-line bg-sunken'].join(' ')}
+        className={['relative flex h-6 w-10 flex-none items-center rounded-full border-2 transition-colors duration-150', isReady ? 'border-ok bg-ok' : 'border-line bg-sunken'].join(' ')}
       >
         <span
-          className={['absolute top-0.5 size-5 rounded-full bg-surface shadow transition-transform duration-150', isReady ? 'translate-x-[1.35rem]' : 'translate-x-0.5'].join(' ')}
+          className={['absolute top-0.5 size-4 rounded-full bg-surface shadow transition-transform duration-150', isReady ? 'translate-x-[1.1rem]' : 'translate-x-0.5'].join(' ')}
         />
       </span>
       <span className={`type-caption ${isReady ? 'text-ok' : 'text-muted'}`}>{isReady ? 'Ready' : 'Cooking'}</span>
@@ -238,7 +238,7 @@ function HoldToConfirm({ count, total, disabled, onConfirm, children }) {
         if (event.detail === 0 || prefersReducedMotion()) setAsking(true);
       }}
       aria-label={total > 0 ? `Mark all ${count} ready. Hold to confirm.` : undefined}
-      className="relative flex min-h-14 w-full touch-none select-none items-center justify-between gap-3 overflow-hidden px-4 pb-3 pt-2 hover:bg-sunken disabled:cursor-default disabled:hover:bg-transparent"
+      className="relative flex min-h-12 w-full touch-none select-none items-center justify-between gap-2 overflow-hidden px-3 pb-2 pt-1 hover:bg-sunken disabled:cursor-default disabled:hover:bg-transparent"
     >
       <span
         aria-hidden="true"

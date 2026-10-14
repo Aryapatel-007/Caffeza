@@ -76,6 +76,11 @@ export function listOrders({ status, orderType, tableId, page, limit } = {}) {
   return requestWithMeta(`/orders${toQuery({ status, orderType, tableId, page, limit })}`);
 }
 
+/** P48. What a table has had today, read-only: the floor's 👁. */
+export function getTableHistory(tableId) {
+  return api.get(`/tables/${tableId}/history`);
+}
+
 export function getOrder(orderId) {
   return api.get(`/orders/${orderId}`);
 }

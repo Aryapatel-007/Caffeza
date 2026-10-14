@@ -23,6 +23,9 @@ import {
   moveOrderToTable,
 } from '../../api/orders.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { getKotTicket } from '../../api/kitchen.js';
+import { charactersFor, printText } from '../printing/printText.js';
+import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import { formatTimeIst } from '../../utils/formatDate.js';
 import BillOrderButton from '../billing/BillOrderButton.jsx';
 import Bilingual from '../i18n/Bilingual.jsx';
@@ -86,6 +89,8 @@ export default function OrderScreenPage() {
   const { orderId } = useParams();
   const queryClient = useQueryClient();
   const { user, features } = useAuth();
+  // P48. KOT & Print prints on this device's printer.
+  const [device] = useDeviceSettings();
   const approvals = features.approvals ?? { lineCancel: true, paidIn: true, managerTasks: true };
   const approvesOwn = APPROVES_OWN.includes(user?.role);
 
@@ -231,7 +236,9 @@ export default function OrderScreenPage() {
   const canMove = isOpen && order.orderType === 'DINE_IN';
   // Takeaway and delivery have no table, so on a wide screen the order is a
   // ledger beside the menu rather than a bar and a slide-over.
-  const isCounter = order.orderType !== 'DINE_IN';
+  // P48. The till's computer gets PetPooja's counter screen for every order: menu beside the order.
+  const isTill = ['OWNER', 'MANAGER', 'CASHIER'].includes(user?.role);
+  const isCounter = order.orderType !== 'DINE_IN' || isTill;
 
   const changeQuantity = (line, quantity) =>
     run({
@@ -245,6 +252,28 @@ export default function OrderScreenPage() {
         setIsReviewing(false);
         // P41. The bar says "Sent to the kitchen." with its Undo, instead of a toast.
         setToast(null);
+        setNow(Date.now());
+        setLastSendAt(Date.now());
+      },
+    });
+
+  /** P48. KOT & Print: send, then print each new ticket on this device's printer. */
+  const fireAndPrint = () =>
+    run({
+      run: async () => {
+        const result = await fireOrder(order.id, order.version);
+        try {
+          for (const kot of result.kots ?? [result.kot]) {
+            const { text } = await getKotTicket(kot.id, { width: charactersFor(device.printer), ...(result.round ? { round: result.round } : {}) });
+            await printText(text, device.printer);
+          }
+        } catch {
+          setToast({ tone: 'error', message: 'Sent to the kitchen, but the KOT did not print. Reprint it from the kitchen screen.' });
+        }
+        return result;
+      },
+      onDone: () => {
+        setIsReviewing(false);
         setNow(Date.now());
         setLastSendAt(Date.now());
       },
@@ -277,6 +306,7 @@ export default function OrderScreenPage() {
       onCancelLine={(line) => setCancelling({ kind: 'line', line })}
       onChangeSentLine={(line) => setChangingLine(line)}
       onFire={fire}
+      onFireAndPrint={isTill ? fireAndPrint : null}
       onCancelOrder={() => setCancelling({ kind: 'order' })}
       onNoCharge={() => setCancelling({ kind: 'noCharge' })}
     />
@@ -657,6 +687,8 @@ function OrderDetails({
   onCancelLine,
   onChangeSentLine,
   onFire,
+  // P48. The till's KOT & Print.
+  onFireAndPrint = null,
   onCancelOrder,
   onNoCharge,
 }) {
@@ -692,6 +724,16 @@ function OrderDetails({
             className="type-button min-h-14 w-full rounded-lg bg-accent text-on-accent hover:brightness-110 disabled:opacity-50"
           >
             {pendingCount === 0 ? 'Nothing new to send' : `Send ${pendingCount} to the kitchen`}
+          </button>
+        )}
+        {isOpen && onFireAndPrint && pendingCount > 0 && (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={onFireAndPrint}
+            className="type-button min-h-12 w-full rounded-lg border border-ink bg-surface hover:bg-sunken disabled:opacity-50"
+          >
+            KOT & Print
           </button>
         )}
 

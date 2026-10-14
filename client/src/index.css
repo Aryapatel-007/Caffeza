@@ -271,9 +271,9 @@
 }
 @utility type-ticket-item {
   font-family: var(--font-anek);
-  /* P41. Smaller and narrower, so a dish name fits one line on the ticket. */
-  font-size: 0.9375rem;
-  line-height: 1.25rem;
+  /* P41, P48. Small and narrow, so many tickets fit one screen. */
+  font-size: 0.875rem;
+  line-height: 1.125rem;
   font-weight: 560;
   font-stretch: 88%;
 }

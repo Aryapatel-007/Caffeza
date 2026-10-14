@@ -4,9 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import ErrorState from '../../components/ui/ErrorState.jsx';
-import { MoreIcon } from '../../components/ui/icons/index.jsx';
+import { EyeIcon, MoreIcon, PrintIcon } from '../../components/ui/icons/index.jsx';
 import Money from '../../components/ui/Money.jsx';
-import TableTile from '../../components/ui/TableTile.jsx';
+import TableTile, { PETPOOJA_WORDS } from '../../components/ui/TableTile.jsx';
 import TimeEdge, { ElapsedTime } from '../../components/ui/TimeEdge.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { seatReservation } from '../../api/online.js';
@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { errorMessage, occupiedByOrderId } from './errorCopy.js';
 import MoveTablePanel from './MoveTablePanel.jsx';
 import SeatTablePanel from './SeatTablePanel.jsx';
+import TableHistorySheet from './TableHistorySheet.jsx';
 
 import Spinner from '../../components/ui/Spinner.jsx';
 import { formatTimeIst } from '../../utils/formatDate.js';
@@ -46,6 +47,8 @@ export default function FloorViewPage() {
   const [section, setSection] = useState(ALL);
   const [seating, setSeating] = useState(null);
   const [moving, setMoving] = useState(null);
+  // P48. The table whose day is open in the history sheet.
+  const [history, setHistory] = useState(null);
 
   // P33. 15 seconds, or 60 while the live channel is healthy.
   const tablesInterval = useLiveInterval(15_000);
@@ -212,8 +215,34 @@ export default function FloorViewPage() {
           />
         )}
 
+        {/* P48. PetPooja's legend: the word and the colour of each state. */}
+        {rows.length > 0 && (
+          <ul aria-label="Table colours" className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {[
+              ['FREE', 'border-2 border-dashed border-line bg-surface'],
+              ['OPEN', 'border-2 border-open bg-open-tint'],
+              ['SERVED', 'border-2 border-served bg-served-tint'],
+              ['BILL_PRINTED', 'border-2 border-bill bg-bill-tint'],
+            ].map(([state, swatch]) => (
+              <li key={state} className="type-caption flex items-center gap-2">
+                <span aria-hidden="true" className={`size-4 rounded ${swatch}`} />
+                {PETPOOJA_WORDS[state]} table
+              </li>
+            ))}
+          </ul>
+        )}
+
         {shown.map(([name, list]) => (
-          <FloorSection key={name} name={name} tables={list} target={floor.longOpenMinutes} onTap={tapTable} onMove={startMove} />
+          <FloorSection
+            key={name}
+            name={name}
+            tables={list}
+            target={floor.longOpenMinutes}
+            onTap={tapTable}
+            onMove={startMove}
+            onPrint={(table) => navigate(table.occupancy.billId ? `/bills/${table.occupancy.billId}` : `/orders/${table.occupancy.orderId}`)}
+            onHistory={setHistory}
+          />
         ))}
       </div>
 
@@ -228,6 +257,8 @@ export default function FloorViewPage() {
           onSeatReservation={(reservation) => seatBooking.mutate({ reservation, table: seating })}
         />
       )}
+
+      {history && <TableHistorySheet table={history} onClose={() => setHistory(null)} />}
 
       {moving && (
         <MoveTablePanel
@@ -273,21 +304,44 @@ function tileProps(table, target) {
 const STATE_WORDS = { OPEN: 'open', SERVED: 'served', BILL_PRINTED: 'bill printed' };
 
 /**
- * One section, as tiles. P41: the floor plan view and its Plan / Tiles switch
- * are gone at the owner's request; the positions saved in Arrange tables are
- * kept, and Arrange tables still sets the section order.
+ * One section, as PetPooja's grid of small square tables (P48). P41 removed
+ * the floor plan; Arrange tables still sets the section order.
  */
-function FloorSection({ name, tables, target, onTap, onMove }) {
+function FloorSection({ name, tables, target, onTap, onMove, onPrint, onHistory }) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="type-heading">{name}</h2>
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {/* P48. PetPooja's grid of small square tables. */}
+      <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
         {tables.map((table) => (
           <li key={table.id}>
             <TableTile
               {...tileProps(table, target)}
+              square
               onTap={() => onTap(table)}
-              menu={table.occupancy.isOccupied && <TableMenu table={table} onMove={() => onMove(table)} />}
+              menu={table.occupancy.isOccupied && <TableMenu table={table} onMove={() => onMove(table)} small />}
+              actions={
+                table.occupancy.isOccupied && (
+                  <span className="flex justify-center gap-1">
+                    <button
+                      type="button"
+                      aria-label={`Bill for ${table.name}`}
+                      onClick={() => onPrint(table)}
+                      className="flex size-12 items-center justify-center rounded-lg border border-line bg-surface hover:bg-sunken"
+                    >
+                      <PrintIcon />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`What ${table.name} has had today`}
+                      onClick={() => onHistory(table)}
+                      className="flex size-12 items-center justify-center rounded-lg border border-line bg-surface hover:bg-sunken"
+                    >
+                      <EyeIcon />
+                    </button>
+                  </span>
+                )
+              }
             />
           </li>
         ))}

@@ -12,7 +12,7 @@ Tickets already on the board when the screen opens do not ring. A station's scre
 
 Browsers allow sound only after a tap on the page. Until there has been one, the kitchen screen shows "Tap anywhere to turn on the sound" at the top; the first tap anywhere turns it on.
 
-The kitchen header has **Sound on / Sound off**, kept per device (`kitchenSound`, on by default). A captain's phone on the Kitchen tab rings too while it is open and the sound is on.
+The kitchen header has **Sound on / Sound off**, kept per device (`kitchenSound`; on by default when built, **off by default from 2026-10-14** at Rishi's word: a device rings only once it is turned on). A captain's phone on the Kitchen tab rings too while it is open and the sound is on.
 
 ## Tests
 

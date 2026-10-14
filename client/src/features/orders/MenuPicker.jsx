@@ -62,9 +62,15 @@ export default function MenuPicker({
   const totalItems = categories.reduce((sum, category) => sum + category.items.length, 0);
 
   return (
-    <section aria-label="Menu" className="flex flex-col gap-4">
+    <section aria-label="Menu" className={compact ? 'flex flex-col gap-4 lg:flex-row lg:items-start' : 'flex flex-col gap-4'}>
+      {/* P48. On the counter, PetPooja's category list down the left. */}
       {categories.length > 1 && !needle && (
-        <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 py-1">
+        <div
+          className={[
+            '-mx-1 flex items-center gap-2 overflow-x-auto px-1 py-1',
+            compact ? 'lg:sticky lg:top-4 lg:mx-0 lg:max-h-[calc(100vh-10rem)] lg:w-44 lg:flex-none lg:flex-col lg:items-stretch lg:overflow-y-auto lg:overflow-x-visible lg:px-0' : '',
+          ].join(' ')}
+        >
           <CategoryPill
             label="All"
             count={totalItems}
@@ -83,6 +89,7 @@ export default function MenuPicker({
         </div>
       )}
 
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
       {isPending && <Spinner label="Loading the menu" />}
 
       {isError && (
@@ -106,6 +113,7 @@ export default function MenuPicker({
         {visible.map((item) => (
           <li key={item.id}>
             <DishCard
+              compact={compact}
               item={item}
               line={simpleLines.get(item.id)}
               pendingCount={pendingCounts.get(item.id) ?? 0}
@@ -117,11 +125,12 @@ export default function MenuPicker({
           </li>
         ))}
       </ul>
+      </div>
     </section>
   );
 }
 
-function DishCard({ item, line, pendingCount, disabled, onOpen, onStep, onRemove }) {
+function DishCard({ item, line, pendingCount, disabled, onOpen, onStep, onRemove, compact = false }) {
   const hasChoices = item.variants.length > 0 || item.addOns.length > 0;
   const onOrder = Boolean(line) || (hasChoices && pendingCount > 0);
 
@@ -148,7 +157,8 @@ function DishCard({ item, line, pendingCount, disabled, onOpen, onStep, onRemove
         )}
       </button>
 
-      <div className="mt-3 flex flex-col gap-2 min-[600px]:flex-row min-[600px]:items-center min-[600px]:justify-between">
+      {/* P48. On the counter the middle column is narrow: the price sits above the stepper, so + is never cut off. */}
+      <div className={compact ? 'mt-3 flex flex-col gap-2' : 'mt-3 flex flex-col gap-2 min-[600px]:flex-row min-[600px]:items-center min-[600px]:justify-between'}>
         {/* P46. An open item's price is typed when it is added. */}
         {item.isOpenItem ? <span className="type-caption text-muted">Type name and price</span> : <Money paise={item.priceInPaise} size="num" />}
 

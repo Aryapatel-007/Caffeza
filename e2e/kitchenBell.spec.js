@@ -55,9 +55,11 @@ test('the kitchen rings for a new ticket, once, and not with Sound off', async (
   await expect(tickets(page, 'Table 12')).toHaveCount(1);
   const rings = () => page.evaluate(() => window.__rings);
 
-  // Before any tap the screen asks for one; the first tap turns sound on.
-  await expect(page.getByText('Tap anywhere to turn on the sound for new tickets.')).toBeVisible();
-  await page.getByRole('heading', { name: 'Kitchen', level: 1 }).click();
+  // 2026-10-14: the bell is off until this device turns it on.
+  await page.getByRole('button', { name: 'Sound off' }).click();
+  await expect(page.getByRole('button', { name: 'Sound on' })).toBeVisible();
+
+  // The tap on Sound off above was the page's first tap, so the browser already allows sound.
   await expect(page.getByText('Tap anywhere to turn on the sound for new tickets.')).toHaveCount(0);
   expect(await rings(), 'the ticket already there does not ring').toBe(0);
 
