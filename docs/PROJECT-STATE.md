@@ -556,6 +556,12 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-14 Rishi, Z Chaat's logins set to real numbers and new passwords
+
+At Rishi's word, on live Z Chaat (`cluster0.dkcsfcz`), by a one-off script not kept: "Z Chaat Manager" became Abhay Singh on 6351008324 (MANAGER, who does the cashier's work too); the kitchen login moved to 9000003002, which that freed; Shivam to 7862044931 and Govind to 9558292481; the owner (9000003001), Captain 3 (9000003007) and Z Chaat Cashier (9000003003) kept their numbers. Every one of the seven got a new password: the owner a strong 16-character one, everyone else an easy one, at Rishi's choice. Each password change went through `authService.setPassword`, ended that person's sessions and wrote `USER_PASSWORD_RESET` with the owner as actor. Phone changes have no audit action and are recorded here. All seven were signed in on the live app and signed out again to check. The passwords were given to Rishi once, in the chat, and are not written here: the repository is public.
+
+Note: a phone number is not editable in the app (12.5 and M0-C refuse it); these were changed in the database because the old numbers were made up. Still to do at Z Chaat: the owner and Abhay Singh set their PINs on the Staff screen.
+
 ### 2026-10-14 Rishi, a one-year sign-in, and one login switched off
 
 What was built or decided:
