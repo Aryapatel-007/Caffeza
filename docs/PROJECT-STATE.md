@@ -622,6 +622,8 @@ Asked for by Rishi. Spec first (`spec closing a table opened by mistake`): `docs
 
 Tests: `closeOrderByMistake.test.js` (3): a captain closes it, the table is free and opens again, no audit line, not in R15 or R2; refused on a stale version, for the kitchen login, another restaurant, once sent, after an undone send, and with a bill; the manager's Cancel order refuses the code. Dropping the R15 rule on purpose fails the first. Browser: new `e2e/closeTableByMistake.spec.js` (a captain on a phone closes Table 12; once a dish is sent, no Close table). Full `npm test`: 1,323 passing, 0 failing; all 27 browser specs pass; lint and build pass.
 
+Deployed 2026-10-14 at 9:47 PM, at Rishi's word, with P49: pushed `d38c3f8..90a63d9`. Render runs `90a63d9`, database connected, and `POST /orders/:id/close` answers 401 without a sign-in; Vercel serves `index-jPmM9im9.js`, the same build tested here. No new index.
+
 Anything the other developer needs to know:
 A manager on an order with nothing sent now sees Close table, not Cancel the whole order; the cancel endpoint itself is unchanged.
 
