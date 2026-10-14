@@ -92,7 +92,22 @@ export async function postRemoveLines(req, res) {
 
 /** GET /bills */
 export async function listBills(req, res) {
-  const { page, limit, status, includeVoided } = req.query;
+  const { page, limit, status, includeVoided, number } = req.query;
+
+  /**
+   * P48. Recall Bill: the bills with this number, on any date and in any
+   * series, newest first, voided ones included so a cancelled bill can be
+   * found too. No running total: it is a lookup, not a day.
+   */
+  if (number !== undefined) {
+    const filter = { ...scoped(req), billSequence: number };
+    const [bills, total] = await Promise.all([
+      Bill.find(filter).sort({ billedAt: -1 }).skip((page - 1) * limit).limit(limit),
+      Bill.countDocuments(filter),
+    ]);
+    return sendList(res, bills, { page, limit, total });
+  }
+
   const { from, to } = await resolveRange(req, req.query);
 
   const filter = { ...scoped(req), businessDate: { $gte: from, $lte: to } };

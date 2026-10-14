@@ -261,6 +261,18 @@ const lineRequest = z
       })
       .strict('Is not a field you can set on an open item.')
       .optional(),
+    // P48. Extras typed at the table, each with its own price, taxed at the dish's rate.
+    extras: z
+      .array(
+        z
+          .object({
+            name: z.string({ error: 'Is required.' }).trim().min(1, "Type the extra's name.").max(40, 'Cannot be longer than 40 characters.'),
+            priceInPaise: paise.refine((value) => value >= 1, 'Must be more than zero.'),
+          })
+          .strict('Is not a field you can set on an extra.'),
+      )
+      .max(5, 'At most 5 extras on one dish.')
+      .optional(),
   })
   .strict('Is not a field you can set on a line. The server prices the line itself.');
 

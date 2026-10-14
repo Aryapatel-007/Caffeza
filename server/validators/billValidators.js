@@ -100,6 +100,8 @@ export const listBillsSchema = z.object({
     to: businessDate.optional(),
     status: z.enum(BILL_STATUS_VALUES, { error: 'Is not a bill status.' }).optional(),
     includeVoided: queryBoolean,
+    // P48. Recall Bill: the number after the series, on any date.
+    number: z.coerce.number({ error: 'Must be a number.' }).int('Must be a whole number.').min(1, 'Must be 1 or more.').optional(),
   }),
 });
 

@@ -181,6 +181,10 @@ export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX
      * P46. An open item takes its name and price from staff, and only from
      * staff: a public quote (no signed-in person) is told it is not on the menu.
      */
+    // P48. Typed extras are priced by staff, so never by a guest.
+    if ((request.extras ?? []).length > 0 && !req.user) {
+      throw new BusinessRuleError('One of those dishes is not on this menu any more.');
+    }
     if (item.isOpenItem) {
       if (!req.user) throw new BusinessRuleError('One of those dishes is not on this menu any more.');
       if (!request.openItem) throw new BusinessRuleError("Type the dish's name and price.");
@@ -223,6 +227,8 @@ export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX
       const platformPrice = platformPrices ? request.platformAddOnPrices?.[String(addOn._id)] : undefined;
       return { addOnId: addOn._id, name: addOn.name, priceInPaise: Number.isInteger(platformPrice) ? platformPrice : addOn.priceInPaise };
     });
+    // P48. Typed extras after the menu's own, with no id: the name and price are staff's.
+    for (const extra of request.extras ?? []) addOns.push({ addOnId: null, name: extra.name, priceInPaise: extra.priceInPaise });
 
     if (platformPrices && Number.isInteger(request.platformUnitPriceInPaise)) {
       unitPriceInPaise = request.platformUnitPriceInPaise;

@@ -156,7 +156,8 @@ const wholeNumberOrEmpty = {
  */
 const lineAddOnSchema = new mongoose.Schema(
   {
-    addOnId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    // P48. Null for an extra typed at the table; its name and price are what staff typed.
+    addOnId: { type: mongoose.Schema.Types.ObjectId, default: null },
     name: { type: String, required: true, trim: true },
     priceInPaise: {
       type: Number,
