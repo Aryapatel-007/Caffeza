@@ -278,6 +278,12 @@ MESSAGING_NOT_CONNECTED    422  the restaurant's WhatsApp connection is missing 
 GUEST_OPTED_OUT            422  a marketing message to a guest without live offers consent
 ```
 
+Added by P44:
+
+```
+EMAIL_SEND_FAILED          502  Resend refused or could not be reached
+```
+
 ### Paging
 
 Every list endpoint takes `?page=1&limit=50`.

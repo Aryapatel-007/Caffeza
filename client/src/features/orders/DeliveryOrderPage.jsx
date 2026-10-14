@@ -65,7 +65,8 @@ export default function DeliveryOrderPage() {
     const counts = new Map();
     for (const line of draft) {
       counts.set(line.menuItemId, (counts.get(line.menuItemId) ?? 0) + line.quantity);
-      const isSimple = !line.variantId && line.addOnIds.length === 0 && !line.notes;
+      // P46. Two open items are two dishes, whatever their card: never merged.
+      const isSimple = !line.variantId && line.addOnIds.length === 0 && !line.notes && !line.openItem && !(line.extras ?? []).length;
       if (isSimple && !simple.has(line.menuItemId)) simple.set(line.menuItemId, line);
     }
     return { simpleLines: simple, pendingCounts: counts };
@@ -88,9 +89,12 @@ export default function DeliveryOrderPage() {
     const item = itemsById.get(line.menuItemId);
     const variant = item?.variants.find((entry) => entry.id === line.variantId);
     const addOns = (item?.addOns ?? []).filter((entry) => (line.addOnIds ?? []).includes(entry.id));
-    const unitInPaise =
-      (variant ? variant.priceInPaise : item?.priceInPaise ?? 0) +
-      addOns.reduce((sum, addOn) => sum + addOn.priceInPaise, 0);
+    // P46. An open item's price is the one typed; the menu's is not used.
+    // P48. Typed extras add their own prices.
+    const extrasInPaise = (line.extras ?? []).reduce((sum, extra) => sum + extra.priceInPaise, 0);
+    const unitInPaise = line.openItem
+      ? line.openItem.priceInPaise
+      : (variant ? variant.priceInPaise : item?.priceInPaise ?? 0) + addOns.reduce((sum, addOn) => sum + addOn.priceInPaise, 0) + extrasInPaise;
 
     setDraft((current) => [
       ...current,
@@ -101,8 +105,10 @@ export default function DeliveryOrderPage() {
         addOnIds: line.addOnIds ?? [],
         notes: line.notes ?? null,
         quantity: line.quantity,
-        name: item?.name ?? 'Dish',
-        detail: [variant?.name, ...addOns.map((addOn) => addOn.name), line.notes && `“${line.notes}”`]
+        name: line.openItem?.name ?? item?.name ?? 'Dish',
+        openItem: line.openItem ?? null,
+        extras: line.extras ?? [],
+        detail: [variant?.name, ...addOns.map((addOn) => addOn.name), ...(line.extras ?? []).map((extra) => extra.name), line.notes && `“${line.notes}”`]
           .filter(Boolean)
           .join(' · '),
         unitInPaise,
@@ -129,6 +135,8 @@ export default function DeliveryOrderPage() {
           quantity: line.quantity,
           ...(line.addOnIds.length > 0 ? { addOnIds: line.addOnIds } : {}),
           ...(line.notes ? { notes: line.notes } : {}),
+          ...(line.openItem ? { openItem: line.openItem } : {}),
+          ...(line.extras?.length ? { extras: line.extras } : {}),
         })),
       });
       if (!fire) return { order, fired: false };

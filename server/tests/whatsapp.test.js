@@ -1,6 +1,6 @@
 /**
  * P37: WhatsApp, the connection, templates and the receipt, against a fake
- * Meta. API-CONTRACT "P37", DB-SCHEMA section 47.
+ * Meta. API-CONTRACT "P37", DB-SCHEMA section 54.
  */
 import assert from 'node:assert/strict';
 import { after, afterEach, before, beforeEach, describe, it } from 'node:test';

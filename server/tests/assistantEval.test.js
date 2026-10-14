@@ -1,5 +1,5 @@
 /**
- * P39 section 16: the eval's own cases and its scoring. The eval itself calls
+ * P51 section 16: the eval's own cases and its scoring. The eval itself calls
  * a real model and runs by hand (`npm run assistant:eval`); this checks that
  * the cases are well formed and that the bar is scored the way it says.
  */

@@ -1,5 +1,5 @@
 /**
- * The WhatsApp assistant's eval. P39 section 16.
+ * The WhatsApp assistant's eval. P51 section 16.
  *
  *   npm run assistant:eval
  *   npm run assistant:eval -- --provider GROQ --model openai/gpt-oss-120b

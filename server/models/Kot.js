@@ -56,6 +56,8 @@ const kotLineSchema = new mongoose.Schema(
     },
 
     readyAt: { type: Date, default: null },
+    /** P42. When a sent dish's quantity or note changed, so the kitchen sees "Changed". */
+    changedAt: { type: Date, default: null },
     /**
      * P36. The station that makes this dish, and when and in which round it
      * was sent, frozen at the Send. Null on a ticket from before P36: the

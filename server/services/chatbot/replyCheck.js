@@ -1,5 +1,5 @@
 /**
- * The server's check on every reply before it reaches a guest. P39 section 12
+ * The server's check on every reply before it reaches a guest. P51 section 12
  * step 6.
  *
  * The model words the reply; this decides whether it may be sent. Every rupee

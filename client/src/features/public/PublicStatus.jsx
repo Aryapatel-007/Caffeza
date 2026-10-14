@@ -6,7 +6,12 @@
  * Razorpay arrives here with Razorpay's own query on the address; it is sent
  * to the server once, which checks it with Razorpay, and then cleared.
  * Polls every 15 seconds while anything is still to happen.
+ * P38: a token ticket with a rubber stamp for the state, and the way to the
+ * counter at the end.
  */
+
+/** StateChip's states, as stamp colours. */
+const STAMP_TONE = { ok: 'leaf', open: 'saffron', alert: 'stall', free: 'quiet' };
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -22,9 +27,8 @@ import {
 import Button from '../../components/ui/Button.jsx';
 import Money from '../../components/ui/Money.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
-import StateChip from '../../components/ui/StateChip.jsx';
 import { formatDayIst, formatTimeIst } from '../../utils/formatDate.js';
-import { DISPLAY, Ticket, Timeline, timeOrNull, TopBar } from './publicUi.jsx';
+import { DISPLAY, EYEBROW, Stamp, Ticket, Timeline, timeOrNull, TopBar } from './publicUi.jsx';
 import { tokenFor } from './guestTokens.js';
 
 const STILL_MOVING = ['AWAITING_PAYMENT', 'WAITING', 'REQUESTED', 'ACCEPTED', 'CONFIRMED'];
@@ -86,8 +90,29 @@ function Frame({ site, slug, children }) {
   return (
     <>
       <TopBar site={site} slug={slug} back={`/r/${slug}`} />
-      <main className="mx-auto grid max-w-3xl gap-5 px-4 pb-16 pt-5">{children}</main>
+      <main className="mx-auto grid max-w-xl gap-5 px-4 pb-16 pt-5">{children}</main>
     </>
+  );
+}
+
+/** Call and directions, at the foot of every status page. */
+function WayToUs({ site }) {
+  const address = [site.address.line1, site.address.line2, site.address.city, site.address.pincode].filter(Boolean).join(', ');
+  const maps = address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${site.restaurantName}, ${address}`)}` : null;
+  const button = 'flex min-h-12 items-center justify-center gap-2 rounded-lg border-2 border-masala font-anek font-[750] uppercase tracking-wide shadow-[3px_3px_0_var(--masala)]';
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {site.contactPhone && (
+        <a href={`tel:${site.contactPhone}`} className={`${button} bg-chit text-stall`}>
+          Call the cafe
+        </a>
+      )}
+      {maps && (
+        <a href={maps} target="_blank" rel="noopener noreferrer" className={`${button} bg-stall text-on-stall`}>
+          Directions <span aria-hidden="true">↗</span>
+        </a>
+      )}
+    </div>
   );
 }
 
@@ -96,7 +121,7 @@ function CallLine({ site, text }) {
     <p className="type-body">
       {text}{' '}
       {site.contactPhone && (
-        <a href={`tel:${site.contactPhone}`} className="text-accent underline">
+        <a href={`tel:${site.contactPhone}`} className="text-stall underline">
           {site.contactPhone}
         </a>
       )}
@@ -123,7 +148,7 @@ function PaymentBox({ payment, refundableUntil }) {
     );
   }
   return (
-    <div className="grid gap-1 rounded-2xl border border-line bg-surface p-4">
+    <div className="grid gap-1 rounded-xl border-2 border-masala/20 bg-chit p-4">
       {['PAID', 'PARTLY_REFUNDED', 'REFUNDED', 'REFUND_FAILED', 'FORFEITED'].includes(payment.status) && (
         <p className="type-body flex justify-between gap-3">
           <span>Paid online{payment.paidAt ? ` at ${formatTimeIst(payment.paidAt)}` : ''}</span>
@@ -136,7 +161,7 @@ function PaymentBox({ payment, refundableUntil }) {
           <Money paise={payment.refundedInPaise} tabular />
         </p>
       )}
-      {refunded && <p className="type-caption text-muted">Refunds reach your account in 5 to 7 working days, by the way you paid.</p>}
+      {refunded && <p className="type-caption text-masala-soft">Refunds reach your account in 5 to 7 working days, by the way you paid.</p>}
       {payment.status === 'REFUND_FAILED' && <p className="type-caption text-alert">Your refund is being sorted out by the cafe. Please call them if you have questions.</p>}
       {payment.status === 'FORFEITED' && <p className="type-caption text-muted">The deposit was kept, as the booking was cancelled late or missed.</p>}
       {payment.status === 'PAID' && refundableUntil && (
@@ -191,12 +216,18 @@ export function OrderStatus({ site, slug }) {
         tone={order.status === 'ACCEPTED' ? 'accent' : 'surface'}
         head={
           <>
-            <p className="type-label opacity-75">Takeaway order</p>
-            <p className={`${DISPLAY} text-6xl leading-none`}>{order.reference}</p>
+            <p className={`${EYEBROW} opacity-80`}>Takeaway token</p>
+            <p className={`${DISPLAY} my-1 text-7xl leading-none`}>{order.reference}</p>
+            <p className="type-body opacity-90">{order.customerName ?? ''}</p>
             <div className="mt-3">
-              <StateChip state={words.state} word={words.word} size="md" />
+              <Stamp tone={STAMP_TONE[words.state]}>{words.word}</Stamp>
             </div>
-            {order.status === 'ACCEPTED' && <p className="type-heading mt-3">Ready at {formatTimeIst(order.pickupAt)}</p>}
+            {order.status === 'ACCEPTED' && (
+              <>
+                <p className={`${DISPLAY} mt-4 text-2xl`}>Ready at {formatTimeIst(order.pickupAt)}</p>
+                <p className="type-caption opacity-90">Show this token at the counter when you collect.</p>
+              </>
+            )}
           </>
         }
       >
@@ -211,15 +242,16 @@ export function OrderStatus({ site, slug }) {
             </li>
           ))}
         </ul>
-        <p className="type-heading mt-3 flex justify-between gap-3">
+        <p className="mt-3 flex justify-between gap-3 border-t-2 border-dashed border-current/30 pt-3 font-anek text-lg font-[750]">
           <span>Estimated bill total</span>
           <Money paise={order.estimate.billTotalInPaise} tabular />
         </p>
+        {!order.payment && <p className="type-caption mt-1 opacity-90">Pay at the counter when you collect.</p>}
       </Ticket>
 
       <Timeline items={orderTimeline(order)} />
       <PaymentBox payment={order.payment} />
-      {order.status === 'WAITING' && <p className="type-body text-muted">The cafe answers within a few minutes. Keep this page open; it updates by itself.</p>}
+      {order.status === 'WAITING' && <p className="type-body text-masala-soft">The cafe answers within a few minutes. Keep this page open; it updates by itself.</p>}
       {order.status === 'DECLINED' && <CallLine site={site} text={`${order.declineReason}. Questions? Call`} />}
       {order.status === 'EXPIRED' && <CallLine site={site} text="The cafe did not answer in time. Please call" />}
       {canCancel && (
@@ -228,6 +260,7 @@ export function OrderStatus({ site, slug }) {
         </Button>
       )}
       {cancel.isError && <p className="type-body text-alert">{cancel.error.message}</p>}
+      <WayToUs site={site} />
     </Frame>
   );
 }
@@ -249,10 +282,10 @@ export function BookingStatus({ site, slug }) {
         tone={booking.status === 'CONFIRMED' ? 'accent' : 'surface'}
         head={
           <>
-            <p className="type-label opacity-75">Table booking</p>
-            <p className={`${DISPLAY} text-6xl leading-none`}>{booking.reference}</p>
+            <p className={`${EYEBROW} opacity-80`}>Table booking</p>
+            <p className={`${DISPLAY} my-1 text-7xl leading-none`}>{booking.reference}</p>
             <div className="mt-3">
-              <StateChip state={words.state} word={words.word} size="md" />
+              <Stamp tone={STAMP_TONE[words.state]}>{words.word}</Stamp>
             </div>
           </>
         }
@@ -275,6 +308,7 @@ export function BookingStatus({ site, slug }) {
         </Button>
       )}
       {cancel.isError && <p className="type-body text-alert">{cancel.error.message}</p>}
+      <WayToUs site={site} />
     </Frame>
   );
 }

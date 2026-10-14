@@ -46,8 +46,21 @@ The full table, with dependencies and owners, is in
 | P35 | The same dish once on the bill, and each drink its own dish | Done, deployed and run on Z Chaat 2026-10-11. Rishi's read outstanding. |
 | P36 | One kitchen ticket per table | Done 2026-10-11. Rishi's read outstanding. |
 | P37 | WhatsApp: the connection, templates, and the receipt | Built and deployed 2026-10-11 against a fake Meta; the check on Z Chaat's real WhatsApp Business Account is owed. Rishi's read outstanding. |
-| P38 | Campaigns: offers and new dishes | Written by Arya, not saved here yet; comes after P37 has run on a real WhatsApp account. |
-| P39 | The WhatsApp assistant: questions, table bookings, and stop | Built 2026-10-12 against a fake Meta and a fake model; the eval run on Groq. Waits for P37's real WhatsApp account and a paid AI key. Rishi's read outstanding. |
-| P40 | Attribution and campaign reporting | Not written yet. Numbered P39 in P37's prompt; the assistant took that number. |
+| P38 | The public page as a street-food signboard, the booking advance, the kitchen's ready switch | Done and deployed 2026-10-12. Arya's read outstanding. |
+| P39 | A captain cannot change a printed bill | Built 2026-10-12. Arya's read outstanding. |
+| P40 | A manager's PIN to add to a printed bill | Built 2026-10-13. Arya's read outstanding. |
+| P41 | Kitchen text on one line, Recall, Undo after Send, the floor as tiles | Built 2026-10-13. Arya's read outstanding. |
+| P42 | Changing a dish after it is sent; the kitchen login sees only tickets | Built 2026-10-13. Arya's read outstanding. |
+| P43 | Other, with the mode of payment | Built 2026-10-13. Arya's read outstanding. |
+| P44 | The Day End summary, and the day-end message by email | Built 2026-10-14. Arya's read outstanding. |
+| P45 | A loud bell on the kitchen screen for a new KOT | Built 2026-10-14. Arya's read outstanding. |
+| P46 | Open item: a dish whose name and price are typed when ordering | Built 2026-10-14. Arya's read outstanding. |
+| P47 | Other modes: Swiggy, Zomato and EazyDiner one tap away, kept in Settings | Built 2026-10-14. Arya's read outstanding. |
+| P48 | PetPooja's way: the floor, Recall, change, typed extras, the counter screen, a test site | Built 2026-10-14. Arya's read outstanding. |
+| P49 | Before a dish is sent, the captain changes it freely | Built 2026-10-14. Arya's read outstanding. |
+| P50 | Close a table opened by mistake | Built 2026-10-14. Arya's read outstanding. |
+| P51 | The WhatsApp assistant: questions, table bookings, and stop | Built 2026-10-12 against a fake Meta and a fake model; the eval run on Groq. Numbered P39 when written; merged with Rishi's P38 to P50 on 2026-10-15. Waits for P37's real WhatsApp account and a paid AI key. Rishi's read outstanding. |
+| P52 | Campaigns: offers and new dishes | Written by Arya, not saved here yet; comes after P37 has run on a real WhatsApp account. Numbered P38 in P37's prompt. |
+| P53 | Attribution and campaign reporting | Not written yet. Numbered P39 in P37's prompt. |
 
 Prompt files that do not exist yet are added as they are written.

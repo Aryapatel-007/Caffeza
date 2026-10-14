@@ -12,7 +12,7 @@ export async function activeOrderChannels(req) {
 }
 
 /**
- * P39. Whether the WhatsApp connection is on, so chats waiting for a person
+ * P51. Whether the WhatsApp connection is on, so chats waiting for a person
  * reach the inbox and its alert even with the online page off.
  */
 export async function whatsappOn(req) {

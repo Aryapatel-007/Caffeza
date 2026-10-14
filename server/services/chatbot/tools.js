@@ -1,5 +1,5 @@
 /**
- * The assistant's tools. P39 section 9.
+ * The assistant's tools. P51 section 9.
  *
  * The model chooses a tool and its arguments; this file decides what happens.
  * Every tool runs for this conversation's own guest, taken from the server and

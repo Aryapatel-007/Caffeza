@@ -77,7 +77,7 @@ export async function receiveWebhook(provider, key, rawBody, headers) {
   let events = [];
   try {
     // P37. A messaging webhook names a guest by number; it is turned into their id here, inside this restaurant.
-    // P39. A guest who writes for the first time gets a record, so the assistant can answer them.
+    // P51. A guest who writes for the first time gets a record, so the assistant can answer them.
     const findCustomer = (phone, { create = false } = {}) =>
       create
         ? findOrCreateWhatsAppGuest({ restaurantId: connection.restaurantId, branchId: connection.branchId }, phone)

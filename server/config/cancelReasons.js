@@ -26,6 +26,8 @@ export const LINE_CANCEL_REASONS = freezeList([
   { code: 'GUEST_LEFT', label: 'Guest left' },
   // P25 Part H. Appended only.
   { code: 'PLATFORM_CANCELLED', label: 'Cancelled by the platform' },
+  // P41. Written by Undo after a Send; appended only.
+  { code: 'SENT_BY_MISTAKE', label: 'Sent to the kitchen by mistake' },
   { code: 'OTHER', label: 'Other' },
 ]);
 
@@ -38,6 +40,13 @@ export const ORDER_CANCEL_REASONS = freezeList([
   { code: 'PLATFORM_CANCELLED', label: 'Cancelled by the platform' },
   { code: 'OTHER', label: 'Other' },
 ]);
+
+/**
+ * P50. The code an order closed because it was opened by mistake keeps.
+ * Written only by POST /orders/:orderId/close, on an order nothing was sent
+ * from, so it is not in the list a manager's Cancel order offers or accepts.
+ */
+export const ORDER_OPENED_BY_MISTAKE = 'OPENED_BY_MISTAKE';
 
 /** Voiding a bill. */
 export const BILL_VOID_REASONS = freezeList([

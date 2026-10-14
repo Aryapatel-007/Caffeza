@@ -1,5 +1,5 @@
 /**
- * WhatsApp chats, the staff side. P39, API-CONTRACT "P39" section 6. A chat
+ * WhatsApp chats, the staff side. P51, API-CONTRACT "P51" section 6. A chat
  * names its guest by first name only; no phone number reaches a screen.
  */
 import { api } from './client.js';

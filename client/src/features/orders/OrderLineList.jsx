@@ -22,15 +22,19 @@ const READY_SERVED = { state: 'served', word: 'Ready' };
 /**
  * The lines on an order, densest thing on the screen.
  *
- * A list, not cards: this is read, not tapped. Only a PENDING line can be
- * edited, because once the kitchen has it the dish is being cooked and the only
- * honest option is to cancel it and say whether it was made.
+ * A list, not cards: this is read, not tapped. A PENDING line has its
+ * stepper and Remove, which asks nothing (P49). A sent line has Change (P42): fewer of it, a new
+ * note while the kitchen has not made it, removing it, or swapping it.
  */
 export default function OrderLineList({
   lines,
   isBusy,
   onChangeQuantity,
   onCancelLine,
+  // P49. A dish not sent yet is removed with no reason; without this it is cancelled as before.
+  onRemoveDraft = null,
+  // P42. A sent dish changes through the Change sheet: quantity, note, remove or swap.
+  onChangeSentLine = null,
   onServeLine,
   // P29. The order has a bill: its lines change only through the bill.
   locked = false,
@@ -52,9 +56,9 @@ export default function OrderLineList({
         const isPending = line.status === 'PENDING';
 
         return (
-          <li key={line.id} className={['px-4 py-3', isCancelled ? 'opacity-60' : ''].join(' ')}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+          <li key={line.id} className={['px-4 py-2', isCancelled ? 'opacity-60' : ''].join(' ')}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
                 <p
                   title={line.variantName ? `${line.itemName} · ${line.variantName}` : line.itemName}
                   className={[
@@ -78,7 +82,7 @@ export default function OrderLineList({
                   <p className="type-caption text-muted">“{line.notes}”</p>
                 )}
 
-                <p className="mt-1 flex flex-wrap items-center gap-2">
+                <p className="mt-0.5 flex flex-wrap items-center gap-2">
                   <StateChip
                     {...(readyMeansServed && line.status === 'SERVED' ? READY_SERVED : (LINE_STATES[line.status] ?? LINE_STATES.PENDING))}
                     size="sm"
@@ -96,16 +100,27 @@ export default function OrderLineList({
                 )}
               </div>
 
-              <div className="flex-none text-right">
+              <div className="ml-auto flex-none text-right">
                 <Money paise={line.lineTotalInPaise} size="num" tabular className="block" />
                 <span className="type-num-meta block text-muted">
                   {line.quantity} × <Money paise={line.unitPriceInPaise} />
                 </span>
               </div>
+              {/* P42, compact for a captain's phone: Change on the dish's own line. */}
+              {!isCancelled && !isPending && onChangeSentLine && (line.status !== 'SERVED' || readyMeansServed) && !locked && (
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => onChangeSentLine(line)}
+                  className="type-label min-h-12 flex-none rounded-lg border border-ink bg-surface px-3 hover:bg-sunken disabled:opacity-60"
+                >
+                  Change
+                </button>
+              )}
             </div>
 
             {!isCancelled && (
-              <div className="mt-3 flex flex-wrap items-center gap-2 empty:hidden">
+              <div className="mt-2 flex flex-wrap items-center gap-2 empty:hidden">
                 {isPending && !locked && (
                   <QuantityStepper
                     value={line.quantity}
@@ -125,8 +140,20 @@ export default function OrderLineList({
                   </button>
                 )}
 
+                {isPending && onRemoveDraft && !locked && (
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => onRemoveDraft(line)}
+                    aria-label={`Remove ${line.itemName}`}
+                    className="type-label min-h-12 rounded-lg px-3 text-alert hover:bg-alert-tint disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                )}
+
                 {/* P29: when the kitchen's ready serves the dish, a served line is one the kitchen just made, and may still be cancelled. */}
-                {(line.status !== 'SERVED' || readyMeansServed) && !locked && (
+                {((isPending && !onRemoveDraft) || (!isPending && !onChangeSentLine)) && (line.status !== 'SERVED' || readyMeansServed) && !locked && (
                   <button
                     type="button"
                     disabled={isBusy}

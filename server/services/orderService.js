@@ -177,9 +177,25 @@ export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX
       throw new BusinessRuleError(`"${item.name}" is out of stock right now.`);
     }
 
+    /**
+     * P46. An open item takes its name and price from staff, and only from
+     * staff: a public quote (no signed-in person) is told it is not on the menu.
+     */
+    // P48. Typed extras are priced by staff, so never by a guest.
+    if ((request.extras ?? []).length > 0 && !req.user) {
+      throw new BusinessRuleError('One of those dishes is not on this menu any more.');
+    }
+    if (item.isOpenItem) {
+      if (!req.user) throw new BusinessRuleError('One of those dishes is not on this menu any more.');
+      if (!request.openItem) throw new BusinessRuleError("Type the dish's name and price.");
+      if (request.variantId || (request.addOnIds ?? []).length > 0) throw new BusinessRuleError('An open item has no sizes or extras.');
+    } else if (request.openItem) {
+      throw new BusinessRuleError('Only an open item takes a typed name and price.');
+    }
+
     let variantId = null;
     let variantName = null;
-    let unitPriceInPaise = item.priceInPaise;
+    let unitPriceInPaise = item.isOpenItem ? request.openItem.priceInPaise : item.priceInPaise;
 
     if (request.variantId !== undefined && request.variantId !== null) {
       const variant = item.variants.id(request.variantId);
@@ -211,6 +227,8 @@ export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX
       const platformPrice = platformPrices ? request.platformAddOnPrices?.[String(addOn._id)] : undefined;
       return { addOnId: addOn._id, name: addOn.name, priceInPaise: Number.isInteger(platformPrice) ? platformPrice : addOn.priceInPaise };
     });
+    // P48. Typed extras after the menu's own, with no id: the name and price are staff's.
+    for (const extra of request.extras ?? []) addOns.push({ addOnId: null, name: extra.name, priceInPaise: extra.priceInPaise });
 
     if (platformPrices && Number.isInteger(request.platformUnitPriceInPaise)) {
       unitPriceInPaise = request.platformUnitPriceInPaise;
@@ -218,7 +236,8 @@ export async function buildLineSnapshots(req, lineRequests, { taxTreatment = TAX
 
     return {
       menuItemId: item._id,
-      itemName: item.name,
+      itemName: item.isOpenItem ? request.openItem.name : item.name,
+      isOpenItem: Boolean(item.isOpenItem),
       variantId,
       variantName,
       unitPriceInPaise,

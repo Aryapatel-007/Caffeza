@@ -81,7 +81,9 @@ const SETTING_PATHS = Object.freeze({
   'cash.usualFloatInPaise': 'settings.cash.usualFloatInPaise',
   'cash.showDrawerTotalToStaff': 'settings.cash.showDrawerTotalToStaff',
   'payments.requireTerminalForLinkedMethods': 'settings.payments.requireTerminalForLinkedMethods',
+  'payments.otherModes': 'settings.payments.otherModes',
   'reports.onHoldTallyCode': 'settings.reports.onHoldTallyCode',
+  'reports.dayEndEmails': 'settings.reports.dayEndEmails',
 
   'floor.sectionOrder': 'settings.floor.sectionOrder',
   'floor.longOpenMinutes': 'settings.floor.longOpenMinutes',
@@ -112,7 +114,7 @@ const SETTING_PATHS = Object.freeze({
   'online.depositPerPersonInPaise': 'settings.online.depositPerPersonInPaise',
   'online.depositRefundCutoffMinutes': 'settings.online.depositRefundCutoffMinutes',
   'online.paymentWindowMinutes': 'settings.online.paymentWindowMinutes',
-  // P39.
+  // P51.
   'assistant.enabled': 'settings.assistant.enabled',
   'assistant.bookingsEnabled': 'settings.assistant.bookingsEnabled',
   'assistant.greeting': 'settings.assistant.greeting',

@@ -70,6 +70,8 @@ function soldLines(baseMatch, params) {
           categoryId: '$lines.categoryId',
           menuItemId: '$lines.menuItemId',
           variantName: { $ifNull: ['$lines.variantName', null] },
+          // P46. Each open item under its own typed name, not the menu's placeholder.
+          openName: { $cond: [{ $eq: ['$lines.isOpenItem', true] }, '$lines.itemName', null] },
         },
         categoryName: { $last: '$lines.categoryName' },
         itemName: { $last: '$lines.itemName' },
@@ -148,6 +150,8 @@ async function cancelledLines(req, baseMatch, params) {
         menuItemId: String(line.menuItemId),
         itemName: line.itemName,
         variantName: line.variantName ?? null,
+        // P46. An open item is keyed by its typed name too.
+        openName: line.isOpenItem ? line.itemName : null,
         quantity: line.quantity,
         wastedValueInPaise: line.wasPrepared === true ? computeLineTotalInPaise(line) : 0,
       });
@@ -174,7 +178,7 @@ function buildRows(groups, cancelled, byItem) {
       continue;
     }
     const key = byItem
-      ? `${group._id.menuItemId}|${group._id.variantName ?? ''}`
+      ? `${group._id.menuItemId}|${group._id.variantName ?? ''}|${group._id.openName ?? ''}`
       : String(group._id.categoryId ?? group.categoryName ?? NOT_RECORDED);
     const name = byItem ? itemLabel(group.itemName, group._id.variantName) : group.categoryName ?? NOT_RECORDED;
     const row = rows.get(key) ?? emptyRow(key, name);
@@ -186,7 +190,7 @@ function buildRows(groups, cancelled, byItem) {
   }
 
   for (const line of cancelled) {
-    const key = byItem ? `${line.menuItemId}|${line.variantName ?? ''}` : String(line.categoryId ?? line.categoryName ?? NOT_RECORDED);
+    const key = byItem ? `${line.menuItemId}|${line.variantName ?? ''}|${line.openName ?? ''}` : String(line.categoryId ?? line.categoryName ?? NOT_RECORDED);
     const name = byItem ? itemLabel(line.itemName, line.variantName) : line.categoryName ?? NOT_RECORDED;
     const row = rows.get(key) ?? { ...emptyRow(key, name), itemName: line.itemName };
     row.cancelledQuantity += line.quantity;

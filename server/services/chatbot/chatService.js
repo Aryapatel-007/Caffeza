@@ -1,5 +1,5 @@
 /**
- * The staff's side of WhatsApp chats. P39 section 14, API-CONTRACT "P39" 6.
+ * The staff's side of WhatsApp chats. P51 section 14, API-CONTRACT "P51" 6.
  *
  * Chats name a guest by first name only; no phone number leaves the server.
  * A staff reply is a free-form message, so it goes only inside the 24-hour

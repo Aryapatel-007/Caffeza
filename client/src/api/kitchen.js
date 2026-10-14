@@ -27,8 +27,9 @@ function toQuery(params = {}) {
  * "still to cook" into its query (a line still PENDING), so the board's page is
  * always the open tickets, however much history the kitchen has.
  */
-export function listKots({ status, page, limit, stationId } = {}) {
-  return requestWithMeta(`/kots${toQuery({ status, page, limit, stationId })}`);
+export function listKots({ status, page, limit, stationId, sort } = {}) {
+  // P41. `sort: 'recent'` lists the tickets that changed last first, for Recall.
+  return requestWithMeta(`/kots${toQuery({ status, page, limit, stationId, sort })}`);
 }
 
 /**

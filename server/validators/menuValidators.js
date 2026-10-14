@@ -172,6 +172,8 @@ export const createMenuItemSchema = z.object({
       displayOrder: displayOrder.optional(),
       variants: variants.optional(),
       addOns: addOns.optional(),
+      // P46.
+      isOpenItem: z.boolean({ error: 'Must be true or false.' }).optional(),
     })
     .strict('Is not a field you can set here.'),
 });
@@ -211,6 +213,8 @@ export const updateMenuItemSchema = z.object({
       displayOrder: displayOrder.optional(),
       variants: variants.optional(),
       addOns: addOns.optional(),
+      // P46.
+      isOpenItem: z.boolean({ error: 'Must be true or false.' }).optional(),
       isAvailable: z
         .never({ error: 'Has its own endpoint: PATCH /menu-items/:menuItemId/availability' })
         .optional(),

@@ -109,7 +109,20 @@ Each prompt names its model at the top.
 | P35 | The same dish once on the bill, and each drink its own dish | M3, M1 | P29 | Arya | Opus, high |
 | P36 | One kitchen ticket per table | M2, M18, M19 | P35 | Arya | Opus, high |
 | P37 | WhatsApp: the connection, templates, and the receipt | M21, M22 | P29 | Arya | Opus, high |
-| P39 | The WhatsApp assistant: questions, table bookings, and stop | M21, M14, M22 | P37 | Arya | Opus, high |
+| P38 | The public page as a street-food signboard | M14 | P24 | Rishi | Opus, high |
+| P39 | A captain cannot change a printed bill | M3, M2 | P29 | Rishi | Opus, high |
+| P40 | A manager's PIN to add to a printed bill | M3, M2 | P39 | Rishi | Opus, high |
+| P41 | Kitchen text on one line, Recall, Undo after Send, the floor as tiles | M18, M2, M20 | P36, P38 | Rishi | Opus, high |
+| P42 | Changing a dish after it is sent; the kitchen login sees only tickets | M2, M18, M20 | P41 | Rishi | Opus, high |
+| P43 | Other, with the mode of payment | M10, M3 | P08 | Rishi | Sonnet, medium |
+| P44 | The Day End summary, and the day-end message by email | M16, M7, M19 | P43 | Rishi | Opus, high |
+| P45 | A loud bell on the kitchen screen for a new KOT | M18 | P42 | Rishi | Sonnet, medium |
+| P46 | Open item: a dish whose name and price are typed when ordering | M1, M2, M3, M19 | P42 | Rishi | Opus, high |
+| P47 | Other modes: Swiggy, Zomato and EazyDiner one tap away, kept in Settings | M10, M7 | P43 | Rishi | Sonnet, medium |
+| P48 | PetPooja's way: the floor, Recall, change, typed extras, the counter screen, a test site | M2, M3, M10, M18, M20 | P46 | Rishi | Opus, high |
+| P49 | Before a dish is sent, the captain changes it freely | M2 | P48 | Rishi | Sonnet, medium |
+| P50 | Close a table opened by mistake | M2 | P49 | Rishi | Sonnet, medium |
+| P51 | The WhatsApp assistant: questions, table bookings, and stop | M21, M14, M22 | P37 | Arya | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

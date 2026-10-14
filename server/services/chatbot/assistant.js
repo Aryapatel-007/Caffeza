@@ -1,5 +1,5 @@
 /**
- * One guest message to the WhatsApp assistant. P39 section 12.
+ * One guest message to the WhatsApp assistant. P51 section 12.
  *
  * Runs as a job, from P37's webhook, never inside the webhook's own request.
  * The model understands the guest and words the reply; the tools act; the

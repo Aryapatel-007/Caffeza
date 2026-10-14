@@ -41,10 +41,12 @@ import {
   nonEmptyString,
   objectId,
   paginationQuery,
+  paise,
   phoneIndia,
   reasonFields,
   requireNoteForOther,
   approval,
+  businessDate,
 } from './common.js';
 
 /**
@@ -202,6 +204,9 @@ export const setTableStatusSchema = z.object({
 /** API-CONTRACT 11.6. No body. */
 export const deleteTableSchema = z.object({ params: tableIdParam });
 
+/** P48. A table's day; today's business date when no date is sent. */
+export const tableHistorySchema = z.object({ params: tableIdParam, query: z.object({ date: businessDate.optional() }) });
+
 // ---------------------------------------------------------------------------
 // Orders
 // ---------------------------------------------------------------------------
@@ -249,6 +254,29 @@ const lineRequest = z
       .max(MAX_LINE_QUANTITY, `Cannot be more than ${MAX_LINE_QUANTITY}.`),
     addOnIds: z.array(objectId).optional(),
     notes,
+    /**
+     * P46. Only for an open item: the dish's name and price, typed by staff.
+     * The one place a client names a price, and only for a dish marked open.
+     */
+    openItem: z
+      .object({
+        name: z.string({ error: 'Is required.' }).trim().min(1, 'Type the dish\'s name.').max(80, 'Cannot be longer than 80 characters.'),
+        priceInPaise: paise.refine((value) => value >= 1, 'Must be more than zero.'),
+      })
+      .strict('Is not a field you can set on an open item.')
+      .optional(),
+    // P48. Extras typed at the table, each with its own price, taxed at the dish's rate.
+    extras: z
+      .array(
+        z
+          .object({
+            name: z.string({ error: 'Is required.' }).trim().min(1, "Type the extra's name.").max(40, 'Cannot be longer than 40 characters.'),
+            priceInPaise: paise.refine((value) => value >= 1, 'Must be more than zero.'),
+          })
+          .strict('Is not a field you can set on an extra.'),
+      )
+      .max(5, 'At most 5 extras on one dish.')
+      .optional(),
   })
   .strict('Is not a field you can set on a line. The server prices the line itself.');
 
@@ -367,6 +395,8 @@ export const addOrderLinesSchema = z.object({
     .object({
       version,
       lines: lines.min(1, 'Send at least one line.'),
+      // P40. Read only when the lines would revise a printed bill.
+      approval: approval.optional(),
     })
     .strict('Is not a field you can set here.'),
 });
@@ -418,10 +448,43 @@ export const cancelOrderLineSchema = z.object({
     .superRefine(requireNoteForOther),
 });
 
+/** P49. Remove a dish not sent yet: the version in the query, as a DELETE has no body. */
+export const removeOrderLineSchema = z.object({
+  params: orderLineParams,
+  query: z.object({
+    version: z.coerce.number({ error: 'Is required. Send the version you last read.' }).int('Must be a whole number.').min(1, 'Must be 1 or more.'),
+  }),
+});
+
+/** P42. Lower a sent line's quantity: the new quantity, and 12.6's answers for the part taken off. */
+export const reduceOrderLineSchema = z.object({
+  params: orderLineParams,
+  body: z
+    .object({
+      version,
+      quantity: z
+        .number({ error: 'Must be a number.' })
+        .int('Must be a whole number.')
+        .min(MIN_LINE_QUANTITY, 'Must be at least 1.')
+        .max(MAX_LINE_QUANTITY, `Cannot be more than ${MAX_LINE_QUANTITY}.`),
+      ...reasonFields(LINE_CANCEL_REASON_CODES, CANCEL_REASON_MAX_LENGTH),
+      wasPrepared: z.boolean({ error: 'Must be true or false.' }),
+      approval: approval.optional(),
+    })
+    .strict('Is not a field you can set here.')
+    .superRefine(requireNoteForOther),
+});
+
 export const fireOrderSchema = z.object({
   params: orderIdParam,
   body: z.object({ version }).strict('Is not a field you can set here.'),
 });
+
+/** P41. Undo the last Send: the version, nothing else. */
+export const undoSendSchema = fireOrderSchema;
+
+/** P50. Close an order opened by mistake: the version, nothing else. */
+export const closeOrderSchema = fireOrderSchema;
 
 export const markLineServedSchema = z.object({
   params: orderLineParams,
@@ -497,6 +560,8 @@ export const listKotsSchema = z.object({
     stationId: z.union([z.literal('none'), objectId], {
       error: 'Must be a station id, or none.',
     }).optional(),
+    // P41. Newest change first, for the kitchen's Recall list.
+    sort: z.enum(['recent'], { error: 'Must be recent.' }).optional(),
   }),
 });
 

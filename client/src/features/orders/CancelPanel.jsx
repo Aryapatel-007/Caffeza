@@ -29,6 +29,8 @@ export default function CancelPanel({
   description,
   needsWasPrepared,
   needsApproval = false,
+  // P42. Also ask the manager once "Yes, it was made" is picked.
+  approvalWhenMade = false,
   isBusy,
   error,
   onCancel,
@@ -36,7 +38,7 @@ export default function CancelPanel({
 }) {
   const [reason, setReason] = useState({ reasonCode: null, note: '' });
   const [wasPrepared, setWasPrepared] = useState(null);
-  const approval = useApproval(needsApproval);
+  const approval = useApproval(needsApproval || (approvalWhenMade && wasPrepared === true));
 
   const canConfirm =
     isReasonComplete(reason) && (!needsWasPrepared || wasPrepared !== null) && approval.ready && !isBusy;

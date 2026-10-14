@@ -1,5 +1,5 @@
 /**
- * WhatsApp chats for staff. P39, API-CONTRACT "P39" section 6. Every rule is
+ * WhatsApp chats for staff. P51, API-CONTRACT "P51" section 6. Every rule is
  * in services/chatbot/chatService.js.
  */
 import { clearStop, closeChat, handBack, listChats, readChat, replyToChat } from '../services/chatbot/chatService.js';

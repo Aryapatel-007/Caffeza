@@ -1,5 +1,5 @@
 /**
- * A fake AI model in the shape of Anthropic's Messages API, for tests. P39.
+ * A fake AI model in the shape of Anthropic's Messages API, for tests. P51.
  *
  * A test queues what the model should answer: `say(text)`, `useTool(name,
  * input)`, or a function of the request body that returns one of those (to

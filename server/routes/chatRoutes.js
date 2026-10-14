@@ -1,5 +1,5 @@
 /**
- * WhatsApp chats for staff. P39, API-CONTRACT "P39" section 6. OWNER, MANAGER
+ * WhatsApp chats for staff. P51, API-CONTRACT "P51" section 6. OWNER, MANAGER
  * and CASHIER. No phone number in any address.
  */
 import { Router } from 'express';

@@ -218,7 +218,7 @@ One document per active session. This is what makes logout and revocation real.
 | `branchId` | ObjectId | yes | `branches._id` | |
 | `userId` | ObjectId | yes | `users._id` | Indexed |
 | `tokenHash` | String | yes | | SHA-256 of the raw token, hex. Indexed, unique. |
-| `expiresAt` | Date | yes | | UTC. 30 days from issue. |
+| `expiresAt` | Date | yes | | UTC. `REFRESH_TOKEN_TTL` from issue: 365 days by default (30 before 2026-10-14). |
 | `revokedAt` | Date | no | | UTC. Null while active. |
 | `revokedReason` | String | no | | `LOGOUT`, `LOGOUT_ALL`, `ROTATED`, `REUSE_DETECTED`, `PASSWORD_CHANGED`, `USER_DEACTIVATED` |
 | `replacedByTokenHash` | String | no | | Set on rotation. Builds the chain used for reuse detection. |
@@ -957,6 +957,7 @@ to mark lines ready or cancelled.
 | `notes` | String | no | Trimmed, max 200 characters |
 | `status` | String | yes | Enum `PENDING`, `READY`, `CANCELLED` |
 | `readyAt` | Date | no | UTC |
+| `changedAt` | Date | no | P42. UTC. Default null. When a sent line's quantity or note was changed. |
 
 Indexes: `{ restaurantId: 1, branchId: 1, createdAt: 1 }` for the kitchen
 display, `{ restaurantId: 1, orderId: 1 }`, and
@@ -2882,7 +2883,51 @@ from before P36.
 |---|---|---|---|
 | `oneTicketPerOrder` | Boolean | true | One ticket per order, every round and station on it. Off: one per station per Send, as P05 |
 
-## 47. WhatsApp: templates and the receipt (P37)
+## 47. Kitchen recall and undo after Send (P41)
+
+No new collection or field.
+
+`orders.lines[].cancelReasonCode` gains `SENT_BY_MISTAKE`, written only by
+`POST /orders/:orderId/undo-send`. `auditlogs.action` gains `KOT_SEND_UNDONE`.
+
+## 48. Changing a sent dish (P42)
+
+`kots.lines[]` gains `changedAt` (above). Lowering a sent line's quantity
+splits it: the line keeps the new quantity, and a cancelled line with the same
+snapshot holds the difference, so reports read the cancelled quantity as for
+any cancel. Its stock comes back as `CANCELLATION_RETURN` movements on the
+original line, keyed `{lineId}:{ingredientId}:CANCELLATION_RETURN:{newLineId}`.
+
+## 49. The day-end email (P44)
+
+`restaurants.settings.reports.dayEndEmails`: [String], default `[]`, at most
+5, lowercased. `dayclosures.dayEndEmail`: `{ sentAt: Date, to: [String],
+error: String }` or null, default null; written after a close, never part of
+the close's transaction.
+
+## 50. Open items (P46)
+
+`menuitems.isOpenItem`: Boolean, default false. `orders.lines[].isOpenItem` and
+`bills.lines[].isOpenItem`: Boolean, default false, frozen when the line is
+added; on such a line `itemName` and `unitPriceInPaise` are what staff typed.
+
+## 51. Other modes (P47)
+
+`restaurants.settings.payments.otherModes`: [String], default the six of the
+prompt, at most 12, each 1 to 40 characters.
+
+## 52. Typed extras (P48)
+
+`orders.lines[].addOns[].addOnId` is no longer required: null marks an extra
+typed at the table, whose `name` and `priceInPaise` are what staff typed.
+
+## 53. A table closed by mistake (P50)
+
+`orders.cancelReasonCode` gains `OPENED_BY_MISTAKE`, written only by
+`POST /orders/:orderId/close` on an order nothing was sent from. Its unsent lines
+are removed, as P49 removes one. Additive: no existing value changes.
+
+## 54. WhatsApp: templates and the receipt (P37)
 
 ### `messagetemplates` (new)
 
@@ -2930,7 +2975,7 @@ a sent message, `messageId`, `customerId`, `deliveryStatus` (`SENT`,
 A STOP writes `offers.given: false` and an `offersHistory` entry with source
 `ONLINE`, `by: null` and the reason "Replied STOP on WhatsApp".
 
-## 48. The WhatsApp assistant (P39)
+## 55. The WhatsApp assistant (P51)
 
 ### `conversations` (new)
 

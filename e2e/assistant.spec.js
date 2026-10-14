@@ -1,5 +1,5 @@
 /**
- * P39, through the screens, against a fake Meta and a fake model: a guest asks
+ * P51, through the screens, against a fake Meta and a fake model: a guest asks
  * for a table on WhatsApp, says yes to the details, and gets a reference; the
  * request waits on the Bookings screen, the cashier confirms it there, and the
  * guest is told on WhatsApp. The cashier's Chats screen shows the chat.

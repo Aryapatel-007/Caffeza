@@ -247,7 +247,7 @@ const billing = z
   })
   .strict();
 
-/** The WhatsApp assistant. P39. An empty text clears it. */
+/** The WhatsApp assistant. P51. An empty text clears it. */
 const assistant = z
   .object({
     enabled: z.boolean({ error: 'Must be true or false.' }).optional(),
@@ -342,7 +342,15 @@ const cash = z
 
 /** Payments. P25 Part I. */
 const payments = z
-  .object({ requireTerminalForLinkedMethods: z.boolean({ error: 'Must be true or false.' }).optional() })
+  .object({
+    requireTerminalForLinkedMethods: z.boolean({ error: 'Must be true or false.' }).optional(),
+    // P47. The modes Other offers one tap each. A PATCH replaces the list.
+    otherModes: z
+      .array(z.string().trim().min(1, 'A mode needs a name.').max(40, 'Cannot be longer than 40 characters.'), { error: 'Must be a list of modes.' })
+      .max(12, 'At most 12 modes.')
+      .refine((list) => new Set(list.map((mode) => mode.toLowerCase())).size === list.length, 'The same mode is listed twice.')
+      .optional(),
+  })
   .strict();
 
 /** Reports. P25 Part J. "" or null clears the On Hold Tally code. */
@@ -352,6 +360,12 @@ const reports = z
       .union([z.string(), z.null()])
       .transform((value) => (value === null || value.trim() === '' ? null : value.trim()))
       .refine((value) => value === null || value.length <= 20, 'Cannot be longer than 20 characters.')
+      .optional(),
+    // P44. Who gets the day-end message. A PATCH replaces the list.
+    dayEndEmails: z
+      .array(z.string().trim().toLowerCase().email('Is not an email address.'), { error: 'Must be a list of email addresses.' })
+      .max(5, 'At most 5 addresses.')
+      .refine((list) => new Set(list).size === list.length, 'The same address is listed twice.')
       .optional(),
   })
   .strict();

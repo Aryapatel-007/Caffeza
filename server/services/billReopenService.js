@@ -9,13 +9,15 @@
  */
 import mongoose from 'mongoose';
 
+import { ROLES } from '../config/roles.js';
+
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import { Order } from '../models/Order.js';
 import { BusinessRuleError, TableOccupiedError } from '../utils/errors.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { recordAudit } from './auditService.js';
 import { approverFor } from './approvalService.js';
-import { assertNotVoided } from './billPermissionService.js';
+import { assertCaptainMayChangeBill, assertNotVoided } from './billPermissionService.js';
 import { readBill, voidBillInSession } from './billService.js';
 import { assertDayOpen, todayBusinessDate } from './dayLockService.js';
 import { getSettings } from './settingsService.js';
@@ -25,6 +27,9 @@ const DUPLICATE_KEY = 11000;
 /** POST /bills/:billId/reopen. Returns `{ orderId, voidedBillId, voidedBillNumber }`. */
 export async function reopenBill(req, billId, { approval = null } = {}) {
   const settings = await getSettings(req.restaurantId, { req });
+  // P39. A captain is refused at a printed bill before any PIN is checked, so
+  // a refusal never uses up a manager's PIN attempts. Other roles read on as before.
+  if (req.user?.role === ROLES.WAITER) assertCaptainMayChangeBill(req.user, await readBill(req, billId));
   const approvedBy = await approverFor(req, approval, settings.billing);
 
   const existing = await readBill(req, billId);

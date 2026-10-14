@@ -25,8 +25,10 @@ export const CONTROL_PORT = 5056;
 export const FAKE_RAZORPAY_PORT = 5057;
 /** P37. A fake Meta Cloud API, so a bill paid in the browser test is sent on WhatsApp. */
 export const FAKE_META_PORT = 5059;
-/** P39. A fake AI model, so a guest can book a table on WhatsApp in the browser test. Not 5060 or 5061: fetch refuses those ports (SIP). */
+/** P51. A fake AI model, so a guest can book a table on WhatsApp in the browser test. Not 5060 or 5061: fetch refuses those ports (SIP). */
 export const FAKE_MODEL_PORT = 5062;
+// P44. A fake Resend, so the day-end email can be sent and read back.
+const FAKE_RESEND_PORT = FAKE_RAZORPAY_PORT + 1;
 const HOST = '127.0.0.1';
 
 if (process.env.NODE_ENV !== 'test') {
@@ -52,6 +54,8 @@ Object.assign(process.env, {
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS: '50',
   PAYMENT_SECRETS_KEY: randomBytes(32).toString('base64'),
   RAZORPAY_API_BASE: `http://${HOST}:${FAKE_RAZORPAY_PORT}`,
+  RESEND_API_KEY: 're_e2e_key',
+  RESEND_API_BASE: `http://${HOST}:${FAKE_RESEND_PORT}`,
 });
 
 const { MongoMemoryReplSet } = await import('mongodb-memory-server');
@@ -75,9 +79,22 @@ const { startFakeRazorpay } = await import('../tests/helpers/fakeRazorpay.js');
 await startFakeRazorpay({ port: FAKE_RAZORPAY_PORT, host: HOST });
 const { startFakeMeta } = await import('../tests/helpers/fakeMeta.js');
 const fakeMeta = await startFakeMeta({ port: FAKE_META_PORT, host: HOST });
-// P39. The assistant's model, scripted by the browser test through /model.
+// P51. The assistant's model, scripted by the browser test through /model.
 const { startFakeModel } = await import('../tests/helpers/fakeModel.js');
 const fakeModel = await startFakeModel({ port: FAKE_MODEL_PORT, host: HOST });
+
+// P44. Every email the app sends lands here; the control listener reads them back.
+const sentEmails = [];
+const fakeResend = http.createServer((request, response) => {
+  let raw = '';
+  request.on('data', (chunk) => (raw += chunk));
+  request.on('end', () => {
+    sentEmails.push(JSON.parse(raw || '{}'));
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ id: `e2e_${sentEmails.length}` }));
+  });
+});
+await new Promise((resolve) => fakeResend.listen(FAKE_RESEND_PORT, HOST, resolve));
 
 const app = createApp({ serveClient: true });
 const httpServer = await new Promise((resolve) => {
@@ -141,13 +158,14 @@ const control = http.createServer(async (request, response) => {
       fakeMeta.approve(name);
       return send(response, 200, { approved: name });
     }
-    // P39. What the fake model answers next, in order: { steps: [...] }.
+    // P51. What the fake model answers next, in order: { steps: [...] }.
     if (request.method === 'GET' && request.url === '/model') return send(response, 200, { url: fakeModel.url, waiting: fakeModel.state.queue.length });
     if (request.method === 'POST' && request.url === '/model/script') {
       const { steps } = await readJson(request);
       fakeModel.script(...(steps ?? []));
       return send(response, 200, { waiting: fakeModel.state.queue.length });
     }
+    if (request.method === 'GET' && request.url === '/emails') return send(response, 200, { emails: sentEmails });
     return send(response, 404, { error: 'not found' });
   } catch (error) {
     return send(response, 500, { error: error.message });

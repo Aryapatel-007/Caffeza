@@ -151,7 +151,7 @@ Where an order must be sent, made, marked ready or served before it can be bille
 | 8:30 PM | Khuman Singh | Opens Table 11, 3 guests: Thecha Paneer Chilli, Mexican Bowl. Sends. |
 | 8:40 PM | Counter, Manager | Bills B16. Manager applies flat ₹39.00, Dineout. |
 | 8:46 PM | Counter | Dineout ₹778.00 |
-| 8:50 PM | Khuman Singh | Adds Cheesy Tornado to Table 11, then cancels it before sending: Wrong item entered |
+| 8:50 PM | Khuman Singh | Adds Cheesy Tornado to Table 11, then cancels it before sending: Wrong item entered. (From P49 the screens remove a dish not yet sent with no reason and keep nothing, so the browser golden day removes it; the API fixture still cancels it with this reason, through the cancel endpoint, which still takes a not-sent line, so every expected number below stands.) |
 | 9:00 PM | Khuman Singh | Cancels Thecha Paneer Chilli after the kitchen made it: Guest changed the order, was prepared |
 | 9:10 PM | Counter | Takeaway: Caffe Latte × 2. Sends. |
 | 9:12 PM | Counter | Bills B15 |

@@ -78,7 +78,7 @@ export default function OnlineAlerts() {
     };
   }, []);
 
-  // P39. Chats waiting for a person, for the till only.
+  // P51. Chats waiting for a person, for the till only.
   const chats = chatsOn(features, user?.role) ? (inbox?.waitingChats ?? 0) : 0;
   const requests = inbox ? inbox.waitingOrders + inbox.waitingReservations + (inbox.waitingPlatformOrders ?? 0) : 0;
   const waiting = requests + chats;

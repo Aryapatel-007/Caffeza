@@ -1,5 +1,5 @@
 /**
- * One guest's WhatsApp chat with one branch. P39, docs/DB-SCHEMA.md section 48.
+ * One guest's WhatsApp chat with one branch. P51, docs/DB-SCHEMA.md section 48.
  *
  * Names the guest by `customerId`, never by number. The turns are personal
  * data: the last 30 are kept, and the whole chat is removed 30 days after its
@@ -42,7 +42,7 @@ const conversationSchema = new mongoose.Schema({
 
 conversationSchema.plugin(baseSchemaPlugin);
 conversationSchema.plugin(tenantGuardPlugin);
-// P39. A chat that changes reaches the till's inbox and the Chats screen at once.
+// P51. A chat that changes reaches the till's inbox and the Chats screen at once.
 conversationSchema.plugin(liveAnnouncePlugin, { topics: ['online'] });
 
 conversationSchema.index({ restaurantId: 1, branchId: 1, customerId: 1 }, { unique: true });

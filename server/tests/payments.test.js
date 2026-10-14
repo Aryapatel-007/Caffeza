@@ -247,6 +247,35 @@ describe('configuring payment methods', () => {
 });
 
 describe('taking a payment', () => {
+  it('P43: Other needs its mode of payment, kept as the reference; Cash still needs nothing', async () => {
+    const floor = await seedFloor();
+    const { tokens } = floor;
+    await goldenMethods(tokens.OWNER);
+    const other = (await listMethods(tokens.OWNER, '?includeInactive=true')).body.data.find((method) => method.code === 'OTHER');
+    assert.equal((await updateMethod(tokens.OWNER, other.id, { isActive: true })).status, 200);
+
+    const bill = await dineInBill(floor);
+    const noMode = await pay(tokens.CASHIER, bill.id, { method: 'OTHER', amountInPaise: 100 });
+    assert.equal(noMode.status, 422);
+    assert.equal(noMode.body.error.code, 'BUSINESS_RULE_VIOLATED');
+    assert.equal(noMode.body.error.message, 'Say how it was paid, for example Cheque.');
+    const blank = await pay(tokens.CASHIER, bill.id, { method: 'OTHER', amountInPaise: 100, reference: '   ' });
+    assert.equal(blank.status, 422);
+
+    const unchanged = (await request('GET', `/api/v1/bills/${bill.id}`, { token: tokens.CASHIER })).body.data;
+    assert.equal(unchanged.payments.length, 0);
+
+    const cheque = await pay(tokens.CASHIER, bill.id, { method: 'OTHER', amountInPaise: 100, reference: 'Cheque' });
+    assert.equal(cheque.status, 200, JSON.stringify(cheque.body));
+    const recorded = cheque.body.data.payments.at(-1);
+    assert.equal(recorded.method, 'OTHER');
+    assert.equal(recorded.methodName, 'Other');
+    assert.equal(recorded.reference, 'Cheque');
+
+    const cash = await pay(tokens.CASHIER, bill.id, { method: 'CASH', amountInPaise: 100 });
+    assert.equal(cash.status, 200, JSON.stringify(cash.body));
+  });
+
   it('refuses an inactive method, a method not for this order type, and the wrong platform', async () => {
     const floor = await seedFloor();
     const { tokens } = floor;
@@ -775,5 +804,24 @@ describe('golden day pieces at their real times', () => {
     assert.equal(paid.status, 'PAID');
     assert.equal(paid.payments[0].businessDate, '2026-09-26');
     assert.equal(new Date(paid.payments[0].receivedAt).toISOString(), '2026-09-26T18:32:00.000Z');
+  });
+});
+
+describe('P47 Other modes', () => {
+  it('starts with Swiggy Dineout, Zomato Dineout and EazyDiner, and a cashier reads the owner\'s list', async () => {
+    const floor = await seedFloor();
+    const { tokens } = floor;
+    const me = (token) => request('GET', '/api/v1/auth/me', { token });
+    assert.deepEqual((await me(tokens.CASHIER)).body.data.payments.otherModes, ['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Cheque', 'Bank transfer', 'Coupon']);
+
+    const set = (token, otherModes) => patchSettings(token, { reason: 'P47 test', payments: { otherModes } });
+    assert.equal((await set(tokens.OWNER, ['Swiggy Dineout', 'Paytm'])).status, 200);
+    assert.deepEqual((await me(tokens.CASHIER)).body.data.payments.otherModes, ['Swiggy Dineout', 'Paytm']);
+
+    assert.equal((await set(tokens.OWNER, Array.from({ length: 13 }, (_, index) => `Mode ${index}`))).status, 400, 'too many');
+    assert.equal((await set(tokens.OWNER, ['x'.repeat(41)])).status, 400, 'too long');
+    assert.equal((await set(tokens.OWNER, ['  '])).status, 400, 'empty');
+    assert.equal((await set(tokens.OWNER, ['Paytm', 'paytm'])).status, 400, 'the same mode twice');
+    assert.equal((await set(tokens.MANAGER, ['Paytm'])).status, 403, 'settings are the owner\'s');
   });
 });

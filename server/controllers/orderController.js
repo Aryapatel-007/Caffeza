@@ -13,11 +13,13 @@
  */
 import {
   ORDER_CANCEL_REASONS,
+  ORDER_OPENED_BY_MISTAKE,
   reasonText,
 } from '../config/cancelReasons.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
 import {
   Order,
+  MADE_LINE_STATUSES,
   ORDER_LINE_STATUSES,
   PREPARED_LINE_STATUSES,
   ORDER_STATUSES,
@@ -25,6 +27,8 @@ import {
 } from '../models/Order.js';
 import { recordAudit } from '../services/auditService.js';
 import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/kitchenService.js';
+import { changeSentNote, reduceSentLine } from '../services/sentLineService.js';
+import { undoSend as undoSendToKitchen } from '../services/undoSendService.js';
 // M4. wasPrepared: false means the kitchen had already deducted for this line
 // and it was never actually made, so the ingredients go back. Keyed on the
 // ledger, not on the flag alone -- see stockMovementService.js.
@@ -133,7 +137,7 @@ export async function getOrder(req, res) {
  */
 export async function addOrderLines(req, res) {
   const { orderId } = req.params;
-  const { version, lines } = req.body;
+  const { version, lines, approval = null } = req.body;
 
   const order = await loadOrderInTenant(req, orderId);
   // P26. A served table orders more: a READY_TO_BILL order with no live bill reopens.
@@ -152,7 +156,7 @@ export async function addOrderLines(req, res) {
   const snapshotLines = await buildLineSnapshots(req, lines, { taxTreatment: order.taxTreatment });
 
   if (revisesBill) {
-    const revised = await addLinesToBilledOrder(req, { order, version, snapshotLines });
+    const revised = await addLinesToBilledOrder(req, { order, version, snapshotLines, approval });
     req.log?.info(
       { actorId: req.user.id, orderId: String(revised._id), orderNumber: revised.orderNumber, addedLines: snapshotLines.length },
       'Lines added to a billed order; its bill was revised.',
@@ -198,9 +202,16 @@ export async function editOrderLine(req, res) {
   assertNoLiveBill(order);
 
   const line = findLine(order, lineId);
+  // P42. A dish sent but not made takes a new note, which reaches its kitchen ticket.
+  if (line.status === ORDER_LINE_STATUSES.FIRED && quantity === undefined && notes !== undefined) {
+    const updated = await changeSentNote(req, { order, line, version, notes });
+    return sendSuccess(res, serialiseOrder(updated));
+  }
   if (line.status !== ORDER_LINE_STATUSES.PENDING) {
     throw new BusinessRuleError(
-      'The kitchen already has this one. It can be cancelled, but not changed.',
+      line.status === ORDER_LINE_STATUSES.FIRED
+        ? 'Lower the quantity of a sent dish with Change.'
+        : 'The kitchen has already made this one. It can be cancelled, but not changed.',
     );
   }
 
@@ -258,13 +269,13 @@ export async function cancelOrderLine(req, res) {
   assertWasPreparedRule(line.status, wasPrepared);
 
   /**
-   * P28. A cashier or captain cancelling a dish the kitchen already has needs
-   * an owner's or manager's PIN. Taking back a line never sent costs nothing,
-   * so it needs none.
+   * P28, narrowed by P42. A cashier or captain cancelling a dish that was made
+   * (the kitchen marked it ready, or they say it was made) needs an owner's or
+   * manager's PIN. A dish not made yet costs nothing to take back.
    */
   const { approvals } = await getSettings(req.restaurantId, { req });
-  const sentToKitchen = [...PREPARED_LINE_STATUSES].includes(line.status);
-  const approvedBy = await approverIfNeeded(req, approval, approvals.lineCancel && sentToKitchen);
+  const made = MADE_LINE_STATUSES.includes(line.status) || wasPrepared === true;
+  const approvedBy = await approverIfNeeded(req, approval, approvals.lineCancel && made);
 
   const inventoryOn = await isFeatureOn(req, 'inventory');
 
@@ -304,6 +315,81 @@ export async function fireOrder(req, res) {
   // P05: `kots` is every ticket, one per station; `kot` is the first of them.
   // P36: with one ticket per order, `kots` is that ticket, and `round` the Send just made.
   return sendSuccess(res, { kot, kots, order, round });
+}
+
+/**
+ * POST /orders/:orderId/close. P50: an order nothing was ever sent from was
+ * opened by mistake, and anyone who takes orders closes it with no reason.
+ * Orders are never deleted, so it is kept, cancelled as OPENED_BY_MISTAKE,
+ * with its unsent dishes removed as P49 removes one. Nothing reached the
+ * kitchen, so there is no stock, no ticket and no audit line, and reports
+ * leave it out.
+ */
+export async function closeOrder(req, res) {
+  const { orderId } = req.params;
+  const { version } = req.body;
+  const order = await loadOrderInTenant(req, orderId);
+  assertOrderIsOpen(order);
+  assertNoLiveBill(order);
+  const everSent = order.lines.some((line) => line.firedAt || ![ORDER_LINE_STATUSES.PENDING, ORDER_LINE_STATUSES.CANCELLED].includes(line.status));
+  if (everSent) {
+    throw new BusinessRuleError('Dishes have been sent to the kitchen. Ask a manager to cancel the order.');
+  }
+
+  const updated = await applyVersionedUpdate(req, {
+    orderId,
+    version,
+    update: {
+      $pull: { lines: { status: ORDER_LINE_STATUSES.PENDING } },
+      $set: {
+        status: ORDER_STATUSES.CANCELLED,
+        isCancelled: true,
+        cancelledAt: nowUtc(),
+        cancelledBy: req.user.id,
+        cancelReasonCode: ORDER_OPENED_BY_MISTAKE,
+        cancelReason: null,
+      },
+    },
+  });
+
+  req.log?.info({ actorId: req.user.id, role: req.user.role, orderId: String(updated._id), orderNumber: updated.orderNumber }, 'Order closed, opened by mistake.');
+  return sendSuccess(res, serialiseOrder(updated));
+}
+
+/**
+ * DELETE /orders/:orderId/lines/:lineId. P49: a dish not sent yet is a draft,
+ * removed with no reason and no trace, because the guest changed their mind
+ * before the kitchen saw it. A sent dish is never deleted (12.6, P42).
+ */
+export async function removeOrderLine(req, res) {
+  const { orderId, lineId } = req.params;
+  const { version } = req.query;
+  const order = await loadOrderInTenant(req, orderId);
+  assertOrderIsOpen(order);
+  assertNoLiveBill(order);
+  const line = findLine(order, lineId);
+  if (line.status !== ORDER_LINE_STATUSES.PENDING) {
+    throw new BusinessRuleError('This dish has been sent to the kitchen. Use Change.');
+  }
+  const updated = await applyVersionedUpdate(req, {
+    orderId,
+    version,
+    // Only while it is still PENDING: a dish sent meanwhile stays.
+    update: { $pull: { lines: { _id: line._id, status: ORDER_LINE_STATUSES.PENDING } } },
+  });
+  return sendSuccess(res, serialiseOrder(updated));
+}
+
+/** POST /orders/:orderId/lines/:lineId/reduce. P42: lower a sent dish's quantity. */
+export async function reduceOrderLine(req, res) {
+  const order = await reduceSentLine(req, { orderId: req.params.orderId, lineId: req.params.lineId, ...req.body });
+  return sendSuccess(res, order);
+}
+
+/** POST /orders/:orderId/undo-send. P41: take the last Send back within the minute. */
+export async function undoSend(req, res) {
+  const order = await undoSendToKitchen(req, { orderId: req.params.orderId, version: req.body.version });
+  return sendSuccess(res, order);
 }
 
 /**

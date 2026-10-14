@@ -329,12 +329,12 @@ test('the golden day, through the screens', async ({ browser }) => {
     await at('20:46');
     await payAndCheck('B16', [['Dineout', '778.00']], '₹778.00');
   });
-  await test.step('8:50 PM Khuman Singh adds Cheesy Tornado to Table 11 and cancels it before sending', async () => {
+  await test.step('8:50 PM Khuman Singh adds Cheesy Tornado to Table 11 and removes it before sending', async () => {
     await at('20:50');
     const { page } = captains['Khuman Singh'];
     await openTableOrder(page, 'Table 11');
     await addItems(page, ['Cheesy Tornado']);
-    await removeUnsent(page, 'Cheesy Tornado', 'Wrong item entered');
+    await removeUnsent(page, 'Cheesy Tornado');
   });
   await test.step('8:55 PM Live Kitchen makes Table 11', async () => {
     await at('20:55');

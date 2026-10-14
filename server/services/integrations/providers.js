@@ -21,7 +21,7 @@ export const PROVIDER_KINDS = Object.freeze({
   ACCOUNTING: 'ACCOUNTING',
   // P37. Messages to guests, on the restaurant's own number.
   MESSAGING: 'MESSAGING',
-  // P39. The model the WhatsApp assistant thinks with.
+  // P51. The model the WhatsApp assistant thinks with.
   AI_ASSISTANT: 'AI_ASSISTANT',
 });
 export const AVAILABILITY = Object.freeze({ READY: 'READY', WAITING_FOR_PARTNER: 'WAITING_FOR_PARTNER' });
@@ -32,7 +32,7 @@ export const PINE_LABS_UAT_BASE_URL = 'https://www.plutuscloudserviceuat.in:8201
 const objectId = z.string().regex(/^[0-9a-f]{24}$/i, 'Is not a valid id.');
 const secret = (max = 200) => z.string({ error: 'Is required.' }).trim().min(1, 'Is required.').max(max);
 
-/** P39. An AI provider's address: https always; plain http only to this machine outside production, for a test's fake. */
+/** P51. An AI provider's address: https always; plain http only to this machine outside production, for a test's fake. */
 const aiBaseUrl = (fallback) =>
   z
     .string()
@@ -159,7 +159,7 @@ const PROVIDERS = {
     availability: AVAILABILITY.READY,
     hasWebhook: true,
     secretFields: ['phoneNumberId', 'wabaId', 'accessToken', 'webhookVerifyToken', 'appSecret'],
-    // P39. What guests and the restaurant write stays out of the event log: it is personal data, kept in the chat for 30 days only.
+    // P51. What guests and the restaurant write stays out of the event log: it is personal data, kept in the chat for 30 days only.
     logHiddenFields: ['text', 'body', 'title', 'button', 'interactive', 'parameters'],
     credentialSchema: z
       .object({
@@ -186,7 +186,7 @@ const PROVIDERS = {
       .strict(),
     adapter: () => import('./messaging/whatsappAdapter.js'),
   },
-  /** P39. Google's Gemini. Its free tier is for testing: Google may use those prompts. */
+  /** P51. Google's Gemini. Its free tier is for testing: Google may use those prompts. */
   GEMINI: {
     kind: PROVIDER_KINDS.AI_ASSISTANT,
     name: 'Gemini',
@@ -202,7 +202,7 @@ const PROVIDERS = {
       .strict(),
     adapter: () => import('../chatbot/providers/gemini.js'),
   },
-  /** P39. Anthropic's Claude, for live guests: API prompts are not used for training by default. */
+  /** P51. Anthropic's Claude, for live guests: API prompts are not used for training by default. */
   ANTHROPIC: {
     kind: PROVIDER_KINDS.AI_ASSISTANT,
     name: 'Anthropic',
@@ -218,7 +218,7 @@ const PROVIDERS = {
       .strict(),
     adapter: () => import('../chatbot/providers/anthropic.js'),
   },
-  /** P39, at Arya's request. Groq's OpenAI-shaped API. Its free tier is for testing. */
+  /** P51, at Arya's request. Groq's OpenAI-shaped API. Its free tier is for testing. */
   GROQ: {
     kind: PROVIDER_KINDS.AI_ASSISTANT,
     name: 'Groq',

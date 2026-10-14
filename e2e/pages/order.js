@@ -84,6 +84,25 @@ export async function serveAll(page) {
 export async function cancelLine(page, item, reason, wasPrepared = null, approval = null) {
   const area = await details(page);
   const line = area.locator('li').filter({ hasText: item }).filter({ hasNot: page.getByText('Cancelled', { exact: true }) });
+  // P42. A sent dish is removed through Change.
+  const change = line.getByRole('button', { name: 'Change', exact: true });
+  if (await change.count()) {
+    await change.first().click();
+    const sheet = page.getByRole('dialog', { name: `Change ${item}` });
+    if (wasPrepared) {
+      const made = sheet.getByLabel('Already made by the kitchen');
+      if (await made.count()) await made.check();
+      await sheet.getByRole('button', { name: reason, exact: true }).click();
+    }
+    if (approval) {
+      await expect(sheet.getByText('A manager approves')).toBeVisible();
+      await sheet.getByRole('button', { name: approval.name, exact: true }).click();
+      await sheet.getByLabel('Their PIN').fill(approval.pin);
+    }
+    await sheet.getByRole('button', { name: 'Remove dish' }).click();
+    await expect(page.getByText(`${item} removed. The kitchen can see it.`)).toBeVisible();
+    return;
+  }
   await line.getByRole('button', { name: /^Cancel/ }).first().click();
   const sheet = page.getByRole('dialog', { name: `Cancel ${item}` });
   await sheet.getByRole('button', { name: reason, exact: true }).click();
@@ -97,13 +116,12 @@ export async function cancelLine(page, item, reason, wasPrepared = null, approva
   await expect(page.getByText('Line cancelled.')).toBeVisible();
 }
 
-/** Cancels an unsent dish from its card: the minus at one opens the cancel panel. */
-export async function removeUnsent(page, item, reason) {
+/** Removes an unsent dish from its card: the minus at one removes it (P49). */
+export async function removeUnsent(page, item) {
+  // P49. A dish not sent yet goes at once: no reason asked, nothing kept.
   await card(page, item).getByRole('button', { name: `Remove ${item}` }).click();
-  const sheet = page.getByRole('dialog', { name: `Cancel ${item}` });
-  await sheet.getByRole('button', { name: reason, exact: true }).click();
-  await sheet.getByRole('button', { name: /^Cancel it/ }).click();
-  await expect(page.getByText('Line cancelled.')).toBeVisible();
+  await expect(page.getByText(`${item} removed.`)).toBeVisible();
+  await expect(card(page, item).getByRole('button', { name: `Remove ${item}` })).toHaveCount(0);
 }
 
 /** No Charge, from the order's sheet. Manager. */

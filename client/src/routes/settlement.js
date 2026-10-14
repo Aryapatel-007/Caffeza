@@ -8,4 +8,5 @@ export { default as ReceiptPreviewPage } from '../features/billing/ReceiptPrevie
 export { default as AccountsPage } from '../features/settlement/AccountsPage.jsx';
 export { default as CashBookPage } from '../features/settlement/CashBookPage.jsx';
 export { default as DayClosePage } from '../features/settlement/DayClosePage.jsx';
+export { default as DayEndPage } from '../features/settlement/DayEndPage.jsx';
 export { default as PayoutsPage } from '../features/settlement/PayoutsPage.jsx';

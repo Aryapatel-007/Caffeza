@@ -1,6 +1,6 @@
 /**
  * WhatsApp: sending, templates, the receipt and what guests send back. P37,
- * API-CONTRACT "P37", DB-SCHEMA section 47.
+ * API-CONTRACT "P37", DB-SCHEMA section 54.
  *
  * `sendTemplate` is the one way a message to a guest is queued. It refuses a
  * connection that is not on and a template Meta has not approved, gates a
@@ -105,7 +105,7 @@ export async function sendTemplate({ restaurantId, branchId, phone, templateKey,
 
   const customer = await Customer.findOne({ restaurantId, phone: localNumber(phone) }).lean();
   if (!customer) return { queued: false, skipped: 'NO_CUSTOMER' };
-  // P39. A guest who asked for no messages at all gets none, bills included.
+  // P51. A guest who asked for no messages at all gets none, bills included.
   if (customer.whatsappStoppedAt) return { queued: false, skipped: 'STOPPED' };
   assertMayReceive(customer, effectiveCategory(template));
   if (customer.whatsappUnreachableAt) return { queued: false, skipped: 'UNREACHABLE' };
@@ -173,7 +173,7 @@ export async function runTemplateJob(job) {
 }
 
 /**
- * Sends a plain reply, with buttons when given (P39), inside the service window
+ * Sends a plain reply, with buttons when given (P51), inside the service window
  * the guest's own message opened. A guest who stopped all messages still gets
  * the answer to a message they just wrote, and nothing else.
  */
@@ -233,7 +233,7 @@ async function optOut(ctx, connection, event) {
     payload: { customerId: event.customerId, text, replyToInboundAt: at.toISOString() },
     dedupeKey: `whatsapp:opt-out-reply:${event.externalId}`,
   });
-  // P39. Kept in the guest's chat, so staff see it.
+  // P51. Kept in the guest's chat, so staff see it.
   const { openChatFor, recordReply } = await import('../../chatbot/chatTurns.js');
   const conversation = await openChatFor(ctx, event.customerId, 'STOP', at);
   await recordReply(ctx, conversation._id, text);
@@ -246,7 +246,7 @@ export function processWhatsAppEvent(job, connection) {
   const event = job.payload?.event ?? {};
   if (event.type === 'MESSAGE_STATUS') return recordDelivery(ctx, event);
   if (event.type === 'OPT_OUT') return optOut(ctx, connection, event);
-  // P39. Anything else the guest wrote, for the assistant.
+  // P51. Anything else the guest wrote, for the assistant.
   if (event.type === 'INBOUND_MESSAGE') return import('../../chatbot/assistant.js').then(({ handleInboundMessage }) => handleInboundMessage(job, connection, event));
   return { ignored: event.type ?? 'unknown' };
 }

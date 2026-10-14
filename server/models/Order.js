@@ -12,7 +12,7 @@
  */
 import mongoose from 'mongoose';
 
-import { LINE_CANCEL_REASON_CODES, ORDER_CANCEL_REASON_CODES } from '../config/cancelReasons.js';
+import { LINE_CANCEL_REASON_CODES, ORDER_CANCEL_REASON_CODES, ORDER_OPENED_BY_MISTAKE } from '../config/cancelReasons.js';
 import { NO_CHARGE_REASON_CODES } from '../config/noChargeReasons.js';
 import { MAX_PAISE } from '../utils/money.js';
 import { MAX_BASIS_POINTS } from '../validators/common.js';
@@ -118,6 +118,9 @@ export const PREPARED_LINE_STATUSES = Object.freeze([
   ORDER_LINE_STATUSES.SERVED,
 ]);
 
+/** P42. A line the kitchen has made (marked ready). Taking one back needs the lineCancel approval. */
+export const MADE_LINE_STATUSES = Object.freeze([ORDER_LINE_STATUSES.READY, ORDER_LINE_STATUSES.SERVED]);
+
 export const CUSTOMER_NAME_MAX_LENGTH = 100;
 export const LINE_NOTES_MAX_LENGTH = 200;
 export const CANCEL_REASON_MAX_LENGTH = 200;
@@ -153,7 +156,8 @@ const wholeNumberOrEmpty = {
  */
 const lineAddOnSchema = new mongoose.Schema(
   {
-    addOnId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    // P48. Null for an extra typed at the table; its name and price are what staff typed.
+    addOnId: { type: mongoose.Schema.Types.ObjectId, default: null },
     name: { type: String, required: true, trim: true },
     priceInPaise: {
       type: Number,
@@ -224,6 +228,8 @@ const orderLineSchema = new mongoose.Schema(
      * other price.
      */
     priceSource: { type: String, enum: ['MENU', 'PLATFORM'], default: 'MENU' },
+    // P46. An open item: `itemName` and `unitPriceInPaise` are what staff typed.
+    isOpenItem: { type: Boolean, default: false },
 
     status: {
       type: String,
@@ -372,7 +378,8 @@ const orderSchema = new mongoose.Schema({
   /** From P04 the optional note. Older orders keep their free-text reason here. */
   cancelReason: { type: String, trim: true, maxlength: CANCEL_REASON_MAX_LENGTH, default: null },
   /** P04. The fixed reason, from ORDER_CANCEL_REASONS. Null before P04. */
-  cancelReasonCode: { type: String, enum: [...ORDER_CANCEL_REASON_CODES, null], default: null },
+  // P50. OPENED_BY_MISTAKE is written only by closing an order nothing was sent from.
+  cancelReasonCode: { type: String, enum: [...ORDER_CANCEL_REASON_CODES, ORDER_OPENED_BY_MISTAKE, null], default: null },
 
   /**
    * P08. Null unless the status is NO_CHARGE. `valueInPaise` is the live line

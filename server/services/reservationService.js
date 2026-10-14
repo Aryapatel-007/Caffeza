@@ -183,7 +183,7 @@ async function assertUnderOpenLimit(req, phone, now) {
   }
 }
 
-/** `source`: ONLINE from the public page, WHATSAPP from the assistant (P39). Every rule is the same. */
+/** `source`: ONLINE from the public page, WHATSAPP from the assistant (P51). Every rule is the same. */
 export async function request(req, body, { source = RESERVATION_SOURCES.ONLINE } = {}) {
   const now = nowUtc();
   const { online, dayStartMinutes } = await onlineSettings(req);
@@ -295,7 +295,7 @@ export async function guestCancel(req, id) {
 
 /**
  * The guest cancels their own booking: from the page with its token, or on
- * WhatsApp as the booking's own guest (P39). The same rules either way.
+ * WhatsApp as the booking's own guest (P51). The same rules either way.
  */
 export async function cancelByGuest(req, id) {
   const now = nowUtc();
@@ -415,7 +415,7 @@ export async function confirm(req, id, body) {
   return forStaff(req, updated, now);
 }
 
-/** P39. A WhatsApp booking's guest hears the outcome on WhatsApp. Never fails the staff's action. */
+/** P51. A WhatsApp booking's guest hears the outcome on WhatsApp. Never fails the staff's action. */
 async function tellGuestOnWhatsApp(req, doc) {
   if (doc?.source !== RESERVATION_SOURCES.WHATSAPP) return;
   try {

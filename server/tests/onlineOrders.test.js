@@ -420,7 +420,7 @@ describe('the inbox and permissions', () => {
       closesAtMinutes: 1380,
       // P25 Part H. No delivery platform connected.
       platformChannels: [],
-      // P39. WhatsApp not connected.
+      // P51. WhatsApp not connected.
       chats: false,
     });
   });

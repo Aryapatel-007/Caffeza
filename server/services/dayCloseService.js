@@ -28,6 +28,8 @@ import { businessDateRangeToUtc, formatTimeIst12, nowUtc } from '../utils/time.j
 import { withOptionalTransaction } from '../utils/transaction.js';
 import { recordAudit } from './auditService.js';
 import { computeDayFigures } from './dayFiguresService.js';
+import { buildDayEndMessage } from './dayEndMessageService.js';
+import { isEmailSetUp, sendEmail } from './emailService.js';
 import { todayBusinessDate } from './dayLockService.js';
 import { centre, row, rule, wrapName } from './receiptService.js';
 import { runDayChecks, SEVERITY } from './reconciliationService.js';
@@ -155,6 +157,8 @@ function presentClosure(closure) {
     closedBy: plain.closedBy ? String(plain.closedBy) : null,
     closedAt: plain.closedAt,
     history: plain.history,
+    // P44. Whether the day-end email went out after the close.
+    dayEndEmail: plain.dayEndEmail ?? null,
   };
 }
 
@@ -287,12 +291,59 @@ export async function closeDay(req, { businessDate, countedCashInPaise, cashCoun
     return record;
   });
 
+  // P44. The day-end email, after the close is saved: a failure never undoes the close.
+  closure.dayEndEmail = await emailDayEnd(req, businessDate, { quiet: true });
+
   const view = presentClosure(closure);
   return (await seesCash(req)) ? view : blind(view);
 }
 
+/**
+ * P44. Emails the day-end message to the owner's chosen addresses, and keeps
+ * the result on a closed day's record. `quiet` (at Day Close): nothing set up
+ * sends nothing and returns null, and a failure is kept, not thrown. Otherwise
+ * (Email this report) every refusal is thrown in plain words.
+ */
+export async function emailDayEnd(req, businessDate, { quiet = false } = {}) {
+  const addresses = (await getSetting(req.restaurantId, 'reports.dayEndEmails', { req })) ?? [];
+  if (addresses.length === 0) {
+    if (quiet) return null;
+    throw new BusinessRuleError('Add an email address for the day-end report in Settings first.');
+  }
+  if (!isEmailSetUp()) {
+    if (quiet) return null;
+    throw new BusinessRuleError('Email is not set up on the server.');
+  }
+
+  let result;
+  try {
+    const { subject, text } = await buildDayEndMessage(req, businessDate, { full: true });
+    await sendEmail({ to: addresses, subject, text });
+    result = { sentAt: nowUtc(), to: addresses, error: null };
+  } catch (error) {
+    if (!quiet) throw error;
+    req.log?.warn({ businessDate, err: error.message }, 'Day-end email failed after the close.');
+    result = { sentAt: null, to: addresses, error: error.message };
+  }
+  await DayClosure.updateOne({ ...scoped(req), businessDate, status: DAY_STATUSES.CLOSED }, { $set: { dayEndEmail: result } });
+  return result;
+}
+
 /** GET /day-close/:businessDate. The stored close, or the live figures and blockers. */
 export async function readDay(req, businessDate) {
+  const view = await readDayView(req, businessDate);
+  return (await seesCash(req)) ? view : blind(view);
+}
+
+/** P44. Whether this caller may see the expected cash: the same rule as GET /day-close/:businessDate. */
+export { seesCash };
+
+/**
+ * The day as the owner sees it, before the blind count is applied. P44: the
+ * day-end email goes only to the owner's chosen addresses, so it is built
+ * from this; anything shown to the caller goes through readDay.
+ */
+export async function readDayView(req, businessDate) {
   const closure = await DayClosure.findOne({ ...scoped(req), businessDate });
   let view;
   if (closure?.status === DAY_STATUSES.CLOSED) {
@@ -321,7 +372,7 @@ export async function readDay(req, businessDate) {
       history: closure ? closure.toJSON().history : [],
     };
   }
-  return (await seesCash(req)) ? view : blind(view);
+  return view;
 }
 
 /** GET /day-close?from&to. One row per date with a closure record. */

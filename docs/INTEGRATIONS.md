@@ -285,7 +285,7 @@ What gets a template rejected or moved to marketing:
 Meta scores each number Green, Yellow or Red from how guests react: blocks,
 reports, and "not interested" taps. A falling rating lowers how many guests the
 number may message in a day, and a Red one can be suspended. The receipt is
-utility and expected, so it rarely hurts the rating; P38's offers are where a
+utility and expected, so it rarely hurts the rating; P52's offers are where a
 rating is lost, which is why they need consent and a frequency cap. The test
 shows the current rating.
 
@@ -295,7 +295,7 @@ A guest replying STOP, UNSUBSCRIBE or STOP PROMOTIONS, or using Meta's own
 "Stop promotions", has their offers consent withdrawn at once, with a history
 entry on the Customers screen, and is told once. Their bills still come.
 
-## 3B. The WhatsApp assistant (P39)
+## 3B. The WhatsApp assistant (P51)
 
 The assistant answers guests who write to the restaurant's WhatsApp number:
 the menu, the hours, table bookings, their booking or takeaway, and stopping
@@ -369,7 +369,7 @@ about 20 minutes and can reach the daily token limit; `-- --from <id>` resumes.
 | Tally file | Vouchers per day or per bill, the ledger list, held days, export again | The manual check in section 3.6 |
 | Tally bridge | Pairing, posting, ledger check, lost posts held as not known, switch off | The same manual check. Its ledger and company list request follows Tally's help page for Tally.ERP 9, and is unconfirmed on TallyPrime. |
 | WhatsApp | Connection and test, templates with their approval state, the bill sent when paid, delivery receipts, STOP | A real WhatsApp Business Account: a receipt to a staff number, its delivery receipt, and STOP, checked on it (P37 section 15) |
-| WhatsApp assistant | Anthropic, Groq and Gemini keys, answers from the restaurant's data, bookings, stop in any words, Chats, booking messages | The same WhatsApp account, a paid AI key, and a real guest's chat checked on it (P39 section 16) |
+| WhatsApp assistant | Anthropic, Groq and Gemini keys, answers from the restaurant's data, bookings, stop in any words, Chats, booking messages | The same WhatsApp account, a paid AI key, and a real guest's chat checked on it (P51 section 16) |
 | Alerts | Dead jobs, failed accepts, amount mismatches, closed-day cancellations, unknown card payments, Tally failures, on the Integrations page and in Today | Nothing |
 
 ---

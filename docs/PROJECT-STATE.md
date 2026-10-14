@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-12 by Arya (P39 the WhatsApp assistant). Before that, 2026-10-11 by Rishi (P34 set a new password from the sign-in screen) and Arya (P35 the same dish once on the bill, P36 one kitchen ticket per table, P37 WhatsApp and the receipt)
+Last updated: 2026-10-15 by Arya (P37 and P51, the WhatsApp assistant, merged onto Rishi's P38 to P50). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -34,12 +34,12 @@ the cloud database (see the P29 entry below).
 
 The cloud database (`cluster0.dkcsfcz`, `restaurant-erp`) holds Z Chaat, set
 up with its menu and five logins, and a duplicate "zchaat" waiting on Rishi's
-choice of which stays. No bill has been made there. Next: P38, campaigns (offers and new dishes on WhatsApp), once P37 has run on
-Z Chaat's real WhatsApp Business Account for a fortnight; P37 is built and
-deployed against a fake Meta, and waits for that account. P39, the WhatsApp
+choice of which stays. No bill has been made there. Next: P52, campaigns (offers and new dishes on WhatsApp), once P37 has run on
+Z Chaat's real WhatsApp Business Account for a fortnight; P37 is built
+against a fake Meta and merged on 2026-10-15, not yet pushed, and waits for that account. P51, the WhatsApp
 assistant, is built against a fake Meta and a fake model and checked on Groq
 with `npm run assistant:eval`; it waits for the same account and a paid AI key (`docs/INTEGRATIONS.md`
-section 3A). Then the rest of the profile's section 15 from Z Chaat, and the
+sections 3A and 3B). Then the rest of the profile's section 15 from Z Chaat, and the
 gates in `docs/GO-LIVE.md`, tracked in `docs/GO-LIVE-READINESS.md`. Render is
 still on the Mumbai cluster (checked 2026-10-11 from `serverstarts`).
 
@@ -67,7 +67,7 @@ Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE
 | M18 | Kitchen Stations | Arya | IN PROGRESS | Stations, routing, kitchen screen filter and printing built in P05. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M19 | Reports v2 | Arya | DONE | Every report built and proven against the golden day. Engine and R19 in P14, R2 to R10 in P15, R11 to R13 in P16, R14 to R17 in P17 (R18 is M8's read), R1 and every screen in P18. Built by Rishi, off the listed owner. Arya's read outstanding. |
 | M20 | Floor Plan and Look | Arya | DONE | Floor plan in P19, the look in P20A and P20B. Built by Rishi, off the listed owner. Arya's read outstanding. |
-| M21 | Integrations | Arya | IN PROGRESS | Built by Rishi in P25 Parts G to L, off the listed owner. Sealed partner credentials, connections, event log, jobs, webhooks; the sandbox platform complete, Swiggy and Zomato waiting for partner approval; Pine Labs card machines from the public page, with the gaps in `docs/INTEGRATIONS.md`; Tally vouchers by file and through the bridge; alerts. Not done under BUILD-PLAN section 13: Arya has not read it, and the Tally manual check (Part K5) needs Tally installed. P37 (2026-10-11, Arya): WhatsApp, a messaging provider on Meta's Cloud API, templates as records with their approval state, the bill sent when paid, delivery receipts and STOP; built against a fake Meta, the real-account check owed. P39 (2026-10-12, Arya): the WhatsApp assistant, a new kind `AI_ASSISTANT` (Anthropic, Groq, Gemini), conversations, Chats, bookings on WhatsApp and stop in any words; Rishi's read outstanding. |
+| M21 | Integrations | Arya | IN PROGRESS | Built by Rishi in P25 Parts G to L, off the listed owner. Sealed partner credentials, connections, event log, jobs, webhooks; the sandbox platform complete, Swiggy and Zomato waiting for partner approval; Pine Labs card machines from the public page, with the gaps in `docs/INTEGRATIONS.md`; Tally vouchers by file and through the bridge; alerts. Not done under BUILD-PLAN section 13: Arya has not read it, and the Tally manual check (Part K5) needs Tally installed. P37 (2026-10-11, Arya): WhatsApp, a messaging provider on Meta's Cloud API, templates as records with their approval state, the bill sent when paid, delivery receipts and STOP; built against a fake Meta, the real-account check owed. P51 (2026-10-12, Arya, written as P39): the WhatsApp assistant, a new kind `AI_ASSISTANT` (Anthropic, Groq, Gemini), conversations, Chats, bookings on WhatsApp and stop in any words; Rishi's read outstanding. |
 
 ---
 
@@ -524,17 +524,36 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-11 | A bill shows the same dish once, as item rows computed from its lines when it is read; the lines themselves are unchanged. | Z Chaat asked for 2 × Roti, not 1 × Roti twice. Each round must still trace to its own order line and kitchen ticket. |
 | 2026-10-11 | Z Chaat's Aerated Drinks became four dishes, Sprite, Diet Coke, Coke and Thums Up, through `npm run menu:sizes-to-dishes`. The old item is switched off, not deleted. | One tap per drink at the table, and the bill prints the drink's own name. Old bills keep the name they were sold under. |
 | 2026-10-11 | P36: an order keeps one kitchen ticket for its whole visit. Later Sends are rounds on it under the same KOT number, every line keeps the station that makes it, and a station's screen and printer show only its own dishes. `kitchen.oneTicketPerOrder`, default on; off is P05's ticket per station per Send. | Arya asked for one KOT per table after trying P35. Line-level stations keep each station's tablet, its ready tick and R13's kitchen time per station working on a shared ticket; the setting lets the kitchen go back without a deploy. |
+| 2026-10-12 | P38: the public page is restyled as a street-food signboard, in the restaurant's own brand colour (`brandHex`, `onBrandHex`, the accent when unset), with its own tokens under `[data-public]`: cream, chit, saffron, masala, leaf. | Rishi asked for a traditional, artwork look for Z Chaat's site from Stitch mock-ups. The brand pair is per restaurant, so no client colour is written in code; the brand classes stay limited to BrandLogo and the sign-in screen, and the page uses `stall` tokens instead. |
+| 2026-10-12 | P38: nothing on the public page that the restaurant's records do not hold. The mock-ups' FSSAI number, reviews, rating, founding year, second address, ingredient claims, "pure veg", hours, dishes, sizes and catering contents were left out. | A public page that states a licence number or reviews nobody gave is a false claim made in the restaurant's name. The tagline is the owner's own page note. |
+| 2026-10-12 | Z Chaat takes no payment online: guests pay at the counter by the QR code, card or cash, and bookings take no deposit; the cafe confirms the table. The public page says so whenever no gateway is connected. | Rishi's word, 2026-10-12. The online-payment branch stays in the code for a restaurant that connects Razorpay. |
+| 2026-10-12 | Later the same day: Z Chaat's table bookings take an advance of ₹50 a person, paid online when booking through Z Chaat's own Razorpay, taken off the bill, like Zomato. Takeaway stays paid at the counter. This narrows the row above to takeaway. | Rishi's choice, from three offered (online, by QR after confirming, at the counter). Per person because the deposit setting already exists (`depositPerPersonInPaise`); a flat per-booking amount would have needed a new setting. Needs Razorpay connected in Settings, Payments, and `PAYMENT_SECRETS_KEY` on the server. |
+| 2026-10-12 | P38: a dish on a kitchen ticket is marked ready by a Cooking / Ready switch, not by tapping its row; switching it off is the undo. | Rishi asked for an on/off switch. A switch shows the state in place and cannot be set by brushing the row. The tested helper `tickDish` now uses the switch, changed on purpose. |
+| 2026-10-14 | P48: the floor, Recall Bill, the cash change helper and the counter screen follow PetPooja, which Z Chaat's staff know; each send is its own KOT; typed extras beside menu add-ons; the kitchen bell off by default. | Rishi asked for PetPooja's screens as they are, "a 1-2 step process". The state words stay on the tiles, so colour never carries a state alone. A test database rather than test bills in the live one, which CLAUDE.md forbids. |
+| 2026-10-14 | P46: an open item is a real menu item marked open, whose name and price staff type at the table; everyone who takes orders may add one, with no PIN. | Rishi's choice. A placeholder dish gives the typed line a category (so a kitchen station) and a GST rate, and every bill, report and ticket keeps working on frozen lines. Never on the guests' page or a platform: only staff may price a dish. |
+| 2026-10-14 | P44: the day-end message is plain text in the manager's own words (GLOSSARY section 29), built from Day Close's figures and R3, emailed through Resend to the owner's chosen addresses at Day Close and on a button; the Day End page lays the day out in PetPooja's three steps. | Rishi asked for both, with PetPooja's screens as the model the manager knows. One set of figures means the message, Day Close and R2 never disagree. The email goes only to addresses the owner set, so it may carry the cash a blind manager does not see on screen. No Resend SDK: one HTTPS call, as Razorpay. |
+| 2026-10-14 | A sign-in lasts 365 days, renewed on every refresh (`REFRESH_TOKEN_TTL` default `365d`, was `30d`), so a device stays signed in until Sign out. Firebase SMS sign-in was considered and not built. | Rishi wants captains and the kitchen never asked to sign in again. Sessions already renewed every 15 minutes in use, so 30 days only ended a device left unused for a month. Firebase phone sign-in would add a 6-digit SMS code to every new sign-in, a billed SMS plan and a rewrite of M0, and Rishi chose to keep phone and password. A lost device's session still ends when the owner switches the person off or resets their password. 365, not more: Chrome caps a cookie at 400 days. |
+| 2026-10-14 | P49: a dish not yet sent to the kitchen is removed with no reason and leaves nothing behind (`DELETE /orders/:orderId/lines/:lineId`): no cancelled line, no audit line, no report row. A sent dish still goes through Undo and Change. The golden day's API fixture still cancels the unsent Cheesy Tornado with its reason, so every golden number stands; the browser golden day removes it. | Rishi: the guest changing their mind before the order goes in is not the captain's fault and should not show anywhere. Nothing was cooked, so there is nothing to count. CONVENTIONS section 3 already names the unfired draft line as the one thing DELETE is for. |
+| 2026-10-14 | P50: an order nothing was ever sent from is closed by anyone who takes orders, with no reason or PIN (`POST /orders/:orderId/close`). It is kept, cancelled as `OPENED_BY_MISTAKE` with its unsent dishes removed, writes no audit line, and R15 and Day Close leave it out. A send that was undone still counts as sent, so that order needs the manager's Cancel order. | Rishi: a table opened by mistake should simply close. Orders are never deleted, so a code marks it rather than a delete; nothing reached the kitchen, so there is nothing to count. The code is not in the manager's reason list, so a real cancellation cannot be hidden behind it. |
+| 2026-10-13 | P43: an Other payment must say its mode (Cheque, Bank transfer, Wallet, Coupon, or typed), stored as the payment's `reference`. | Rishi asked for Other with its mode. A field already shown on the bill and kept per payment carries it, so no schema change; reports keep these payments under Other. |
+| 2026-10-13 | P42: anyone but the kitchen login changes a sent dish from the order screen's Change: fewer of it, a new note, remove it, or swap it. `approvals.lineCancel` now asks the PIN only for a dish that was made: marked ready, or said to be made ("Already made by the kitchen"). A dish sent but not made changes with no PIN and no questions. | Rishi asked for it, and chose the PIN "only once it's cooked". A kitchen often cooks before ticking, so "made" is the kitchen's tick or the person's word, which keeps thrown-away food audited and the golden day's Thecha cancel (made, PIN) unchanged. Lowering a quantity splits the line, so the part taken off is an ordinary cancelled line for reports; only its share of stock comes back, and a later remove returns what is still out, never more. Nothing prints; the kitchen screen shows Changed or Cancelled. |
+| 2026-10-13 | P42: the KITCHEN login sees only the ticket board: no rail, bottom bar, Home or Availability; any other address opens the board; the bar has only the name and Sign out. | Rishi asked for "only KOT". Availability and This device go with it: a manager marks dishes out of stock, and sets a kitchen tablet's printer while signed in on it. The server's permissions are unchanged. |
+| 2026-10-13 | P41: a Send to kitchen can be undone for 60 seconds, before the kitchen marks anything ready, with no reason or PIN. It cancels the sent lines (`SENT_BY_MISTAKE`, stock returned) and puts unsent copies back with new line ids, rather than moving the lines back to unsent. | Rishi asked for an undo after Send. Copies keep stock right: deductions are keyed on the line id, so a line sent twice under one id would not be deducted the second time after its stock had been returned. The minute and the "nothing ready" rule keep it from becoming a way round the PIN for a cancel after cooking. Audited as `KOT_SEND_UNDONE`. |
+| 2026-10-13 | P41: the kitchen's Recall (finished tickets of the last hour, from every screen, newest first, via `GET /kots?sort=recent`) replaces the "Just done" row, and the floor shows tiles only. A kitchen ticket's dish name is 15 px on one line beside a narrower switch, three tickets across from 1024 px, and wraps rather than being cut when even that cannot hold it. | Rishi asked for PetPooja's recall, one-line names and no floor plan. "Just done" only knew this tablet's own ticks. Saved table positions stay, so the plan could come back. A cook must read the whole name, so a long one wraps rather than ending in "…". |
+| 2026-10-13 | Z Chaat's trial orders, bills (`2026-27/000001` to `000049`), kitchen tickets, online orders, bookings, guest records, activity log and number counters were hard deleted, and bills restart at `2026-27/000001`. This breaks CLAUDE.md's "never hard delete a bill or order" once, on purpose. | Rishi, before Z Chaat starts real billing on the evening of 13 October: every one of the 49 bills was a trial and none reached a paying guest (his answer, asked twice, including the 4 orders opened that afternoon). Backed up first to the git-ignored `backups/Z-Chaat-orders-before-reset-2026-10-13T12-09-27-083Z/`. Menu, tables, stations, staff, payment methods, settings and the two hand-entered stock receipts were kept. From here on the rule holds without exception. |
+| 2026-10-13 | P40: a cashier adding dishes to a printed bill needs a manager's PIN, under the same `approvals.revisePrintedBill` switch as removing. On the order screen the PIN is asked on the first dish and kept in memory for the rest of that visit. | Rishi asked that, once printed, only the counter changes a bill and always with a PIN. Removing, cancelling after payment and reopening already asked; adding was the one way a cashier could raise a printed bill with nobody's approval. One PIN per visit, not per dish, because a table adding three dishes would otherwise call the manager three times; leaving the screen or a refused PIN forgets it. |
+| 2026-10-12 | P39: a captain (WAITER) cannot change a bill's items once it has printed: no removing, adding, cancelling after billing or reopening, and a manager's PIN does not lift it. Before the first print a captain adds and removes as before. A fixed rule, not a setting. | Rishi asked for it. The printed bill is what the guest was shown, and a captain lowering it afterwards is where money goes missing. The check runs before any PIN is read, so a refused captain never uses up a manager's PIN attempts. |
 | 2026-10-11 | WhatsApp is an M21 provider on Meta's Cloud API, each restaurant on its own WABA with its token sealed under `INTEGRATION_SECRETS_KEY`. | The same reason P24 put each cafe on its own Razorpay: we never hold the money, and one restaurant's bad sending cannot cost another its number. Cloud API direct has no platform fee, where a BSP starts near ₹1,500 a month per number. |
 | 2026-10-11 | A template is a record with an approval state, and we price against `approvedCategory`, not the category we asked for. | Meta approves templates, not us, and re-categorises a utility template as marketing often enough that pricing against our own guess would make every cost we show an owner wrong. |
 | 2026-10-11 | A receipt is queued after the payment transaction commits, and a failure to queue never fails the payment. | A guest whose receipt is late is nothing. A guest whose payment failed because WhatsApp was down is a disaster. |
-| 2026-10-12 | P39: the model understands the guest and words the reply; the server's tools act, and every tool takes the guest from the conversation, never from the model. A reply check refuses any rupee amount, time, link or booking reference that did not come from a tool, the facts or the guest's own words, and any claim that messages stopped without `stop_messages`; a refused reply goes back once, then the chat goes to a person. | An AI that invents a price, a free table or a deposit link in the restaurant's name is worse than none. The model chooses; the restaurant's data and rules decide. |
-| 2026-10-12 | P39: a stop is scope OFFERS unless the guest plainly asks to stop everything or remove their number; ALL also stops bills and only staff clear it, on the chat, at the guest's request. The prompt asks a question only when it cannot tell whether the guest wants to stop at all. | Arya asked that it not be stubborn. The first eval run on the old wording chose "stop all" for a bare stop and asked "offers or all?" after "I don't want these", which made the guest say it twice. With the new wording the second run missed no stop. |
-| 2026-10-12 | P39, built differently from the plan: with the assistant switched off nothing is sent and the chat waits in Chats; the fixed menu is only for no AI key or a used daily limit. | An owner who switches the assistant off expects it to say nothing. |
+| 2026-10-12 | P51: the model understands the guest and words the reply; the server's tools act, and every tool takes the guest from the conversation, never from the model. A reply check refuses any rupee amount, time, link or booking reference that did not come from a tool, the facts or the guest's own words, and any claim that messages stopped without `stop_messages`; a refused reply goes back once, then the chat goes to a person. | An AI that invents a price, a free table or a deposit link in the restaurant's name is worse than none. The model chooses; the restaurant's data and rules decide. |
+| 2026-10-12 | P51: a stop is scope OFFERS unless the guest plainly asks to stop everything or remove their number; ALL also stops bills and only staff clear it, on the chat, at the guest's request. The prompt asks a question only when it cannot tell whether the guest wants to stop at all. | Arya asked that it not be stubborn. The first eval run on the old wording chose "stop all" for a bare stop and asked "offers or all?" after "I don't want these", which made the guest say it twice. With the new wording the second run missed no stop. |
+| 2026-10-12 | P51, built differently from the plan: with the assistant switched off nothing is sent and the chat waits in Chats; the fixed menu is only for no AI key or a used daily limit. | An owner who switches the assistant off expects it to say nothing. |
 | 2026-10-12 | Groq is a third AI provider, at Arya's request, with `openai/gpt-oss-120b` as its default at low reasoning effort. Gemini and Groq are labelled testing only. | Groq retired `llama-3.3-70b-versatile`, the model first written in. gpt-oss's thinking counts against the reply's length, so low effort keeps short replies from coming back empty. A free tier may keep what guests write and has small limits, so it is for testing, said on the sheet. |
 | 2026-10-12 | A chat that needs a person rings the online alert whenever WhatsApp is on, even with the online page off: `GET /online/inbox` answers while WhatsApp is on, `/auth/me` `online.chats` says so, and conversations announce on the live channel's `online` topic. Chats are for OWNER, MANAGER and CASHIER. | A guest waiting for a person is the same as a request waiting for an answer, and Z Chaat may use WhatsApp without the online page. The takeaway screen still needs online orders or a platform. |
 | 2026-10-12 | `npm run assistant:eval` is the check on the system prompt: 82 labelled guest messages in English, Hindi, Gujarati and Hinglish, sent once each to a real model with the real prompt and tools. The bar is no clear stop missed, nothing that is not a stop taken as one, and 95% overall. It is run by hand, with a key from the root `.env`, never in `npm test`. | A prompt is code nobody can unit test. The eval is how a change to it is known to be better or worse, and the numbers go here each time. |
-| 2026-10-12 | Attribution and campaign reporting is P40. P37's prompt had numbered it P39, which the assistant took the same day. | The double P30 again, avoided. |
 | 2026-10-11 | P37, built differently from its prompt: the prompt was written as P34 and renumbered P37 (campaigns P38, attribution P39), at Arya's choice; it was built against a fake Meta because Z Chaat has no WhatsApp Business Account yet; the idempotency key is the integration job's `dedupeKey` on its existing unique index, not a new collection; a job names the guest by id, never by number; a 4xx from Meta is final and never retried; a delivery failure that says the number is not on WhatsApp sets `customers.whatsappUnreachableAt`; the receipt hangs on the bill becoming PAID in the model, after commit, through `utils/afterCommit.js`, which P33's live channel now shares. | The number clash would have repeated the double P30. Every other point is written into API-CONTRACT "P37" and DB-SCHEMA section 47, so the next reader does not take it for a mistake. |
+| 2026-10-15 | Arya's WhatsApp prompts are renumbered on the merge with Rishi's P38 to P50: the assistant, written as P39, is P51; campaigns, P38 in P37's prompt, are P52; attribution, P39 there, is P53. P37 keeps its number. | Both developers numbered prompts from P38 the same week, and Rishi's reached `main` first and are deployed. Renumbering the unpushed ones breaks nothing live. |
 ---
 
 ## Open questions
@@ -557,12 +576,233 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
-### 2026-10-12 Arya, P39 the WhatsApp assistant
+### 2026-10-15 Arya, P37 and the WhatsApp assistant merged onto Rishi's P38 to P50
 
-Built against a fake Meta and a fake model; the prompt checked on Groq. The plan is `docs/prompts/P39-whatsapp-assistant.md` (`9f8dacf`), spec `67d7696`, server `a0ae498`. Nothing pushed: P37 and P39 are local commits, waiting for Arya's OK.
+Pulled Rishi's 42 commits (P38 to P50, deployed) and merged them with Arya's 9 unpushed ones (P37, and the assistant). The assistant is renumbered P51 (it was P39, which Rishi's "a captain cannot change a printed bill" holds); campaigns P52, attribution P53. Its prompt is now `docs/prompts/P51-whatsapp-assistant.md`; GLOSSARY sections 35 and 36, DB-SCHEMA sections 54 and 55, API-CONTRACT "P37" and "P51". Conflicts were only in the docs and `server/scripts/e2eServer.js` (both fakes kept: Meta, the model and Resend). After the merge: 1,357 tests, all passing; `npm run e2e`, all 29 specs; lint and build pass. Nothing pushed.
+
+### 2026-10-14 Rishi, P50 closing a table opened by mistake
+
+What was built or decided:
+Asked for by Rishi. Spec first (`spec closing a table opened by mistake`): `docs/prompts/P50-close-a-table-opened-by-mistake.md`, API-CONTRACT "P50", DB-SCHEMA section 53, GLOSSARY section 34.
+1. Server: `POST /orders/:orderId/close` (`closeOrder` in `orderController.js`, `closeOrderSchema`), for owner, manager, cashier and captain: only an open order with no bill whose lines were never sent; the unsent lines are pulled and the order cancelled as `ORDER_OPENED_BY_MISTAKE` (`config/cancelReasons.js`, added to the order model's enum, not to the manager's list). `computeDayFigures` and R15 leave these orders out.
+2. Order screen: **Close table** (or **Close order** off the floor) in the order's footer while nothing has been sent, in place of Cancel the whole order; a sheet confirms, then the floor.
+
+Tests: `closeOrderByMistake.test.js` (3): a captain closes it, the table is free and opens again, no audit line, not in R15 or R2; refused on a stale version, for the kitchen login, another restaurant, once sent, after an undone send, and with a bill; the manager's Cancel order refuses the code. Dropping the R15 rule on purpose fails the first. Browser: new `e2e/closeTableByMistake.spec.js` (a captain on a phone closes Table 12; once a dish is sent, no Close table). Full `npm test`: 1,323 passing, 0 failing; all 27 browser specs pass; lint and build pass.
+
+Anything the other developer needs to know:
+A manager on an order with nothing sent now sees Close table, not Cancel the whole order; the cancel endpoint itself is unchanged.
+
+### 2026-10-14 Rishi, P49 removing a dish before it is sent; the captain's phone, 👁 and Recall range
+
+What was built or decided:
+1. P49, spec first (`078c54e`): `docs/prompts/P49-remove-before-sending.md`, API-CONTRACT "P49". Server: `DELETE /orders/:orderId/lines/:lineId?version=` (`removeOrderLine` in `orderController.js`, `removeOrderLineSchema`): only a not-sent line, only an order with no live bill, pulled through the version. Screens: a not-sent dish has **Remove** on the order (no sheet, no reason), and a dish card's minus at 1 removes it the same way (`OrderScreenPage.jsx`, `OrderLineList.jsx`, `api/orders.js` `removeOrderLine`).
+2. The captain's phone (from Z Chaat's screenshot): each dish on the order is one compact row, with Change on the same line as its name and price.
+3. 👁 on a busy table shows only its current order: each KOT with its time and dishes, what is not sent yet, and the item total (`TableHistorySheet.jsx`).
+4. Kitchen Recall has **How far back**: 30 minutes, 1 hour (default), 3 hours or the whole day, kept per device (`recallRange` in `useDeviceSettings.js`).
+
+Tests: `removeBeforeSending.test.js` (2): the removal leaves no cancelled line or audit, and the refusals (sent, billed, stale version, another restaurant, the kitchen login). Browser: new `e2e/removeBeforeSending.spec.js` and `e2e/captainPhoneOrder.spec.js`; `petpooja.spec.js` and `recallUndoSend.spec.js` changed on purpose for the simpler 👁 and the range; the golden day's 8:50 PM step now removes the Cheesy Tornado (TEST-DATA notes why the numbers stand). Full `npm test`: 1,320 passing, 0 failing; all 26 browser specs pass; lint and build pass.
+
+Anything the other developer needs to know:
+Arya: `Cancel line` no longer shows for a not-sent dish; the cancel endpoint still accepts one, for the API and the golden fixture.
+
+### 2026-10-14 Rishi, P48 PetPooja's way, the bell off by default, and a test database
+
+What was built or decided:
+Asked for by Rishi with PetPooja's Table View, Billing screen and Recall Bill; his answers: a separate test site, add-ons both from the menu and typed, Recall on a table shows only, the three-column screen on the counter computer only. Spec first (`spec petpooja's floor, recall, ...` and `spec the table history read`): `docs/prompts/P48-petpooja-floor-recall-change-counter.md`, API-CONTRACT "P48", DB-SCHEMA section 52, GLOSSARY section 33.
+A. Z Chaat's `kitchen.oneTicketPerOrder` switched off, as the owner through `PATCH /settings`: a new KOT for every Send (live, 2026-10-14).
+B. Kitchen board denser: four to six tickets across, `ticket-item` 14 px, smaller header, switch and footer (tap targets 48 px).
+C. Cash: **Guest gave** (tap each note) above the keypad, and **Give back ₹X** large with the notes and coins to return; the tender goes to the server as P25's `tender`.
+D. Floor: PetPooja's square tiles with their words (Blank, Running KOT, Running, Printed) and fills, a legend, 🖨 (the bill, or the order to bill) and 👁 under each busy table.
+E. Recall Bill: a **Bill No** box in the top bar for the till; `GET /bills?number=` (any date, voided too).
+F. 👁: `GET /tables/:tableId/history` (`services/tableHistoryService.js`) and `TableHistorySheet.jsx`: today's orders, each send with KOT numbers, time and who sent it, cancellations with reason and who, the bill. Read-only.
+G. Typed extras: `extras: [{ name, priceInPaise }]` on a line, frozen as add-ons with `addOnId: null`, taxed at the dish's rate, refused from a guest; **+ Extra** on the dish sheet and the delivery page.
+H. Counter screen: the till's orders open beside the menu with the categories down the left; **KOT & Print** prints the new tickets on this device. A dish card on the counter stacks its price above its stepper (found by the golden day: the + was cut off).
+I. Test database `restaurant-erp-test` on the same cluster: indexes built, then Z Chaat's setup copied (restaurant, branch, 8 logins with their passwords, 14 categories, 102 dishes, 14 tables, 4 stations, 4 payment methods, 2 ingredients) by a one-off script, renamed "Z Chaat (TEST)", day-end emails cleared, no gateway. `npm run db:copy` refuses one cluster, so it was not used. `render.test.yaml` and DEPLOYMENT.md section 16 describe the Render service if wanted; Rishi chose to run it on this Mac: `MONGO_URI=<test> PORT=5011 CLIENT_ORIGIN=http://localhost:5174 npm run dev`.
+J. P45's bell is off by default (`kitchenSound: false`), at Rishi's word; a device turns it on with Sound on.
+
+Tests: `recallAndExtras.test.js` (4): the number lookup, voided too, scoped; extras on the line, KOT and bill at the dish's rate; refusals; the history. Full `npm test`: 1,318 passing. Browser: new `e2e/petpooja.spec.js` (floor, history, Bill No, Guest gave, counter with an extra and KOT & Print, a busy kitchen), `kitchenBell.spec.js` changed on purpose to start from Sound off; all 24 browser specs pass. Lint and build pass.
+
+Anything the other developer needs to know:
+An older dev session on this Mac (ports 5001 and 5173) reads `.env`, which points at the live database: anything done on localhost:5173 is real.
+
+### 2026-10-14 Rishi, P46 and P47 deployed
+
+Pushed `ace8ed9..95d26fd` at Rishi's word: Render runs `95d26fd`, database connected; Vercel serves `index-Csv-3vcc.js`. On Z Chaat, as the owner through `POST /menu-items`: "Open item" in Sides (routed to the Kitchen station), 5% GST. Other was already switched on there.
+
+### 2026-10-14 Rishi, P47 Other modes kept in Settings
+
+What was built or decided:
+Asked for by Rishi: Swiggy, Zomato and EazyDiner under Other, and an easy way in Settings to add more. Spec first (`spec other modes kept in settings`): `docs/prompts/P47-other-modes.md`, API-CONTRACT "P47", DB-SCHEMA section 51, GLOSSARY section 32.
+1. `settings.payments.otherModes` (default Swiggy Dineout, Zomato Dineout, EazyDiner, Cheque, Bank transfer, Coupon; at most 12, each 1 to 40 characters, no repeats ignoring case), on `GET /auth/me` as `payments.otherModes`.
+2. The payment panel's Other offers the restaurant's list; a mode can still be typed. Settings, Payment methods gains **Other modes**: chips with ×, a box with Add, saved with the settings' reason, and a warning while Other itself is off.
+
+Tests: `payments.test.js` gains one (the defaults, a cashier's `/auth/me` following the owner's change, the refusals, a manager refused); `settings.test.js` and `auth.test.js` pin the new field, changed on purpose. Browser: `e2e/otherPayment.spec.js` gains the owner adding Paytm in Settings and the cashier paying by it. Full `npm test`: 1,314 passing; all 23 browser specs pass. Lint and build pass.
+
+Anything the other developer needs to know:
+Not pushed. Other is still switched off at Z Chaat until its owner switches it on (Settings, Payment methods).
+
+### 2026-10-14 Rishi, P46 open item
+
+What was built or decided:
+Asked for by Rishi; everyone who takes orders adds one, no PIN. Spec first (`spec the open item`): `docs/prompts/P46-open-item.md`, API-CONTRACT "P46", DB-SCHEMA section 50, GLOSSARY section 31.
+1. Server: `menuitems.isOpenItem`; a line request's `openItem: { name, priceInPaise }`, frozen as the line's `itemName` and `unitPriceInPaise` with `isOpenItem: true` (`buildLineSnapshots`), refused without it, with sizes or extras, on a normal dish, and from a guest (no signed-in person). `bills.lines[].isOpenItem` through `toBillLine`. The public menu and platform item mapping leave open items out, and a mapping to one is refused. R11 keys open items by their typed name. P41's and P42's line copies keep the flag.
+2. Client: Open item in the menu item editor (sizes and extras hidden); the dish sheet asks Name and Price for an open item; the card reads "Type name and price"; open items never merge on a card's stepper, on the order screen or the delivery page.
+
+Tests: `openItem.test.js` (4): the typed name and price frozen at the item's GST for a captain; refusals; never from a guest; the kitchen ticket, two bill rows and two R11 rows. Dropping the typed name from R11's key on purpose fails it. Browser: new `e2e/openItem.spec.js` (a captain on a phone adds "Extra chutney" at ₹20 and sends it). Full `npm test`: 1,313 passing, 0 failing. Lint and build pass.
+
+Anything the other developer needs to know:
+Not pushed. Z Chaat's "Open item" is to be added after the deploy, as the owner.
+
+### 2026-10-14 Rishi, P44 and P45 deployed
+
+Pushed `e1e2f49..c913a79` at Rishi's word: Render runs `c913a79`, database connected; Vercel serves `index-CvlXaPar.js`. Z Chaat's `settings.reports.dayEndEmails` set to z.chaat25@gmail.com through `PATCH /settings` as the owner (audited). A test email through Resend from this Mac, with the key for the Resend account z.chaat25@gmail.com, was accepted. `RESEND_API_KEY` is not yet in Render's environment, so the live server answers "Email is not set up on the server." until Rishi adds it there; the key is kept only in this Mac's `.env`.
+
+### 2026-10-14 Rishi, P45 a loud bell on the kitchen screen
+
+What was built or decided:
+Asked for by Rishi: a loud sound when a KOT is sent, for the chef and the waiters. Client only; spec `docs/prompts/P45-kitchen-bell.md`, GLOSSARY section 30.
+1. `kitchenBell()` in `features/online/alertSound.js`: three square-wave notes, rising, twice, about 1.5 s, far louder than the P23 chime.
+2. The kitchen screen rings once for each batch of tickets or new rounds it has not shown, then says "KOT 12, Table 5" when This device's spoken alerts are on. Tickets already on the board when it opens, or when the station is changed, do not ring. A banner asks for one tap until the browser allows sound. "Sound on / Sound off" in the header, kept per device (`kitchenSound`, on by default).
+
+Tests: new `e2e/kitchenBell.spec.js` (no ring for the ticket already there; the banner gone after a tap; one ring for a new ticket; none with Sound off), counting rings through `window.__E2E_SOUND__`, which only a test sets. Ringing on opening on purpose fails it. The kitchen specs and the golden day pass. Lint and build pass. No server change, so the server suite was not rerun.
+
+Anything the other developer needs to know:
+Not pushed. Each kitchen tablet needs one tap after it is opened before it can ring: browsers refuse sound until then. The volume is also the tablet's own: turn it up.
+
+### 2026-10-14 Rishi, P44 the Day End page and the day-end email
+
+What was built or decided:
+Asked for by Rishi with photos of PetPooja's Day End Summary and the WhatsApp message Z Chaat's manager sends each night, and his answers: send at Day Close and on a button; no Resend domain yet; Occupancy is seats filled; PetPooja's three steps. Spec first (`spec the day end summary and the day-end email`): `docs/prompts/P44-day-end-summary-and-email.md`, API-CONTRACT "P44", DB-SCHEMA section 49, GLOSSARY section 29, CONVENTIONS `EMAIL_SEND_FAILED`.
+1. Server: `services/dayEndMessageService.js` builds the message from `readDayView` (the closure's snapshot once closed, else the live figures: the same as Day Close and R2) and R3 through the report engine for the month; Other is split by its P43 mode. `GET /day-close/:date/message` (cash in hand "—" for a blind manager, through the existing `seesCash`), `POST /day-close/:date/email` (to `settings.reports.dayEndEmails` only). A close emails it after the save, in `emailDayEnd(..., { quiet: true })`, and keeps `dayEndEmail` on the closure; a Resend failure never undoes the close. `services/emailService.js`: one call to Resend, no SDK, `RESEND_API_KEY`, `DAY_END_EMAIL_FROM`, `RESEND_API_BASE`. `readDay` split into `readDayView` (unblinded, for the email) and the blinded `readDay`. `paiseToWholeRupeesText` in `money.js`.
+2. Client: `/day-end` (`features/settlement/DayEndPage.jsx`): Overview (six cards, Sales, How the day went, Payment methods, Order types), Cash (the cash book's `CashFlow`), Close (blockers, then the cash book's `CloseDaySheet`; a closed day shows the count, kept cash and the email's result), and the day-end message with Copy and Email this report under every step. The manager's "Day Close" place is now "Day End"; More keeps "Day Close history". Settings gains "Day-end email" (up to five addresses). The Approvals label for line cancels now says "a dish the kitchen has made", as P42 made it.
+3. The e2e server runs a fake Resend and `GET /emails` on its control listener.
+
+Tests: `dayEndMessage.test.js` (8): the golden day's message line by line (Gross Sale 9,269, Tax 383, Net Sale 8,886, each method, Due 551, exp 350, APC 267, Pax 27, cash 3,404, Monthly 9,269, Daily Average 357); a blind manager's preview; settings refusing bad, too many and repeated addresses and a manager; the email to a fake Resend with the configured address only and the full cash; the close sending it with the counted 3,400; a Resend refusal leaving the day closed with the error kept, and a 502 on the button; no key; Other by mode. Using the expected cash for a closed day on purpose fails one. Browser: new `e2e/dayEnd.spec.js` (the manager's three steps and Email this report, read back from the fake). Full `npm test`: 1,306 of 1,309 passed; the 3 were `settings.test.js` pinning the default settings, changed on purpose for `dayEndEmails`, and its 27 pass after. All 20 browser specs pass. Lint and build pass.
+
+Anything the other developer needs to know:
+Not pushed. For Z Chaat: `RESEND_API_KEY` must be added in Render's dashboard (render.yaml lists it with `sync: false`; a Blueprint does not fill it in), and the owner sets the address in Settings, Day-end email. Until a domain is verified in Resend, only the Resend account's own address receives anything; Rishi gave z.chaat25@gmail.com.
+
+### 2026-10-14 Rishi, Z Chaat's logins set to real numbers and new passwords
+
+At Rishi's word, on live Z Chaat (`cluster0.dkcsfcz`), by a one-off script not kept: "Z Chaat Manager" became Abhay Singh on 6351008324 (MANAGER, who does the cashier's work too); the kitchen login moved to 9000003002, which that freed; Shivam to 7862044931 and Govind to 9558292481; the owner (9000003001), Captain 3 (9000003007) and Z Chaat Cashier (9000003003) kept their numbers. Every one of the seven got a new password: the owner a strong 16-character one, everyone else an easy one, at Rishi's choice. Each password change went through `authService.setPassword`, ended that person's sessions and wrote `USER_PASSWORD_RESET` with the owner as actor. Phone changes have no audit action and are recorded here. All seven were signed in on the live app and signed out again to check. The passwords were given to Rishi once, in the chat, and are not written here: the repository is public.
+
+Note: a phone number is not editable in the app (12.5 and M0-C refuse it); these were changed in the database because the old numbers were made up. Still to do at Z Chaat: the owner and Abhay Singh set their PINs on the Staff screen.
+
+### 2026-10-14 Rishi, a one-year sign-in, and one login switched off
+
+What was built or decided:
+1. A sign-in lasts a year, renewed on every refresh: `REFRESH_TOKEN_TTL` defaults to `365d` (`server/config/env.js`, `.env.example`), and Render sets none, so this is Z Chaat's. Devices already signed in move to it on their next refresh. Firebase SMS sign-in was asked about and not built (decision log). Spec first (`spec a one-year sign-in, renewed on use`).
+2. Khuman singh's login (CASHIER, 9510035006) on Z Chaat switched off at Rishi's word, the way `PATCH /users/:userId/status` does it: `isActive` false, sessions ended (none were open), and `USER_DEACTIVATED` recorded with the owner as actor. The record stays.
+
+Tests: `auth.test.js` gains two: the cookie's Max-Age equals `REFRESH_TOKEN_TTL`, and the default in `env.js` is `365d`. 40 passing. Lint passes. The full suite was not run (one setting and two tests changed).
+
+Deployed 2026-10-14 at 12:04 PM, at Rishi's word: pushed `52631ee..e1e2f49`. Render runs `e1e2f49`, database connected.
+
+Anything the other developer needs to know:
+Arya: your `.env` still says `REFRESH_TOKEN_TTL=30d`, which only matters on your machine; `.env.example` now says `365d`. This Mac reached Atlas again from 89.38.97.215 on 14 October.
+
+### 2026-10-13 Rishi, P43 Other with the mode of payment
+
+What was built or decided:
+Asked for by Rishi. Spec first (`spec other with the mode of payment`): `docs/prompts/P43-other-payment-mode.md`, API-CONTRACT 14.5 and "P43", GLOSSARY section 28.
+1. Server: `recordPayment` (`services/billService.js`) refuses an `OTHER` payment with no `reference`: 422, "Say how it was paid, for example Cheque.", after the method rules, so a restaurant with Other off still answers `PAYMENT_METHOD_NOT_ALLOWED`. The mode is the payment's `reference`; no new field.
+2. Payment panel (`InlinePayment.jsx`): Other shows "Mode of payment" with Cheque, Bank transfer, Wallet and Coupon one tap each, or typed; the keypad waits until it is filled. The bill shows "Other · Cheque".
+
+Tests: `payments.test.js` gains one: Other with no mode, or blank, refused and the bill unchanged; with Cheque recorded as the reference; Cash still needs none. Switching the rule off on purpose fails it. Browser: new `e2e/otherPayment.spec.js`. Full `npm test`: 1,300 passing, 0 failing. Lint and build pass.
+
+Deployed 2026-10-13 at 7:49 PM, at Rishi's word: pushed `abe9bd4..52631ee`. Render runs `52631ee`, database connected; Vercel serves `index-CL-9vhZV.js`, which has the mode picker. Switching Other on in Z Chaat's records from this machine was refused by the session's permission check, so it is left to the owner, in Settings, Payment methods.
+
+Anything the other developer needs to know:
+`OTHER` stays switched off for every restaurant until its owner switches it on (Settings, Payment methods). A payment corrected to Other (P08's correction) is not asked for a mode; that path was left as it was.
+
+### 2026-10-13 Rishi, Review on a phone's order screen
+
+Rishi could not find Change on a captain's phone: the order screen's Review order button was hidden below tablet width, so the only way to the sent dishes was tapping the item count, which does not look like a button. Review now shows on every width (`OrderScreenPage.jsx`), "Review" on a phone. `e2e/editSentDish.spec.js` reaches the lines through it on a phone; it, the recall spec and the golden day pass. Committed; not pushed at the time of writing, because Render restarts on every push.
+
+### 2026-10-13 Rishi, P42 changing a sent dish, the kitchen login sees only tickets
+
+What was built or decided:
+Asked for by Rishi, with his answers to four questions (all four changes; a PIN only once cooked; screen only; KOT board only). Spec first (`spec changing a sent dish and a kitchen-only screen`): `docs/prompts/P42-edit-a-sent-kot-and-a-kitchen-only-screen.md`, API-CONTRACT "P42" with 12.5, 12.6 and P28's table amended, DB-SCHEMA `kots.lines[].changedAt` and section 48, GLOSSARY section 27.
+1. Server: `POST /orders/:orderId/lines/:lineId/reduce` (`services/sentLineService.js` `reduceSentLine`): the line keeps the new quantity, a copy with the difference is pushed and cancelled through `cancelLineInSession`, its kitchen ticket line shows the new quantity with `changedAt`, and a cancelled ticket line holds the difference. `changeSentNote`: 12.5's edit takes a note on a `FIRED` line, onto its ticket too. `returnStockForCancelledLine` returns what is still out for a line; `returnStockForReducedLine` returns the difference's share. The PIN rule in 12.6 and reduce: `MADE_LINE_STATUSES` or `wasPrepared: true`.
+2. Order screen: a sent dish has Change (`features/orders/SentLineSheet.jsx`): quantity down to 1, the note, "Already made by the kitchen", Save, Remove dish, Swap for another dish (removes it and opens the menu with "Pick the replacement for …"). A made dish asks the reason and the PIN. `CancelPanel` asks the PIN once "Yes, it was made" is picked.
+3. Kitchen: a changed line shows "Changed". The KITCHEN login gets a shell of its own in `AppShell` and `ProtectedRoute` sends every other address to `/kitchen`.
+
+Tests: `sentLines.test.js` (5): 3 lowered to 2 with no PIN, the ticket, one portion of stock back, then the rest removed returns exactly what was taken; a note on the order and ticket; a dish said to be made needs the PIN; a made dish needs the PIN to lower or remove, returns nothing, and keeps its note; refused to the kitchen login, for a quantity not lower and for a dish not sent. Counting only deductions on purpose (the old return) fails the first. `approvals.test.js`: two tests changed on purpose to a made dish, which is what needs the PIN now, and one added for a sent dish not made needing none. Browser: new `e2e/editSentDish.spec.js` (a captain on a phone lowers, re-notes, removes and swaps; a kitchen login is sent to its board from Home and `/floor`, has no navigation, and sees Changed and Cancelled); `e2e/pages/order.js` `cancelLine` removes a sent dish through Change. All 18 browser specs pass, the golden day included. Full `npm test`: 1,299 passing, 0 failing. Lint and build pass.
+
+Deployed 2026-10-13 at 7:08 PM, at Rishi's word: pushed `97bb3b5..5ae9fcb`. Render runs `5ae9fcb`, database connected; Vercel serves `index-D4HvuAAT.js`, which has the Change sheet; `POST /orders/:id/lines/:lineId/reduce` answers 401 without a sign-in.
+
+Anything the other developer needs to know:
+A kitchen tablet's printer and station are set while a manager is signed in on it (This device), since the kitchen login no longer reaches that page.
+
+### 2026-10-13 Rishi, P41 kitchen recall, undo after Send, one-line ticket names, floor as tiles
+
+What was built or decided:
+Asked for by Rishi. Spec first (`spec kitchen recall, undo after send, ...`): `docs/prompts/P41-kitchen-recall-undo-send-floor-tiles.md`, API-CONTRACT "P41" and 13.1, DB-SCHEMA section 47, GLOSSARY section 26, DESIGN-SYSTEM's `ticket-item` and 13c rule 7.
+1. `POST /orders/:orderId/undo-send` (`services/undoSendService.js`, `UNDO_SEND_WINDOW_MS` 60 s): the last Send's lines cancelled through `cancelLineInSession` with `SENT_BY_MISTAKE` and unsent copies pushed, in one transaction; refused after a minute, once anything is ready, with a bill, or with nothing sent. `LINE_CANCEL_REASONS` gains `SENT_BY_MISTAKE` (server and client), `auditlogs` gains `KOT_SEND_UNDONE` (a manager may read it).
+2. `GET /kots?sort=recent`: newest change first.
+3. Order screen: after Send, a bar "Sent to the kitchen. Undo for N s" with Undo and Dismiss, for a minute, in place of the toast.
+4. Kitchen: Recall button and sheet (tickets finished in the last hour, Recall puts one back through undo-ready); the "Just done" row removed; ticket names 15 px on one line, the switch's word under its knob, three tickets across from 1024 px.
+5. Floor: tiles only; the Plan / Tiles switch and the plan drawing removed. Arrange tables and the saved positions stay.
+
+Tests: `undoSend.test.js` (7): the undo and its kitchen lines, stock back and taken again on the next Send, the audit line; only the last Send; refused after 60 s, once ready, with nothing sent, for another restaurant, and stale; `sort=recent`. Widening the window on purpose fails the 60-second test. Browser: new `e2e/recallUndoSend.spec.js` (a captain on a phone sends and undoes; the kitchen recalls a finished ticket with a long dish name, which shows on one line; no Plan or Tiles switch on the floor), and kitchenUndo, liveChannel, printedBillAdd, addAfterBilling, billRevision pass. The golden day failed once with a `toHaveCount` timeout while the full server suite ran beside it, and passed on the rerun and again on its own (1.5 min). Full `npm test`: 1,293 passing, 0 failing. Lint and build pass.
+
+Deployed 2026-10-13 at 6:21 PM, at Rishi's word: pushed `1da0579..97bb3b5`. Render runs `97bb3b5`, database connected; Vercel serves `index-CBLt_66Z.js`, which has the Undo bar; `POST /orders/:id/undo-send` answers 401 without a sign-in, so the route is live.
+
+Anything the other developer needs to know:
+The e2e helper `sendToKitchen` still clicks Dismiss, which the Undo bar now has.
+
+### 2026-10-13 Rishi, P40 a manager's PIN to add to a printed bill
+
+What was built or decided:
+Asked for by Rishi: before the print a captain adds and removes freely; after it only the counter, with a PIN. P39 already stopped the captain, and removing, cancelling after payment and reopening already asked a cashier for a PIN. Adding did not. Spec first (`spec a manager's pin to add to a printed bill`): `docs/prompts/P40-pin-to-change-a-printed-bill.md`, API-CONTRACT "P40", 16.8.2 and the M7 settings row.
+1. `POST /orders/:orderId/lines` takes an optional `approval`. `addLinesToBilledOrder` asks for it through `approverIfNeeded` when the bill has printed and `approvals.revisePrintedBill` is on, after P39's captain check, the closed day and revisability; the `ADDED` revision and `BILL_REVISED` store the approver.
+2. Order screen: on a printed bill, a cashier's dish sheet shows "A manager approves"; after the first dish goes on, the approval is kept in memory for the visit. A 401 or 403 forgets it. Settings: the switch reads "Removing or adding items on a bill already printed".
+
+Tests: `printedBillAdd.test.js` (6): a cashier without a PIN 403 and the bill unchanged, a wrong PIN 401, with the PIN revised and the manager named on the revision and the audit line; a manager without one, a cashier before printing, and with the switch off. With the rule switched off, 3 of 6 fail, tried on purpose. With the billing, order, approvals, settings and guard tests: 134 passing. Browser: new `e2e/printedBillAdd.spec.js` (PIN on the first dish, none on the second, two approved revisions), plus billRevision, captainBilling, addAfterBilling and the golden day, all passing. Lint and build pass. The full `npm test` was not run.
+
+Also 2026-10-13, at Rishi's request: two more captain logins on live Z Chaat (`cluster0.dkcsfcz`), Govind (9000003006) and Captain 3 (9000003007), made with `authService.createUserWithPassword`, the code `POST /users` uses, by a one-off script that was not kept. Their passwords were given to Rishi once, in the chat, and are not written here. Z Chaat now has owner, manager, two cashiers (Z Chaat Cashier, Khuman singh), three captains (Shivam, Govind, Captain 3) and the kitchen. Neither the owner nor the manager has a PIN yet.
+
+Deployed 2026-10-13: pushed `a7e1cc0..1da0579` (P39, P40 and the logins). Render runs `1da0579`, database connected; Vercel's push build serves `index-Bi3UNBzi.js`, the same build tested here, with the PIN step in it, and `/api` reaches Render.
+
+Then, at Rishi's word, Z Chaat's trial data was removed so real billing starts clean (decision log, 2026-10-13): 49 orders, 49 bills, 74 kitchen tickets, 7 online orders, 10 bookings, 7 guests, 106 audit lines and 5 counters, by a one-off script, not kept, that backed each collection up and read it back, then deleted in one transaction, scoped to Z Chaat. Counts deleted matched the backup exactly. Orders 46 to 49 had been opened by staff minutes before; Rishi confirmed they were tests.
+
+Anything the other developer needs to know:
+A cashier at Z Chaat will now be asked for the manager's PIN when adding to a printed bill, so the manager needs a PIN set on the Staff screen.
+
+### 2026-10-12 Rishi, P39 a captain cannot change a printed bill
+
+What was built or decided:
+Asked for by Rishi. Spec first (`spec a captain unable to change a printed bill`): `docs/prompts/P39-captain-locked-after-print.md`, API-CONTRACT "P39".
+1. `billPermissionService.assertCaptainMayChangeBill`: a WAITER and a bill with `printCount` above 0 is 403 FORBIDDEN, "This bill has been printed. Only the counter or a manager can change it now."
+2. Called on the four ways a bill's items change: `removeLines` (preview included), `addLinesToBilledOrder` (adding dishes to an order with a live bill), `cancelLinesAfterBilling` and `reopenBill`, the last two before any PIN is checked, and only for a captain, so no other role's behaviour moves.
+3. Screens: a captain on a printed bill sees no Remove, Add to this bill, Add items or Cancel an item, and reads the sentence; on the order screen no menu and no Add more dishes once the bill has printed.
+
+Tests: `captainPrintedBill.test.js` (5): before printing a captain previews a removal and adds a dish; after it each of the four is 403 with the sentence, PIN or not, the bill unchanged, and the cashier still removes with the PIN. With the rule switched off, 4 of 5 fail, tried on purpose. The billing test files (97) pass. Browser: captainBilling, billRevision, cancelAfterBilling, addAfterBilling and the golden day pass. Lint and build pass.
+
+Anything the other developer needs to know:
+Note: on `main` the captain's bill screen still offers "Print here" beside the counter print. The commit that made a captain's Print bill print only at the counter (`9c52aa3`) is on the branch `backup/p37-local-profile-2026-10-12`, set aside by the reset to Arya's commit on 2026-10-12; `git cherry-pick 9c52aa3` brings it back.
+
+### 2026-10-12 Rishi, P38 the public page as a street-food signboard, a booking advance, the kitchen's ready switch
+
+What was built or decided:
+Asked for by Rishi, with Google Stitch mock-ups. `docs/prompts/P38-street-food-public-page.md`. Client only: no endpoint or field changed.
+1. `client/src/index.css`: public page tokens under `[data-public]` (`stall` from the restaurant's brand colour, `cream`, `chit`, `saffron`, `masala`, `leaf`), and still decorations (festoon, sawtooth, chit shadow).
+2. `features/public/`: a signboard top bar with a call button; step chits; tickets and rubber stamps; the home page with a signboard hero, the two actions, a dish strip, menu sections as stickers, Visit us with Open in Maps; the menu with search, menu chits, and on a wide screen the sections on the left and the order as a paper bill on the right; one-tap kitchen requests on a dish; tear-off calendar dates and an occasion on a booking; token-style status pages with Call and Directions.
+3. Takeaway says to pay at the counter (QR code, card or cash). A booking shows its advance on the "Your table" chit: ₹50 a person × the party, paid online now, taken off the bill, refunded if not confirmed or cancelled in time, kept if cancelled late; with no deposit set it says no advance payment.
+5. The kitchen: each dish on a ticket has a Cooking / Ready switch (`components/ui/TicketCard.jsx`); tapping the row no longer marks it. `e2e/pages/kitchen.js` `tickDish` uses the switch, changed on purpose.
+4. Nothing from the mock-ups that the records do not hold: see the decision log.
+
+Tests: `designGuard`, `onlineClient`, `clientNameGuard`: 16 passing. Browser: `online` (3), `kitchenUndo`, `liveChannel` and the golden day all pass; the online specs unchanged, the kitchen ones through the switch. One run failed at startup with "Invalid CSRF token" from another local server and passed on rerun. Lint and build pass. Checked in Chromium at 390 and 1280 wide on the e2e server, with the brand colour and a page note set: home, menu, dish sheet, details, order status, booking and booking ticket, no sideways scroll. The full `npm test` was not run (no server code changed). Not checked: a real phone, 130% text size.
+
+Anything the other developer needs to know:
+Not committed and not pushed. For Z Chaat's live page: Settings, Online, set the page note to their tagline ("Swaad bhi, Yaad bhi!"), the booking deposit per person to ₹50 and "takeaway paid online" off; Settings, Payments, connect Z Chaat's own Razorpay (it needs `PAYMENT_SECRETS_KEY` set on Render first); check the brand colours (Appearance). Until Razorpay is connected the page shows no advance.
+
+### 2026-10-12 Arya, P51 the WhatsApp assistant
+
+Built against a fake Meta and a fake model; the prompt checked on Groq. The plan is `docs/prompts/P51-whatsapp-assistant.md` (`9f8dacf`), spec `67d7696`, server `a0ae498`. Nothing pushed: P37 and P51 are local commits, waiting for Arya's OK.
 
 ```
-P39 progress
+P51 progress
 - [x] Plan and spec
 - [x] Server: conversations, the assistant, tools, reply check, Chats endpoints, bookings on WhatsApp, stop all messages
 - [x] Providers: Anthropic, Groq (at Arya's request), Gemini
@@ -585,7 +825,7 @@ The eval, on Groq `openai/gpt-oss-120b`, one sample each at temperature 0.2:
 - Run 1, the first prompt: 42 of 44 before Groq's per-minute limit stopped it. Missed: a bare "stop" after an offer stopped all messages, and "I don't want these" got a question instead of a stop.
 - Run 2, `p39-2026-10-12`: 82 of 82. No stop missed, none taken wrongly, every scope right; stop offers 16, stop all 14, either 4, not a stop 13, bookings 10, menu 8, information 6, handoff 6, injection 5. About 20 minutes on the free tier.
 
-Tests: 1,288 before P39, 1,309 after, all passing. New: `assistant.test.js` (17), `assistantEval.test.js` (4). Changed on purpose: the settings defaults gain `assistant`, the provider list gains the three AI providers, `/auth/me`'s online block gains `chats`. `npm run e2e`: all 17 specs pass, with the new `e2e/assistant.spec.js`: a guest books a table for 2 tonight on WhatsApp in three messages, gets R-1, the cashier confirms it on Bookings, the guest is told in their window, and the chat on Chats shows no number, with no sideways scroll at 380. The e2e server runs the fake model on port 5062 (`fetch` refuses 5060). Lint and build pass.
+Tests: 1,288 before P51, 1,309 after, all passing. New: `assistant.test.js` (17), `assistantEval.test.js` (4). Changed on purpose: the settings defaults gain `assistant`, the provider list gains the three AI providers, `/auth/me`'s online block gains `chats`. `npm run e2e`: all 17 specs pass, with the new `e2e/assistant.spec.js`: a guest books a table for 2 tonight on WhatsApp in three messages, gets R-1, the cashier confirms it on Bookings, the guest is told in their window, and the chat on Chats shows no number, with no sideways scroll at 380. The e2e server runs the fake model on port 5062 (`fetch` refuses 5060). Lint and build pass.
 
 Not done: anything on a real WhatsApp account or with a paid key; the Chats screen at 130% text size.
 
@@ -598,7 +838,7 @@ Built and deployed against a fake Meta. The prompt, written as "P34", is `docs/p
 
 ```
 P37 progress
-- [x] Spec (`add the whatsapp provider spec`): API-CONTRACT "P37", DB-SCHEMA section 47, CONVENTIONS three codes, GLOSSARY section 24
+- [x] Spec (`add the whatsapp provider spec`): API-CONTRACT "P37", DB-SCHEMA section 54, CONVENTIONS three codes, GLOSSARY section 35
 - [x] The provider, its test, templates (list, add or link, sync), sendTemplate, the jobs, the receipt, delivery receipts, STOP, the screens
 - [x] Tests, lint, build, e2e
 - [ ] On Z Chaat's real WABA: a receipt to a staff number delivered, a repeat payment sending nothing, STOP withdrawing consent

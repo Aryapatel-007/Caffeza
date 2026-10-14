@@ -4,8 +4,8 @@ Saved 2026-10-11 from Arya's prompt, written as "P34". This repo's P34 to P36
 were already taken (the password reset, the same dish once, one kitchen ticket
 per table), so at Arya's choice it is P37, campaigns are P38 and attribution
 P39; the references below are renumbered to match and nothing else is changed.
-(2026-10-12: the WhatsApp assistant took P39 the same day, so attribution is
-now P40.)
+(2026-10-15: Rishi's P38 to P50 reached `main` first, so campaigns are now P52,
+attribution P53, and the WhatsApp assistant, written as P39, is P51.)
 Z Chaat has no WhatsApp Business Account connected yet, so at Arya's choice it
 is built and tested against a fake Meta, and the check against a real WABA
 (section 15 item 5 and 6) waits for one.
@@ -28,7 +28,7 @@ M21 Integrations gets a new provider. M22 Customers gains the opt-out path. No n
 
 A marketing template to an Indian number costs about ₹1.09. A **utility** template costs about ₹0.145. Nearly everything a restaurant genuinely wants to send — the bill, the booking, the order-is-ready note — is utility. At 150 bills a day, sending every guest their bill costs about ₹650 a month, and in exchange every guest has their bill on their phone and the restaurant has an open conversation with each of them.
 
-This prompt deliberately builds **no campaign, no audience, no offers**. Those are P38. The receipt needs no consent, no cost warning and no frequency cap, so it is the whole plumbing exercise — templates, approval states, webhooks, retries, opt-out, delivery receipts — with none of the judgement. Ship it, watch real messages land at Z Chaat for a fortnight, and only then build the part that can annoy a guest.
+This prompt deliberately builds **no campaign, no audience, no offers**. Those are P52. The receipt needs no consent, no cost warning and no frequency cap, so it is the whole plumbing exercise — templates, approval states, webhooks, retries, opt-out, delivery receipts — with none of the judgement. Ship it, watch real messages land at Z Chaat for a fortnight, and only then build the part that can annoy a guest.
 
 The thing that most often sinks a WhatsApp build is discovering late that **Meta approves the templates, not you**. A message sent outside an open 24-hour window must be a pre-approved template; you submit it and it comes back approved, rejected, or in a different category than you asked for. So a template is a record with a state, never a string in the code. Design for that from the first commit.
 
@@ -139,7 +139,7 @@ Two things to handle:
 
 **Delivery receipts.** `sent`, `delivered`, `read`, `failed` against the stored message id. Failures matter: a number that does not have WhatsApp should stop being tried.
 
-**STOP.** A guest replying STOP, UNSUBSCRIBE, or Meta's own opt-out signal sets `offers.given` to false through `customerService`, with an `offersHistory` entry of source `ONLINE` and a reason. This must take effect immediately and must be honoured by P38 later. Reply once confirming it, inside the free service window.
+**STOP.** A guest replying STOP, UNSUBSCRIBE, or Meta's own opt-out signal sets `offers.given` to false through `customerService`, with an `offersHistory` entry of source `ONLINE` and a reason. This must take effect immediately and must be honoured by P52 later. Reply once confirming it, inside the free service window.
 
 Opting out of offers must **not** stop the receipt. A guest who does not want promotions still wants their bill. If a guest asks to stop everything, that is the restaurant removing their number, by hand, and it is out of scope here.
 
@@ -171,7 +171,7 @@ Add a golden-day test: paying B05 with `sendBillOnPayment` on queues exactly one
 3. `docs/CONVENTIONS.md` section 3: the new error codes `TEMPLATE_NOT_APPROVED` (422), `MESSAGING_NOT_CONNECTED` (422), and `GUEST_OPTED_OUT` (422).
 4. `docs/GLOSSARY.md`: a section for messaging words — template, utility, marketing, approval state, opt-out, delivery receipt, service window. Every label on a screen comes from here.
 5. `docs/INTEGRATIONS.md`: how a restaurant gets a WABA, applies for templates, what gets rejected, and the Z Chaat checklist items.
-6. `docs/PROJECT-STATE.md`: the date line; "Current stage" pointing at P38; the module table row for M21; a decision log entry dated today —
+6. `docs/PROJECT-STATE.md`: the date line; "Current stage" pointing at P52; the module table row for M21; a decision log entry dated today —
    "WhatsApp is an M21 provider on Meta's Cloud API, each restaurant on its own WABA with its token sealed under `INTEGRATION_SECRETS_KEY`. | The same reason P24 put each cafe on its own Razorpay: we never hold the money, and one restaurant's bad sending cannot cost another its number. Cloud API direct has no platform fee, where a BSP starts near ₹1,500 a month per number."
    "A template is a record with an approval state, and we price against `approvedCategory`, not the category we asked for. | Meta approves templates, not us, and re-categorises a utility template as marketing often enough that pricing against our own guess would make every cost we show an owner wrong."
    "A receipt is queued after the payment transaction commits, and a failure to queue never fails the payment. | A guest whose receipt is late is nothing. A guest whose payment failed because WhatsApp was down is a disaster."
@@ -181,8 +181,8 @@ Add a golden-day test: paying B05 with `sendBillOnPayment` on queues exactly one
 
 ## 14. Out of scope
 
-Campaigns, offers, new dishes, audiences, segments. P38.
-Attribution and campaign reporting. P40 (was P39; the assistant took that number).
+Campaigns, offers, new dishes, audiences, segments. P52.
+Attribution and campaign reporting. P53.
 A PDF of the bill as a document attachment. Text first; the document header is a second approval and a storage decision.
 A template designer. The owner writes a handful of templates.
 SMS and email. SMS in India needs DLT registration per template and per sender, which is weeks of paperwork for a worse channel.

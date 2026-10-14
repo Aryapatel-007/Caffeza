@@ -54,7 +54,7 @@ export function requireFeature(name) {
 /**
  * P25 Part H. The incoming requests inbox is on when online orders are, or
  * when any delivery platform connection is on: platform orders arrive there
- * too. P39: or when WhatsApp is on, for chats waiting for a person. Otherwise
+ * too. P51: or when WhatsApp is on, for chats waiting for a person. Otherwise
  * the same 403 FEATURE_DISABLED as online orders off.
  */
 export async function requireOnlineOrChannel(req, res, next) {

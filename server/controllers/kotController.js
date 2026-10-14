@@ -29,7 +29,7 @@ import { scoped } from '../utils/scopedQuery.js';
  * that can drift from the lines it describes.
  */
 export async function listKots(req, res) {
-  const { page, limit, status, stationId } = req.query;
+  const { page, limit, status, stationId, sort } = req.query;
 
   const filter = { ...scoped(req) };
   /**
@@ -64,7 +64,8 @@ export async function listKots(req, res) {
 
   const [tickets, total] = await Promise.all([
     Kot.find(filter)
-      .sort({ createdAt: 1 })
+      // P41. `recent`: the tickets that changed last first, for Recall. Otherwise the queue, oldest first.
+      .sort(sort === 'recent' ? { updatedAt: -1, _id: -1 } : { createdAt: 1 })
       .skip((page - 1) * limit)
       .limit(limit),
     Kot.countDocuments(filter),

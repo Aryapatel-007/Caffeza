@@ -1,5 +1,5 @@
 /**
- * One WhatsApp chat, for staff. P39 section 14.
+ * One WhatsApp chat, for staff. P51 section 14.
  *
  * The turns as the guest saw them, the guest's coming bookings, and what a
  * person can do: reply inside the 24-hour window, hand the chat back to the

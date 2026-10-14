@@ -64,7 +64,7 @@ const DEFAULTS = {
   // P28.
   approvals: { lineCancel: true, paidIn: true, managerTasks: true, revisePrintedBill: true },
   kitchen: { readyMeansServed: true, oneTicketPerOrder: true },
-  // P39.
+  // P51.
   assistant: { enabled: false, bookingsEnabled: true, greeting: null, handoffHours: null, dailyAiLimit: 500 },
   dayClose: { showCashDifferenceToManager: false },
   cash: {
@@ -73,9 +73,11 @@ const DEFAULTS = {
     usualFloatInPaise: 200000,
     showDrawerTotalToStaff: false,
   },
-  payments: { requireTerminalForLinkedMethods: true },
+  // P47 added otherModes.
+  payments: { requireTerminalForLinkedMethods: true, otherModes: ['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Cheque', 'Bank transfer', 'Coupon'] },
   // P25 Part J.
-  reports: { onHoldTallyCode: null },
+  // P44 added dayEndEmails.
+  reports: { onHoldTallyCode: null, dayEndEmails: [] },
   // P19.
   floor: { sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false },
   // P20A.

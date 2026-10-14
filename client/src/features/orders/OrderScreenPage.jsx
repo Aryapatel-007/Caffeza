@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { BackIcon } from '../../components/ui/icons/index.jsx';
 import Money from '../../components/ui/Money.jsx';
-import Sheet from '../../components/ui/Sheet.jsx';
+import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { getMenuTree } from '../../api/menu.js';
@@ -13,14 +13,21 @@ import {
   addOrderLines,
   cancelOrder,
   cancelOrderLine,
+  closeOrder,
   editOrderLine,
+  removeOrderLine,
   fireOrder,
+  reduceOrderLine,
+  undoSend,
   getOrder,
   giveNoCharge,
   markLineServed,
   moveOrderToTable,
 } from '../../api/orders.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { getKotTicket } from '../../api/kitchen.js';
+import { charactersFor, printText } from '../printing/printText.js';
+import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import { formatTimeIst } from '../../utils/formatDate.js';
 import BillOrderButton from '../billing/BillOrderButton.jsx';
 import Bilingual from '../i18n/Bilingual.jsx';
@@ -31,10 +38,14 @@ import MenuPicker from './MenuPicker.jsx';
 import MoveTablePanel from './MoveTablePanel.jsx';
 import NoChargePanel from './NoChargePanel.jsx';
 import OrderLineList from './OrderLineList.jsx';
+import SentLineSheet, { MADE } from './SentLineSheet.jsx';
 import { errorMessage, shouldRefetch } from './errorCopy.js';
 import { placeLabel } from './orderLabel.js';
 
 import Spinner from '../../components/ui/Spinner.jsx';
+
+/** P41. How long the Undo bar stays after a Send. Matches the server's UNDO_SEND_WINDOW_MS. */
+const UNDO_SEND_MS = 60_000;
 
 /** Only these two may cancel a whole order. The server is what enforces it. */
 const CAN_CANCEL_ORDER = ['OWNER', 'MANAGER'];
@@ -80,6 +91,8 @@ export default function OrderScreenPage() {
   const { orderId } = useParams();
   const queryClient = useQueryClient();
   const { user, features } = useAuth();
+  // P48. KOT & Print prints on this device's printer.
+  const [device] = useDeviceSettings();
   const approvals = features.approvals ?? { lineCancel: true, paidIn: true, managerTasks: true };
   const approvesOwn = APPROVES_OWN.includes(user?.role);
 
@@ -87,11 +100,37 @@ export default function OrderScreenPage() {
   const [search, setSearch] = useState('');
   const [pickingItem, setPickingItem] = useState(null);
   const [cancelling, setCancelling] = useState(null);
+  const navigate = useNavigate();
   const [isReviewing, setIsReviewing] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   // P26. Opened from a bill's Add items, the menu shows at once.
   const [searchParams] = useSearchParams();
   const [addingMore, setAddingMore] = useState(() => searchParams.get('add') === '1');
+  // P42. The sent dish being changed, and the dish a swap is replacing, for the menu's banner.
+  const [changingLine, setChangingLine] = useState(null);
+  const [swapFor, setSwapFor] = useState(null);
+  /**
+   * P40. A manager's approval for adding to a printed bill, kept in memory for
+   * this visit once a dish has gone on with it, so the next dishes need no
+   * second PIN. Never stored on the device; leaving the screen forgets it.
+   */
+  const [printedBillApproval, setPrintedBillApproval] = useState(null);
+  /**
+   * P41. The last Send, for its Undo bar. The server allows the undo for 60
+   * seconds and only while nothing is ready; the bar shows for the same minute
+   * and the server has the last word.
+   */
+  const [lastSendAt, setLastSendAt] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!lastSendAt) return undefined;
+    const tick = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+      if (current - lastSendAt >= UNDO_SEND_MS) setLastSendAt(null);
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [lastSendAt]);
 
   const orderQuery = useQuery({
     queryKey: ['order', orderId],
@@ -137,9 +176,10 @@ export default function OrderScreenPage() {
       }
       variables.onDone?.();
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       if (shouldRefetch(error)) orderQuery.refetch();
       setToast({ tone: 'error', message: errorMessage(error) });
+      variables.onFailed?.(error);
     },
   });
 
@@ -156,7 +196,8 @@ export default function OrderScreenPage() {
     for (const line of order?.lines ?? []) {
       if (line.status !== 'PENDING') continue;
       counts.set(line.menuItemId, (counts.get(line.menuItemId) ?? 0) + line.quantity);
-      const isSimple = !line.variantId && line.addOns.length === 0 && !line.notes;
+      // P46. Two open items are two dishes, whatever their card: never merged.
+      const isSimple = !line.variantId && line.addOns.length === 0 && !line.notes && !line.isOpenItem;
       // P29. With a bill, a line changes only through the bill, so a tap adds a new line.
       if (isSimple && !order.billId && !simple.has(line.menuItemId)) simple.set(line.menuItemId, line);
     }
@@ -185,25 +226,78 @@ export default function OrderScreenPage() {
   // P26. A served table, with no bill yet, can order more: the menu shows again.
   // P29. So can one whose bill nothing is paid on yet: the dishes revise that bill.
   const hasBill = Boolean(order.billId);
-  const canAddMore = order.status === 'READY_TO_BILL' && (!hasBill || Boolean(billQuery.data?.revisable));
-  const showMenu = isOpen || (canAddMore && addingMore);
+  // P39. A captain changes nothing on an order whose bill has printed: the counter does.
+  const captainLockedOut = user?.role === 'WAITER' && hasBill && (billQuery.data?.printCount ?? 0) > 0;
+  const canAddMore = order.status === 'READY_TO_BILL' && (!hasBill || Boolean(billQuery.data?.revisable)) && !captainLockedOut;
+  const showMenu = (isOpen || (canAddMore && addingMore)) && !captainLockedOut;
+  // P40. A dish going onto a printed bill needs a manager, unless one already approved this visit.
+  const addsToPrintedBill =
+    !approvesOwn && hasBill && !billQuery.data?.isVoided && (approvals.revisePrintedBill ?? true) && (billQuery.data?.printCount ?? 0) > 0;
+  const addNeedsApproval = addsToPrintedBill && !printedBillApproval;
   // P28. A cashier may too, with a PIN, when the owner allows it.
   const canCancelOrder = CAN_CANCEL_ORDER.includes(user?.role) || (user?.role === 'CASHIER' && approvals.managerTasks);
   const canMove = isOpen && order.orderType === 'DINE_IN';
+  // P50. Nothing ever sent to the kitchen: anyone who takes orders closes it, opened by mistake.
+  const canClose = isOpen && !hasBill && order.lines.every((line) => !line.firedAt && ['PENDING', 'CANCELLED'].includes(line.status));
+  const placeName = order.orderType === 'DINE_IN' ? order.tableName ?? 'this table' : `order #${order.orderNumber}`;
   // Takeaway and delivery have no table, so on a wide screen the order is a
   // ledger beside the menu rather than a bar and a slide-over.
-  const isCounter = order.orderType !== 'DINE_IN';
+  // P48. The till's computer gets PetPooja's counter screen for every order: menu beside the order.
+  const isTill = ['OWNER', 'MANAGER', 'CASHIER'].includes(user?.role);
+  const isCounter = order.orderType !== 'DINE_IN' || isTill;
 
   const changeQuantity = (line, quantity) =>
     run({
       run: () => editOrderLine(order.id, line.id, { version: order.version, quantity }),
     });
 
+  /** P49. A dish not sent yet: gone at once, with no reason and nothing kept. */
+  const removeDraft = (line) =>
+    run({
+      run: () => removeOrderLine(order.id, line.id, order.version),
+      successMessage: `${line.itemName} removed.`,
+    });
+
   const fire = () =>
     run({
       run: () => fireOrder(order.id, order.version),
-      successMessage: 'Sent to the kitchen.',
-      onDone: () => setIsReviewing(false),
+      onDone: () => {
+        setIsReviewing(false);
+        // P41. The bar says "Sent to the kitchen." with its Undo, instead of a toast.
+        setToast(null);
+        setNow(Date.now());
+        setLastSendAt(Date.now());
+      },
+    });
+
+  /** P48. KOT & Print: send, then print each new ticket on this device's printer. */
+  const fireAndPrint = () =>
+    run({
+      run: async () => {
+        const result = await fireOrder(order.id, order.version);
+        try {
+          for (const kot of result.kots ?? [result.kot]) {
+            const { text } = await getKotTicket(kot.id, { width: charactersFor(device.printer), ...(result.round ? { round: result.round } : {}) });
+            await printText(text, device.printer);
+          }
+        } catch {
+          setToast({ tone: 'error', message: 'Sent to the kitchen, but the KOT did not print. Reprint it from the kitchen screen.' });
+        }
+        return result;
+      },
+      onDone: () => {
+        setIsReviewing(false);
+        setNow(Date.now());
+        setLastSendAt(Date.now());
+      },
+    });
+
+  const undoLastSend = () =>
+    run({
+      run: () => undoSend(order.id, order.version),
+      successMessage: 'Taken back from the kitchen. The dishes are on the order, not sent.',
+      onDone: () => setLastSendAt(null),
+      onFailed: () => setLastSendAt(null),
     });
 
   const details = (
@@ -223,8 +317,13 @@ export default function OrderScreenPage() {
         })
       }
       onCancelLine={(line) => setCancelling({ kind: 'line', line })}
+      onRemoveDraft={removeDraft}
+      onChangeSentLine={(line) => setChangingLine(line)}
       onFire={fire}
+      onFireAndPrint={isTill ? fireAndPrint : null}
       onCancelOrder={() => setCancelling({ kind: 'order' })}
+      onCloseOrder={canClose ? () => setCancelling({ kind: 'close' }) : null}
+      closeLabel={order.orderType === 'DINE_IN' ? 'Close table' : 'Close order'}
       onNoCharge={() => setCancelling({ kind: 'noCharge' })}
     />
   );
@@ -296,11 +395,25 @@ export default function OrderScreenPage() {
           )}
           {(!isOpen || hasBill) && <BillOrderButton order={order} />}
         </div>
+        {captainLockedOut && (
+          <p className="type-caption mt-2 rounded-lg bg-sunken px-3 py-2 text-muted">This bill has been printed. Only the counter or a manager can change it now.</p>
+        )}
       </header>
 
       {showMenu ? (
         <div className={isCounter ? 'flex flex-1 flex-col gap-4 lg:flex-row lg:items-start' : 'contents'}>
           <div className={isCounter ? 'flex min-w-0 flex-1 flex-col gap-4' : 'contents'}>
+          {/* P42. A swap: the old dish is off, the replacement is picked here and sent. */}
+          {swapFor && (
+            <div role="status" className="flex items-center justify-between gap-3 rounded-lg border border-line border-l-[3px] border-l-open bg-surface px-4 py-2">
+              <p className="type-body">
+                Pick the replacement for <span className="font-semibold">{swapFor}</span>, then send it.
+              </p>
+              <button type="button" onClick={() => setSwapFor(null)} className="type-label min-h-12 flex-none px-2 text-muted hover:text-ink">
+                Dismiss
+              </button>
+            </div>
+          )}
           <MenuPicker
             tree={menuQuery.data}
             isPending={menuQuery.isPending}
@@ -311,7 +424,7 @@ export default function OrderScreenPage() {
             simpleLines={simpleLines}
             pendingCounts={pendingCounts}
             onStep={changeQuantity}
-            onRemove={(line) => setCancelling({ kind: 'line', line })}
+            onRemove={removeDraft}
             onOpen={(item) => setPickingItem(item)}
           />
 
@@ -340,12 +453,13 @@ export default function OrderScreenPage() {
               </button>
 
               <div className="flex flex-none items-center gap-2">
+                {/* Shown on a phone too: it is the way to the sent dishes and their Change (P42). */}
                 <button
                   type="button"
                   onClick={() => setIsReviewing(true)}
-                  className="type-button hidden min-h-12 items-center rounded-lg px-4 hover:bg-sunken md:flex"
+                  className="type-button flex min-h-12 items-center rounded-lg border border-ink px-3 hover:bg-sunken md:border-transparent md:px-4"
                 >
-                  Review order
+                  Review<span className="hidden md:inline">&nbsp;order</span>
                 </button>
                 <button
                   type="button"
@@ -400,13 +514,23 @@ export default function OrderScreenPage() {
         <LineOptionsPanel
           item={pickingItem}
           isBusy={write.isPending}
+          needsApproval={addNeedsApproval}
           onCancel={() => setPickingItem(null)}
-          onConfirm={(line) =>
+          onConfirm={(line, approvalBody) => {
+            const approval = addsToPrintedBill ? (approvalBody.approval ?? printedBillApproval) : undefined;
             run({
-              run: () => addOrderLines(order.id, { version: order.version, lines: [line] }),
-              onDone: () => setPickingItem(null),
-            })
-          }
+              run: () => addOrderLines(order.id, { version: order.version, lines: [line], approval }),
+              onDone: () => {
+                if (approval) setPrintedBillApproval(approval);
+                setPickingItem(null);
+                setSwapFor(null);
+              },
+              // A refused PIN is forgotten, so the next dish asks again.
+              onFailed: (error) => {
+                if (error?.status === 401 || error?.status === 403) setPrintedBillApproval(null);
+              },
+            });
+          }}
         />
       )}
 
@@ -425,13 +549,55 @@ export default function OrderScreenPage() {
         />
       )}
 
+      {/* P42. Change a sent dish: fewer, a new note, remove it, or swap it. */}
+      {changingLine && (
+        <SentLineSheet
+          key={changingLine.id}
+          line={changingLine}
+          needsApproval={!approvesOwn && approvals.lineCancel}
+          isBusy={write.isPending}
+          onClose={() => setChangingLine(null)}
+          onSave={({ quantity, notes, ...answers }) =>
+            run({
+              run: async () => {
+                let current = order;
+                if (quantity !== undefined) current = await reduceOrderLine(order.id, changingLine.id, { version: current.version, quantity, ...answers });
+                if (notes !== undefined) current = await editOrderLine(order.id, changingLine.id, { version: current.version, notes });
+                return current;
+              },
+              successMessage: `${changingLine.itemName} changed. The kitchen can see it.`,
+              onDone: () => setChangingLine(null),
+            })
+          }
+          onRemove={(answers) =>
+            run({
+              run: () => cancelOrderLine(order.id, changingLine.id, { version: order.version, ...answers }),
+              successMessage: `${changingLine.itemName} removed. The kitchen can see it.`,
+              onDone: () => setChangingLine(null),
+            })
+          }
+          onSwap={(answers) =>
+            run({
+              run: () => cancelOrderLine(order.id, changingLine.id, { version: order.version, ...answers }),
+              onDone: () => {
+                setSwapFor(changingLine.itemName);
+                setChangingLine(null);
+                setIsReviewing(false);
+                setAddingMore(true);
+              },
+            })
+          }
+        />
+      )}
+
       {cancelling?.kind === 'line' && (
         <CancelPanel
           title={`Cancel ${cancelling.line.itemName}`}
           reasons={LINE_CANCEL_REASONS}
           description="It stays on the order, marked cancelled, with the reason."
           needsWasPrepared={REACHED_KITCHEN.includes(cancelling.line.status)}
-          needsApproval={!approvesOwn && approvals.lineCancel && REACHED_KITCHEN.includes(cancelling.line.status)}
+          needsApproval={!approvesOwn && approvals.lineCancel && MADE.includes(cancelling.line.status)}
+          approvalWhenMade={!approvesOwn && approvals.lineCancel}
           isBusy={write.isPending}
           onCancel={() => setCancelling(null)}
           onConfirm={(answers) =>
@@ -470,6 +636,35 @@ export default function OrderScreenPage() {
         />
       )}
 
+      {cancelling?.kind === 'close' && (
+        <Sheet
+          title={`Close ${placeName}?`}
+          subtitle="It was opened by mistake. Nothing has gone to the kitchen, so nothing is recorded."
+          onClose={() => setCancelling(null)}
+          footer={
+            <SheetActions
+              cancelLabel="Keep it open"
+              onCancel={() => setCancelling(null)}
+              confirmLabel={order.orderType === 'DINE_IN' ? 'Close table' : 'Close order'}
+              disabled={write.isPending}
+              onConfirm={() =>
+                run({
+                  run: () => closeOrder(order.id, order.version),
+                  onDone: () => {
+                    setCancelling(null);
+                    navigate('/floor');
+                  },
+                })
+              }
+            />
+          }
+        >
+          {order.lines.some((line) => line.status === 'PENDING') && (
+            <p className="type-body text-muted">The dishes not sent go with it.</p>
+          )}
+        </Sheet>
+      )}
+
       {cancelling?.kind === 'noCharge' && (
         <NoChargePanel
           order={order}
@@ -487,6 +682,32 @@ export default function OrderScreenPage() {
             })
           }
         />
+      )}
+
+      {/* P41. Undo for a minute after a Send. */}
+      {lastSendAt && (
+        <div
+          role="status"
+          className="v2 fixed inset-x-4 bottom-20 z-40 mx-auto flex max-w-xl items-center gap-3 rounded-[10px] border border-line border-l-[3px] border-l-ok bg-surface px-4 py-3 text-ink shadow-float sm:inset-x-auto sm:bottom-5 sm:left-1/2 sm:w-[36rem] sm:-translate-x-1/2"
+        >
+          <p className="type-body flex-1">
+            Sent to the kitchen.{' '}
+            <span className="type-caption text-muted">
+              Undo for <span className="type-num-meta">{Math.max(0, Math.ceil((UNDO_SEND_MS - (now - lastSendAt)) / 1000))}</span> s
+            </span>
+          </p>
+          <button
+            type="button"
+            disabled={write.isPending}
+            onClick={undoLastSend}
+            className="type-button min-h-12 flex-none rounded-lg bg-accent px-5 text-on-accent hover:brightness-110 disabled:opacity-50"
+          >
+            Undo
+          </button>
+          <button type="button" onClick={() => setLastSendAt(null)} className="type-label min-h-12 flex-none px-2 text-muted hover:text-ink">
+            Dismiss
+          </button>
+        </div>
       )}
 
       <Toast tone={toast?.tone} message={toast?.message} onDismiss={() => setToast(null)} />
@@ -509,9 +730,16 @@ function OrderDetails({
   onChangeQuantity,
   onServeLine,
   onCancelLine,
+  onRemoveDraft,
+  onChangeSentLine,
   onFire,
+  // P48. The till's KOT & Print.
+  onFireAndPrint = null,
   onCancelOrder,
   onNoCharge,
+  // P50. Close an order nothing was sent from; null when something was.
+  onCloseOrder = null,
+  closeLabel = 'Close table',
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -527,6 +755,8 @@ function OrderDetails({
           onChangeQuantity={onChangeQuantity}
           onServeLine={onServeLine}
           onCancelLine={onCancelLine}
+          onRemoveDraft={onRemoveDraft}
+          onChangeSentLine={onChangeSentLine}
         />
       </div>
 
@@ -546,6 +776,16 @@ function OrderDetails({
             {pendingCount === 0 ? 'Nothing new to send' : `Send ${pendingCount} to the kitchen`}
           </button>
         )}
+        {isOpen && onFireAndPrint && pendingCount > 0 && (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={onFireAndPrint}
+            className="type-button min-h-12 w-full rounded-lg border border-ink bg-surface hover:bg-sunken disabled:opacity-50"
+          >
+            KOT & Print
+          </button>
+        )}
 
         {/* P08. Manager work, on an open order or one waiting for the cashier. */}
         {canCancelOrder && (isOpen || order.status === 'READY_TO_BILL') && (
@@ -559,7 +799,18 @@ function OrderDetails({
           </button>
         )}
 
-        {isOpen && canCancelOrder && (
+        {onCloseOrder && (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={onCloseOrder}
+            className="type-button min-h-12 w-full rounded-lg border border-ink bg-surface hover:bg-sunken disabled:opacity-50"
+          >
+            {closeLabel}
+          </button>
+        )}
+
+        {isOpen && canCancelOrder && !onCloseOrder && (
           <button
             type="button"
             disabled={isBusy}

@@ -110,7 +110,7 @@ export async function getInbox(req, res) {
             at: latestDoc.at,
           }
       : null,
-    // P39. WhatsApp chats the assistant handed to a person.
+    // P51. WhatsApp chats the assistant handed to a person.
     ...(await waitingChats(req)),
     pausedUntil: activePause(branch, now),
     refundFailures: onlineOn ? await refundFailureCount(req) : 0,

@@ -1,9 +1,12 @@
 import { useState } from 'react';
 
 import { MinusIcon, PlusIcon } from '../../components/ui/icons/index.jsx';
+import ApprovalStep, { useApproval } from '../../components/ui/ApprovalStep.jsx';
 import Money, { moneyText } from '../../components/ui/Money.jsx';
 import Sheet from '../../components/ui/Sheet.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
+import Input from '../../components/ui/Input.jsx';
+import { parseRupeesToPaise } from '../../utils/formatMoney.js';
 
 /**
  * Choosing a size, extras, a quantity and a note before a line goes on.
@@ -17,7 +20,13 @@ import StateChip from '../../components/ui/StateChip.jsx';
 /** The requests a cafe hears most, one tap each. Jain is asked for in most Gujarat restaurants. */
 const QUICK_NOTES = ['Less spicy', 'Extra spicy', 'No onion', 'Jain', 'Less sugar', 'No ice'];
 
-export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) {
+/**
+ * `needsApproval`, P40: the dish would go onto a bill already printed, so a
+ * manager picks their name and types their PIN before it goes on. The approval
+ * is handed back with the line, as `onConfirm(line, approvalBody)`.
+ */
+export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, needsApproval = false }) {
+  const approval = useApproval(needsApproval);
   // P04. Start on the first size that can actually be ordered.
   const [variantId, setVariantId] = useState(
     item.variants.find((variant) => variant.isAvailable !== false)?.id ?? null,
@@ -25,9 +34,21 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
   const [addOnIds, setAddOnIds] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
+  // P46. An open item's name and price, typed here.
+  const isOpen = item.isOpenItem === true;
+  const [openName, setOpenName] = useState('');
+  const [openPrice, setOpenPrice] = useState('');
+  // P48. Extras typed at the table: a name and a price each, at most five.
+  const [extras, setExtras] = useState([]);
+  const typedExtras = extras
+    .map((extra) => ({ name: extra.name.trim(), priceInPaise: parseRupeesToPaise(extra.price) }))
+    .filter((extra) => extra.name && extra.priceInPaise !== null && extra.priceInPaise > 0);
+  const extrasReady = extras.every((extra) => (!extra.name.trim() && !extra.price.trim()) || (extra.name.trim() && (parseRupeesToPaise(extra.price) ?? 0) > 0));
+  const openPriceInPaise = isOpen ? parseRupeesToPaise(openPrice) : null;
+  const openReady = !isOpen || (openName.trim().length > 0 && openPriceInPaise !== null && openPriceInPaise > 0);
 
   const chosenVariant = item.variants.find((variant) => variant.id === variantId);
-  const unitPrice = chosenVariant ? chosenVariant.priceInPaise : item.priceInPaise;
+  const unitPrice = isOpen ? (openPriceInPaise ?? 0) : chosenVariant ? chosenVariant.priceInPaise : item.priceInPaise;
 
   const addOnTotal = item.addOns
     .filter((addOn) => addOnIds.includes(addOn.id))
@@ -38,7 +59,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
    * anywhere and it is not a bill: the server computes the real line total from
    * the snapshot it writes, and M3 owns tax.
    */
-  const previewTotal = (unitPrice + addOnTotal) * quantity;
+  const previewTotal = (unitPrice + addOnTotal + typedExtras.reduce((total, extra) => total + extra.priceInPaise, 0)) * quantity;
 
   const toggleAddOn = (id) =>
     setAddOnIds((current) =>
@@ -94,13 +115,18 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
   );
 
   const pick = () =>
-    onConfirm({
-      menuItemId: item.id,
-      ...(variantId ? { variantId } : {}),
-      quantity,
-      ...(addOnIds.length > 0 ? { addOnIds } : {}),
-      ...(notes.trim() ? { notes: notes.trim() } : {}),
-    });
+    onConfirm(
+      {
+        menuItemId: item.id,
+        ...(variantId ? { variantId } : {}),
+        quantity,
+        ...(addOnIds.length > 0 ? { addOnIds } : {}),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(isOpen ? { openItem: { name: openName.trim(), priceInPaise: openPriceInPaise } } : {}),
+        ...(!isOpen && typedExtras.length > 0 ? { extras: typedExtras } : {}),
+      },
+      approval.body,
+    );
 
   const choice = (selected, out) =>
     [
@@ -119,7 +145,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
           <button
             type="button"
             // Every size out of stock means nothing here can be ordered.
-            disabled={isBusy || (item.variants.length > 0 && !variantId)}
+            disabled={isBusy || (item.variants.length > 0 && !variantId) || !approval.ready || !openReady || !extrasReady}
             onClick={pick}
             className="flex min-h-14 flex-1 items-center justify-between gap-2 rounded-lg bg-accent px-4 text-on-accent hover:brightness-110 disabled:opacity-60"
           >
@@ -130,6 +156,14 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
       }
     >
       {item.description && <p className="type-body mb-4 text-muted">{item.description}</p>}
+
+      {/* P46. An open item: what it is and what it costs, typed by staff. */}
+      {isOpen && (
+        <div className="mb-6 flex flex-col gap-3">
+          <Input label="Name" value={openName} maxLength={80} onChange={(event) => setOpenName(event.target.value)} placeholder="e.g. Extra chutney" />
+          <Input label="Price (₹)" inputMode="decimal" value={openPrice} onChange={(event) => setOpenPrice(event.target.value)} placeholder="e.g. 20" />
+        </div>
+      )}
 
       {item.variants.length > 0 && (
         <fieldset className="mb-6">
@@ -196,7 +230,58 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy }) 
         </fieldset>
       )}
 
+      {/* P48. An extra with its own price, typed here, like "Extra butter ₹15". Not on an open item. */}
+      {!isOpen && (
+        <fieldset className="mb-6">
+          <legend className="type-label mb-2">Extras with a price</legend>
+          <div className="flex flex-col gap-2">
+            {extras.map((extra, index) => (
+              <div key={index} className="flex items-end gap-2">
+                <Input
+                  className="flex-1"
+                  label={`Extra ${index + 1}`}
+                  value={extra.name}
+                  maxLength={40}
+                  placeholder="e.g. Extra butter"
+                  onChange={(event) => setExtras((current) => current.map((entry, at) => (at === index ? { ...entry, name: event.target.value } : entry)))}
+                />
+                <Input
+                  className="w-24"
+                  label="₹"
+                  inputMode="decimal"
+                  value={extra.price}
+                  placeholder="15"
+                  onChange={(event) => setExtras((current) => current.map((entry, at) => (at === index ? { ...entry, price: event.target.value } : entry)))}
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove extra ${index + 1}`}
+                  onClick={() => setExtras((current) => current.filter((_, at) => at !== index))}
+                  className="flex size-12 flex-none items-center justify-center rounded-lg text-muted hover:bg-sunken hover:text-ink"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {extras.length < 5 && (
+              <button
+                type="button"
+                onClick={() => setExtras((current) => [...current, { name: '', price: '' }])}
+                className="type-label min-h-12 self-start rounded-lg border border-line px-4 hover:bg-sunken"
+              >
+                + Extra
+              </button>
+            )}
+          </div>
+        </fieldset>
+      )}
+
       {noteField}
+
+      {needsApproval && (
+        <p className="type-caption mt-4 text-muted">This bill has been printed. A manager approves adding to it.</p>
+      )}
+      <ApprovalStep approval={approval} />
     </Sheet>
   );
 }

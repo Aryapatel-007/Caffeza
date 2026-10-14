@@ -139,6 +139,8 @@ const billLineSchema = new mongoose.Schema(
     /** Copied from the order line. P03. Null for orders from before P03. */
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
     categoryName: { type: String, trim: true, default: null },
+    // P46. Copied from the order line: a typed name and price.
+    isOpenItem: { type: Boolean, default: false },
 
     /**
      * This line's share of the bill discount, its net sales, and its share of

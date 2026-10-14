@@ -18,7 +18,7 @@ const ORDER_CHANNEL = [
   { path: 'defaultPrepMinutes', kind: 'number', label: 'Preparation time, minutes', min: 5, max: 120 },
 ];
 
-/** An AI provider's two settings. P39. */
+/** An AI provider's two settings. P51. */
 function aiFields(defaultModel) {
   return [
     { path: 'model', kind: 'text', label: 'Model', hint: `Leave as ${defaultModel} unless you know you need another.` },
@@ -50,7 +50,7 @@ export const PROVIDER_FIELDS = Object.freeze({
     { path: 'senderDisplayName', kind: 'text', label: 'Name shown on the screens', optional: true },
     { path: 'apiBaseUrl', kind: 'text', label: 'Meta Cloud API address', hint: 'Leave as it is unless Meta says otherwise.' },
   ],
-  // P39, the assistant's AI. One is used at a time; Anthropic first.
+  // P51, the assistant's AI. One is used at a time; Anthropic first.
   GEMINI: aiFields('gemini-2.5-flash'),
   ANTHROPIC: aiFields('claude-haiku-5-5'),
   GROQ: aiFields('openai/gpt-oss-120b'),
@@ -77,7 +77,7 @@ export const PROVIDER_DEFAULTS = Object.freeze({
 });
 
 /**
- * Said plainly on the sheet, P39 section 6. A free tier may keep what guests
+ * Said plainly on the sheet, P51 section 6. A free tier may keep what guests
  * write; a paid Anthropic key is not used for training by default.
  */
 export const PROVIDER_WARNINGS = Object.freeze({
@@ -106,6 +106,6 @@ export const credentialLabel = (field) =>
     accessToken: 'Access token',
     webhookVerifyToken: 'Webhook verify token',
     appSecret: 'App secret',
-    // P39, an AI provider.
+    // P51, an AI provider.
     apiKey: 'API key',
   })[field] ?? field;

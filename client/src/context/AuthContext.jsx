@@ -46,7 +46,7 @@ const DEFAULT_ONLINE = Object.freeze({
   pausedUntil: null,
   // P25 Part H. The delivery platforms connected and on.
   platformChannels: [],
-  // P39. WhatsApp is on: chats waiting for a person ring the same alert.
+  // P51. WhatsApp is on: chats waiting for a person ring the same alert.
   chats: false,
 });
 
@@ -83,6 +83,8 @@ const fromMe = (me) => ({
   },
   // P29 Part C. The kitchen's ready also serves the dish.
   kitchen: { readyMeansServed: me.kitchen?.readyMeansServed ?? true },
+  // P47. The modes Other offers one tap each.
+  payments: { otherModes: me.payments?.otherModes ?? null },
   // P25 Part F. The active notes and coins, for the cash counter.
   // P29 Part F. The cash book's expense categories and the usual float.
   cash: {

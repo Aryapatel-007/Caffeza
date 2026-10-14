@@ -1,5 +1,5 @@
 /**
- * Telling a WhatsApp booking's guest what the restaurant decided. P39 section 13.
+ * Telling a WhatsApp booking's guest what the restaurant decided. P51 section 13.
  *
  * Inside the guest's 24-hour window, a plain message; after it, the utility
  * template BOOKING_CONFIRMED or BOOKING_DECLINED, when the owner has one

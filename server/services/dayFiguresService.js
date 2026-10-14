@@ -21,7 +21,7 @@
  * adding them up in one place in plain code is easier to check than a dozen
  * aggregation pipelines.
  */
-import { BILL_VOID_REASONS, reasonText } from '../config/cancelReasons.js';
+import { BILL_VOID_REASONS, ORDER_OPENED_BY_MISTAKE, reasonText } from '../config/cancelReasons.js';
 import { Account } from '../models/Account.js';
 import { ACCOUNT_ENTRY_TYPES, AccountEntry } from '../models/AccountEntry.js';
 import { Bill, BILL_STATUSES } from '../models/Bill.js';
@@ -514,7 +514,8 @@ export async function computeDayFigures(req, businessDate, { session = null, upT
   const cancelledOrders = [];
   for (const order of cancelOrders) {
     const orderCancelledToday = order.isCancelled && inDay(order.cancelledAt);
-    if (orderCancelledToday) {
+    // P50. An order closed because it was opened by mistake sent nothing and sold nothing.
+    if (orderCancelledToday && order.cancelReasonCode !== ORDER_OPENED_BY_MISTAKE) {
       const withOrder = order.lines.filter(
         (line) =>
           line.status === ORDER_LINE_STATUSES.CANCELLED &&

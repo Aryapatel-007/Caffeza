@@ -1,5 +1,5 @@
 /**
- * Google's Gemini, behind the assistant's one interface. P39.
+ * Google's Gemini, behind the assistant's one interface. P51.
  *
  * Messages come in the assistant's own shape (services/chatbot/llm.js) and are
  * mapped here to Gemini's `generateContent`: function declarations for the

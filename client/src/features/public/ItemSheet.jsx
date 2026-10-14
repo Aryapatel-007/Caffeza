@@ -1,12 +1,23 @@
 /**
  * Choosing a size and extras for one dish, on the public page. P23. Prices
  * shown are the menu's; the server prices the line again when it quotes.
+ * P38: the same one-tap requests the staff order screen offers, written into
+ * the line's note, which prints on the kitchen ticket.
  */
 import { useState } from 'react';
 
 import DishPhoto from '../../components/ui/DishPhoto.jsx';
 import Money from '../../components/ui/Money.jsx';
 import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
+
+const QUICK_NOTES = ['Less spicy', 'Extra spicy', 'No onion', 'Jain', 'Less sugar', 'No ice'];
+
+/** Adds a request to the note, or takes it off when it is already there. */
+function toggleNote(notes, request) {
+  const parts = notes.split(',').map((part) => part.trim()).filter(Boolean);
+  const next = parts.includes(request) ? parts.filter((part) => part !== request) : [...parts, request];
+  return next.join(', ').slice(0, 200);
+}
 
 export default function ItemSheet({ item, onAdd, onClose }) {
   const [variantId, setVariantId] = useState(item.variants[0]?.id ?? null);
@@ -85,10 +96,29 @@ export default function ItemSheet({ item, onAdd, onClose }) {
             ))}
           </select>
         </label>
-        <label className="grid gap-1">
-          <span className="type-label">Note, optional</span>
-          <input maxLength={200} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Less sugar, no onion" className="type-body min-h-12 rounded-lg border border-line bg-surface px-3" />
-        </label>
+        <fieldset className="grid gap-2">
+          <legend className="type-heading mb-1">Note to the kitchen</legend>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_NOTES.map((request) => {
+              const on = notes.split(',').map((part) => part.trim()).includes(request);
+              return (
+                <button
+                  key={request}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setNotes((current) => toggleNote(current, request))}
+                  className={`min-h-11 rounded-full border-2 px-3 type-label ${on ? 'border-masala bg-saffron text-masala' : 'border-line bg-surface text-ink'}`}
+                >
+                  {request}
+                </button>
+              );
+            })}
+          </div>
+          <label className="grid gap-1">
+            <span className="type-label">Note, optional</span>
+            <input maxLength={200} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Keep the sev separate" className="type-body min-h-12 rounded-lg border border-line bg-surface px-3" />
+          </label>
+        </fieldset>
       </div>
     </Sheet>
   );

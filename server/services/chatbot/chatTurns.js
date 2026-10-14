@@ -1,5 +1,5 @@
 /**
- * Writing a guest's chat. P39. Shared by the assistant, STOP, booking
+ * Writing a guest's chat. P51. Shared by the assistant, STOP, booking
  * messages and staff replies, so a chat is kept one way.
  */
 import { Conversation, CONVERSATION_STATUSES, MAX_TURNS, TURN_ROLES, TURN_TEXT_MAX_LENGTH } from '../../models/Conversation.js';

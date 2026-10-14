@@ -316,9 +316,14 @@ const denominationSchema = new mongoose.Schema(
  * Payments. P25 Part I. When true, a method linked to a card machine is taken
  * on the machine, never typed in, except by an owner or manager with a reason.
  */
+/** P47. The modes Other offers one tap each, until the owner changes them. */
+export const DEFAULT_OTHER_MODES = Object.freeze(['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Cheque', 'Bank transfer', 'Coupon']);
+
 const paymentSettingsSchema = new mongoose.Schema(
   {
     requireTerminalForLinkedMethods: { type: Boolean, required: true, default: true },
+    // P47.
+    otherModes: { type: [String], default: () => [...DEFAULT_OTHER_MODES] },
   },
   { _id: false },
 );
@@ -330,6 +335,8 @@ const paymentSettingsSchema = new mongoose.Schema(
 const reportSettingsSchema = new mongoose.Schema(
   {
     onHoldTallyCode: { type: String, default: null, maxlength: 20, trim: true },
+    // P44. Who gets the day-end message by email. At most 5, lowercased.
+    dayEndEmails: { type: [String], default: [] },
   },
   { _id: false },
 );
@@ -511,7 +518,7 @@ const appearanceSettingsSchema = new mongoose.Schema(
  * No controller reaches in here directly, the same discipline as no controller
  * reading the environment and no controller touching `passwordHash`.
  */
-/** P39. The WhatsApp assistant. Off until the owner switches it on. */
+/** P51. The WhatsApp assistant. Off until the owner switches it on. */
 const assistantSettingsSchema = new mongoose.Schema(
   {
     enabled: { type: Boolean, required: true, default: false },

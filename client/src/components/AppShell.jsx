@@ -1,3 +1,4 @@
+import BillNoSearch from './BillNoSearch.jsx';
 import { Suspense, useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
@@ -53,7 +54,8 @@ const PLACES = {
   kitchen: { to: '/kitchen', label: 'Kitchen', Icon: KitchenIcon },
   bills: { to: '/bills', label: 'Bills', Icon: ReceiptIcon },
   cash: { to: '/cash-book', label: 'Cash book', Icon: CashIcon },
-  dayClose: { to: '/day-close', label: 'Day Close', Icon: LockIcon },
+  // P44. The manager's place for the end of the day is Day End; /day-close stays for history.
+  dayClose: { to: '/day-end', label: 'Day End', Icon: LockIcon },
   reports: { to: '/reports', label: 'Reports', Icon: ChartIcon },
   availability: { to: '/menu/availability', label: 'Availability', Icon: MenuBookIcon },
   stock: { to: '/inventory', label: 'Stock', Icon: MenuBookIcon },
@@ -94,7 +96,7 @@ function useMoreGroups() {
         { to: '/menu/availability', label: 'Availability', show: true },
         { to: '/online', label: 'Online orders', show: floor && inboxOn(features) },
         { to: '/online/bookings', label: 'Bookings', show: floor && onlineOn },
-        // P39. WhatsApp chats, for the till.
+        // P51. WhatsApp chats, for the till.
         { to: '/online/chats', label: 'Chats', show: till && Boolean(features.online?.chats) },
       ],
     },
@@ -103,7 +105,8 @@ function useMoreGroups() {
       items: [
         { to: '/accounts', label: 'On Hold', show: till },
         { to: '/cash-book', label: 'Cash book', show: till },
-        { to: '/day-close', label: 'Day Close', show: manager },
+        { to: '/day-end', label: 'Day End', show: manager },
+        { to: '/day-close', label: 'Day Close history', show: manager },
         { to: '/payouts', label: 'Payouts', show: manager },
         { to: '/reports', label: 'Reports', show: manager },
         { to: '/customers', label: 'Customers', show: manager },
@@ -279,12 +282,36 @@ export function ScreenLoading() {
 }
 
 export default function AppShell({ children }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const places = useMainPlaces();
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => setMoreOpen(false), [pathname]);
+
+  /**
+   * P42. The kitchen login: the ticket board and a bar with who is signed in
+   * and Sign out. No rail, no bottom bar, no More: nothing but the tickets.
+   */
+  if (user?.role === 'KITCHEN') {
+    return (
+      <div className="v2 flex h-full flex-col bg-ground text-ink">
+        <header className="flex min-h-12 flex-none items-center justify-between gap-3 border-b border-line bg-surface px-4 print:hidden">
+          <TopBarMark isService />
+          <span className="flex items-center gap-3">
+            <span className="type-caption truncate text-muted">{user?.name}</span>
+            <button type="button" onClick={logout} className="type-label min-h-12 rounded-lg px-3 text-muted hover:bg-sunken hover:text-ink">
+              Sign out
+            </button>
+          </span>
+        </header>
+        <LiveConnection />
+        <div className="relative min-h-0 flex-1 overflow-y-auto print:overflow-visible">
+          <Suspense fallback={<ScreenLoading />}>{children}</Suspense>
+        </div>
+      </div>
+    );
+  }
 
   if (FULL_SCREEN_PATHS.includes(pathname)) {
     return (
@@ -311,7 +338,11 @@ export default function AppShell({ children }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-12 flex-none items-center justify-between gap-3 border-b border-line bg-surface px-4 print:hidden">
           <TopBarMark isService={isServicePath(pathname)} />
-          <span className="type-caption truncate text-muted">{user?.name}</span>
+          <span className="flex items-center gap-3">
+            {/* P48. Recall Bill, as on PetPooja: the till finds a bill by its number. */}
+            {['OWNER', 'MANAGER', 'CASHIER'].includes(user?.role) && <BillNoSearch />}
+            <span className="type-caption truncate text-muted">{user?.name}</span>
+          </span>
         </header>
 
         <LiveConnection />

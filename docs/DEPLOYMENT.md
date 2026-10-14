@@ -100,6 +100,8 @@ Environment variables for staging and production:
 | `CLIENT_ORIGIN` | The exact https address, like `https://caffeza.<domain>`, with no trailing slash |
 | `INTEGRATION_SECRETS_KEY` | P25. `openssl rand -base64 32`. Different in every environment. **Required**: the server refuses to start without it. Encrypts every partner credential (Pine Labs, Swiggy, Zomato). Losing this key makes every saved partner credential unreadable, and they must be entered again. |
 | `PAYMENT_SECRETS_KEY` | P24. `openssl rand -base64 32`. Different in every environment. Encrypts each restaurant's Razorpay secrets. Optional: without it, connecting a gateway is refused. Losing it means every restaurant connects Razorpay again. |
+| `RESEND_API_KEY` | P44. The Resend API key, for the day-end email. Optional: without it nothing is emailed and the Day End page says so. A secret: set it in Render's dashboard, never in a file in git. |
+| `DAY_END_EMAIL_FROM` | P44. Who the day-end email is from. Default `Restaurant ERP <onboarding@resend.dev>`, which delivers only to the Resend account's own address; once a domain is verified in Resend, an address at it, e.g. `Z Chaat <reports@zchaat.in>`. |
 | `LOGIN_RATE_LIMIT_WINDOW_MINUTES`, `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` | As in `.env.example` |
 | `DISPLAY_TIMEZONE` | `Asia/Kolkata` |
 | `TRUST_PROXY` | Added by P01. Set to what the host's documentation says for its proxy. |
@@ -529,4 +531,35 @@ and before anyone opens a screen:
    check `GET /api/v1/health` reports the database connected.
 6. Open one screen, read the floor and a closed day's report, and compare a
    day's totals with the old cluster's before switching anything else off.
+
+## 16. The test site (P48 Part I)
+
+A second copy of the app where staff practise, at
+`https://zchaat-pos-test.onrender.com`, with its own database,
+`restaurant-erp-test` on the same Atlas cluster. Nothing there touches a real
+bill or a real invoice number. One Render service serves both the screens and
+the API: the Dockerfile builds the client and the server serves it, so there is
+no second Vercel project.
+
+**What is in it.** On 2026-10-14 the test database got its indexes
+(`npm run db:indexes` with `MONGO_URI` pointing at it) and a copy of Z Chaat's
+setup only: the restaurant, branch, staff logins (same phones and passwords),
+categories, menu, tables, stations and payment methods. No orders, bills,
+guests or activity log. It is renamed "Z Chaat (TEST)", its day-end email list
+is empty (so it never emails the real inbox) and it has no payment gateway.
+
+**Creating the service (once, in Render's dashboard).**
+1. New, Blueprint, this repository; Blueprint path `render.test.yaml`.
+2. `MONGO_URI`: the same as the live one with the database name changed from
+   `/restaurant-erp` to `/restaurant-erp-test`. Check it twice: the live
+   database name here would make the test site a second live till.
+3. Apply. The first build takes several minutes. Open
+   `https://zchaat-pos-test.onrender.com` and sign in with any Z Chaat login.
+
+It deploys every push to `main`, like the live server, and sleeps when idle on
+the free plan: the first screen after a sleep waits about a minute.
+
+**Starting it fresh.** Delete the test database's orders, bills, kitchen
+tickets, customers, audit lines and counters (scoped to the TEST restaurant),
+never the live one's.
 

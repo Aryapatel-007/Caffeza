@@ -159,7 +159,8 @@ const envSchema = z
     JWT_ACCESS_SECRET: secretVar('JWT_ACCESS_SECRET'),
     JWT_REFRESH_SECRET: secretVar('JWT_REFRESH_SECRET'),
     ACCESS_TOKEN_TTL: durationVar('ACCESS_TOKEN_TTL', '15m'),
-    REFRESH_TOKEN_TTL: durationVar('REFRESH_TOKEN_TTL', '30d'),
+    // 2026-10-14: a year, renewed on every refresh, so a device in use stays signed in until Sign out.
+    REFRESH_TOKEN_TTL: durationVar('REFRESH_TOKEN_TTL', '365d'),
     BCRYPT_ROUNDS: intVar('BCRYPT_ROUNDS', { min: 10, max: 15, fallback: 12 }),
 
     CLIENT_ORIGIN: requiredVar('CLIENT_ORIGIN').refine(
@@ -240,6 +241,19 @@ const envSchema = z
       const text = given === undefined || given === null ? '' : String(given).trim();
       return text === '' ? null : text;
     }, z.string().regex(/^https?:[/][/][^/]+$/, 'LIVE_ORIGIN must be a bare origin with no trailing slash.').nullable()),
+
+    /**
+     * P44. The day-end email, through Resend. Without RESEND_API_KEY nothing is
+     * emailed and the Day End page says so; the rest works. Until a domain is
+     * verified in Resend, onboarding@resend.dev delivers only to the Resend
+     * account's own address.
+     */
+    RESEND_API_KEY: z.preprocess((value) => (value === undefined || value === '' ? null : value), z.string().nullable()),
+    DAY_END_EMAIL_FROM: optionalVar('DAY_END_EMAIL_FROM', 'Restaurant ERP <onboarding@resend.dev>'),
+    RESEND_API_BASE: optionalVar('RESEND_API_BASE', 'https://api.resend.com').refine(
+      whenPresent((value) => /^https?:[/][/][^/]+$/.test(value)),
+      'RESEND_API_BASE must be a bare origin with no trailing slash.',
+    ),
 
     /** P24. Razorpay's API address. Tests and the e2e server point it at a fake. */
     RAZORPAY_API_BASE: optionalVar('RAZORPAY_API_BASE', 'https://api.razorpay.com').refine(

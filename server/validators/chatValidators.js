@@ -1,5 +1,5 @@
 /**
- * WhatsApp chat request schemas. P39, API-CONTRACT "P39" section 6.
+ * WhatsApp chat request schemas. P51, API-CONTRACT "P51" section 6.
  */
 import { z } from 'zod';
 

@@ -9,7 +9,7 @@ import TerminalWaiting from './TerminalWaiting.jsx';
 import Money, { moneyText } from '../../components/ui/Money.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import CashCounter from '../cash/CashCounter.jsx';
-import { countedTotal, suggestChange, toCashCount } from '../cash/cashCount.js';
+import { countedTotal, keyOf, suggestChange, toCashCount } from '../cash/cashCount.js';
 import NumericKeypad from '../../components/ui/NumericKeypad.jsx';
 import { paiseToInput, parseRupeesToPaise } from '../../utils/formatMoney.js';
 import Bilingual from '../i18n/Bilingual.jsx';
@@ -23,6 +23,9 @@ import MethodButtons from './MethodButtons.jsx';
  * one tap on a method and one on Record payment. Methods are the restaurant's
  * configured ones this bill may use, passed in; the server still decides.
  */
+/** P43. Used only before /auth/me carries the restaurant's own list (P47). Anything else is typed. */
+const FALLBACK_OTHER_MODES = ['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Cheque', 'Bank transfer', 'Coupon'];
+
 export default function InlinePayment({ billId, methods, outstandingInPaise, isBusy, error, onConfirm, onTerminalFinished }) {
   // Until one is picked, the first allowed method is selected. Derived, because
   // the methods may still be loading when this mounts.
@@ -47,6 +50,9 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
   const [typed, setTyped] = useState(null);
   const amountInPaise = typed === null ? outstandingInPaise : parseRupeesToPaise(typed);
   const isCash = method?.code === 'CASH';
+  const isOther = method?.code === 'OTHER';
+  // P47. The owner's list, from Settings, Payment methods.
+  const otherModes = features?.payments?.otherModes ?? FALLBACK_OTHER_MODES;
   const tenderedInPaise = countedTotal(counts, denominations);
   const changeInPaise = tenderedInPaise - (amountInPaise ?? 0);
   const change = changeInPaise > 0 ? suggestChange(changeInPaise, denominations) : null;
@@ -65,7 +71,39 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
 
       {method && (
         <div className="rounded-[10px] border border-line bg-surface p-4">
-          {method.code !== 'CASH' && (
+          {/* P43. Other says how it was paid, and the payment waits for it. */}
+          {isOther && (
+            <fieldset className="mb-4">
+              <legend className="mb-1 type-label">Mode of payment</legend>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {otherModes.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={reference === mode}
+                    onClick={() => setReference(mode)}
+                    className={[
+                      'type-label min-h-12 rounded-lg border px-4',
+                      reference === mode ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
+                    ].join(' ')}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                aria-label="Mode of payment"
+                value={reference}
+                onChange={(event) => setReference(event.target.value)}
+                maxLength={100}
+                placeholder="Or type it, for example Paytm wallet"
+                className="min-h-12 w-full rounded-lg border border-muted bg-surface px-4 type-body placeholder:text-muted"
+              />
+              {!reference.trim() && <p className="type-caption mt-1 text-muted">Pick or type how it was paid to record it.</p>}
+            </fieldset>
+          )}
+          {method.code !== 'CASH' && !isOther && (
             <label className="mb-4 block">
               <span className="mb-1 block type-label text-muted">
                 Reference (optional)
@@ -87,6 +125,77 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
             </label>
           )}
 
+          {/* P48. Guest gave: tap the notes the guest handed over; Give back shows the change, large, and the notes to return. */}
+          {!sent && isCash && denominations.length > 0 && (
+            <section aria-label="Guest gave" className="mb-4 flex flex-col gap-3 border-b border-line pb-4">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="type-heading">Guest gave</h3>
+                {tenderedInPaise > 0 && (
+                  <button type="button" onClick={() => setCounts({})} className="type-label min-h-12 rounded-lg px-3 text-muted hover:bg-sunken hover:text-ink">
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {denominations
+                  .filter((denomination) => denomination.kind === 'NOTE' && denomination.valueInPaise >= 1000)
+                  .sort((a, b) => a.valueInPaise - b.valueInPaise)
+                  .map((denomination) => {
+                    const key = keyOf(denomination);
+                    const count = counts[key] ?? 0;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setCounts((current) => ({ ...current, [key]: (current[key] ?? 0) + 1 }))}
+                        className={[
+                          'type-button flex min-h-14 items-center justify-center gap-1 rounded-lg border px-2',
+                          count > 0 ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
+                        ].join(' ')}
+                      >
+                        <Money paise={denomination.valueInPaise} />
+                        {count > 0 && <span className="type-num-meta text-muted">× {count}</span>}
+                      </button>
+                    );
+                  })}
+              </div>
+              {tenderedInPaise > 0 ? (
+                <div aria-live="polite" className={['rounded-lg border-l-[3px] bg-sunken p-4', changeInPaise >= 0 ? 'border-l-ok' : 'border-l-alert'].join(' ')}>
+                  <p className="type-body">
+                    Guest gave <Money paise={tenderedInPaise} />
+                  </p>
+                  {changeInPaise >= 0 ? (
+                    <p className="type-title mt-1 flex flex-wrap items-baseline gap-2">
+                      Give back <Money paise={changeInPaise} size="tile" />
+                    </p>
+                  ) : (
+                    <p className="type-title mt-1 flex flex-wrap items-baseline gap-2 text-alert">
+                      <Money paise={-changeInPaise} size="tile" /> short
+                    </p>
+                  )}
+                  {change && change.give.length > 0 && (
+                    <p className="type-body mt-1 text-muted">
+                      {change.give
+                        .map((entry) => `${entry.count} × ${moneyText(entry.valueInPaise)} ${entry.kind === 'COIN' ? 'coin' : 'note'}`)
+                        .join(', ')}
+                      {change.remainderInPaise > 0 ? `, and ${moneyText(change.remainderInPaise)} more` : ''}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="type-caption text-muted">Tap each note the guest hands over. Nothing tapped means the exact amount.</p>
+              )}
+              <button
+                type="button"
+                aria-expanded={counting}
+                onClick={() => setCounting((value) => !value)}
+                className="min-h-12 self-start rounded-lg px-3 type-label text-accent underline-offset-4 hover:underline"
+              >
+                {counting ? 'Hide coins and small notes' : 'Coins and small notes'}
+              </button>
+              {counting && <CashCounter title="Handed over" denominations={denominations} counts={counts} onChange={setCounts} />}
+            </section>
+          )}
           {sent ? (
             <TerminalWaiting
               transaction={sent}
@@ -129,6 +238,7 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
             confirmLabel={method.terminalProvider && !byHand ? 'Send to machine' : <Bilingual k="recordPayment" align="center" />}
             cancelLabel="Reset"
             busy={isBusy || toMachine.isPending}
+            disabled={isOther && !reference.trim()}
             error={toMachine.isError ? errorMessage(toMachine.error) : error}
             onCancel={() => {
               setReference('');
@@ -137,6 +247,8 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
             onConfirm={(raw) => {
               const amount = parseRupeesToPaise(raw);
               if (amount === null || amount <= 0) return;
+              // P43. The server refuses Other with no mode; say so here instead of sending it.
+              if (isOther && !reference.trim()) return;
               if (method.terminalProvider && !byHand) {
                 if (device.terminalClientId) toMachine.mutate(amount);
                 return;
@@ -146,7 +258,8 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
                 onConfirm({ method: method.code, amountInPaise: amount, reference: reference.trim() || null, terminalBypassReason: handReason.trim() });
                 return;
               }
-              const counted = isCash && counting && tenderedInPaise > 0;
+              // P48. Any note tapped under Guest gave is the tender; nothing tapped is the exact amount.
+              const counted = isCash && tenderedInPaise > 0;
               // Counted short of the amount: say so rather than record a payment the notes do not cover.
               if (counted && tenderedInPaise < amount) return;
               onConfirm({
@@ -163,39 +276,6 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
           </>
           )}
 
-          {!sent && isCash && denominations.length > 0 && (
-            <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4">
-              <button
-                type="button"
-                aria-expanded={counting}
-                onClick={() => setCounting((value) => !value)}
-                className="min-h-12 self-start rounded-lg px-3 type-label text-accent underline-offset-4 hover:underline"
-              >
-                {counting ? 'Hide the note counter' : 'Count the notes handed over'}
-              </button>
-              {counting && (
-                <>
-                  <CashCounter title="Handed over" denominations={denominations} counts={counts} onChange={setCounts} />
-                  {tenderedInPaise > 0 && (
-                    <p className="type-heading" aria-live="polite">
-                      {changeInPaise >= 0
-                        ? `Received ${moneyText(tenderedInPaise)}. Change ${moneyText(changeInPaise)}.`
-                        : `Received ${moneyText(tenderedInPaise)}. Short by ${moneyText(-changeInPaise)}.`}
-                    </p>
-                  )}
-                  {change && change.give.length > 0 && (
-                    <p className="type-body text-muted">
-                      Give back{' '}
-                      {change.give
-                        .map((entry) => `${entry.count} × ${moneyText(entry.valueInPaise)} ${entry.kind === 'COIN' ? 'coin' : 'note'}`)
-                        .join(', ')}
-                      {change.remainderInPaise > 0 ? `, and ${moneyText(change.remainderInPaise)} more` : ''}.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
         </div>
       )}
     </section>

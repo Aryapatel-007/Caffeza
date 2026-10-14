@@ -116,7 +116,7 @@ export function sendTextMessage(connection, secrets, { to, text, externalId }) {
   });
 }
 
-/** P39. A reply with up to three buttons, inside the service window. */
+/** P51. A reply with up to three buttons, inside the service window. */
 export function sendInteractiveMessage(connection, secrets, { to, text, buttons, externalId }) {
   return call(connection, secrets, {
     method: 'POST',
@@ -223,7 +223,7 @@ export async function parseWebhook({ rawBody, findCustomer }) {
           events.push({ type: 'OPT_OUT', externalId: String(message.id), customerId: customer ? String(customer._id) : null });
           continue;
         }
-        // P39. Everything else a guest writes goes to the assistant, as their id, never their number.
+        // P51. Everything else a guest writes goes to the assistant, as their id, never their number.
         const customer = findCustomer ? await findCustomer(localNumber(message.from), { create: true }) : null;
         events.push({
           type: 'INBOUND_MESSAGE',

@@ -39,7 +39,7 @@ Payload, locked by M0-A and not changeable without touching the tenant middlewar
 }
 ```
 
-Refresh token. Lifetime 30 days. Opaque random string, 64 bytes, base64url. Not a JWT.
+Refresh token. Lifetime 365 days (30 before 2026-10-14), renewed on every refresh, so a device in use stays signed in until Sign out. Opaque random string, 64 bytes, base64url. Not a JWT.
 
 Only the SHA-256 hash of a refresh token is stored. The raw value is delivered once, as an `httpOnly` cookie, and is never returned in a response body, never readable by JavaScript, and never recoverable from the database. M0-D moved it from the body to a cookie; before that a single cross-site scripting hole handed over a 30-day credential.
 
@@ -1893,7 +1893,10 @@ Roles: `OWNER`, `MANAGER`, `CASHIER`, `WAITER`.
 new line, not an edit, because the snapshot on a line has to stay the thing that
 was actually ordered.
 
-422 `BUSINESS_RULE_VIOLATED` if the line has already been fired.
+422 `BUSINESS_RULE_VIOLATED` if the line has already been fired. P42: a `FIRED`
+line takes `notes` alone (its quantity changes through 12.6a), and its kitchen
+ticket line takes the same note with `changedAt` set; a `READY` or `SERVED` line
+is still refused.
 
 P29: 422 `BUSINESS_RULE_VIOLATED` also when the order has a live bill, "This
 table has a bill. Change the items from the bill." The same rule applies to
@@ -2119,6 +2122,10 @@ query. This is noted in the known problems table.
 
 `stationId` (P05), optional: a station id returns only that station's tickets;
 the word `none` returns only tickets with no station.
+
+`sort` (P41), optional: `recent` sorts by when the ticket last changed
+(`updatedAt`), newest first, instead of oldest first. With `status=COMPLETED`
+it is the kitchen's Recall list.
 
 ### 13.2 Read one ticket
 
@@ -2542,6 +2549,10 @@ we record which method was used (BUILD-PLAN section 4).
 422 `BUSINESS_RULE_VIOLATED` if the bill is voided, already `PAID`, or the
 payment would take the paid amount above the grand total. Overpayment is
 refused rather than stored, because change given in cash is not a payment.
+
+P43: for `method: "OTHER"`, `reference` is the mode of payment and is required,
+422 `BUSINESS_RULE_VIOLATED` "Say how it was paid, for example Cheque." without
+it.
 
 ### 14.6 Void a bill
 
@@ -3096,7 +3107,8 @@ Response 200: the revised bill, read as `GET /bills/:billId`.
 directly, without `reopen`. In one transaction the lines are pushed, the order
 moves back to `OPEN` and clears `readyToBillAt` (it keeps `billId`), and the
 bill is rebuilt as in 16.8.1 step 2 with a revision of kind `ADDED`, `lines` the
-added lines, no reason, no approval. `BILL_REVISED` is written with
+added lines, no reason, and an approval only when P40 asks for one (a printed
+bill, a CASHIER, `approvals.revisePrintedBill` on). `BILL_REVISED` is written with
 `amountInPaise` the amount the bill went up by. The new lines are then sent to
 the kitchen as usual (12.8).
 
@@ -4071,7 +4083,7 @@ default, so a restaurant saved before P29 reads back complete.
 |---|---|---|---|
 | `billing.reviseUnpaidBills` | Boolean | true | An unpaid bill is revised, not voided, when an item is removed or added (M3 section 16.8). Off: 16.4 and 16.7 exactly as before P29. |
 | `billing.printBeforePayment` | Boolean | true | The bill screen asks for the print before the payment (M3 section 16.9). Read by the client only. |
-| `approvals.revisePrintedBill` | Boolean | true | A CASHIER or WAITER removing an item from a bill already printed needs a manager's PIN (16.8.1) |
+| `approvals.revisePrintedBill` | Boolean | true | A CASHIER or WAITER removing an item from a bill already printed needs a manager's PIN (16.8.1); from P40 a CASHIER adding dishes to one does too (16.8.2) |
 | `kitchen.readyMeansServed` | Boolean | true | The kitchen's ready serves the line, and the floor has no served step (M2 section 13). New group `kitchen`. |
 | `cash.expenseCategories` | List | ten, M16 section 9.2 | `[{ code, label, isActive }]`, at most 30. `code` is 2 to 30 capital letters, digits or `_`, unique, and never changes once used; `label` 1 to 40 characters. `OTHER` is always present and active. A PATCH replaces the list. |
 | `cash.usualFloatInPaise` | Number | 200000 | Whole paise, 0 to 10,00,000 rupees. What Day Close proposes to keep in the drawer for tomorrow (M16 section 9.4). |
@@ -4343,6 +4355,7 @@ Added by P29:
 |---|---|---|---|---|
 | `BILL_REVISED` | `BILL` | M3, P29 Part B | Yes | An unpaid bill's items changed under the same number. `details` carry the kind, the revision, the lines, the totals before and after, whether it was printed, and the approver. A cut after printing is where till fraud hides. |
 | `KITCHEN_READY_UNDONE` | `ORDER` | M2, P29 Part E | Yes | A dish ticked ready by mistake, ticked back. Not an alert, but a fact worth keeping. |
+| `KOT_SEND_UNDONE` | `ORDER` | M2, P41 | Yes | A Send to kitchen taken back within 60 seconds, before anything was ready. `details` carry the lines, the item names, the tickets and the table. |
 | `CASH_TAKEN_OUT` | `CASH` | M16, P29 Part F | No | Cash removed from the drawer that is not an expense: a bank deposit, or cash given to the owner |
 | `OPENING_FLOAT_DIFFERED` | `CASH` | M16, P29 Part F | No | The float counted in the morning was not what was kept in the drawer the night before. `details` carry both amounts. |
 
@@ -7869,7 +7882,7 @@ This is how P25 Part E already answers.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `approvals.lineCancel` | Boolean | true | A CASHIER or WAITER cancelling a line the kitchen has (FIRED, READY or SERVED) needs an approval |
+| `approvals.lineCancel` | Boolean | true | A CASHIER or WAITER cancelling a line that was made (READY or SERVED, or cancelled with `wasPrepared: true`; before P42 every sent line) needs an approval |
 | `approvals.paidIn` | Boolean | true | A CASHIER's `PAID_IN` needs an approval |
 | `approvals.managerTasks` | Boolean | true | A CASHIER may void a bill, cancel a whole order, give No Charge and record a `PAID_OUT` with an approval. Off: OWNER and MANAGER only, as before P28. |
 
@@ -7882,7 +7895,7 @@ Every one takes `approval` as an optional field beside its existing body.
 
 | Endpoint | Roles before P28 | Roles from P28 | Needs an approval when |
 |---|---|---|---|
-| `POST /orders/:orderId/lines/:lineId/cancel` (12.6) | OWNER, MANAGER, CASHIER, WAITER | the same | The caller is a CASHIER or WAITER, the line is FIRED, READY or SERVED, and `lineCancel` is on |
+| `POST /orders/:orderId/lines/:lineId/cancel` (12.6) | OWNER, MANAGER, CASHIER, WAITER | the same | The caller is a CASHIER or WAITER, the line was made (READY or SERVED, or `wasPrepared: true`; P42, every sent line before it), and `lineCancel` is on |
 | `POST /cash-movements` (M16) | `PAID_OUT` OWNER, MANAGER; others also CASHIER | the same, plus a CASHIER's `PAID_OUT` | A CASHIER's `PAID_IN` with `paidIn` on; a CASHIER's `PAID_OUT` always (refused when `managerTasks` is off). `OPENING_FLOAT` never. |
 | `POST /bills/:billId/void` (14.6) | OWNER, MANAGER | plus CASHIER | A CASHIER, always; refused when `managerTasks` is off |
 | `POST /orders/:orderId/cancel` (12.10) | OWNER, MANAGER | plus CASHIER | A CASHIER, always; refused when `managerTasks` is off |
@@ -8242,6 +8255,425 @@ The bill timeline (R10) shows one "Sent to the kitchen" event per round:
 
 None new.
 
+---
+
+# P39 A captain cannot change a printed bill
+
+`docs/prompts/P39-captain-locked-after-print.md`. Changes the permissions of
+M3 16.4, 16.6, 16.8.1 and 16.8.2 for one role. No new endpoint, field or code.
+
+A `WAITER` is refused, with 403 `FORBIDDEN` and the message "This bill has
+been printed. Only the counter or a manager can change it now.", when the
+bill's `printCount` is above 0, on:
+
+| Endpoint | When |
+|---|---|
+| `POST /bills/:billId/remove-lines` | always, a `preview` included |
+| `POST /orders/:orderId/lines` | when the order has a live bill, so the lines would revise it |
+| `POST /bills/:billId/cancel-lines` | always, a `preview` included |
+| `POST /bills/:billId/reopen` | always |
+
+A manager's `approval` does not lift it. It is checked after the bill is
+found and before any other rule about it, so a captain never learns more about
+a printed bill than that it is printed. Before the first print, and for
+`OWNER`, `MANAGER` and `CASHIER` always, everything is as before.
+
+## Error codes
+
+None new.
+
+---
+
+# P40 A manager's PIN to add to a printed bill
+
+`docs/prompts/P40-pin-to-change-a-printed-bill.md`. Changes M2 12.4 and M3
+16.8.2. No new endpoint or code; one new optional body field.
+
+`POST /orders/:orderId/lines` takes an optional `approval: { approverId, pin }`,
+the P28 shape. When the order has a live bill that the lines would revise
+(16.8.2) and that bill's `printCount` is above 0, the caller is a `CASHIER`, and
+`approvals.revisePrintedBill` is on, the approval is required and checked by
+the P28 rules: missing, or not an active owner or manager here, is 403
+`FORBIDDEN` "A manager has to approve this. Pick their name and type their
+PIN."; a wrong PIN is 401 from `verifyPin`. An `OWNER` or `MANAGER` approves
+their own. In every other case `approval` is accepted and ignored.
+
+Checked in this order: P39's captain refusal, `DAY_CLOSED`, `BILL_NOT_REVISABLE`,
+then the approval, all before anything is written.
+
+The revision of kind `ADDED` stores `approvedBy` (null when the actor approved
+themselves), and `BILL_REVISED` carries it in `details.approvedBy`, as a removal
+does (16.8.1 steps 4 and 5).
+
+## Error codes
+
+None new.
+
+---
+
+# P41 Kitchen recall, undo after Send, the floor as tiles
+
+`docs/prompts/P41-kitchen-recall-undo-send-floor-tiles.md`. One new endpoint,
+one new query parameter, one new reason code, one new audit action. The
+kitchen text and the floor are client only.
+
+## 1. `GET /kots?sort=recent`
+
+See 13.1. Any other value of `sort` is 400.
+
+## 2. Undo a Send
+
+```
+POST /api/v1/orders/:orderId/undo-send
+{ "version": 7 }
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER, the same as firing (12.8).
+
+The **last Send** is the order's sent lines (`FIRED`, `READY` or `SERVED`)
+whose `firedAt` is the latest `firedAt` on the order. Lines cancelled since are
+left out of it.
+
+Refused, in this order:
+
+1. The order belongs to another restaurant, or does not exist: 404.
+2. The order is not `OPEN`: 422, as 12.4.
+3. The order has a live bill: 422 `BUSINESS_RULE_VIOLATED`, "This table has a
+   bill. Change the items from the bill."
+4. Nothing has been sent: 422 `BUSINESS_RULE_VIOLATED`, "Nothing has been sent
+   to the kitchen yet."
+5. The last Send is more than 60 seconds old (`UNDO_SEND_WINDOW_MS`, a server
+   constant): 422 `BUSINESS_RULE_VIOLATED`, "Too late to undo. Cancel the dishes
+   instead."
+6. Any line of the last Send is `READY` or `SERVED`: 422
+   `BUSINESS_RULE_VIOLATED`, "The kitchen has already marked some of these
+   ready. Cancel them instead."
+7. `version` is stale: 409 `VERSION_CONFLICT`.
+
+What happens, in **one transaction**:
+
+1. Each line of the last Send is cancelled through `cancelLineInSession`, with
+   `reasonCode: SENT_BY_MISTAKE`, no note, `wasPrepared: false` and no
+   approval. Its kitchen ticket line becomes `CANCELLED`, and with inventory on
+   its deducted stock comes back.
+2. For each, a new `PENDING` line is pushed with a new id and the same
+   `menuItemId`, `itemName`, `variantId`, `variantName`, `unitPriceInPaise`,
+   `taxRateBps`, `menuTaxRateBps`, `quantity`, `addOns`, `notes`,
+   `priceSource`, `categoryId` and `categoryName`, `addedBy` the caller and
+   `addedAt` now. The order is `OPEN` with `readyToBillAt` null.
+3. `KOT_SEND_UNDONE` is written, entity `ORDER`, `entityLabel` "Order
+   {orderNumber}", `reason` the item names, `details: { lineIds, itemNames,
+   kotIds, tableName }`. A MANAGER may read it.
+
+Response 200: the order, as `GET /orders/:orderId`.
+
+## 3. Reason code
+
+`LINE_CANCEL_REASONS` gains `SENT_BY_MISTAKE`, "Sent to the kitchen by
+mistake", appended before `OTHER`, server and client.
+
+## Error codes
+
+None new.
+
+---
+
+# P42 Changing a dish after it is sent
+
+`docs/prompts/P42-edit-a-sent-kot-and-a-kitchen-only-screen.md`. One new
+endpoint, two narrowed rules, one new field. No new error code.
+
+## 1. Who needs a PIN to cancel a sent line (changes 12.6 and P28 section 3)
+
+`approvals.lineCancel` applies to a line that was **made**: `READY` or
+`SERVED`, or any sent line cancelled with `wasPrepared: true`. A `FIRED` line
+cancelled with `wasPrepared: false` needs no approval from OWNER, MANAGER,
+CASHIER or WAITER. `wasPrepared` is still required for every sent line, as
+12.6 says; the order screen sends `false` for a `FIRED` line unless the person
+ticks "Already made by the kitchen", and `true` for a `READY` or `SERVED` one.
+
+## 2. 12.6a Lower the quantity of a sent line
+
+```
+POST /api/v1/orders/:orderId/lines/:lineId/reduce
+{ "version": 7, "quantity": 2, "reasonCode": "MODIFICATION", "note": null,
+  "wasPrepared": false, "approval": { "approverId": "...", "pin": "2468" } }
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. `quantity` a whole number, at least 1
+and below the line's quantity. `reasonCode`, `note`, `wasPrepared` and
+`approval` follow 12.6 exactly, for the part being taken off.
+
+Refused: the order not open, or with a live bill, as 12.6; the line `PENDING`
+(422, "Change the quantity of a dish not sent yet with its stepper."),
+`CANCELLED` (422), or `quantity` not below its quantity (400).
+
+In **one transaction**:
+
+1. The line's `quantity` becomes `quantity`.
+2. A new line is pushed with a new id, the line's snapshot, `status`, `kotId`,
+   `firedAt`, `readyAt` and `servedAt`, and `quantity` the difference.
+3. Its kitchen ticket line takes the new `quantity` and `changedAt` now, and a
+   ticket line for the difference is pushed beside it (same station, round
+   and sent time, pointing at the new line).
+4. The new line is cancelled through `cancelLineInSession` with the request's
+   reason, `wasPrepared` and approval, so its ticket line is `CANCELLED`, a made
+   one writes `LINE_CANCELLED_AFTER_PREP`, and an approved one
+   `LINE_CANCELLED_APPROVED`.
+5. With inventory on and `wasPrepared: false`, the difference's share of what
+   was deducted for the line comes back as `CANCELLATION_RETURN` movements
+   on the line, keyed `{lineId}:{ingredientId}:CANCELLATION_RETURN:{newLineId}`.
+
+Response 200: the order.
+
+## 3. Stock returned on a cancel
+
+`returnStockForCancelledLine` returns, per ingredient, what was deducted for
+the line less what has already come back for it. A line never reduced returns
+exactly what it did before.
+
+## 4. `kots.lines[].changedAt`
+
+Date or null, default null. Set when a sent line's quantity or note changes.
+The kitchen screen shows "Changed" on such a line.
+
+## Error codes
+
+None new.
+
+---
+
+# P43 Other, with the mode of payment
+
+`docs/prompts/P43-other-payment-mode.md`. No new endpoint, field or code.
+
+`POST /bills/:billId/payments` (14.5) with `method: "OTHER"` requires
+`reference`, the mode of payment, 1 to 100 characters after trimming; without
+it, 422 `BUSINESS_RULE_VIOLATED`, "Say how it was paid, for example Cheque."
+Checked after the method rules, so a restaurant with `OTHER` switched off still
+answers `PAYMENT_METHOD_NOT_ALLOWED`. Every other method's `reference` stays
+optional.
+
+## Error codes
+
+None new.
+
+---
+
+# P44 The Day End summary, and the day-end message by email
+
+`docs/prompts/P44-day-end-summary-and-email.md`. Two new endpoints, one new
+setting, one new closure field, one new error code.
+
+## 1. `GET /day-close/:businessDate/message`
+
+Roles: OWNER, MANAGER. Response `{ businessDate, subject, text }`: the message
+of the prompt's section B. `subject` is "{restaurant name} day end, {d}-{Month}-{yyyy}".
+For a caller who may not see the drawer total (the blind count: `seesCash`, as
+`GET /day-close/:businessDate`), the two cash-in-hand lines read "—".
+
+## 2. `POST /day-close/:businessDate/email`
+
+Roles: OWNER, MANAGER. No body. Sends the full message (cash lines included)
+to `settings.reports.dayEndEmails`, and nowhere else. Response
+`{ sentTo: [addresses] }`.
+
+Refused: no addresses, 422 `BUSINESS_RULE_VIOLATED` "Add an email address for
+the day-end report in Settings first."; `RESEND_API_KEY` not set, 422
+`BUSINESS_RULE_VIOLATED` "Email is not set up on the server."; Resend refusing
+or unreachable, 502 `EMAIL_SEND_FAILED` with Resend's own message.
+
+## 3. Sent at Day Close
+
+`POST /day-close` (M16) sends the message after the close is saved, when
+addresses and the key are set. The closure records `dayEndEmail: { sentAt,
+to, error }`; `error` is Resend's message when it failed, and the close stands
+either way. `GET /day-close/:businessDate` returns `dayEndEmail` on a closed day.
+
+## 4. `settings.reports.dayEndEmails`
+
+List of up to 5 email addresses, default `[]`, stored lowercased, duplicates
+refused. OWNER through `PATCH /settings`, audited as `SETTINGS_CHANGED`.
+
+## 5. Environment
+
+`RESEND_API_KEY` (optional; without it nothing is emailed), `DAY_END_EMAIL_FROM`
+(default `Restaurant ERP <onboarding@resend.dev>`), `RESEND_API_BASE` (default
+`https://api.resend.com`; tests point it at a fake).
+
+## Error codes
+
+`EMAIL_SEND_FAILED` 502.
+
+---
+
+# P46 Open item
+
+`docs/prompts/P46-open-item.md`. New fields only; no new endpoint or code.
+
+## 1. Menu items (M1)
+
+`POST /menu-items` and `PATCH /menu-items/:itemId` take `isOpenItem` (boolean,
+default false), OWNER and MANAGER as for the rest of the item. Every read of an
+item returns it. `priceInPaise` is still required (0 is allowed) and is not used
+for an open item.
+
+## 2. Order lines (M2 12.1 and 12.4)
+
+A line request may carry `openItem: { name, priceInPaise }`: `name` trimmed, 1
+to 80 characters; `priceInPaise` an integer from 1 to the money ceiling.
+
+- The menu item is an open item and `openItem` is missing: 422
+  `BUSINESS_RULE_VIOLATED`, "Type the dish's name and price."
+- The menu item is not an open item and `openItem` is sent: 422, "Only an open
+  item takes a typed name and price."
+- An open item with `variantId` or `addOnIds`: 422, "An open item has no sizes
+  or extras."
+
+The line freezes `itemName` = the typed name, `unitPriceInPaise` = the typed
+price, `taxRateBps` = the item's, the item's category, and `isOpenItem: true`.
+
+## 3. Bills (M3)
+
+`bills.lines[].isOpenItem`, copied from the order line. The receipt, the
+invoice and every report read the frozen name and price, as for any line.
+
+## 4. Where open items never appear
+
+`GET /public/:slug/menu` and the public quote leave them out, and a public
+request naming one is refused as a dish not on the menu. The M21 item mapping
+lists, unmatched list and CSV import leave them out.
+
+## 5. R11
+
+The by-item grouping adds the typed name for open items, so each shows under
+its own name.
+
+## Error codes
+
+None new.
+
+---
+
+# P47 Other modes
+
+`docs/prompts/P47-other-modes.md`. One new setting; no new endpoint or code.
+
+`settings.payments.otherModes`: list of strings, default `["Swiggy Dineout",
+"Zomato Dineout", "EazyDiner", "Cheque", "Bank transfer", "Coupon"]`. At most
+12; each trimmed, 1 to 40 characters; no two the same ignoring case. A PATCH
+replaces the list. OWNER through `PATCH /settings`, audited as
+`SETTINGS_CHANGED`. `GET /auth/me` gains `payments: { otherModes }`.
+
+The modes are offered by the payment panel only. 14.5's rule is unchanged: an
+`OTHER` payment needs a `reference`, any text; it need not be on the list.
+
+## Error codes
+
+None new.
+
+---
+
+# P48 PetPooja's way
+
+`docs/prompts/P48-petpooja-floor-recall-change-counter.md`. Two additions.
+
+## 1. `GET /bills?number=12`
+
+`number`, a whole number from 1: the bills whose `billSequence` is that
+number, in any series, newest first. With the other filters as before.
+
+## 1a. `GET /tables/:tableId/history`
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. Read-only. The table's orders opened on
+today's business date (or `?date=YYYY-MM-DD`), newest first:
+
+```json
+{ "tableName": "Table 5", "businessDate": "2026-10-14", "orders": [
+  { "orderId": "...", "orderNumber": 12, "status": "BILLED", "openedAt": "...",
+    "openedByName": "Shivam", "guestCount": 3,
+    "sends": [ { "firedAt": "...", "kotNumbers": [41], "sentByName": "Shivam",
+      "lines": [ { "itemName": "Pani Puri", "variantName": null, "quantity": 2,
+        "addOnNames": [], "status": "SERVED" } ] } ],
+    "notSent": [ { "itemName": "...", "quantity": 1 } ],
+    "cancelled": [ { "itemName": "...", "quantity": 1, "at": "...", "byName": "Govind",
+      "reason": "Guest changed the order", "wasPrepared": false } ],
+    "bill": { "billId": "...", "billNumber": "2026-27/000012", "status": "PAID",
+      "grandTotalInPaise": 42000 } } ] }
+```
+
+A send is the order's lines that share one `firedAt`. Names are attached when
+read, as labels only (P13's rule). 404 for another restaurant's table.
+
+## 2. Typed extras on a line (M2 12.1 and 12.4)
+
+A line request may carry `extras: [{ name, priceInPaise }]`, at most 5: `name`
+trimmed, 1 to 40 characters; `priceInPaise` an integer from 1 to the money
+ceiling. Each is frozen into the line's `addOns` as `{ addOnId: null, name,
+priceInPaise }`, after the menu's add-ons, and is taxed at the line's rate. A
+public request with extras is refused as the open item is (P46).
+`orders.lines[].addOns[].addOnId` may be null from P48.
+
+## Error codes
+
+None new.
+
+---
+
+# P49 Removing a dish before it is sent
+
+`docs/prompts/P49-remove-before-sending.md`. One new endpoint.
+
+```
+DELETE /api/v1/orders/:orderId/lines/:lineId?version=7
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. Only a `PENDING` line: otherwise 422
+`BUSINESS_RULE_VIOLATED`, "This dish has been sent to the kitchen. Use Change."
+An order with a live bill: 422, "This table has a bill. Change the items from
+the bill." `version` is required; a stale one is 409 `VERSION_CONFLICT`.
+
+The line is removed from `orders.lines` (a `$pull` through the version). No
+reason, no cancelled line, no audit line, no stock movement: it never reached
+the kitchen. Response 200: the order.
+
+This is the "unfired draft order line" CONVENTIONS section 3 names as the one
+kind of thing DELETE is for. A sent line is never deleted.
+
+## Error codes
+
+None new.
+
+# P50 Closing a table opened by mistake
+
+`docs/prompts/P50-close-a-table-opened-by-mistake.md`. One new endpoint.
+
+```
+POST /api/v1/orders/:orderId/close
+{ "version": 7 }
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. The order must be `OPEN` with no
+`billId`, and no line may ever have reached the kitchen: every line `PENDING`
+with no `firedAt`, or cancelled without one. Otherwise 422
+`BUSINESS_RULE_VIOLATED`, "Dishes have been sent to the kitchen. Ask a manager
+to cancel the order." `version` is required; a stale one is 409
+`VERSION_CONFLICT`.
+
+The unsent lines are pulled, as P49 removes a line, and the order is set
+`CANCELLED`, `isCancelled: true`, `cancelledAt`, `cancelledBy`,
+`cancelReasonCode: "OPENED_BY_MISTAKE"`, in one versioned write. The table is
+free. No audit line, no stock movement, no kitchen ticket change: nothing was
+ever sent. Response 200: the order.
+
+`OPENED_BY_MISTAKE` is written only here. `POST /orders/:orderId/cancel` does
+not accept it. R15's cancelled orders and Day Close's "Orders cancelled" leave
+these orders out.
+
+## Error codes
+
+None new.
+
 # P37 M21 WhatsApp: the connection, templates and the receipt
 
 `docs/prompts/P37-whatsapp-foundation-and-the-receipt.md`. Additive. Built and
@@ -8271,7 +8703,7 @@ connection on, as every provider's test does.
 
 ## 2. Templates
 
-A template is a record with a state (DB-SCHEMA section 47), never a string in
+A template is a record with a state (DB-SCHEMA section 54), never a string in
 the code.
 
 ### 2.1 List
@@ -8388,9 +8820,9 @@ nothing.
 `TEMPLATE_NOT_APPROVED` 422, `MESSAGING_NOT_CONNECTED` 422, `GUEST_OPTED_OUT`
 422. CONVENTIONS section 3.
 
-# P39 The WhatsApp assistant
+# P51 The WhatsApp assistant
 
-`docs/prompts/P39-whatsapp-assistant.md`. Additive. Depends on P37.
+`docs/prompts/P51-whatsapp-assistant.md`. Additive. Depends on P37.
 
 ## 1. The AI providers
 
@@ -8438,8 +8870,8 @@ For each message, in order:
    without a model. Built differently from the plan, which sent the fixed menu
    with the assistant off too: an owner who switches the assistant off expects
    it to say nothing.
-4. Otherwise the model, with the system prompt (P39 section 11), the last 12
-   turns and the tools (P39 section 9), up to 4 rounds of tool calls.
+4. Otherwise the model, with the system prompt (P51 section 11), the last 12
+   turns and the tools (P51 section 9), up to 4 rounds of tool calls.
 5. **The reply check.** Every rupee amount, time, link and reference in the reply
    must appear in this message's tool results, the facts block or the guest's
    words; a claim that messages are stopped needs a successful `stop_messages`;
@@ -8488,7 +8920,7 @@ A chat in the list: `{ id, status, guestFirstName, lastMessageAt, lastText,
 windowOpen, handoffReason, stoppedAll }`. `GET /online/inbox` gains
 `waitingChats` (chats needing a person) and `latestChatAt`, and the online
 alert counts them for OWNER, MANAGER and CASHIER. The inbox answers while
-online orders are on, a delivery platform is on, or, from P39, the WhatsApp
+online orders are on, a delivery platform is on, or, from P51, the WhatsApp
 connection is on, so a chat rings the till with the online page off.
 `GET /auth/me` `online` gains `chats`: whether the WhatsApp connection is on.
 A change to a chat is announced on the live channel's `online` topic, so the

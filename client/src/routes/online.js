@@ -1,5 +1,5 @@
 /**
- * P32. The online group: the inbox and the booking book, and P39's chats.
+ * P32. The online group: the inbox and the booking book, and P51's chats.
  * App.jsx loads this module with import() the first time one of these screens
  * opens, so the group arrives as one chunk and only to the person who needs it.
  */

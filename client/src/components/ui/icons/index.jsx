@@ -170,6 +170,13 @@ export const PrintIcon = (props) => (
     <rect x="5.5" y="11.5" width="9" height="6" />
   </Svg>
 );
+/** P48. The floor's view of a table's history. */
+export const EyeIcon = (props) => (
+  <Svg {...props}>
+    <path d="M1.5 10S4.5 4 10 4s8.5 6 8.5 6-3 6-8.5 6-8.5-6-8.5-6Z" />
+    <circle cx="10" cy="10" r="2.5" />
+  </Svg>
+);
 export const SearchIcon = (props) => (
   <Svg {...props}>
     <circle cx="8.5" cy="8.5" r="5.5" />

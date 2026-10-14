@@ -105,6 +105,17 @@ export function paiseToRupees(paise, { symbol = false } = {}) {
 }
 
 /**
+ * P44. Whole rupees with the Indian grouping and no symbol, like "4,71,154",
+ * for the day-end message. Rounds half away from zero, as everything here does.
+ */
+export function paiseToWholeRupeesText(paise) {
+  assertInteger(paise, 'paiseToWholeRupeesText expects paise, which');
+  const rupees = Math.floor((Math.abs(paise) + PAISE_PER_RUPEE / 2) / PAISE_PER_RUPEE);
+  const sign = paise < 0 && rupees > 0 ? '-' : '';
+  return `${sign}${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(rupees)}`;
+}
+
+/**
  * Applies a rate in basis points to an amount in paise.
  *
  * This is how GST is applied. Both inputs are integers and the multiplication

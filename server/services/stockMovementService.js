@@ -155,24 +155,67 @@ export async function deductForFiredLines(req, { lines, orderId, at = nowUtc() }
  * touched, by finding those DEDUCTION rows and reversing each one exactly.
  */
 export async function returnStockForCancelledLine(req, { orderLineId, orderId }, session = null) {
-  const options = session ? { session } : {};
-
-  const deductions = await StockMovement.find({
-    ...scoped(req),
-    orderLineId,
-    type: MOVEMENT_TYPES.DEDUCTION,
-  }).setOptions(options);
-
   const now = nowUtc();
 
-  for (const deduction of deductions) {
+  // P42. What is still out for the line: a line lowered earlier has had part of it back already.
+  for (const { ingredientId, outstanding } of await outstandingFor(req, orderLineId, session)) {
+    if (outstanding === 0) continue;
     await recordMovement(
       req,
       {
-        ingredientId: deduction.ingredientId,
-        qtyInBase: -deduction.qtyInBase, // the deduction was negative; the return is its exact opposite
+        ingredientId,
+        qtyInBase: -outstanding, // what is still out was negative; the return is its exact opposite
         type: MOVEMENT_TYPES.CANCELLATION_RETURN,
-        eventKey: `${orderLineId}:${deduction.ingredientId}:${MOVEMENT_TYPES.CANCELLATION_RETURN}`,
+        eventKey: `${orderLineId}:${ingredientId}:${MOVEMENT_TYPES.CANCELLATION_RETURN}`,
+        sourceType: SOURCE_TYPES.ORDER_LINE,
+        orderId,
+        orderLineId,
+        at: now,
+      },
+      session,
+    );
+  }
+}
+
+/**
+ * P42. Per ingredient, what was deducted for a line less what has come back
+ * for it: negative while stock is out for the line, 0 once it is all back.
+ */
+async function outstandingFor(req, orderLineId, session) {
+  const movements = await StockMovement.find({
+    ...scoped(req),
+    orderLineId,
+    type: { $in: [MOVEMENT_TYPES.DEDUCTION, MOVEMENT_TYPES.CANCELLATION_RETURN] },
+  }).setOptions(session ? { session } : {});
+  const byIngredient = new Map();
+  for (const movement of movements) {
+    const key = String(movement.ingredientId);
+    const entry = byIngredient.get(key) ?? { ingredientId: movement.ingredientId, outstanding: 0 };
+    entry.outstanding += movement.qtyInBase;
+    byIngredient.set(key, entry);
+  }
+  return [...byIngredient.values()];
+}
+
+/**
+ * P42. A sent line lowered from `fromQuantity` to `toQuantity` without the
+ * difference being made: the difference's share of what is still out comes
+ * back, on the line, keyed by the cancelled line that now holds the
+ * difference so a retry cannot return it twice. Recipes are whole units per
+ * dish, so the share is exact.
+ */
+export async function returnStockForReducedLine(req, { orderLineId, orderId, fromQuantity, toQuantity, splitLineId }, session = null) {
+  const now = nowUtc();
+  for (const { ingredientId, outstanding } of await outstandingFor(req, orderLineId, session)) {
+    const share = Math.trunc((outstanding * (fromQuantity - toQuantity)) / fromQuantity);
+    if (share === 0) continue;
+    await recordMovement(
+      req,
+      {
+        ingredientId,
+        qtyInBase: -share,
+        type: MOVEMENT_TYPES.CANCELLATION_RETURN,
+        eventKey: `${orderLineId}:${ingredientId}:${MOVEMENT_TYPES.CANCELLATION_RETURN}:${splitLineId}`,
         sourceType: SOURCE_TYPES.ORDER_LINE,
         orderId,
         orderLineId,
@@ -274,6 +317,7 @@ export async function getConsumption(req, { from, to }) {
 }
 
 export default {
+  returnStockForReducedLine,
   deductForFiredLines,
   getConsumption,
   listMovements,

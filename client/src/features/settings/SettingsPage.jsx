@@ -7,6 +7,7 @@ import Input from '../../components/ui/Input.jsx';
 import Select from '../../components/ui/Select.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import Toast from '../../components/ui/Toast.jsx';
+import { listPaymentMethods } from '../../api/paymentMethods.js';
 import { changedSettings, getSettings, updateSettings } from '../../api/settings.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { businessDateToday } from '../../utils/formatDate.js';
@@ -296,6 +297,8 @@ export default function SettingsPage() {
           description="How a bill can be paid. Each method saves on its own. A code and its kind never change once created, because reports and the Tally export group by them."
         >
           <PaymentMethodsSection onToast={setToast} />
+          {/* P47. The modes Other offers one tap each. Saved with the rest of the settings. */}
+          {form.payments && <OtherModesField value={form.payments.otherModes ?? []} onChange={set('payments', 'otherModes')} />}
         </Section>
 
         <Section
@@ -317,8 +320,8 @@ export default function SettingsPage() {
             description="When a cashier or captain needs an owner's or manager's PIN, typed on the same screen. Owners and managers never need one. Each person's PIN is set on the Staff screen."
           >
             <Checkbox
-              label="Cancelling an item the kitchen already has"
-              hint="A cashier or captain cancelling a dish that was sent to the kitchen. Taking back a dish never sent needs no PIN."
+              label="Cancelling a dish the kitchen has made"
+              hint="A cashier or captain removing a dish the kitchen marked ready, or one they say was already made. A dish sent but not made yet, or never sent, needs no PIN."
               checked={form.approvals.lineCancel}
               onChange={set('approvals', 'lineCancel')}
             />
@@ -334,10 +337,10 @@ export default function SettingsPage() {
               checked={form.approvals.managerTasks}
               onChange={set('approvals', 'managerTasks')}
             />
-            {/* P29 Part B. */}
+            {/* P29 Part B, and P40 for adding. */}
             <Checkbox
-              label="Removing an item from a bill already printed"
-              hint="The guest has seen the printed bill. Lowering it after the guest paid in cash is the commonest till fraud, and the cash count cannot catch it."
+              label="Removing or adding items on a bill already printed"
+              hint="The guest has seen the printed bill, so only a manager may change it. Lowering it after the guest paid in cash is the commonest till fraud, and the cash count cannot catch it. Captains cannot change a printed bill at all."
               checked={form.approvals.revisePrintedBill}
               onChange={set('approvals', 'revisePrintedBill')}
             />
@@ -362,6 +365,13 @@ export default function SettingsPage() {
           </Section>
         )}
 
+        {/* P44. Who gets the day-end message by email. */}
+        {form.reports && (
+          <Section title="Day-end email" description="The day's figures, in the day-end message, are emailed here when a day is closed, and whenever someone taps Email this report on the Day End page.">
+            <DayEndEmailsField value={form.reports.dayEndEmails ?? []} onChange={set('reports', 'dayEndEmails')} />
+          </Section>
+        )}
+
         {/* P29 Part C. */}
         {form.kitchen && (
           <Section title="Kitchen" description="What the kitchen's tick means.">
@@ -381,7 +391,7 @@ export default function SettingsPage() {
           </Section>
         )}
 
-        {/* P39. */}
+        {/* P51. */}
         {form.assistant && (
           <Section
             title="Assistant"
@@ -582,3 +592,105 @@ export default function SettingsPage() {
     </main>
   );
 }
+
+/**
+ * P44. The day-end addresses, one per line. The text is kept as typed, so a
+ * new line can be started; the list sent is the text split on spaces, commas
+ * and lines. The server checks each address and lowercases it.
+ */
+function DayEndEmailsField({ value, onChange }) {
+  const [text, setText] = useState(() => value.join('\n'));
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="type-label">Day-end email addresses</span>
+      <textarea
+        rows={3}
+        value={text}
+        onChange={(event) => {
+          setText(event.target.value);
+          onChange(event.target.value.split(/[\s,]+/).map((address) => address.trim()).filter(Boolean));
+        }}
+        placeholder="One per line, at most 5"
+        className="type-body rounded-lg border border-muted bg-surface px-3 py-2"
+      />
+      <span className="type-caption text-muted">Until a domain is verified in Resend, only the Resend account's own address receives it.</span>
+    </label>
+  );
+}
+
+/**
+ * P47. The modes the payment screen offers one tap each under Other: remove
+ * one with ×, add one with the box. Saved with Save settings, with its reason.
+ * Whether Other itself is on is the payment method's own switch, above.
+ */
+function OtherModesField({ value, onChange }) {
+  const [typed, setTyped] = useState('');
+  const others = useQuery({ queryKey: ['payment-methods', 'all'], queryFn: () => listPaymentMethods({ includeInactive: true }) });
+  const otherIsOn = (others.data ?? []).some((method) => method.code === 'OTHER' && method.isActive);
+  const trimmed = typed.trim();
+  const duplicate = value.some((mode) => mode.toLowerCase() === trimmed.toLowerCase());
+  const add = () => {
+    if (!trimmed || duplicate || value.length >= 12) return;
+    onChange([...value, trimmed.slice(0, 40)]);
+    setTyped('');
+  };
+
+  return (
+    <div className="mt-6 flex flex-col gap-3 border-t border-line pt-4">
+      <div>
+        <h3 className="type-heading">Other modes</h3>
+        <p className="type-caption text-muted">
+          One tap each on the payment screen under Other, like Swiggy Dineout or EazyDiner. A mode not listed can still be typed there.
+        </p>
+        {others.isSuccess && !otherIsOn && (
+          <p className="type-caption mt-1 text-alert">Other is switched off, so these are not shown. Switch Other on in the list above.</p>
+        )}
+      </div>
+      <ul className="flex flex-wrap gap-2">
+        {value.map((mode) => (
+          <li key={mode} className="type-label flex min-h-12 items-center gap-1 rounded-lg border border-line bg-surface pl-3">
+            {mode}
+            <button
+              type="button"
+              aria-label={`Remove ${mode}`}
+              onClick={() => onChange(value.filter((entry) => entry !== mode))}
+              className="flex size-12 items-center justify-center rounded-lg text-muted hover:bg-sunken hover:text-ink"
+            >
+              ×
+            </button>
+          </li>
+        ))}
+        {value.length === 0 && <li className="type-body text-muted">No modes yet. Add one below.</li>}
+      </ul>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          aria-label="New mode"
+          value={typed}
+          maxLength={40}
+          onChange={(event) => setTyped(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              add();
+            }
+          }}
+          placeholder="e.g. Paytm"
+          className="type-body min-h-12 flex-1 rounded-lg border border-muted bg-surface px-3"
+        />
+        <button
+          type="button"
+          disabled={!trimmed || duplicate || value.length >= 12}
+          onClick={add}
+          className="type-button min-h-12 rounded-lg border border-ink px-4 hover:bg-sunken disabled:opacity-50"
+        >
+          Add
+        </button>
+      </div>
+      {duplicate && trimmed && <p className="type-caption text-alert">That mode is already listed.</p>}
+      {value.length >= 12 && <p className="type-caption text-muted">At most 12 modes.</p>}
+      <p className="type-caption text-muted">Changes here are kept when you save the settings below, with a reason.</p>
+    </div>
+  );
+}
+

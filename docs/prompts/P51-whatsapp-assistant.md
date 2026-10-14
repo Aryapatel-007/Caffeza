@@ -1,4 +1,4 @@
-# P39 The WhatsApp assistant: questions, table bookings, and stop
+# P51 The WhatsApp assistant: questions, table bookings, and stop
 
 Written 2026-10-11 at Arya's request: "create a chatbot plan then build it on my
 go. It should also be used for the booking feature we included. It should not
@@ -12,7 +12,7 @@ allowed to say, and what it must never decide by itself.
 **Branch:** none. Commit directly to `main`.
 **Depends on:** P37 (the WhatsApp connection, sending, the webhook, STOP), P23
 and P24 (table bookings and deposits), P27 (customers and consent).
-Independent of P38 (campaigns).
+Independent of P52 (campaigns).
 
 ---
 
@@ -48,7 +48,7 @@ price or a link it was not given is rejected before it is sent.
 
 ## 4. Step 0
 
-1. Save this prompt, as given, to `docs/prompts/P39-whatsapp-assistant.md`.
+1. Save this prompt, as given, to `docs/prompts/P51-whatsapp-assistant.md`.
 2. `git pull`. `git status` should show only that file.
 3. `npm test`, record the count.
 4. P37 is pushed and deployed (the webhook must be live for inbound messages).
@@ -303,7 +303,7 @@ confirmation tells them how to stop the rest.
 
 The facts block appended under it: the restaurant's name, city and address
 line; the guest's first name if known; whether bookings are taken; the online
-page link; the handoff hours sentence; and, once campaigns (P38) send them, the
+page link; the handoff hours sentence; and, once campaigns (P52) send them, the
 last message the restaurant sent the guest, because a template is not a chat
 turn and a "not interested" means nothing without it. Nothing else.
 
@@ -366,7 +366,7 @@ From CONVENTIONS sections 3 and 12: no phone number in a URL, a log line, an
 audit line, or an AI prompt.
 From P23: a booking from outside waits for a person to confirm it.
 From P24: a deposit is paid only through the restaurant's own Razorpay link.
-From P27 and P38: nothing here gives consent; it is only ever withdrawn.
+From P27 and P52: nothing here gives consent; it is only ever withdrawn.
 From P37: STOP keywords work without the AI, and a bill is never stopped by an
 OFFERS stop.
 Secrets: the AI keys are sealed under `INTEGRATION_SECRETS_KEY`, shown as four
@@ -429,7 +429,7 @@ build plan. Spec committed before code.
 Taking takeaway or delivery orders in the chat (the assistant sends the online
 page link instead). Payments inside WhatsApp. Giving or renewing consent.
 Voice notes and images from guests (answered: "I can read text messages only").
-Campaigns (P38). Any language beyond English, Hindi and Gujarati being promised.
+Campaigns (P52). Any language beyond English, Hindi and Gujarati being promised.
 A second restaurant sharing one number.
 
 ## 19. Done when

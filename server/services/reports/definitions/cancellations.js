@@ -14,7 +14,7 @@
  * item. Wasted value is the line total of lines made and thrown away, from
  * `wasPrepared: true`, whichever way they were cancelled.
  */
-import { BILL_VOID_REASONS, LINE_CANCEL_REASONS, ORDER_CANCEL_REASONS } from '../../../config/cancelReasons.js';
+import { BILL_VOID_REASONS, LINE_CANCEL_REASONS, ORDER_CANCEL_REASONS, ORDER_OPENED_BY_MISTAKE } from '../../../config/cancelReasons.js';
 import { Bill } from '../../../models/Bill.js';
 import { Order, ORDER_LINE_STATUSES } from '../../../models/Order.js';
 import { sumPaise } from '../../../utils/money.js';
@@ -151,7 +151,8 @@ export default {
     const orderRows = [];
     const everyLine = [];
     for (const order of orders) {
-      const wholeOrder = order.isCancelled && inRange(order.cancelledAt);
+      // P50. An order closed because it was opened by mistake sent nothing and is not a cancellation.
+      const wholeOrder = order.isCancelled && inRange(order.cancelledAt) && order.cancelReasonCode !== ORDER_OPENED_BY_MISTAKE;
       const withOrder = (line) => order.isCancelled && line.cancelledAt?.getTime() === order.cancelledAt?.getTime();
       if (wholeOrder) {
         const lines = order.lines.filter((line) => line.status === ORDER_LINE_STATUSES.CANCELLED && withOrder(line));

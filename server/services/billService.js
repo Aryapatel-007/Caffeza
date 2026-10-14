@@ -105,6 +105,8 @@ export function toBillLine(line) {
     // P03. Frozen on the order line when it was added; null on older orders.
     categoryId: line.categoryId ?? null,
     categoryName: line.categoryName ?? null,
+    // P46.
+    isOpenItem: line.isOpenItem === true,
   };
 }
 
@@ -419,6 +421,9 @@ export async function applyDiscount(
  * comes from a request: an owner or manager typing in a card-machine method
  * because the machine is down.
  */
+/** P43. The built-in method for a way of paying the restaurant has no method for. */
+const OTHER_METHOD_CODE = 'OTHER';
+
 export async function recordPayment(req, billId, { method, amountInPaise, reference, tender = null, terminalBypassReason = null }, { terminal = null, session = null } = {}) {
   const bill = await readBill(req, billId, session);
 
@@ -441,6 +446,10 @@ export async function recordPayment(req, billId, { method, amountInPaise, refere
 
   // P08: the four method rules, then freeze the method onto the payment.
   const paymentMethod = await methodForBill(req, bill, method);
+  // P43. Other says how it was paid: the mode is its reference, and it is not optional.
+  if (paymentMethod.code === OTHER_METHOD_CODE && !reference?.trim()) {
+    throw new BusinessRuleError('Say how it was paid, for example Cheque.');
+  }
 
   // P25 Part I. A method on the card machine is taken there, not typed in.
   let bypassed = false;

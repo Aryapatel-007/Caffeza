@@ -1,5 +1,5 @@
 /**
- * The assistant's one way to a model. P39 section 6.
+ * The assistant's one way to a model. P51 section 6.
  *
  * Messages are the assistant's own shape, mapped by each provider's adapter:
  *   { role: 'user', text }

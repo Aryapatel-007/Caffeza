@@ -85,6 +85,8 @@ export async function getMenu(req, res) {
     ...scoped(req),
     isActive: true,
     isAvailable: true,
+    // P46. A dish priced by staff never reaches a guest.
+    isOpenItem: { $ne: true },
     categoryId: { $in: categories.map((category) => category._id) },
   }).sort({ displayOrder: 1, name: 1 });
 

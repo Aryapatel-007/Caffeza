@@ -1,5 +1,5 @@
 {
-  "about": "P39's labelled guest messages for `npm run assistant:eval`. Each is sent once to the real model with the real system prompt and tools; the first thing the model does is compared with `accept`. Outcomes: a tool name, `stop_messages:OFFERS` or `stop_messages:ALL`, `NONE` (a text reply), or `ASK` (a text reply that asks a question).",
+  "about": "P51's labelled guest messages for `npm run assistant:eval`. Each is sent once to the real model with the real system prompt and tools; the first thing the model does is compared with `accept`. Outcomes: a tool name, `stop_messages:OFFERS` or `stop_messages:ALL`, `NONE` (a text reply), or `ASK` (a text reply that asks a question).",
   "offer": "This weekend only: 20% off every chaat platter at Test Chaat. Show this message at the counter.",
   "cases": [
     { "id": "so1", "label": "STOP_OFFERS", "afterOffer": true, "text": "stop", "accept": ["stop_messages:OFFERS"] },

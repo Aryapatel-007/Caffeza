@@ -1,5 +1,5 @@
 /**
- * The assistant's system prompt. P39 section 11, word for word, with the
+ * The assistant's system prompt. P51 section 11, word for word, with the
  * restaurant's facts filled in for each call.
  *
  * This text is the product's voice to a guest, and the rules in it are the
@@ -142,7 +142,7 @@ ${facts.openNowSentence}.`;
     facts.greeting ? `- How the restaurant likes to greet a new chat: ${facts.greeting}` : null,
     // A template the restaurant sent is not a chat turn, so without this a
     // "not interested" after an offer reads as a message out of nowhere. Filled
-    // once campaigns (P38) send offers.
+    // once campaigns (P52) send offers.
     facts.lastMessageToGuest ? `- The last message the restaurant sent this guest: "${facts.lastMessageToGuest}"` : null,
   ].filter(Boolean);
 

@@ -519,10 +519,168 @@ Added by P36.
 | **Round** | One Send to the kitchen on an order. The first dishes are round 1; dishes added later are round 2, 3 and so on, on the same ticket |
 | **One kitchen ticket per table** | The setting `kitchen.oneTicketPerOrder`: an order keeps one ticket, under one KOT number, for every round and station |
 | **Added** | On the kitchen screen, the caption over a later round: "Added 7:20 pm" |
+| **Cooking** | A dish's switch on the kitchen screen, off: not ready yet (P38) |
+| **Ready** | The same switch, on: the dish is ready. Switching it off again is the undo (P38) |
 
 ---
 
-## 24. Messaging words
+## 25. Public page words
+
+Added by P38, for the restaurant's public page. Section 15 still holds its main words.
+
+| Term | Meaning |
+|---|---|
+| **On the menu** | The strip of dishes on the home page, those with photos first |
+| **Menu sections** | The restaurant's menu categories, as tiles on the home page and a list beside the menu |
+| **Search the menu** | Find a dish by its name or description |
+| **Visit us** | The address, today's hours, the phone and a link to the map |
+| **Open in Maps** | Opens the address in Google Maps |
+| **Pay at the counter** | No online payment: the guest pays when they collect, by the QR code at the counter, card or cash |
+| **No advance payment** | A booking takes no deposit |
+| **Takeaway token** | The order's reference, shown large on the status page, to show at the counter |
+| **Order chit** | The order's lines and estimated bill total, on the details step |
+| **Note to the kitchen** | The one-tap requests and the note on a dish |
+| **Celebrating something?** | The optional occasion on a booking, sent in its note |
+| **Booking advance** | The deposit on the public page, in the words guests know: the deposit per person × the party, paid online when booking |
+
+---
+
+## 26. Recall and undo words
+
+Added by P41.
+
+| Term | Meaning |
+|---|---|
+| **Recall** | On the kitchen screen: bring a finished ticket back to the board, its dishes back to Cooking |
+| **Finished** | A ticket whose dishes are all ready, listed under Recall for 60 minutes |
+| **Undo** | On the order screen, for 60 seconds after Send to kitchen: take that Send back. The dishes leave the kitchen and are on the order again, not sent. |
+| **Sent to the kitchen by mistake** | The cancel reason an Undo writes on the dishes it took back |
+
+---
+
+## 27. Changing a sent dish
+
+Added by P42.
+
+| Term | Meaning |
+|---|---|
+| **Change** | On a sent dish: lower its quantity, change its note, remove it or swap it |
+| **Remove dish** | Take a sent dish off the order and the kitchen ticket |
+| **Swap for another dish** | Remove a sent dish and pick its replacement, which goes to the kitchen |
+| **Changed** | On a kitchen ticket: the dish's quantity or note changed after it was sent |
+| **Already made** | A dish the kitchen has marked ready. Changing it needs a reason, and a manager's PIN for a cashier or captain. |
+
+---
+
+## 28. Other payment words
+
+Added by P43.
+
+| Term | Meaning |
+|---|---|
+| **Other** | The built-in payment method for a way of paying the restaurant has no method for. Switched off until the owner switches it on. |
+| **Mode of payment** | On an Other payment, how it was paid: Cheque, Bank transfer, Wallet, Coupon, or what the cashier types. Stored as the payment's reference. |
+
+---
+
+## 29. Words in the day-end message
+
+Added by P44. The message keeps the words Z Chaat's manager already sends each
+night, as the thermal bill keeps its old words (section 19). Screens and
+reports keep the terms above.
+
+| Message word | Our term |
+|---|---|
+| **Gross Sale** | Bill total |
+| **Tax** | GST |
+| **Net Sale** | Net sales |
+| **Due payment** | On Hold plus unpaid |
+| **Total exp** | Expenses |
+| **Today APC** | Average per cover |
+| **Today Pax** | Covers |
+| **Grand Total Cash in hand** | Counted cash once closed, else cash in drawer |
+| **Total Petty Cash** | Kept for tomorrow once closed, else cash in drawer |
+| **Occupancy** | Covers against the seats of active tables |
+| **Monthly Till Date sale** | Bill total from the 1st of the month to the date |
+| **Daily Average** | Monthly Till Date over the days from the 1st to the date |
+
+Screen words added by P44:
+
+| Term | Meaning |
+|---|---|
+| **Day End** | The page that walks through the day: Overview, Cash, Close |
+| **Day-end message** | The day's figures as text, to copy or email |
+| **Email this report** | Send the day-end message to the addresses in Settings |
+| **Day-end email addresses** | Who gets the day-end message, set by the owner |
+
+---
+
+## 30. Kitchen bell words
+
+Added by P45.
+
+| Term | Meaning |
+|---|---|
+| **Sound on / Sound off** | On the kitchen screen: whether this device rings for a new ticket |
+| **Tap anywhere to turn on the sound** | Shown until the first tap, which browsers need before any sound |
+
+---
+
+## 31. Open item words
+
+Added by P46.
+
+| Term | Meaning |
+|---|---|
+| **Open item** | A dish on the menu whose name and price staff type when ordering, for anything not on the menu |
+| **Type name and price** | An open item's card on the order screen |
+
+---
+
+## 32. Other modes
+
+Added by P47.
+
+| Term | Meaning |
+|---|---|
+| **Other modes** | The ways of paying the payment screen offers one tap each under Other, kept by the owner in Settings |
+| **Swiggy Dineout, Zomato Dineout, EazyDiner** | Dine-in bills paid through those apps; recorded as Other with that mode |
+
+---
+
+## 33. PetPooja's words on the floor and at the counter
+
+Added by P48.
+
+| Term | Meaning |
+|---|---|
+| **Blank table** | Free |
+| **Running KOT table** | A table whose food is with the kitchen |
+| **Running table** | A table whose food is served |
+| **Printed table** | A table whose bill is printed |
+| **Bill No** | The box in the top bar that opens a bill by its number |
+| **History** | The 👁 on a table: what it has had today, read-only |
+| **Guest gave** | On a cash payment: the notes the guest handed over |
+| **Give back** | The change to return, and the notes to return it in |
+| **Extra** | A typed add-on with its own price, on one dish |
+| **KOT & Print** | Send to the kitchen and print the KOT |
+| **Save & Print** | Make the bill and print it |
+
+---
+
+## 34. Closing a table opened by mistake
+
+Added by P50.
+
+| Term | Meaning |
+|---|---|
+| **Close table** | On an order nothing has been sent from: close it because it was opened by mistake. No reason, no PIN, and it counts nowhere. **Close order** for a takeaway or delivery. |
+| **Opened by mistake** | The code a closed order keeps, so the order is never deleted |
+
+
+---
+
+## 35. Messaging words
 
 Added by P37.
 
@@ -541,9 +699,9 @@ Added by P37.
 
 ---
 
-## 25. Assistant words
+## 36. Assistant words
 
-Added by P39.
+Added by P51.
 
 | Term | Meaning |
 |---|---|

@@ -29,6 +29,14 @@ export const FLOOR_STATES = Object.freeze({
 
 const EDGES = { free: 'border-line', open: 'border-open', served: 'border-served', bill: 'border-bill' };
 
+/**
+ * P48. PetPooja's Table View words and fills, which Z Chaat's staff know:
+ * Blank, Running KOT (food with the kitchen), Running (served), Printed.
+ * The word stays on the tile, so a state never rests on colour alone.
+ */
+export const PETPOOJA_WORDS = Object.freeze({ FREE: 'Blank', OPEN: 'Running KOT', SERVED: 'Running', BILL_PRINTED: 'Printed' });
+const FILLS = { free: 'bg-surface', open: 'bg-open-tint', served: 'bg-served-tint', bill: 'bg-bill-tint' };
+
 export default function TableTile({
   name,
   floorState = 'FREE',
@@ -46,10 +54,48 @@ export default function TableTile({
   menu = null,
   // P23. A free table with a confirmed booking soon: "Reserved 8:00 PM, 4".
   reservedLabel = null,
+  // P48. PetPooja's square tile, with its actions drawn underneath.
+  square = false,
+  actions = null,
 }) {
   const look = FLOOR_STATES[floorState] ?? FLOOR_STATES.FREE;
   const taken = floorState !== 'FREE';
   const edge = isLong ? 'border-alert' : EDGES[look.state];
+
+  if (square) {
+    return (
+      <div className="relative flex flex-col items-stretch gap-1">
+        <button
+          type="button"
+          onClick={onTap}
+          aria-label={ariaLabel}
+          className={[
+            'flex aspect-square w-full flex-col items-center justify-center gap-0.5 rounded-[10px] p-2 text-center text-ink transition-colors duration-200 hover:brightness-95',
+            taken ? `${FILLS[look.state]} border-2 ${edge}` : 'border-2 border-dashed border-line bg-surface',
+            isLong ? 'ring-2 ring-alert' : '',
+          ].join(' ')}
+        >
+          <span className="type-label line-clamp-2 break-words" title={name}>
+            {name}
+          </span>
+          {taken ? (
+            <>
+              <span className="type-caption font-semibold">{PETPOOJA_WORDS[floorState]}</span>
+              <span className="type-caption text-muted">
+                {guestCount != null ? `${guestCount} ${guestCount === 1 ? 'guest' : 'guests'}` : ''}
+              </span>
+              {amountInPaise != null && <Money paise={amountInPaise} className="type-caption" />}
+              {isLong && <span className="type-caption font-semibold text-alert">Long</span>}
+            </>
+          ) : (
+            reservedLabel && <span className="type-caption text-open">{reservedLabel}</span>
+          )}
+        </button>
+        {actions}
+        {menu}
+      </div>
+    );
+  }
 
   return (
     <div className={`relative ${fill ? 'h-full' : ''}`}>

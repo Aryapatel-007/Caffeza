@@ -1,5 +1,5 @@
 /**
- * Groq, behind the assistant's one interface. P39, added at Arya's request.
+ * Groq, behind the assistant's one interface. P51, added at Arya's request.
  *
  * Groq speaks the OpenAI chat completions shape: `tools` of type function,
  * `tool_calls` on the answer, and `tool` messages for their results. Its free

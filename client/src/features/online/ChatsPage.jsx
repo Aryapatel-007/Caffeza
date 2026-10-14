@@ -1,5 +1,5 @@
 /**
- * WhatsApp chats, for the till. P39 section 14, `/online/chats`, OWNER,
+ * WhatsApp chats, for the till. P51 section 14, `/online/chats`, OWNER,
  * MANAGER and CASHIER.
  *
  * Chats that need a person first, then the rest by last message. On a wide

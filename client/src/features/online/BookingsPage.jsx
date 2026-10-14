@@ -36,7 +36,7 @@ import PaymentChip from './PaymentChip.jsx';
 import { BOOKING_DECLINE_REASONS } from './onlineReasons.js';
 import { useLiveInterval } from '../../api/live.js';
 
-/** Where a booking came from. P39 adds WhatsApp. */
+/** Where a booking came from. P51 adds WhatsApp. */
 const SOURCE_WORDS = { PHONE: 'by phone', ONLINE: 'from the page', WHATSAPP: 'on WhatsApp' };
 
 const TILL_ROLES = ['OWNER', 'MANAGER', 'CASHIER'];

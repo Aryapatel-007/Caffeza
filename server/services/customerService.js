@@ -44,7 +44,7 @@ export function recordVisit(req, order, consent = null) {
     update.$push = { offersHistory: { ...consent, by: consent.source === CONSENT_SOURCES.STAFF ? req.user?.id ?? null : null } };
   }
   return Customer.findOneAndUpdate({ ...scoped(req), phone: order.customerPhone }, update, { upsert: true, new: true }).then(async (customer) => {
-    // P39. A guest first known from WhatsApp has their first visit now.
+    // P51. A guest first known from WhatsApp has their first visit now.
     if (customer && !customer.firstVisitAt) {
       await Customer.updateOne({ ...scoped(req), _id: customer._id, firstVisitAt: null }, { $set: { firstVisitAt: at } });
       customer.firstVisitAt = at;
@@ -54,7 +54,7 @@ export function recordVisit(req, order, consent = null) {
 }
 
 /**
- * P39. The guest a WhatsApp number belongs to at this restaurant, made when the
+ * P51. The guest a WhatsApp number belongs to at this restaurant, made when the
  * restaurant has never seen them: `source: WHATSAPP`, no visit yet. `phone` is
  * the ten digits. Returns null for anything that is not an Indian mobile.
  */
@@ -68,7 +68,7 @@ export function findOrCreateWhatsAppGuest(ctx, phone) {
 }
 
 /**
- * P39. A guest asked for no messages at all. Offers consent goes too, as any
+ * P51. A guest asked for no messages at all. Offers consent goes too, as any
  * withdrawal. Returns `{ changed }`.
  */
 export async function stopAllMessages(ctx, customerId, reason) {
@@ -77,7 +77,7 @@ export async function stopAllMessages(ctx, customerId, reason) {
   return { changed: result.modifiedCount === 1 };
 }
 
-/** P39. Staff clear a full stop, when the guest asked for messages again. */
+/** P51. Staff clear a full stop, when the guest asked for messages again. */
 export async function clearStopAll(ctx, customerId) {
   await Customer.updateOne({ restaurantId: ctx.restaurantId, _id: customerId }, { $set: { whatsappStoppedAt: null } });
 }

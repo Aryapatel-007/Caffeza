@@ -1,11 +1,12 @@
 /**
- * The restaurant's public page. P23, redesigned in P24. /r/:slug
+ * The restaurant's public page. P23, redesigned in P24, restyled in P38. /r/:slug
  *
  * The cafe's own ordering site. A guest orders takeaway or books a table, and
  * pays in advance when the cafe asks. No sign-in, no app frame, and nothing
  * imported from the staff screens, the staff API client or the sign-in
- * context: a test reads this folder's imports. Phone first, Day only, in the
- * restaurant's own accent and neutral tone.
+ * context: a test reads this folder's imports. Phone first, Day only. P38: a
+ * street-food signboard look, in the restaurant's own brand colour, saying only
+ * what the restaurant's own records say.
  */
 import { useQuery } from '@tanstack/react-query';
 import { Link, Route, Routes, useParams } from 'react-router-dom';
@@ -19,161 +20,236 @@ import { formatTimeIst } from '../../utils/formatDate.js';
 import PublicBook from './PublicBook.jsx';
 import PublicOrder from './PublicOrder.jsx';
 import { BookingStatus, OrderStatus } from './PublicStatus.jsx';
-import { DISPLAY } from './publicUi.jsx';
+import { DISPLAY, EYEBROW, Festoon, Flourish, SectionTitle } from './publicUi.jsx';
 
 function PageFrame({ site, children }) {
-  const style = site?.appearance?.accent
-    ? { '--accent': site.appearance.accent, '--accent-night': site.appearance.accentNight }
+  const appearance = site?.appearance;
+  // P38. The page wears the restaurant's own brand colour; the accent when it has none.
+  const style = appearance
+    ? {
+        '--accent': appearance.accent,
+        '--accent-night': appearance.accentNight,
+        ...(appearance.brandHex ? { '--stall': appearance.brandHex, '--on-stall': appearance.onBrandHex } : {}),
+      }
     : undefined;
   return (
-    <div
-      data-theme="day"
-      data-neutral={site?.appearance?.neutralTone === 'WARM' ? 'warm' : 'cool'}
-      style={style}
-      className="v2 min-h-full bg-ground text-ink"
-    >
+    <div data-theme="day" data-public="" style={style} className="v2 min-h-full bg-cream text-masala">
       {children}
     </div>
   );
 }
 
-/** Every dish with a photo, in menu order. */
-const photographed = (menu) => (menu ?? []).flatMap((category) => category.items).filter((item) => item.photoUrl);
+const fullAddress = (address) => [address.line1, address.line2, address.city, address.pincode].filter(Boolean).join(', ');
 
-function Choice({ to, icon, title, line, badge }) {
+function SignboardAction({ to, icon, title, line, tone }) {
   const Icon = icon;
+  const stall = tone === 'stall';
   return (
     <Link
       to={to}
-      className="group flex min-h-24 items-center gap-4 rounded-2xl border border-line bg-surface p-5 transition-colors duration-150 hover:border-ink"
+      className={[
+        'chit-shadow group flex min-h-24 items-center gap-4 rounded-xl border-2 border-masala p-4 transition-transform duration-150 hover:-translate-y-0.5',
+        stall ? 'bg-stall text-on-stall' : 'bg-saffron text-masala',
+      ].join(' ')}
     >
-      <span className="flex size-14 flex-none items-center justify-center rounded-2xl bg-accent text-on-accent">
-        <Icon size={26} />
+      <span className={`flex size-14 flex-none items-center justify-center rounded-lg border-2 ${stall ? 'border-on-stall/40 bg-on-stall/15' : 'border-masala/30 bg-chit/60'}`}>
+        <Icon size={28} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className={`${DISPLAY} block text-2xl leading-tight`}>{title}</span>
-        <span className="type-caption mt-1 block text-muted">{line}</span>
-        {badge && <span className="type-caption mt-2 inline-flex rounded-full bg-ok-tint px-2 py-0.5 text-ok">{badge}</span>}
+        <span className={`${DISPLAY} block text-2xl uppercase leading-tight tracking-wide`}>{title}</span>
+        <span className="type-caption mt-1 block opacity-90">{line}</span>
       </span>
-      <span aria-hidden="true" className="text-2xl text-muted transition-transform duration-150 group-hover:translate-x-1">
+      <span aria-hidden="true" className="text-2xl transition-transform duration-150 group-hover:translate-x-1">
         →
       </span>
     </Link>
   );
 }
 
+function Hero({ site }) {
+  const { takeaway } = site;
+  return (
+    <section className="relative overflow-hidden bg-stall text-on-stall">
+      <div aria-hidden="true" className="sawtooth absolute inset-x-0 bottom-0 h-3 text-cream" />
+      <div className="mx-auto grid max-w-6xl gap-5 px-5 pb-14 pt-8 lg:grid-cols-[1.2fr_1fr] lg:items-end lg:pb-20 lg:pt-14">
+        <div className="grid gap-4">
+          <Flourish className="text-saffron">Order direct · No app · No commission</Flourish>
+          <h1 className={`${DISPLAY} text-[clamp(3.25rem,15vw,7rem)] uppercase leading-[0.86]`}>{site.wordmark ?? site.restaurantName}</h1>
+          {site.pageNote && (
+            <p className={`${DISPLAY} w-fit -rotate-1 rounded-md bg-masala px-3 py-1 text-[clamp(1.25rem,5vw,2rem)] text-saffron`}>{site.pageNote}</p>
+          )}
+          {fullAddress(site.address) && <p className="type-body max-w-xl opacity-90">{fullAddress(site.address)}</p>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <span className={`flex items-center gap-2 rounded-full border-2 border-on-stall/40 bg-on-stall/10 px-3 py-1.5 ${EYEBROW}`}>
+            <span aria-hidden="true" className={`size-2.5 rounded-full ${takeaway.openNow ? 'bg-saffron' : 'bg-on-stall/50'}`} />
+            {takeaway.openNow ? 'Open now' : 'Closed now'}
+          </span>
+          <span className={`rounded-full border-2 border-on-stall/40 px-3 py-1.5 ${EYEBROW}`}>
+            Today {formatTimeIst(site.hours.todayOpensAt)} to {formatTimeIst(site.hours.todayClosesAt)}
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Dishes with photos lead; the rest follow in menu order. */
+function favouritesOf(menu) {
+  const everything = (menu ?? []).flatMap((category) => category.items);
+  return [...everything.filter((item) => item.photoUrl), ...everything.filter((item) => !item.photoUrl)].slice(0, 10);
+}
+
+function DishStrip({ items, slug }) {
+  return (
+    <section className="grid gap-4" aria-labelledby="favourites">
+      <div className="flex items-end justify-between gap-3">
+        <SectionTitle id="favourites" eyebrow="From the counter" title="On the menu" />
+        <Link to={`/r/${slug}/order`} className="type-label flex min-h-12 items-center whitespace-nowrap text-stall underline underline-offset-4">
+          See everything
+        </Link>
+      </div>
+      <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3">
+        {items.map((item) => (
+          <Link
+            key={item.id}
+            to={`/r/${slug}/order`}
+            className="chit-shadow flex w-44 flex-none snap-start flex-col overflow-hidden rounded-xl border-2 border-masala bg-chit"
+          >
+            <DishPhoto src={item.photoUrl} name={item.name} className="aspect-square w-full" />
+            <span className="grid gap-1 p-3">
+              <span className="font-anek text-[0.95rem] font-[700] leading-tight line-clamp-2" title={item.name}>{item.name}</span>
+              <Money paise={item.priceInPaise} className="type-caption font-[700] text-stall" />
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const STICKER_TILT = ['-rotate-1', 'rotate-1', '-rotate-2', 'rotate-2'];
+
+function MenuSections({ menu, slug }) {
+  return (
+    <section className="grid gap-4 rounded-2xl bg-saffron-tint px-4 py-6 sm:px-6" aria-labelledby="sections">
+      <SectionTitle id="sections" eyebrow="Pick a counter" title="Menu sections" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {menu.map((category, index) => (
+          <Link
+            key={category.id}
+            to={`/r/${slug}/order?section=${category.id}`}
+            className={`flex min-h-16 flex-col justify-center rounded-lg border-2 border-masala bg-chit px-3 py-2 shadow-[2px_2px_0_var(--masala)] transition-transform hover:rotate-0 ${STICKER_TILT[index % STICKER_TILT.length]}`}
+          >
+            <span className="font-anek text-sm font-[750] uppercase leading-tight tracking-wide">{category.name}</span>
+            <span className="type-caption text-masala-soft">
+              {category.items.length === 1 ? '1 dish' : `${category.items.length} dishes`}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function VisitUs({ site }) {
+  const address = fullAddress(site.address);
+  const maps = address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${site.restaurantName}, ${address}`)}` : null;
+  return (
+    <section className="chit-shadow grid gap-4 rounded-2xl border-2 border-masala bg-chit p-5 sm:p-6" aria-labelledby="visit">
+      <SectionTitle id="visit" eyebrow="Find us" title="Visit us" />
+      {address && <p className="type-body">{address}</p>}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg bg-cream p-3">
+          <p className={`${EYEBROW} text-masala-soft`}>Today</p>
+          <p className="font-anek text-lg font-[700]">
+            {formatTimeIst(site.hours.todayOpensAt)} to {formatTimeIst(site.hours.todayClosesAt)}
+          </p>
+        </div>
+        {site.contactPhone && (
+          <a href={`tel:${site.contactPhone}`} className="flex min-h-12 flex-col justify-center rounded-lg bg-cream p-3">
+            <span className={`${EYEBROW} text-masala-soft`}>Call</span>
+            <span className="font-anek text-lg font-[700] text-stall">{site.contactPhone}</span>
+          </a>
+        )}
+      </div>
+      {maps && (
+        <a
+          href={maps}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-h-12 items-center justify-center gap-2 rounded-lg border-2 border-masala bg-saffron font-anek font-[750] uppercase tracking-wide text-masala shadow-[3px_3px_0_var(--masala)]"
+        >
+          Open in Maps <span aria-hidden="true">↗</span>
+        </a>
+      )}
+    </section>
+  );
+}
+
 function Home({ site, slug }) {
   const menu = useQuery({ queryKey: ['public', 'menu', slug], queryFn: () => getPublicMenu(slug) });
   const { takeaway, reservations } = site;
-  const address = [site.address.line1, site.address.line2, site.address.city].filter(Boolean).join(', ');
-  const photos = photographed(menu.data);
-  // One large and two stacked: a fourth would need a row of its own.
-  const mosaic = photos.slice(0, 3);
-  // Dishes with photos lead the strip; the rest follow in menu order.
-  const everything = (menu.data ?? []).flatMap((category) => category.items);
-  const favourites = [...photos, ...everything.filter((item) => !item.photoUrl)].slice(0, 10);
   const deposit = reservations.depositPerPersonInPaise;
+  const favourites = favouritesOf(menu.data);
+  const pickupLine = takeaway.prepay
+    ? 'Pay online, collect at the counter.'
+    : `Ready from ${formatTimeIst(takeaway.earliestPickupAt)}. Pay at the counter when you collect.`;
 
   return (
     <>
-      <section className="relative bg-accent text-on-accent">
-        <div className="mx-auto max-w-3xl px-5 pb-28 pt-10">
-          <p className="type-label opacity-80">Order direct. No app, no commission.</p>
-          <h1 className={`${DISPLAY} mt-2 text-[clamp(2.75rem,12vw,4.75rem)] leading-[0.92]`}>{site.wordmark ?? site.restaurantName}</h1>
-          {address && <p className="type-body mt-3 opacity-90">{address}</p>}
-          <p className="type-label mt-4 inline-flex items-center gap-2 rounded-full bg-on-accent/15 px-3 py-1.5">
-            <span aria-hidden="true" className={`size-2 rounded-full ${takeaway.openNow ? 'bg-ok-tint' : 'bg-on-accent/50'}`} />
-            {takeaway.openNow ? 'Open now' : 'Closed now'} · {formatTimeIst(site.hours.todayOpensAt)} to {formatTimeIst(site.hours.todayClosesAt)}
-          </p>
-        </div>
-      </section>
-
-      <main className="relative z-10 mx-auto -mt-20 grid max-w-3xl gap-5 px-4 pb-16">
-        {mosaic.length > 0 && (
-          <div
-            className={[
-              'grid h-56 gap-2 sm:h-80',
-              mosaic.length === 3 ? 'grid-cols-3 grid-rows-2' : mosaic.length === 2 ? 'grid-cols-2' : 'grid-cols-1',
-            ].join(' ')}
-          >
-            {mosaic.map((item, index) => (
-              <DishPhoto
-                key={item.id}
-                src={item.photoUrl}
-                name={item.name}
-                className={`h-full min-h-0 w-full rounded-2xl ring-4 ring-ground ${mosaic.length === 3 && index === 0 ? 'col-span-2 row-span-2' : ''}`}
-              />
-            ))}
-          </div>
-        )}
-
-        <div className="grid gap-3">
-          {takeaway.enabled && (
-            takeaway.openNow ? (
-              <Choice
-                to={`/r/${slug}/order`}
-                icon={BagIcon}
-                title="Order takeaway"
-                line={`Ready from ${formatTimeIst(takeaway.earliestPickupAt)}. ${takeaway.prepay ? 'Pay online, collect at the counter.' : (site.pageNote ?? '')}`}
-                badge={takeaway.prepay ? 'Refunded in full if the cafe cannot take it' : null}
-              />
-            ) : (
-              <div className="rounded-2xl border border-line bg-surface p-5">
-                <p className={`${DISPLAY} text-2xl`}>Takeaway</p>
-                <p className="type-body mt-1 text-muted">{takeaway.message}</p>
+      <Hero site={site} />
+      <main className="mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-8">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {takeaway.enabled &&
+            (takeaway.openNow ? (
+              <div className="grid gap-2">
+                <SignboardAction to={`/r/${slug}/order`} icon={BagIcon} title="Order takeaway" line={pickupLine} tone="stall" />
+                {takeaway.prepay && (
+                  <p className="type-caption w-fit rounded-full bg-chit px-3 py-1 text-leaf">Refunded in full if the cafe cannot take it</p>
+                )}
               </div>
-            )
-          )}
+            ) : (
+              <div className="rounded-xl border-2 border-dashed border-masala/40 bg-chit p-4">
+                <p className={`${DISPLAY} text-2xl uppercase`}>Takeaway</p>
+                <p className="type-body mt-1 text-masala-soft">{takeaway.message}</p>
+              </div>
+            ))}
           {reservations.enabled && (
-            <Choice
-              to={`/r/${slug}/book`}
-              icon={PeopleIcon}
-              title="Book a table"
-              line={`Up to ${reservations.maxPartySize} people, up to ${reservations.daysAhead} days ahead.`}
-              badge={deposit > 0 ? null : 'No deposit needed'}
-            />
-          )}
-          {deposit > 0 && reservations.enabled && (
-            <p className="type-caption px-1 text-muted">
-              Bookings take a deposit of <Money paise={deposit} /> a person, taken off your bill on the day.
-            </p>
+            <div className="grid gap-2">
+              <SignboardAction
+                to={`/r/${slug}/book`}
+                icon={PeopleIcon}
+                title="Book a table"
+                line={`Up to ${reservations.maxPartySize} people, up to ${reservations.daysAhead} days ahead. The cafe confirms every booking.`}
+                tone="saffron"
+              />
+              {deposit > 0 ? (
+                <p className="type-caption px-1 text-masala-soft">
+                  Bookings take a deposit of <Money paise={deposit} /> a person, taken off your bill on the day.
+                </p>
+              ) : (
+                <p className="type-caption w-fit rounded-full bg-chit px-3 py-1 text-leaf">No deposit needed</p>
+              )}
+            </div>
           )}
           {!takeaway.enabled && !reservations.enabled && (
-            <p className="type-body text-muted">This cafe is not taking orders or bookings online right now.</p>
+            <p className="type-body text-masala-soft">This cafe is not taking orders or bookings online right now.</p>
           )}
         </div>
 
-        {favourites.length > 0 && takeaway.openNow && (
-          <section className="grid gap-3">
-            <div className="flex items-baseline justify-between">
-              <h2 className={`${DISPLAY} text-2xl`}>On the menu</h2>
-              <Link to={`/r/${slug}/order`} className="type-label text-accent">
-                See everything
-              </Link>
-            </div>
-            <div className="flex snap-x scroll-px-0 gap-3 overflow-x-auto pb-2">
-              {favourites.map((item) => (
-                <Link key={item.id} to={`/r/${slug}/order`} className="w-40 flex-none snap-start">
-                  <DishPhoto src={item.photoUrl} name={item.name} className="aspect-square w-full rounded-2xl" />
-                  <p className="type-label mt-2 line-clamp-2">{item.name}</p>
-                  <Money paise={item.priceInPaise} className="type-caption text-muted" />
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+        {menu.isPending && <Spinner label="Loading the menu" />}
+        {favourites.length > 0 && takeaway.openNow && <DishStrip items={favourites} slug={slug} />}
+        {menu.data?.length > 0 && takeaway.openNow && <MenuSections menu={menu.data.filter((category) => category.items.length > 0)} slug={slug} />}
 
-        <footer className="mt-4 grid gap-1 border-t border-line pt-5">
-          <p className={`${DISPLAY} text-lg`}>{site.restaurantName}</p>
-          {address && <p className="type-caption text-muted">{address}</p>}
-          {site.contactPhone && (
-            <a href={`tel:${site.contactPhone}`} className="type-label flex min-h-12 w-fit items-center text-accent">
-              Call {site.contactPhone}
-            </a>
-          )}
-          <p className="type-caption text-muted">Prices are before GST. Payments are made to {site.restaurantName} directly.</p>
-        </footer>
+        <VisitUs site={site} />
       </main>
+      <footer className="grid gap-2 bg-stall px-5 pb-8 pt-6 text-center text-on-stall">
+        <Festoon />
+        <p className={`${DISPLAY} text-3xl uppercase`}>{site.wordmark ?? site.restaurantName}</p>
+        {site.pageNote && <p className="font-anek text-lg font-[650] text-saffron">{site.pageNote}</p>}
+        <p className="type-caption opacity-90">Prices are before GST. Payments are made to {site.restaurantName} directly.</p>
+      </footer>
     </>
   );
 }

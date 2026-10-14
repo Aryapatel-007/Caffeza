@@ -152,6 +152,13 @@ const menuItemSchema = new mongoose.Schema({
   isActive: { type: Boolean, required: true, default: true },
 
   /**
+   * P46. An open item: staff type its name and price when ordering. Its
+   * category routes it and its GST rate is its own; `priceInPaise` is unused.
+   * Never on the guests' page or offered for platform mapping.
+   */
+  isOpenItem: { type: Boolean, default: false },
+
+  /**
    * Subdocument ids here are permanent once issued.
    *
    * M4 attaches a recipe to a menuItemId plus an optional variantId, and M2

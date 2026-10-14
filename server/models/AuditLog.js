@@ -91,6 +91,8 @@ export const AUDIT_ACTIONS = Object.freeze({
   // P29 Part F. Cash out of the drawer that is not an expense; a morning float that was not what was kept.
   CASH_TAKEN_OUT: 'CASH_TAKEN_OUT',
   OPENING_FLOAT_DIFFERED: 'OPENING_FLOAT_DIFFERED',
+  // P41. A Send to kitchen taken back within the minute.
+  KOT_SEND_UNDONE: 'KOT_SEND_UNDONE',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 
@@ -141,6 +143,8 @@ export const MANAGER_VISIBLE_ACTIONS = Object.freeze([
   // P29. A bill changed before payment, and a kitchen tick taken back, like line cancels.
   AUDIT_ACTIONS.BILL_REVISED,
   AUDIT_ACTIONS.KITCHEN_READY_UNDONE,
+  // P41. A Send taken back, like a kitchen tick taken back.
+  AUDIT_ACTIONS.KOT_SEND_UNDONE,
 ]);
 
 export const AUDIT_REASON_MAX_LENGTH = 500;

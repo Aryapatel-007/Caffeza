@@ -1,6 +1,6 @@
 /**
- * P39: the WhatsApp assistant, against a fake Meta and a fake model. No real
- * key is needed. docs/prompts/P39-whatsapp-assistant.md section 16.
+ * P51: the WhatsApp assistant, against a fake Meta and a fake model. No real
+ * key is needed. docs/prompts/P51-whatsapp-assistant.md section 16.
  */
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';

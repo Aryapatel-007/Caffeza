@@ -76,6 +76,11 @@ export function listOrders({ status, orderType, tableId, page, limit } = {}) {
   return requestWithMeta(`/orders${toQuery({ status, orderType, tableId, page, limit })}`);
 }
 
+/** P48. What a table has had today, read-only: the floor's 👁. */
+export function getTableHistory(tableId) {
+  return api.get(`/tables/${tableId}/history`);
+}
+
 export function getOrder(orderId) {
   return api.get(`/orders/${orderId}`);
 }
@@ -96,16 +101,39 @@ export function createOrder(body) {
  * VERSION_CONFLICT carrying `currentVersion`, and the screen reloads rather
  * than overwriting a colleague's work. See features/orders/errorCopy.js.
  */
-export function addOrderLines(orderId, { version, lines }) {
-  return api.post(`/orders/${orderId}/lines`, { version, lines });
+export function addOrderLines(orderId, { version, lines, approval }) {
+  // P40. A manager's approval, sent only when the lines revise a printed bill.
+  return api.post(`/orders/${orderId}/lines`, { version, lines, ...(approval ? { approval } : {}) });
 }
 
-/** Quantity and notes only, and only while the line is still PENDING. */
+/** P42. Lowers a sent line's quantity; the part taken off is cancelled with 12.6's answers. */
+export function reduceOrderLine(orderId, lineId, { version, quantity, reasonCode, note, wasPrepared, approval }) {
+  return api.post(`/orders/${orderId}/lines/${lineId}/reduce`, {
+    version,
+    quantity,
+    reasonCode,
+    ...(note ? { note } : {}),
+    wasPrepared,
+    ...(approval ? { approval } : {}),
+  });
+}
+
+/** Quantity and notes while the line is PENDING; P42: the note alone while it is FIRED. */
 export function editOrderLine(orderId, lineId, { version, quantity, notes }) {
   const body = { version };
   if (quantity !== undefined) body.quantity = quantity;
   if (notes !== undefined) body.notes = notes;
   return api.patch(`/orders/${orderId}/lines/${lineId}`, body);
+}
+
+/** P49. Removes a dish not yet sent: no reason, nothing kept. Returns the order. */
+export function removeOrderLine(orderId, lineId, version) {
+  return api.delete(`/orders/${orderId}/lines/${lineId}?version=${version}`);
+}
+
+/** P50. Closes an order nothing was sent from, opened by mistake. Returns the order. */
+export function closeOrder(orderId, version) {
+  return api.post(`/orders/${orderId}/close`, { version });
 }
 
 /**
@@ -124,6 +152,11 @@ export function cancelOrderLine(orderId, lineId, { version, reasonCode, note, wa
 /** Sends every pending line as one new kitchen ticket. Returns { kot, order }. */
 export function fireOrder(orderId, version) {
   return api.post(`/orders/${orderId}/fire`, { version });
+}
+
+/** P41. Takes the last Send back, within a minute and before anything is ready. Returns the order. */
+export function undoSend(orderId, version) {
+  return api.post(`/orders/${orderId}/undo-send`, { version });
 }
 
 /**

@@ -13,6 +13,7 @@ import { ROLES } from '../config/roles.js';
 import {
   addOrderLines,
   cancelOrder,
+  closeOrder,
   cancelOrderLine,
   postNoCharge,
   createOrder,
@@ -22,6 +23,9 @@ import {
   listOrders,
   markLineServed,
   moveOrderToTable,
+  undoSend,
+  reduceOrderLine,
+  removeOrderLine,
 } from '../controllers/orderController.js';
 import {
   getKot,
@@ -36,6 +40,7 @@ import {
   createTable,
   deleteTable,
   listTables,
+  getTableHistory,
   setTableStatus,
   saveLayout,
   updateTable,
@@ -48,14 +53,19 @@ import {
   addOrderLinesSchema,
   cancelOrderLineSchema,
   cancelOrderSchema,
+  closeOrderSchema,
   noChargeSchema,
   createOrderSchema,
   createTableSchema,
   editOrderLineSchema,
   fireOrderSchema,
+  undoSendSchema,
+  reduceOrderLineSchema,
+  removeOrderLineSchema,
   listKotsSchema,
   listOrdersSchema,
   listTablesSchema,
+  tableHistorySchema,
   markKotLineReadySchema,
   markKotReadySchema,
   markLineServedSchema,
@@ -109,6 +119,8 @@ const anySignedIn = [
 
 router.post('/tables', ...managers, validate(createTableSchema), createTable);
 router.get('/tables', ...anySignedIn, validate(listTablesSchema), listTables);
+// P48. A table's day, read-only: the floor's 👁.
+router.get('/tables/:tableId/history', ...floor, validate(tableHistorySchema), getTableHistory);
 // Before /tables/:tableId, or "layout" is read as a table id.
 router.patch('/tables/layout', ...managers, validate(saveLayoutSchema), saveLayout);
 router.patch('/tables/:tableId', ...managers, validate(updateTableSchema), updateTable);
@@ -124,6 +136,8 @@ router.post('/orders', ...floor, validate(createOrderSchema), createOrder);
 router.get('/orders', ...anySignedIn, validate(listOrdersSchema), listOrders);
 router.get('/orders/:orderId', ...anySignedIn, validate(readOrderSchema), getOrder);
 router.post('/orders/:orderId/lines', ...floor, validate(addOrderLinesSchema), addOrderLines);
+// P49. A dish not sent yet, removed with no reason.
+router.delete('/orders/:orderId/lines/:lineId', ...floor, validate(removeOrderLineSchema), removeOrderLine);
 router.patch(
   '/orders/:orderId/lines/:lineId',
   ...floor,
@@ -143,6 +157,10 @@ router.patch(
   markLineServed,
 );
 router.post('/orders/:orderId/fire', ...floor, validate(fireOrderSchema), fireOrder);
+// P42. Lower a sent dish's quantity; the same roles as cancelling a line.
+router.post('/orders/:orderId/lines/:lineId/reduce', ...floor, validate(reduceOrderLineSchema), reduceOrderLine);
+// P41. The same roles as firing.
+router.post('/orders/:orderId/undo-send', ...floor, validate(undoSendSchema), undoSend);
 router.patch('/orders/:orderId/table', ...floor, validate(moveOrderTableSchema), moveOrderToTable);
 
 /**
@@ -159,6 +177,8 @@ router.patch('/orders/:orderId/table', ...floor, validate(moveOrderTableSchema),
  * owner allows it (`settings.approvals.managerTasks`). A WAITER never.
  */
 router.post('/orders/:orderId/cancel', ...managersOrTill, validate(cancelOrderSchema), cancelOrder);
+// P50. An order nothing was sent from, closed by anyone who takes orders.
+router.post('/orders/:orderId/close', ...floor, validate(closeOrderSchema), closeOrder);
 
 /** P08. Giving food away free is manager work, the same as cancelling a whole order. P28 as above. */
 router.post('/orders/:orderId/no-charge', ...managersOrTill, validate(noChargeSchema), postNoCharge);

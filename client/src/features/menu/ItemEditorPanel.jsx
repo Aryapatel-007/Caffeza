@@ -26,6 +26,7 @@ const EMPTY = {
   displayOrder: '0',
   variants: [],
   addOns: [],
+  isOpenItem: false,
 };
 
 const toEntry = (sub) => ({
@@ -53,6 +54,7 @@ function buildForm(item) {
     displayOrder: String(item.displayOrder ?? 0),
     variants: (item.variants ?? []).map(toEntry),
     addOns: (item.addOns ?? []).map(toEntry),
+    isOpenItem: item.isOpenItem === true,
   };
 }
 
@@ -118,8 +120,10 @@ export default function ItemEditorPanel({
       // Basis points, so 5% is 500. Never a float rate.
       taxRateBps: Math.round(taxPercent * 100),
       displayOrder: Number(form.displayOrder) || 0,
-      variants,
-      addOns,
+      // P46. An open item has no sizes or extras: its name and price are typed when ordering.
+      variants: form.isOpenItem ? [] : variants,
+      addOns: form.isOpenItem ? [] : addOns,
+      isOpenItem: form.isOpenItem,
     });
   }
 
@@ -152,6 +156,22 @@ export default function ItemEditorPanel({
           }))}
         />
 
+        {/* P46. */}
+        <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-lg border border-line bg-surface px-3 py-3">
+          <input
+            type="checkbox"
+            checked={form.isOpenItem}
+            onChange={(event) => setForm((f) => ({ ...f, isOpenItem: event.target.checked, ...(event.target.checked && f.price === '' ? { price: '0' } : {}) }))}
+            className="mt-1 size-5 accent-[var(--color-accent)]"
+          />
+          <span>
+            <span className="type-label block">Open item</span>
+            <span className="type-caption text-muted">
+              Staff type the name and price when ordering, for anything not on the menu. Its category sends it to the kitchen and its GST rate is used; the price here is not. It never shows on the online page.
+            </span>
+          </span>
+        </label>
+
         <div className="flex gap-3">
           <Input
             className="flex-1"
@@ -179,20 +199,25 @@ export default function ItemEditorPanel({
           />
         </div>
 
-        <SubItemListEditor
-          title="Variants"
-          addLabel="+ Add variant"
-          entries={form.variants}
-          fieldErrors={fieldErrors}
-          onChange={(variants) => setForm((f) => ({ ...f, variants }))}
-        />
-        <SubItemListEditor
-          title="Add-ons"
-          addLabel="+ Add add-on"
-          entries={form.addOns}
-          fieldErrors={fieldErrors}
-          onChange={(addOns) => setForm((f) => ({ ...f, addOns }))}
-        />
+        {/* P46. An open item has no sizes or extras. */}
+        {!form.isOpenItem && (
+          <>
+            <SubItemListEditor
+              title="Variants"
+              addLabel="+ Add variant"
+              entries={form.variants}
+              fieldErrors={fieldErrors}
+              onChange={(variants) => setForm((f) => ({ ...f, variants }))}
+            />
+            <SubItemListEditor
+              title="Add-ons"
+              addLabel="+ Add add-on"
+              entries={form.addOns}
+              fieldErrors={fieldErrors}
+              onChange={(addOns) => setForm((f) => ({ ...f, addOns }))}
+            />
+          </>
+        )}
 
         {saveError && <ErrorMessage error={{ message: saveError }} />}
 
