@@ -2916,3 +2916,8 @@ added; on such a line `itemName` and `unitPriceInPaise` are what staff typed.
 `restaurants.settings.payments.otherModes`: [String], default the six of the
 prompt, at most 12, each 1 to 40 characters.
 
+## 52. Typed extras (P48)
+
+`orders.lines[].addOns[].addOnId` is no longer required: null marks an extra
+typed at the table, whose `name` and `priceInPaise` are what staff typed.
+

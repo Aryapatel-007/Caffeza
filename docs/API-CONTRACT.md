@@ -8572,3 +8572,27 @@ The modes are offered by the payment panel only. 14.5's rule is unchanged: an
 
 None new.
 
+---
+
+# P48 PetPooja's way
+
+`docs/prompts/P48-petpooja-floor-recall-change-counter.md`. Two additions.
+
+## 1. `GET /bills?number=12`
+
+`number`, a whole number from 1: the bills whose `billSequence` is that
+number, in any series, newest first. With the other filters as before.
+
+## 2. Typed extras on a line (M2 12.1 and 12.4)
+
+A line request may carry `extras: [{ name, priceInPaise }]`, at most 5: `name`
+trimmed, 1 to 40 characters; `priceInPaise` an integer from 1 to the money
+ceiling. Each is frozen into the line's `addOns` as `{ addOnId: null, name,
+priceInPaise }`, after the menu's add-ons, and is taxed at the line's rate. A
+public request with extras is refused as the open item is (P46).
+`orders.lines[].addOns[].addOnId` may be null from P48.
+
+## Error codes
+
+None new.
+

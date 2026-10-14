@@ -646,3 +646,23 @@ Added by P47.
 | **Other modes** | The ways of paying the payment screen offers one tap each under Other, kept by the owner in Settings |
 | **Swiggy Dineout, Zomato Dineout, EazyDiner** | Dine-in bills paid through those apps; recorded as Other with that mode |
 
+---
+
+## 33. PetPooja's words on the floor and at the counter
+
+Added by P48.
+
+| Term | Meaning |
+|---|---|
+| **Blank table** | Free |
+| **Running KOT table** | A table whose food is with the kitchen |
+| **Running table** | A table whose food is served |
+| **Printed table** | A table whose bill is printed |
+| **Bill No** | The box in the top bar that opens a bill by its number |
+| **History** | The 👁 on a table: what it has had today, read-only |
+| **Guest gave** | On a cash payment: the notes the guest handed over |
+| **Give back** | The change to return, and the notes to return it in |
+| **Extra** | A typed add-on with its own price, on one dish |
+| **KOT & Print** | Send to the kitchen and print the KOT |
+| **Save & Print** | Make the bill and print it |
+

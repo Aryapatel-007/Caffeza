@@ -118,6 +118,7 @@ Each prompt names its model at the top.
 | P45 | A loud bell on the kitchen screen for a new KOT | M18 | P42 | Rishi | Sonnet, medium |
 | P46 | Open item: a dish whose name and price are typed when ordering | M1, M2, M3, M19 | P42 | Rishi | Opus, high |
 | P47 | Other modes: Swiggy, Zomato and EazyDiner one tap away, kept in Settings | M10, M7 | P43 | Rishi | Sonnet, medium |
+| P48 | PetPooja's way: the floor, Recall, change, typed extras, the counter screen, a test site | M2, M3, M10, M18, M20 | P46 | Rishi | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.
