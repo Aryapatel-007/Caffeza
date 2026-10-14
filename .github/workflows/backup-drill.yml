@@ -1,0 +1,60 @@
+# P54. The weekly practice restore: proves the backups can really be restored.
+# docs/DEPLOYMENT.md section 8, "Backups and the restore drill".
+#
+# Every Sunday at 6:00 AM India time (00:30 UTC), and by hand from the Actions
+# tab, this restores the newest backed-up moment from Backblaze B2 into a
+# throwaway in-memory MongoDB on GitHub's machine, and checks it: every
+# collection's count, the invoice series has no missing number, and C12 for the
+# last 7 closed days. The live database is never touched. A failure fails the
+# run, and GitHub emails the repository's owner.
+#
+# Repository secrets (Settings, Secrets and variables, Actions, Secrets):
+#   BACKUP_DRILL_KEY_ID     the drill key's keyID from Backblaze
+#   BACKUP_DRILL_SECRET     the drill key's applicationKey. This key can only
+#                           list and read files in the backup bucket: it can
+#                           never write or delete one.
+#   BACKUP_ENCRYPTION_KEY   the same key Render has, to read the files
+#   BACKUP_OLD_KEYS         optional: retired keys, comma separated
+# Repository variables (the Variables tab), not secret:
+#   BACKUP_S3_ENDPOINT      like https://s3.us-west-004.backblazeb2.com
+#   BACKUP_S3_REGION        like us-west-004
+#   BACKUP_S3_BUCKET        the bucket's name
+#
+# Never run on pull_request or push: a fork's code must never be handed these
+# secrets. GitHub turns off scheduled workflows in a public repository after 60
+# days with no commits; if the repository goes quiet, turn this back on in the
+# Actions tab.
+
+name: Practice restore
+
+on:
+  schedule:
+    - cron: '30 0 * * 0'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Restore the newest backup and check it
+        env:
+          BACKUP_DRILL_KEY_ID: ${{ secrets.BACKUP_DRILL_KEY_ID }}
+          BACKUP_DRILL_SECRET: ${{ secrets.BACKUP_DRILL_SECRET }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+          BACKUP_OLD_KEYS: ${{ secrets.BACKUP_OLD_KEYS }}
+          BACKUP_S3_ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_REGION: ${{ vars.BACKUP_S3_REGION }}
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+        run: npm run backup:drill
