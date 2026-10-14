@@ -9,12 +9,13 @@
  * the cookie's flags directly checkable.
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
 import { ROLES } from '../config/roles.js';
 import { RefreshToken, REVOKE_REASONS } from '../models/RefreshToken.js';
 import { User } from '../models/User.js';
-import { issueAccessToken } from '../services/tokenService.js';
+import { issueAccessToken, refreshTokenTtlMs } from '../services/tokenService.js';
 import {
   clearTestDatabase,
   startTestDatabase,
@@ -67,6 +68,15 @@ async function signIn(phone) {
 
 // ---------------------------------------------------------------------------
 
+describe('how long a sign-in lasts', () => {
+  // 2026-10-14. Render sets no REFRESH_TOKEN_TTL, so this default is what Z Chaat gets:
+  // a year, renewed on every refresh, so a device in use stays signed in until Sign out.
+  it('defaults to a year when REFRESH_TOKEN_TTL is not set', () => {
+    const source = readFileSync(new URL('../config/env.js', import.meta.url), 'utf8');
+    assert.match(source, /durationVar\('REFRESH_TOKEN_TTL', '365d'\)/);
+  });
+});
+
 describe('POST /auth/login', () => {
   it('returns the access token in the body and the refresh token in a cookie', async () => {
     const { phone, restaurant, branch, user } = await seedFullRestaurant();
@@ -91,6 +101,8 @@ describe('POST /auth/login', () => {
     assert.match(cookie.line, /SameSite=Lax/i);
     assert.match(cookie.line, /Path=\/api\/v1\/auth/i);
     assert.match(cookie.line, /Max-Age=\d+/i);
+    // The cookie lasts exactly as long as the stored token, from REFRESH_TOKEN_TTL.
+    assert.equal(Number(cookie.line.match(/Max-Age=(\d+)/i)[1]), refreshTokenTtlMs() / 1000);
 
     assert.deepEqual(Object.keys(body.data.user).sort(), [
       'branchId', 'email', 'id', 'name', 'phone', 'restaurantId', 'role',

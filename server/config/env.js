@@ -159,7 +159,8 @@ const envSchema = z
     JWT_ACCESS_SECRET: secretVar('JWT_ACCESS_SECRET'),
     JWT_REFRESH_SECRET: secretVar('JWT_REFRESH_SECRET'),
     ACCESS_TOKEN_TTL: durationVar('ACCESS_TOKEN_TTL', '15m'),
-    REFRESH_TOKEN_TTL: durationVar('REFRESH_TOKEN_TTL', '30d'),
+    // 2026-10-14: a year, renewed on every refresh, so a device in use stays signed in until Sign out.
+    REFRESH_TOKEN_TTL: durationVar('REFRESH_TOKEN_TTL', '365d'),
     BCRYPT_ROUNDS: intVar('BCRYPT_ROUNDS', { min: 10, max: 15, fallback: 12 }),
 
     CLIENT_ORIGIN: requiredVar('CLIENT_ORIGIN').refine(
