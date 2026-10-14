@@ -54,5 +54,6 @@ The full table, with dependencies and owners, is in
 | P44 | The Day End summary, and the day-end message by email | Built 2026-10-14. Arya's read outstanding. |
 | P45 | A loud bell on the kitchen screen for a new KOT | Built 2026-10-14. Arya's read outstanding. |
 | P46 | Open item: a dish whose name and price are typed when ordering | Built 2026-10-14. Arya's read outstanding. |
+| P47 | Other modes: Swiggy, Zomato and EazyDiner one tap away, kept in Settings | Built 2026-10-14. Arya's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.

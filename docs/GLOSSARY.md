@@ -635,3 +635,14 @@ Added by P46.
 | **Open item** | A dish on the menu whose name and price staff type when ordering, for anything not on the menu |
 | **Type name and price** | An open item's card on the order screen |
 
+---
+
+## 32. Other modes
+
+Added by P47.
+
+| Term | Meaning |
+|---|---|
+| **Other modes** | The ways of paying the payment screen offers one tap each under Other, kept by the owner in Settings |
+| **Swiggy Dineout, Zomato Dineout, EazyDiner** | Dine-in bills paid through those apps; recorded as Other with that mode |
+

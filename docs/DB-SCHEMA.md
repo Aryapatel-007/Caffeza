@@ -2911,3 +2911,8 @@ the close's transaction.
 `bills.lines[].isOpenItem`: Boolean, default false, frozen when the line is
 added; on such a line `itemName` and `unitPriceInPaise` are what staff typed.
 
+## 51. Other modes (P47)
+
+`restaurants.settings.payments.otherModes`: [String], default the six of the
+prompt, at most 12, each 1 to 40 characters.
+

@@ -8553,3 +8553,22 @@ its own name.
 
 None new.
 
+---
+
+# P47 Other modes
+
+`docs/prompts/P47-other-modes.md`. One new setting; no new endpoint or code.
+
+`settings.payments.otherModes`: list of strings, default `["Swiggy Dineout",
+"Zomato Dineout", "EazyDiner", "Cheque", "Bank transfer", "Coupon"]`. At most
+12; each trimmed, 1 to 40 characters; no two the same ignoring case. A PATCH
+replaces the list. OWNER through `PATCH /settings`, audited as
+`SETTINGS_CHANGED`. `GET /auth/me` gains `payments: { otherModes }`.
+
+The modes are offered by the payment panel only. 14.5's rule is unchanged: an
+`OTHER` payment needs a `reference`, any text; it need not be on the list.
+
+## Error codes
+
+None new.
+

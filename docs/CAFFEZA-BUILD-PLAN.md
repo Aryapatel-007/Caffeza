@@ -117,6 +117,7 @@ Each prompt names its model at the top.
 | P44 | The Day End summary, and the day-end message by email | M16, M7, M19 | P43 | Rishi | Opus, high |
 | P45 | A loud bell on the kitchen screen for a new KOT | M18 | P42 | Rishi | Sonnet, medium |
 | P46 | Open item: a dish whose name and price are typed when ordering | M1, M2, M3, M19 | P42 | Rishi | Opus, high |
+| P47 | Other modes: Swiggy, Zomato and EazyDiner one tap away, kept in Settings | M10, M7 | P43 | Rishi | Sonnet, medium |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.
