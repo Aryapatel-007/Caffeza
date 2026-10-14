@@ -178,19 +178,144 @@ If it is not, the prompt must include its own rollback steps.
 
 ## 8. Backups and the restore drill
 
-Atlas takes the backups, on the schedule of the tier you chose.
-As a second line of defence, once a week export the database with `mongodump`, encrypt it, and store it somewhere the business owns, outside the Atlas account.
-If the Atlas account is ever lost or locked, that export is the only copy.
+Atlas's free tier, M0, has no backups at all, so the server backs the database
+up itself (P54, `docs/prompts/P54-constant-backups.md`), to Backblaze B2, for
+nothing.
 
-**The restore drill.**
-Do it once before go-live, then once a month.
+### 8.1 What is backed up, and for how long
 
-1. Restore the latest Atlas backup into the staging cluster.
-2. Point staging at it.
-3. Open R2 Day Close for the last closed day. Every check must pass, and C12 must confirm the closed day did not change.
-4. Write down how long it took, and put the date in `docs/PROJECT-STATE.md`.
+Every collection except `refreshtokens`, the sessions: after a restore
+everyone signs in again, and old sessions must never come back to life.
 
-A backup nobody has restored is only a hope.
+| What | How often | Kept |
+|---|---|---|
+| The change diary: every change, in files of 5 minutes | Every 5 minutes, sooner when busy | **Forever** |
+| A monthly full copy: the first copy of each month | Once a month | **Forever** |
+| A daily full copy: the first copy of each day from 5:30 AM | Once a day | 90 days |
+| 6-hourly full copies: 5:30 AM, 11:30 AM, 5:30 PM, 11:30 PM | Every 6 hours | 10 days |
+
+At most about 5 minutes of changes can be lost, and any moment since backups
+began can be rebuilt: the monthly copy before it, plus the diary up to that
+minute. The daily and 6-hour copies only make a recent restore faster.
+
+Everything is encrypted (AES-256-GCM) before it leaves the server. Render's
+free server sleeps from about 2:30 AM to 8:30 AM, so the 5:30 AM copy is taken
+when it wakes, and the first copy of each day is the daily one.
+
+### 8.2 Backblaze, once
+
+1. Sign up at backblaze.com for B2 Cloud Storage. **Do not add a card**: with
+   none on the account, Backblaze has nothing to charge.
+2. **Create a bucket**: **Private**, with **Object Lock enabled** (it can only
+   be turned on when the bucket is created) and a default retention of
+   **Governance, 10 days**. Note its endpoint (like
+   `s3.us-west-004.backblazeb2.com`) and region (`us-west-004`).
+3. **The server key** (Application Keys, Add a New Application Key): this
+   bucket only, Type of Access **Write Only**. It goes on Render.
+4. **The drill key**: this bucket only, **Read Only**. It goes on GitHub and
+   on the developer machine that restores. Never on Render.
+5. **Lifecycle rules** (the bucket's Lifecycle Settings, custom rules), these
+   two and **no others**:
+
+   | Prefix | Hide after | Delete after hiding |
+   |---|---|---|
+   | `snapshots/6h/` | 10 days | 1 day |
+   | `snapshots/daily/` | 90 days | 1 day |
+
+   **No rule** for `snapshots/monthly/` or `journal/`: a file with no rule is
+   kept forever. **Never** add a rule for those two, and **never** a rule with
+   an empty prefix, which would cover the whole bucket and delete the diary.
+
+Why this is safe: the server key can write but never delete, so stolen server
+settings cannot wipe the backups; and Object Lock stops anyone, even with a
+stolen key, from deleting a backup in its first 10 days, which is longer than
+the week between practice restores that would notice.
+
+### 8.3 The limits
+
+| Limit | What fills it | What happens |
+|---|---|---|
+| Backblaze's free 10 GB | The diary and the monthly copies, for good; the daily and 6-hour copies, rolling | The card shows the storage used and how long the 10 GB lasts at this rate, and turns red at 7 GB. Then either pay Backblaze for what is past 10 GB (well under a rupee a GB a month at Backblaze's price), or shorten the daily copies' 90 days. **Never** shorten the diary or the monthly copies. |
+| Atlas M0's 10 GB read a week, and 100 operations a second | Every full copy reads the whole database | Past 4 GB a week (the last copy's size × 28), full copies drop to once a day; back to every 6 hours under 3 GB. The card says so. The diary keeps saving every change either way. |
+| Atlas M0's 512 MB | The database itself | The card warns at 70%: plan a bigger Atlas tier or an archive before 512 MB, when Atlas stops writes. |
+| Render's 512 MB of memory | Changes waiting while uploads fail | The diary keeps at most 20 MB waiting; past that it stops, records a gap, and takes a full copy once storage works again. |
+
+### 8.4 The encryption key
+
+1. `npm run backup:key` in your own terminal prints a new key, once.
+2. Save it in Render's environment as `BACKUP_ENCRYPTION_KEY`, **and** in a
+   password manager. If it is lost, every backup is unreadable.
+3. If it ever leaks: make a new one, put it in Render, and a full copy is
+   taken with it at the next 6-hour slot (or redeploy for one at once).
+4. **Keep every old key for good**, with the date it was retired: the diary
+   and the monthly copies made with it are kept forever. Each file's header
+   names its key's id, so the restore tool picks the right one from
+   `BACKUP_ENCRYPTION_KEY` and `BACKUP_OLD_KEYS` (retired keys, comma
+   separated, for restoring only).
+
+### 8.5 Render
+
+In the service's Environment, typed by hand (`render.yaml` lists them with
+`sync: false`): `BACKUP_ENCRYPTION_KEY`, `BACKUP_S3_ENDPOINT`
+(`https://s3.us-west-004.backblazeb2.com`), `BACKUP_S3_REGION`,
+`BACKUP_S3_BUCKET`, `BACKUP_S3_KEY_ID` and `BACKUP_S3_SECRET` (the server
+key). Then `BACKUP_ENABLED=on`, Save and deploy. With `on` and any of those
+missing, the server refuses to start and names what is missing, so set them
+all first.
+
+Before the first deploy with P54, run `npm run db:indexes` against the live
+database: the server refuses to start while `backupruns`' indexes are missing.
+
+Then, in Settings, Server, Backups: within a few minutes, "Backed up just
+now. Full copy at ...".
+
+### 8.6 GitHub: the weekly practice restore
+
+`.github/workflows/backup-drill.yml` runs every Sunday at 6:00 AM India time.
+In the repository's Settings, Secrets and variables, Actions:
+
+1. Secrets: `BACKUP_DRILL_KEY_ID`, `BACKUP_DRILL_SECRET` (the drill key),
+   `BACKUP_ENCRYPTION_KEY`, and `BACKUP_OLD_KEYS` once a key has been retired.
+2. Variables: `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_BUCKET`.
+3. Actions tab, Practice restore, Run workflow, once by hand. It restores the
+   newest moment into a throwaway database on GitHub's machine and checks the
+   counts, the invoice series and C12. A failure emails the repository owner.
+
+GitHub turns off scheduled workflows in a public repository after 60 days with
+no commits: if the repository goes quiet, turn it back on there.
+
+### 8.7 Restoring for real
+
+Never restore into the live database: the tool refuses to.
+
+1. Make a new, empty cluster in Atlas (the free tier allows one per project,
+   so it may need a new project), and allow your machine in its Network Access.
+2. On a developer machine with the drill key and every encryption key in
+   `.env`: `npm run backup:list` to see what there is.
+3. `npm run backup:restore -- --at "2026-10-14 15:30" --to "<the new cluster's URI>"`
+   (India time; `--at latest` for the newest moment). It refuses a target
+   with any document in it, the live database, and a time inside a gap, and
+   names the nearest times that work.
+4. `npm run backup:verify -- --uri "<the same URI>" --expect <the report file it printed>`.
+5. Change `MONGO_URI` on Render to the new cluster, Save and deploy.
+6. Check `/api/v1/health`, then open a closed day's R2 report: C12 must pass.
+   Everyone signs in again.
+
+### 8.8 Atlas M0's 512 MB
+
+The card's database figure is the last full copy's data plus indexes. At 70%
+it warns. At 512 MB Atlas stops writes, which stops billing. Plan a paid tier
+or an archive of old years well before then.
+
+### 8.9 What this does not cover
+
+1. A mistake inside the 5 minutes before the last diary upload.
+2. A lost encryption key: every file made with it is unreadable. Keep it in a
+   password manager, and keep every old one.
+3. Changes made while the diary could not keep its place, shown as a gap: the
+   full copy taken straight after covers everything from then on. After a long
+   sleep of the server this can happen if Atlas's oplog has moved on; nothing
+   is lost if nothing changed, and the card says so plainly either way.
 
 ---
 
