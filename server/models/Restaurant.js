@@ -330,6 +330,8 @@ const paymentSettingsSchema = new mongoose.Schema(
 const reportSettingsSchema = new mongoose.Schema(
   {
     onHoldTallyCode: { type: String, default: null, maxlength: 20, trim: true },
+    // P44. Who gets the day-end message by email. At most 5, lowercased.
+    dayEndEmails: { type: [String], default: [] },
   },
   { _id: false },
 );

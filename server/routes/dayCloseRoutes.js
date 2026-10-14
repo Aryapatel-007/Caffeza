@@ -13,6 +13,8 @@ import {
   getCash,
   getCashBook,
   getDay,
+  getDayMessage,
+  postDayEmail,
   getDayPrint,
   getDays,
   postCash,
@@ -52,6 +54,9 @@ router.post('/cash-movements/:movementId/void', ...managers, validate(voidCashSc
 router.get('/day-close', ...managers, validate(listDaysSchema), getDays);
 router.post('/day-close', ...managers, validate(closeDaySchema), postCloseDay);
 router.get('/day-close/:businessDate', ...managers, validate(readDaySchema), getDay);
+// P44. The day-end message, and emailing it to the addresses in Settings.
+router.get('/day-close/:businessDate/message', ...managers, validate(readDaySchema), getDayMessage);
+router.post('/day-close/:businessDate/email', ...managers, validate(readDaySchema), postDayEmail);
 router.get('/day-close/:businessDate/print', ...managers, validate(printDaySchema), getDayPrint);
 router.post('/day-close/:businessDate/reopen', ...owner, validate(reopenDaySchema), postReopenDay);
 

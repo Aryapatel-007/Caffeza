@@ -39,6 +39,16 @@ export function voidCashMovement(movementId, reason) {
   return api.post(`/cash-movements/${movementId}/void`, { reason });
 }
 
+/** P44. The day-end message: `{ businessDate, subject, text }`. Cash in hand reads "—" for a blind manager. */
+export function getDayMessage(businessDate) {
+  return api.get(`/day-close/${businessDate}/message`);
+}
+
+/** P44. Emails the day-end message to the addresses in Settings. Returns `{ sentTo }`. */
+export function emailDay(businessDate) {
+  return api.post(`/day-close/${businessDate}/email`, {});
+}
+
 /** The close for one date, or its live figures and blockers when open. */
 export function getDay(businessDate) {
   return api.get(`/day-close/${businessDate}`);

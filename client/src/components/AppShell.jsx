@@ -53,7 +53,8 @@ const PLACES = {
   kitchen: { to: '/kitchen', label: 'Kitchen', Icon: KitchenIcon },
   bills: { to: '/bills', label: 'Bills', Icon: ReceiptIcon },
   cash: { to: '/cash-book', label: 'Cash book', Icon: CashIcon },
-  dayClose: { to: '/day-close', label: 'Day Close', Icon: LockIcon },
+  // P44. The manager's place for the end of the day is Day End; /day-close stays for history.
+  dayClose: { to: '/day-end', label: 'Day End', Icon: LockIcon },
   reports: { to: '/reports', label: 'Reports', Icon: ChartIcon },
   availability: { to: '/menu/availability', label: 'Availability', Icon: MenuBookIcon },
   stock: { to: '/inventory', label: 'Stock', Icon: MenuBookIcon },
@@ -101,7 +102,8 @@ function useMoreGroups() {
       items: [
         { to: '/accounts', label: 'On Hold', show: till },
         { to: '/cash-book', label: 'Cash book', show: till },
-        { to: '/day-close', label: 'Day Close', show: manager },
+        { to: '/day-end', label: 'Day End', show: manager },
+        { to: '/day-close', label: 'Day Close history', show: manager },
         { to: '/payouts', label: 'Payouts', show: manager },
         { to: '/reports', label: 'Reports', show: manager },
         { to: '/customers', label: 'Customers', show: manager },

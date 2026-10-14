@@ -82,6 +82,7 @@ const SETTING_PATHS = Object.freeze({
   'cash.showDrawerTotalToStaff': 'settings.cash.showDrawerTotalToStaff',
   'payments.requireTerminalForLinkedMethods': 'settings.payments.requireTerminalForLinkedMethods',
   'reports.onHoldTallyCode': 'settings.reports.onHoldTallyCode',
+  'reports.dayEndEmails': 'settings.reports.dayEndEmails',
 
   'floor.sectionOrder': 'settings.floor.sectionOrder',
   'floor.longOpenMinutes': 'settings.floor.longOpenMinutes',

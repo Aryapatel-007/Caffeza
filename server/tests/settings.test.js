@@ -73,7 +73,8 @@ const DEFAULTS = {
   },
   payments: { requireTerminalForLinkedMethods: true },
   // P25 Part J.
-  reports: { onHoldTallyCode: null },
+  // P44 added dayEndEmails.
+  reports: { onHoldTallyCode: null, dayEndEmails: [] },
   // P19.
   floor: { sectionOrder: [], longOpenMinutes: 90, requireGuestCount: false },
   // P20A.

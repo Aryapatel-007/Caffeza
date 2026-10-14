@@ -131,6 +131,8 @@ export const ERROR_CODES = Object.freeze({
   INTEGRATION_NOT_ACTIVE: 'INTEGRATION_NOT_ACTIVE',
   INTEGRATION_TEST_FAILED: 'INTEGRATION_TEST_FAILED',
   PARTNER_CALL_FAILED: 'PARTNER_CALL_FAILED',
+  // P44.
+  EMAIL_SEND_FAILED: 'EMAIL_SEND_FAILED',
   TERMINAL_REQUIRED: 'TERMINAL_REQUIRED',
   TALLY_MAPPING_INCOMPLETE: 'TALLY_MAPPING_INCOMPLETE',
   TALLY_ALREADY_EXPORTED: 'TALLY_ALREADY_EXPORTED',
@@ -745,6 +747,13 @@ export class IntegrationTestFailedError extends AppError {
 }
 
 /** P25 Part G. A partner call failed or timed out while a person waited. */
+/** P44. Resend refused the day-end email, or could not be reached. */
+export class EmailSendFailedError extends AppError {
+  constructor(message) {
+    super(message, { statusCode: 502, code: ERROR_CODES.EMAIL_SEND_FAILED });
+  }
+}
+
 export class PartnerCallFailedError extends AppError {
   constructor(message) {
     super(message, { statusCode: 502, code: ERROR_CODES.PARTNER_CALL_FAILED });

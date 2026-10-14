@@ -69,6 +69,11 @@ const dayClosureSchema = new mongoose.Schema({
   takenOutAtCloseInPaise: { type: Number, min: 0, default: null },
   takenOutTo: { type: String, enum: ['BANK_DEPOSIT', 'OWNER', 'OTHER', null], default: null },
   takenOutBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  /** P44. The day-end email sent after the close: when, to whom, or Resend's error. Never part of the close. */
+  dayEndEmail: {
+    type: new mongoose.Schema({ sentAt: { type: Date, default: null }, to: { type: [String], default: [] }, error: { type: String, default: null } }, { _id: false }),
+    default: null,
+  },
 });
 
 dayClosureSchema.plugin(baseSchemaPlugin);

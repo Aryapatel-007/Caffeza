@@ -39,3 +39,6 @@ services:
         generateValue: true
       - key: DISPLAY_TIMEZONE
         value: Asia/Kolkata
+      # P44. The day-end email. The key is a secret, set in Render's dashboard.
+      - key: RESEND_API_KEY
+        sync: false

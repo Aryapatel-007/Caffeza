@@ -44,6 +44,7 @@ const ReceiptPreviewPage = lazyScreen(settlementGroup, 'ReceiptPreviewPage');
 const AccountsPage = lazyScreen(settlementGroup, 'AccountsPage');
 const CashBookPage = lazyScreen(settlementGroup, 'CashBookPage');
 const DayClosePage = lazyScreen(settlementGroup, 'DayClosePage');
+const DayEndPage = lazyScreen(settlementGroup, 'DayEndPage');
 const PayoutsPage = lazyScreen(settlementGroup, 'PayoutsPage');
 const TableArrangePage = lazyScreen(settingsGroup, 'TableArrangePage');
 const TableManagementPage = lazyScreen(settingsGroup, 'TableManagementPage');
@@ -346,6 +347,18 @@ export default function App() {
         }
       />
       <Route path="/cash" element={<Navigate to="/cash-book" replace />} />
+
+      {/* P44. Day End: the day in three steps, and the day-end message. */}
+      <Route
+        path="/day-end"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={REPORT_ROLES}>
+              <DayEndPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
 
       {/* P10. Day Close, for the owner and manager. */}
       <Route

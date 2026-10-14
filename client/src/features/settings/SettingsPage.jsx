@@ -317,8 +317,8 @@ export default function SettingsPage() {
             description="When a cashier or captain needs an owner's or manager's PIN, typed on the same screen. Owners and managers never need one. Each person's PIN is set on the Staff screen."
           >
             <Checkbox
-              label="Cancelling an item the kitchen already has"
-              hint="A cashier or captain cancelling a dish that was sent to the kitchen. Taking back a dish never sent needs no PIN."
+              label="Cancelling a dish the kitchen has made"
+              hint="A cashier or captain removing a dish the kitchen marked ready, or one they say was already made. A dish sent but not made yet, or never sent, needs no PIN."
               checked={form.approvals.lineCancel}
               onChange={set('approvals', 'lineCancel')}
             />
@@ -359,6 +359,13 @@ export default function SettingsPage() {
               checked={form.billing.printBeforePayment}
               onChange={set('billing', 'printBeforePayment')}
             />
+          </Section>
+        )}
+
+        {/* P44. Who gets the day-end message by email. */}
+        {form.reports && (
+          <Section title="Day-end email" description="The day's figures, in the day-end message, are emailed here when a day is closed, and whenever someone taps Email this report on the Day End page.">
+            <DayEndEmailsField value={form.reports.dayEndEmails ?? []} onChange={set('reports', 'dayEndEmails')} />
           </Section>
         )}
 
@@ -533,5 +540,30 @@ export default function SettingsPage() {
         onDismiss={() => setToast(null)}
       />
     </main>
+  );
+}
+
+/**
+ * P44. The day-end addresses, one per line. The text is kept as typed, so a
+ * new line can be started; the list sent is the text split on spaces, commas
+ * and lines. The server checks each address and lowercases it.
+ */
+function DayEndEmailsField({ value, onChange }) {
+  const [text, setText] = useState(() => value.join('\n'));
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="type-label">Day-end email addresses</span>
+      <textarea
+        rows={3}
+        value={text}
+        onChange={(event) => {
+          setText(event.target.value);
+          onChange(event.target.value.split(/[\s,]+/).map((address) => address.trim()).filter(Boolean));
+        }}
+        placeholder="One per line, at most 5"
+        className="type-body rounded-lg border border-muted bg-surface px-3 py-2"
+      />
+      <span className="type-caption text-muted">Until a domain is verified in Resend, only the Resend account's own address receives it.</span>
+    </label>
   );
 }

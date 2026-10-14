@@ -342,6 +342,12 @@ const reports = z
       .transform((value) => (value === null || value.trim() === '' ? null : value.trim()))
       .refine((value) => value === null || value.length <= 20, 'Cannot be longer than 20 characters.')
       .optional(),
+    // P44. Who gets the day-end message. A PATCH replaces the list.
+    dayEndEmails: z
+      .array(z.string().trim().toLowerCase().email('Is not an email address.'), { error: 'Must be a list of email addresses.' })
+      .max(5, 'At most 5 addresses.')
+      .refine((list) => new Set(list).size === list.length, 'The same address is listed twice.')
+      .optional(),
   })
   .strict();
 

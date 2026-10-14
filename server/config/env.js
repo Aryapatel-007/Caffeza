@@ -242,6 +242,19 @@ const envSchema = z
       return text === '' ? null : text;
     }, z.string().regex(/^https?:[/][/][^/]+$/, 'LIVE_ORIGIN must be a bare origin with no trailing slash.').nullable()),
 
+    /**
+     * P44. The day-end email, through Resend. Without RESEND_API_KEY nothing is
+     * emailed and the Day End page says so; the rest works. Until a domain is
+     * verified in Resend, onboarding@resend.dev delivers only to the Resend
+     * account's own address.
+     */
+    RESEND_API_KEY: z.preprocess((value) => (value === undefined || value === '' ? null : value), z.string().nullable()),
+    DAY_END_EMAIL_FROM: optionalVar('DAY_END_EMAIL_FROM', 'Restaurant ERP <onboarding@resend.dev>'),
+    RESEND_API_BASE: optionalVar('RESEND_API_BASE', 'https://api.resend.com').refine(
+      whenPresent((value) => /^https?:[/][/][^/]+$/.test(value)),
+      'RESEND_API_BASE must be a bare origin with no trailing slash.',
+    ),
+
     /** P24. Razorpay's API address. Tests and the e2e server point it at a fake. */
     RAZORPAY_API_BASE: optionalVar('RAZORPAY_API_BASE', 'https://api.razorpay.com').refine(
       whenPresent((value) => /^https?:[/][/][^/]+$/.test(value)),

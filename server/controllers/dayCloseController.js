@@ -3,7 +3,8 @@
  * services/dayCloseService.js, including the blind count.
  */
 import { listCashMovements, readCashBook, recordCashMovement, voidCashMovement } from '../services/cashService.js';
-import { closeDay, listDays, printDay, readDay, reopenDay } from '../services/dayCloseService.js';
+import { closeDay, emailDayEnd, listDays, printDay, readDay, reopenDay } from '../services/dayCloseService.js';
+import { buildDayEndMessage } from '../services/dayEndMessageService.js';
 import { sendSuccess } from '../utils/response.js';
 
 export async function getCash(req, res) {
@@ -29,6 +30,17 @@ export async function postCloseDay(req, res) {
 
 export async function getDay(req, res) {
   return sendSuccess(res, await readDay(req, req.params.businessDate));
+}
+
+/** GET /day-close/:businessDate/message. P44. Cash in hand reads "—" for a blind manager. */
+export async function getDayMessage(req, res) {
+  return sendSuccess(res, await buildDayEndMessage(req, req.params.businessDate));
+}
+
+/** POST /day-close/:businessDate/email. P44. To the addresses in Settings, never anywhere else. */
+export async function postDayEmail(req, res) {
+  const result = await emailDayEnd(req, req.params.businessDate);
+  return sendSuccess(res, { sentTo: result.to });
 }
 
 export async function getDays(req, res) {
