@@ -39,7 +39,7 @@ Payload, locked by M0-A and not changeable without touching the tenant middlewar
 }
 ```
 
-Refresh token. Lifetime 30 days. Opaque random string, 64 bytes, base64url. Not a JWT.
+Refresh token. Lifetime 365 days (30 before 2026-10-14), renewed on every refresh, so a device in use stays signed in until Sign out. Opaque random string, 64 bytes, base64url. Not a JWT.
 
 Only the SHA-256 hash of a refresh token is stored. The raw value is delivered once, as an `httpOnly` cookie, and is never returned in a response body, never readable by JavaScript, and never recoverable from the database. M0-D moved it from the body to a cookie; before that a single cross-site scripting hole handed over a 30-day credential.
 

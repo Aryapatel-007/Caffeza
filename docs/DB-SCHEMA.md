@@ -218,7 +218,7 @@ One document per active session. This is what makes logout and revocation real.
 | `branchId` | ObjectId | yes | `branches._id` | |
 | `userId` | ObjectId | yes | `users._id` | Indexed |
 | `tokenHash` | String | yes | | SHA-256 of the raw token, hex. Indexed, unique. |
-| `expiresAt` | Date | yes | | UTC. 30 days from issue. |
+| `expiresAt` | Date | yes | | UTC. `REFRESH_TOKEN_TTL` from issue: 365 days by default (30 before 2026-10-14). |
 | `revokedAt` | Date | no | | UTC. Null while active. |
 | `revokedReason` | String | no | | `LOGOUT`, `LOGOUT_ALL`, `ROTATED`, `REUSE_DETECTED`, `PASSWORD_CHANGED`, `USER_DEACTIVATED` |
 | `replacedByTokenHash` | String | no | | Set on rotation. Builds the chain used for reuse detection. |
