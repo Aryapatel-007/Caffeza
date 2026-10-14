@@ -557,6 +557,10 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-14 Rishi, P44 and P45 deployed
+
+Pushed `e1e2f49..c913a79` at Rishi's word: Render runs `c913a79`, database connected; Vercel serves `index-CvlXaPar.js`. Z Chaat's `settings.reports.dayEndEmails` set to z.chaat25@gmail.com through `PATCH /settings` as the owner (audited). A test email through Resend from this Mac, with the key for the Resend account z.chaat25@gmail.com, was accepted. `RESEND_API_KEY` is not yet in Render's environment, so the live server answers "Email is not set up on the server." until Rishi adds it there; the key is kept only in this Mac's `.env`.
+
 ### 2026-10-14 Rishi, P45 a loud bell on the kitchen screen
 
 What was built or decided:
