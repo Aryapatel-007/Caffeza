@@ -8457,3 +8457,50 @@ optional.
 ## Error codes
 
 None new.
+
+---
+
+# P44 The Day End summary, and the day-end message by email
+
+`docs/prompts/P44-day-end-summary-and-email.md`. Two new endpoints, one new
+setting, one new closure field, one new error code.
+
+## 1. `GET /day-close/:businessDate/message`
+
+Roles: OWNER, MANAGER. Response `{ businessDate, subject, text }`: the message
+of the prompt's section B. `subject` is "{restaurant name} day end, {d}-{Month}-{yyyy}".
+For a caller who may not see the drawer total (the blind count: `seesCash`, as
+`GET /day-close/:businessDate`), the two cash-in-hand lines read "—".
+
+## 2. `POST /day-close/:businessDate/email`
+
+Roles: OWNER, MANAGER. No body. Sends the full message (cash lines included)
+to `settings.reports.dayEndEmails`, and nowhere else. Response
+`{ sentTo: [addresses] }`.
+
+Refused: no addresses, 422 `BUSINESS_RULE_VIOLATED` "Add an email address for
+the day-end report in Settings first."; `RESEND_API_KEY` not set, 422
+`BUSINESS_RULE_VIOLATED` "Email is not set up on the server."; Resend refusing
+or unreachable, 502 `EMAIL_SEND_FAILED` with Resend's own message.
+
+## 3. Sent at Day Close
+
+`POST /day-close` (M16) sends the message after the close is saved, when
+addresses and the key are set. The closure records `dayEndEmail: { sentAt,
+to, error }`; `error` is Resend's message when it failed, and the close stands
+either way. `GET /day-close/:businessDate` returns `dayEndEmail` on a closed day.
+
+## 4. `settings.reports.dayEndEmails`
+
+List of up to 5 email addresses, default `[]`, stored lowercased, duplicates
+refused. OWNER through `PATCH /settings`, audited as `SETTINGS_CHANGED`.
+
+## 5. Environment
+
+`RESEND_API_KEY` (optional; without it nothing is emailed), `DAY_END_EMAIL_FROM`
+(default `Restaurant ERP <onboarding@resend.dev>`), `RESEND_API_BASE` (default
+`https://api.resend.com`; tests point it at a fake).
+
+## Error codes
+
+`EMAIL_SEND_FAILED` 502.

@@ -465,3 +465,9 @@ Call the endpoint with a valid token from the wrong role. It must fail with 403.
 Call the endpoint with a valid token from restaurant A, using a record ID that belongs to restaurant B. It must fail with 404.
 
 Money and GST calculation logic gets real automated tests. That is the one place where a quiet bug costs a client money.
+
+Added by P44:
+
+```
+EMAIL_SEND_FAILED          502  Resend refused or could not be reached
+```

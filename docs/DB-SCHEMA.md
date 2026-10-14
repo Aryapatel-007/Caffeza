@@ -2897,3 +2897,10 @@ splits it: the line keeps the new quantity, and a cancelled line with the same
 snapshot holds the difference, so reports read the cancelled quantity as for
 any cancel. Its stock comes back as `CANCELLATION_RETURN` movements on the
 original line, keyed `{lineId}:{ingredientId}:CANCELLATION_RETURN:{newLineId}`.
+
+## 49. The day-end email (P44)
+
+`restaurants.settings.reports.dayEndEmails`: [String], default `[]`, at most
+5, lowercased. `dayclosures.dayEndEmail`: `{ sentAt: Date, to: [String],
+error: String }` or null, default null; written after a close, never part of
+the close's transaction.

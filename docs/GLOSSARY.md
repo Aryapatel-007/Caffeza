@@ -580,3 +580,35 @@ Added by P43.
 |---|---|
 | **Other** | The built-in payment method for a way of paying the restaurant has no method for. Switched off until the owner switches it on. |
 | **Mode of payment** | On an Other payment, how it was paid: Cheque, Bank transfer, Wallet, Coupon, or what the cashier types. Stored as the payment's reference. |
+
+---
+
+## 29. Words in the day-end message
+
+Added by P44. The message keeps the words Z Chaat's manager already sends each
+night, as the thermal bill keeps its old words (section 19). Screens and
+reports keep the terms above.
+
+| Message word | Our term |
+|---|---|
+| **Gross Sale** | Bill total |
+| **Tax** | GST |
+| **Net Sale** | Net sales |
+| **Due payment** | On Hold plus unpaid |
+| **Total exp** | Expenses |
+| **Today APC** | Average per cover |
+| **Today Pax** | Covers |
+| **Grand Total Cash in hand** | Counted cash once closed, else cash in drawer |
+| **Total Petty Cash** | Kept for tomorrow once closed, else cash in drawer |
+| **Occupancy** | Covers against the seats of active tables |
+| **Monthly Till Date sale** | Bill total from the 1st of the month to the date |
+| **Daily Average** | Monthly Till Date over the days from the 1st to the date |
+
+Screen words added by P44:
+
+| Term | Meaning |
+|---|---|
+| **Day End** | The page that walks through the day: Overview, Cash, Close |
+| **Day-end message** | The day's figures as text, to copy or email |
+| **Email this report** | Send the day-end message to the addresses in Settings |
+| **Day-end email addresses** | Who gets the day-end message, set by the owner |
