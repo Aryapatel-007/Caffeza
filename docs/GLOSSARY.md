@@ -612,3 +612,15 @@ Screen words added by P44:
 | **Day-end message** | The day's figures as text, to copy or email |
 | **Email this report** | Send the day-end message to the addresses in Settings |
 | **Day-end email addresses** | Who gets the day-end message, set by the owner |
+
+---
+
+## 30. Kitchen bell words
+
+Added by P45.
+
+| Term | Meaning |
+|---|---|
+| **Sound on / Sound off** | On the kitchen screen: whether this device rings for a new ticket |
+| **Tap anywhere to turn on the sound** | Shown until the first tap, which browsers need before any sound |
+
