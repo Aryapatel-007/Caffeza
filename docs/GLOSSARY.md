@@ -732,3 +732,18 @@ Added by P54.
 | **Restore** | Rebuild the database as it was at a chosen minute, from a full copy and the change diary, into a new empty database |
 | **Practice restore** | A restore every Sunday on GitHub into a throwaway database, to prove the backups work |
 | **Backed up** | How long ago the last change was saved, like "Backed up 3 minutes ago" |
+---
+
+## 35. The owner's home
+
+Added by P51. Headings on the owner's home; every figure under them keeps its word above.
+
+| Term | Meaning |
+|---|---|
+| **Where the sales came from** | The day's bill total by order type, and delivery by platform |
+| **Where the money went** | How the day's bills were settled: each payment method, On Hold and Unpaid |
+| **By hour** | Net sales in each hour of the day, India time |
+| **Busiest hour** | The hour with the most net sales |
+| **Watch list** | The day's controls: items cancelled, wasted value, discounts, voided bills, No Charge, orders cancelled |
+| **Figures to** | The time the figures were read, while the day is open |
+
