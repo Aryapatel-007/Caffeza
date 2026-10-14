@@ -8644,3 +8644,33 @@ kind of thing DELETE is for. A sent line is never deleted.
 
 None new.
 
+# P50 Closing a table opened by mistake
+
+`docs/prompts/P50-close-a-table-opened-by-mistake.md`. One new endpoint.
+
+```
+POST /api/v1/orders/:orderId/close
+{ "version": 7 }
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. The order must be `OPEN` with no
+`billId`, and no line may ever have reached the kitchen: every line `PENDING`
+with no `firedAt`, or cancelled without one. Otherwise 422
+`BUSINESS_RULE_VIOLATED`, "Dishes have been sent to the kitchen. Ask a manager
+to cancel the order." `version` is required; a stale one is 409
+`VERSION_CONFLICT`.
+
+The unsent lines are pulled, as P49 removes a line, and the order is set
+`CANCELLED`, `isCancelled: true`, `cancelledAt`, `cancelledBy`,
+`cancelReasonCode: "OPENED_BY_MISTAKE"`, in one versioned write. The table is
+free. No audit line, no stock movement, no kitchen ticket change: nothing was
+ever sent. Response 200: the order.
+
+`OPENED_BY_MISTAKE` is written only here. `POST /orders/:orderId/cancel` does
+not accept it. R15's cancelled orders and Day Close's "Orders cancelled" leave
+these orders out.
+
+## Error codes
+
+None new.
+

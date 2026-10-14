@@ -666,3 +666,14 @@ Added by P48.
 | **KOT & Print** | Send to the kitchen and print the KOT |
 | **Save & Print** | Make the bill and print it |
 
+---
+
+## 34. Closing a table opened by mistake
+
+Added by P50.
+
+| Term | Meaning |
+|---|---|
+| **Close table** | On an order nothing has been sent from: close it because it was opened by mistake. No reason, no PIN, and it counts nowhere. **Close order** for a takeaway or delivery. |
+| **Opened by mistake** | The code a closed order keeps, so the order is never deleted |
+

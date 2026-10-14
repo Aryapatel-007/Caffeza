@@ -120,6 +120,7 @@ Each prompt names its model at the top.
 | P47 | Other modes: Swiggy, Zomato and EazyDiner one tap away, kept in Settings | M10, M7 | P43 | Rishi | Sonnet, medium |
 | P48 | PetPooja's way: the floor, Recall, change, typed extras, the counter screen, a test site | M2, M3, M10, M18, M20 | P46 | Rishi | Opus, high |
 | P49 | Before a dish is sent, the captain changes it freely | M2 | P48 | Rishi | Sonnet, medium |
+| P50 | Close a table opened by mistake | M2 | P49 | Rishi | Sonnet, medium |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

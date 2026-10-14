@@ -2921,3 +2921,9 @@ prompt, at most 12, each 1 to 40 characters.
 `orders.lines[].addOns[].addOnId` is no longer required: null marks an extra
 typed at the table, whose `name` and `priceInPaise` are what staff typed.
 
+## 53. A table closed by mistake (P50)
+
+`orders.cancelReasonCode` gains `OPENED_BY_MISTAKE`, written only by
+`POST /orders/:orderId/close` on an order nothing was sent from. Its unsent lines
+are removed, as P49 removes one. Additive: no existing value changes.
+
