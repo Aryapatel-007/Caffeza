@@ -26,6 +26,12 @@ export async function startTestDatabase() {
   return mongoose.connection;
 }
 
+/** P54. A connection string for another, empty database on the same test server, to restore into. */
+export function testDatabaseUri(dbName) {
+  if (!replicaSet) throw new Error('Start the test database first.');
+  return replicaSet.getUri(dbName);
+}
+
 export async function stopTestDatabase() {
   await mongoose.disconnect();
   if (replicaSet) await replicaSet.stop();
