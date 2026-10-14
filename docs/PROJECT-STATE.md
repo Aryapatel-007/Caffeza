@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-15 by Arya (P37 and P51, the WhatsApp assistant, merged onto Rishi's P38 to P50). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -578,21 +578,34 @@ Newest entry at the top. Keep the last ten or so, delete older ones.
 
 ### 2026-10-15 Arya, P54 constant backups
 
-In progress. The prompt, written as "P44", is `docs/prompts/P54-constant-backups.md`. Tests before: 1,357, all passing.
+Paused at Arya's word, in Part I. Nothing of P54 is pushed. The prompt, written as "P44", is `docs/prompts/P54-constant-backups.md` (P44 was Rishi's).
 
 ```
 P54 progress
-- [ ] A Spec
-- [ ] B Encrypted files and the storage client
-- [ ] C Full copies
-- [ ] D The change diary
-- [ ] E Restore and verify tools
-- [ ] F The weekly practice restore
-- [ ] G The owner's view and alerts
-- [ ] H Runbook
-- [ ] I Full check
+- [x] A Spec (`c184950`): DB-SCHEMA section 56, API-CONTRACT "P54", GLOSSARY section 37, .env.example
+- [x] B Encrypted files and the storage client (`342c86f`)
+- [x] C Full copies (`28d31b6`)
+- [x] D The change diary (`b39b542`)
+- [x] E Restore and verify tools (`68e8805`)
+- [x] F The weekly practice restore (`a58f9f4`)
+- [x] G The owner's view and alerts (`6b0c63e`)
+- [x] H Runbook (`579a6ae`): DEPLOYMENT.md section 8
+- [ ] I Full check: the server suite run once (below), fixes in `d811aed`; still to do: `npm run e2e`, and the check by hand (Part I item 4)
 - [ ] J Switched on in production (needs Arya)
 ```
+
+Tests before: 1,357, all passing. After: 1,388 (31 new: `backup.test.js` 18, `backupFiles.test.js` 6, `backupStatus.test.js` 7). On the full run 9 failed. 3 were P54's and are fixed: temp file names said "caffeza", the diary read `new Date()`, and the pinned `SERVER_MODELS` list now has the two backup models (changed on purpose). The other 6 (`auditTrail.test.js` 4, `reports.test.js` 2) fail the same way on `39810be`, the commit before P54, run at the same hour, 5:25 AM India time: the known time-of-day problem, now seen in `auditTrail.test.js` too. Lint and build pass.
+
+Built differently from the prompt, each written into API-CONTRACT "P54" section 3:
+1. The daily copy is the first copy of each backup day (from 5:30 AM India time, 00:00 UTC) and the monthly one the first of each month: Render's free server sleeps over 5:30 AM.
+2. Uploads are one PutObject from a temp file with Content-MD5, and the SDK's checksums `WHEN_REQUIRED`: B2 refuses the newer default headers, by community reports; Backblaze's own page says nothing. Only `@aws-sdk/client-s3` was added. Proved against `tests/helpers/fakeS3.js` only; the real upload is Part J.
+3. A gap is also a marker in the bucket, because a real restore cannot read `backupruns`.
+4. `backupstate` has three documents (journal, snapshots, storage), so the kept-forever byte total outlives the 90-day runs.
+5. Verify reads through the models' native collections, so the tenant-guard tripwire is unchanged.
+
+Next session: `npm run e2e`; the check by hand (BACKUP_ENABLED=on against the fake S3 and an in-memory database, make a bill, flush the diary, restore before and after it); then, before pushing, `npm run db:indexes` on the live database for `backupruns`, and check with Arya that `BACKUP_ENABLED` on Render is off or the encryption key is in: with on and no key, the server refuses to start.
+
+Waiting for Arya: the encryption key from `npm run backup:key`, run in your own terminal and never pasted into chat, into Render and the GitHub secrets; the GitHub drill secrets and variables (DEPLOYMENT.md section 8.6).
 
 ### 2026-10-15 Arya, P37 and the WhatsApp assistant merged onto Rishi's P38 to P50
 
@@ -1510,4 +1523,5 @@ Things that are broken or half done, so nobody rediscovers them.
 | Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |
 | The API is on Render's free plan, so it sleeps after fifteen minutes with no request, and the first screen after that waits for it to start: about a minute by Render's account. Not measured, because Z Chaat was in service all through P30; `docs/PERFORMANCE-BASELINE.md` section 1 has the command to run before opening. | Rishi, P30, 2026-10-10 | OPEN by Rishi's choice. A paid plan removes it with no code change: `plan: starter` in `render.yaml`. |
 | The server is in Singapore and the Atlas cluster in Mumbai, so every query crosses between them. | Rishi, P30, 2026-10-10 | IN PROGRESS 2026-10-10: a new cluster in AWS Singapore (`cluster0.onbbqdp`) holds a verified copy, kept caught up every 30 seconds, waiting for Rishi to set `MONGO_URI` on Render. DEPLOYMENT.md section 15. |
+| `auditTrail.test.js` (4 tests) fails when run between 5:00 and 9:00 AM India time, like the `reports.test.js` row above; the same on `39810be` as after P54. | Arya, P54, 2026-10-15 | OPEN. A test problem, not a product one: set the clock in those tests. |
 | `e2e/goldenDay.spec.js` can fail at 8:40 PM: the Live Kitchen's half-second hold on Table 18's ticket does not take, and `markReady` waits for a ticket that stays. Seen once, on the full run of 2026-10-11; the golden day passed on its own run straight after. | Arya, P35, 2026-10-11 | OPEN. A test timing flake, not seen in service. If it comes back, `markReady` in `e2e/pages/kitchen.js` should wait for the hold's own confirmation instead of a fixed 700 ms press. |
