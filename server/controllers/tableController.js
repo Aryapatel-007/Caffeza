@@ -16,6 +16,7 @@ import { Table } from '../models/Table.js';
 import { BusinessRuleError, DuplicateError, NotFoundError, ValidationError } from '../utils/errors.js';
 import { computeLineTotalInPaise } from '../services/orderService.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
+import { tableHistory } from '../services/tableHistoryService.js';
 import { sendSuccess } from '../utils/response.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { sumPaise } from '../utils/money.js';
@@ -168,6 +169,11 @@ async function addUpcomingReservations(req, tables) {
 }
 
 /** POST /tables */
+/** GET /tables/:tableId/history. P48: what the table has had today, read-only. */
+export async function getTableHistory(req, res) {
+  return sendSuccess(res, await tableHistory(req, req.params.tableId, { date: req.query.date ?? null }));
+}
+
 export async function createTable(req, res) {
   const { name, section, seats, displayOrder } = req.body;
 

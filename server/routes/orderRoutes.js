@@ -38,6 +38,7 @@ import {
   createTable,
   deleteTable,
   listTables,
+  getTableHistory,
   setTableStatus,
   saveLayout,
   updateTable,
@@ -60,6 +61,7 @@ import {
   listKotsSchema,
   listOrdersSchema,
   listTablesSchema,
+  tableHistorySchema,
   markKotLineReadySchema,
   markKotReadySchema,
   markLineServedSchema,
@@ -113,6 +115,8 @@ const anySignedIn = [
 
 router.post('/tables', ...managers, validate(createTableSchema), createTable);
 router.get('/tables', ...anySignedIn, validate(listTablesSchema), listTables);
+// P48. A table's day, read-only: the floor's 👁.
+router.get('/tables/:tableId/history', ...floor, validate(tableHistorySchema), getTableHistory);
 // Before /tables/:tableId, or "layout" is read as a table id.
 router.patch('/tables/layout', ...managers, validate(saveLayoutSchema), saveLayout);
 router.patch('/tables/:tableId', ...managers, validate(updateTableSchema), updateTable);

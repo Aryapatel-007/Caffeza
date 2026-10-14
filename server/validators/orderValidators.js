@@ -46,6 +46,7 @@ import {
   reasonFields,
   requireNoteForOther,
   approval,
+  businessDate,
 } from './common.js';
 
 /**
@@ -202,6 +203,9 @@ export const setTableStatusSchema = z.object({
 
 /** API-CONTRACT 11.6. No body. */
 export const deleteTableSchema = z.object({ params: tableIdParam });
+
+/** P48. A table's day; today's business date when no date is sent. */
+export const tableHistorySchema = z.object({ params: tableIdParam, query: z.object({ date: businessDate.optional() }) });
 
 // ---------------------------------------------------------------------------
 // Orders

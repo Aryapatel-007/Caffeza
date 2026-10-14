@@ -93,3 +93,41 @@ describe('extras typed at the table', () => {
     );
   });
 });
+
+describe('a table\'s history: GET /tables/:tableId/history', () => {
+  it('lists today\'s sends with KOT numbers and who sent them, cancellations with reasons, and the bill; read-only and scoped', async () => {
+    const floor = await seedFloor();
+    const { tokens, item } = floor;
+    let order = ok(await openOrder(tokens.WAITER, { tableId: floor.table.id, lines: [{ menuItemId: item.id, quantity: 2 }, { menuItemId: item.id, quantity: 1, notes: 'No onion' }] }), 'order');
+    const fired = ok(await fireOrder(tokens.WAITER, order.id, order.version), 'fire');
+    order = fired.order;
+    ok(
+      await request('POST', `/api/v1/orders/${order.id}/lines/${order.lines[1].id}/cancel`, {
+        token: tokens.WAITER,
+        body: { version: order.version, reasonCode: 'MODIFICATION', wasPrepared: false },
+      }),
+      'cancel one',
+    );
+
+    const history = ok(await request('GET', `/api/v1/tables/${floor.table.id}/history`, { token: tokens.WAITER }), 'history');
+    assert.equal(history.tableName, floor.table.name);
+    assert.equal(history.orders.length, 1);
+    const [entry] = history.orders;
+    assert.equal(entry.openedByName, 'WAITER');
+    assert.equal(entry.sends.length, 1);
+    assert.deepEqual(entry.sends[0].kotNumbers, [fired.kot.kotNumber]);
+    assert.equal(entry.sends[0].sentByName, 'WAITER');
+    assert.deepEqual(entry.sends[0].lines.map((line) => line.quantity), [2]);
+    assert.equal(entry.cancelled.length, 1);
+    assert.equal(entry.cancelled[0].reason, 'Guest changed the order');
+    assert.equal(entry.cancelled[0].byName, 'WAITER');
+    assert.equal(entry.bill, null);
+
+    const after = ok(await request('GET', `/api/v1/orders/${order.id}`, { token: tokens.WAITER }), 'order unchanged');
+    assert.equal(after.lines.filter((line) => line.status === 'PENDING').length, 0, 'reading the history adds nothing');
+
+    assert.equal((await request('GET', `/api/v1/tables/${floor.table.id}/history`, { token: tokens.KITCHEN })).status, 403);
+    const other = await seedFloor();
+    assert.equal((await request('GET', `/api/v1/tables/${floor.table.id}/history`, { token: other.tokens.WAITER })).status, 404);
+  });
+});
