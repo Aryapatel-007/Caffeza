@@ -316,6 +316,30 @@ export async function fireOrder(req, res) {
   return sendSuccess(res, { kot, kots, order, round });
 }
 
+/**
+ * DELETE /orders/:orderId/lines/:lineId. P49: a dish not sent yet is a draft,
+ * removed with no reason and no trace, because the guest changed their mind
+ * before the kitchen saw it. A sent dish is never deleted (12.6, P42).
+ */
+export async function removeOrderLine(req, res) {
+  const { orderId, lineId } = req.params;
+  const { version } = req.query;
+  const order = await loadOrderInTenant(req, orderId);
+  assertOrderIsOpen(order);
+  assertNoLiveBill(order);
+  const line = findLine(order, lineId);
+  if (line.status !== ORDER_LINE_STATUSES.PENDING) {
+    throw new BusinessRuleError('This dish has been sent to the kitchen. Use Change.');
+  }
+  const updated = await applyVersionedUpdate(req, {
+    orderId,
+    version,
+    // Only while it is still PENDING: a dish sent meanwhile stays.
+    update: { $pull: { lines: { _id: line._id, status: ORDER_LINE_STATUSES.PENDING } } },
+  });
+  return sendSuccess(res, serialiseOrder(updated));
+}
+
 /** POST /orders/:orderId/lines/:lineId/reduce. P42: lower a sent dish's quantity. */
 export async function reduceOrderLine(req, res) {
   const order = await reduceSentLine(req, { orderId: req.params.orderId, lineId: req.params.lineId, ...req.body });

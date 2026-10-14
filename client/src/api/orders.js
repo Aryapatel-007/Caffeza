@@ -126,6 +126,11 @@ export function editOrderLine(orderId, lineId, { version, quantity, notes }) {
   return api.patch(`/orders/${orderId}/lines/${lineId}`, body);
 }
 
+/** P49. Removes a dish not yet sent: no reason, nothing kept. Returns the order. */
+export function removeOrderLine(orderId, lineId, version) {
+  return api.delete(`/orders/${orderId}/lines/${lineId}?version=${version}`);
+}
+
 /**
  * `wasPrepared` is required when the line has been to the kitchen and must be
  * absent when it has not. The caller decides from the line's own status; the

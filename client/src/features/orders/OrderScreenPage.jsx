@@ -14,6 +14,7 @@ import {
   cancelOrder,
   cancelOrderLine,
   editOrderLine,
+  removeOrderLine,
   fireOrder,
   reduceOrderLine,
   undoSend,
@@ -245,6 +246,13 @@ export default function OrderScreenPage() {
       run: () => editOrderLine(order.id, line.id, { version: order.version, quantity }),
     });
 
+  /** P49. A dish not sent yet: gone at once, with no reason and nothing kept. */
+  const removeDraft = (line) =>
+    run({
+      run: () => removeOrderLine(order.id, line.id, order.version),
+      successMessage: `${line.itemName} removed.`,
+    });
+
   const fire = () =>
     run({
       run: () => fireOrder(order.id, order.version),
@@ -304,6 +312,7 @@ export default function OrderScreenPage() {
         })
       }
       onCancelLine={(line) => setCancelling({ kind: 'line', line })}
+      onRemoveDraft={removeDraft}
       onChangeSentLine={(line) => setChangingLine(line)}
       onFire={fire}
       onFireAndPrint={isTill ? fireAndPrint : null}
@@ -408,7 +417,7 @@ export default function OrderScreenPage() {
             simpleLines={simpleLines}
             pendingCounts={pendingCounts}
             onStep={changeQuantity}
-            onRemove={(line) => setCancelling({ kind: 'line', line })}
+            onRemove={removeDraft}
             onOpen={(item) => setPickingItem(item)}
           />
 
@@ -685,6 +694,7 @@ function OrderDetails({
   onChangeQuantity,
   onServeLine,
   onCancelLine,
+  onRemoveDraft,
   onChangeSentLine,
   onFire,
   // P48. The till's KOT & Print.
@@ -706,6 +716,7 @@ function OrderDetails({
           onChangeQuantity={onChangeQuantity}
           onServeLine={onServeLine}
           onCancelLine={onCancelLine}
+          onRemoveDraft={onRemoveDraft}
           onChangeSentLine={onChangeSentLine}
         />
       </div>

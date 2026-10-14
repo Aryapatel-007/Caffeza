@@ -79,6 +79,11 @@ test('a captain undoes a Send, and the kitchen recalls a finished ticket', async
 
   await station.page.getByRole('button', { name: 'Recall', exact: true }).click();
   const sheet = station.page.getByRole('dialog', { name: 'Recall' });
+  // How far back: the ticket finished 10 minutes ago shows in every range.
+  const ranges = sheet.getByRole('group', { name: 'How far back' });
+  await expect(ranges.getByRole('button', { name: '1 hour' })).toHaveAttribute('aria-pressed', 'true');
+  await ranges.getByRole('button', { name: 'Last 30 min' }).click();
+  await expect(ranges.getByRole('button', { name: 'Last 30 min' })).toHaveAttribute('aria-pressed', 'true');
   const row = sheet.locator('li').filter({ hasText: 'Table 3' });
   await expect(row).toContainText('Half & Half Pizza');
   await row.getByRole('button', { name: 'Recall', exact: true }).click();

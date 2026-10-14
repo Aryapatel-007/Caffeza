@@ -24,6 +24,7 @@ import {
   moveOrderToTable,
   undoSend,
   reduceOrderLine,
+  removeOrderLine,
 } from '../controllers/orderController.js';
 import {
   getKot,
@@ -58,6 +59,7 @@ import {
   fireOrderSchema,
   undoSendSchema,
   reduceOrderLineSchema,
+  removeOrderLineSchema,
   listKotsSchema,
   listOrdersSchema,
   listTablesSchema,
@@ -132,6 +134,8 @@ router.post('/orders', ...floor, validate(createOrderSchema), createOrder);
 router.get('/orders', ...anySignedIn, validate(listOrdersSchema), listOrders);
 router.get('/orders/:orderId', ...anySignedIn, validate(readOrderSchema), getOrder);
 router.post('/orders/:orderId/lines', ...floor, validate(addOrderLinesSchema), addOrderLines);
+// P49. A dish not sent yet, removed with no reason.
+router.delete('/orders/:orderId/lines/:lineId', ...floor, validate(removeOrderLineSchema), removeOrderLine);
 router.patch(
   '/orders/:orderId/lines/:lineId',
   ...floor,

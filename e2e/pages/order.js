@@ -116,13 +116,12 @@ export async function cancelLine(page, item, reason, wasPrepared = null, approva
   await expect(page.getByText('Line cancelled.')).toBeVisible();
 }
 
-/** Cancels an unsent dish from its card: the minus at one opens the cancel panel. */
-export async function removeUnsent(page, item, reason) {
+/** Removes an unsent dish from its card: the minus at one removes it (P49). */
+export async function removeUnsent(page, item) {
+  // P49. A dish not sent yet goes at once: no reason asked, nothing kept.
   await card(page, item).getByRole('button', { name: `Remove ${item}` }).click();
-  const sheet = page.getByRole('dialog', { name: `Cancel ${item}` });
-  await sheet.getByRole('button', { name: reason, exact: true }).click();
-  await sheet.getByRole('button', { name: /^Cancel it/ }).click();
-  await expect(page.getByText('Line cancelled.')).toBeVisible();
+  await expect(page.getByText(`${item} removed.`)).toBeVisible();
+  await expect(card(page, item).getByRole('button', { name: `Remove ${item}` })).toHaveCount(0);
 }
 
 /** No Charge, from the order's sheet. Manager. */

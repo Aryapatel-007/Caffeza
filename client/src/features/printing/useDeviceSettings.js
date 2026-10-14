@@ -72,6 +72,8 @@ const DEFAULTS = Object.freeze({
   speakAlerts: true,
   // P45. The kitchen screen rings a loud bell for a new ticket. Off unless turned on (Rishi, 2026-10-14).
   kitchenSound: false,
+  // How far back the kitchen's Recall looks: 30m, 1h, 3h or day.
+  recallRange: '1h',
 });
 
 /** Same-tab listeners. The `storage` event only reaches other tabs. */

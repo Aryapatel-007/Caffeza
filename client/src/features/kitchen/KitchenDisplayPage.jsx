@@ -27,8 +27,13 @@ const ORDER_TYPE_LABELS = { DINE_IN: 'Dine-in', TAKEAWAY: 'Takeaway', DELIVERY: 
 
 /** P29 Part E. How long the undo bar stays after a tick. */
 const UNDO_BAR_MS = 10_000;
-/** P41. How far back Recall looks for finished tickets. */
-const RECALL_MS = 60 * 60_000;
+/** P41. How far back Recall looks for finished tickets: chosen on the sheet, 1 hour unless changed (2026-10-14). */
+const RECALL_RANGES = [
+  { key: '30m', label: 'Last 30 min', ms: 30 * 60_000 },
+  { key: '1h', label: '1 hour', ms: 60 * 60_000 },
+  { key: '3h', label: '3 hours', ms: 3 * 60 * 60_000 },
+  { key: 'day', label: 'Today', ms: 24 * 60 * 60_000 },
+];
 
 /** P41. When the last dish of a ticket (of this station's dishes) was marked ready, or null. */
 function finishedAt(lines) {
@@ -96,9 +101,11 @@ export default function KitchenDisplayPage() {
    * back to the board. Read only while the sheet is open.
    */
   const [isRecalling, setIsRecalling] = useState(false);
+  const recallRange = RECALL_RANGES.find((range) => range.key === device.recallRange) ?? RECALL_RANGES[1];
   const finished = useQuery({
     queryKey: ['kots', { status: 'COMPLETED', sort: 'recent', stationId: stationFilter ?? null }],
-    queryFn: () => listKots({ status: 'COMPLETED', sort: 'recent', limit: 50, stationId: stationFilter }),
+    // The most a page holds; the range below decides what of it is shown.
+    queryFn: () => listKots({ status: 'COMPLETED', sort: 'recent', limit: 200, stationId: stationFilter }),
     enabled: isRecalling,
   });
 
@@ -223,7 +230,7 @@ export default function KitchenDisplayPage() {
       const lines = (stationFilter ? kot.lines.filter((line) => line.stationId === stationFilter) : kot.lines).filter((line) => line.status !== 'CANCELLED');
       return { ...kot, lines, doneAt: finishedAt(lines) };
     })
-    .filter((kot) => kot.doneAt && Date.now() - kot.doneAt < RECALL_MS && kot.lines.every((line) => line.status === 'READY'))
+    .filter((kot) => kot.doneAt && Date.now() - kot.doneAt < recallRange.ms && kot.lines.every((line) => line.status === 'READY'))
     .sort((a, b) => b.doneAt - a.doneAt);
   const nameOf = (kot, lineId) => kot.lines.find((line) => line.id === lineId)?.itemName ?? 'That dish';
 
@@ -371,11 +378,28 @@ export default function KitchenDisplayPage() {
 
       {/* P41. Recall: the tickets finished in the last hour, newest first. */}
       {isRecalling && (
-        <Sheet title="Recall" subtitle="Tickets finished in the last hour. Recall puts one back on the board." onClose={() => setIsRecalling(false)}>
+        <Sheet title="Recall" subtitle="Finished tickets. Recall puts one back on the board." onClose={() => setIsRecalling(false)}>
+          {/* 2026-10-14. How far back to look, as the kitchen chooses; kept on this device. */}
+          <div role="group" aria-label="How far back" className="mb-3 flex flex-wrap gap-2">
+            {RECALL_RANGES.map((range) => (
+              <button
+                key={range.key}
+                type="button"
+                aria-pressed={recallRange.key === range.key}
+                onClick={() => updateDevice({ recallRange: range.key })}
+                className={[
+                  'type-label min-h-12 rounded-lg border px-4',
+                  recallRange.key === range.key ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
+                ].join(' ')}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
           {finished.isPending && <Spinner label="Loading finished tickets" />}
           {finished.isError && <p className="type-body text-alert">{errorMessage(finished.error)}</p>}
           {finished.isSuccess && recallable.length === 0 && (
-            <EmptyState title="Nothing to recall" description="Tickets finished in the last hour show here." />
+            <EmptyState title="Nothing to recall" description={`No ticket finished in this range (${recallRange.label.toLowerCase()}).`} />
           )}
           <ul className="flex flex-col gap-2">
             {recallable.map((kot) => (

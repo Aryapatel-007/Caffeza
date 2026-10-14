@@ -60,10 +60,11 @@ test('PetPooja\'s way: floor, history, Recall Bill, counter, change, kitchen', a
 
   // 👁: Table 3's day, read-only.
   await page.getByRole('button', { name: 'What Table 3 has had today' }).click();
-  const history = page.getByRole('dialog', { name: 'Table 3: today' });
+  // Only the current order, simply: each KOT with its time and dishes, and the total.
+  const history = page.getByRole('dialog', { name: 'Table 3' });
   await expect(history).toContainText('KOT');
   await expect(history).toContainText('Creamy Pesto Pasta');
-  await expect(history).toContainText('Khuman Singh');
+  await expect(history).toContainText('Item total');
   await page.screenshot({ path: 'e2e/screenshots/p48-history.png' });
   await page.keyboard.press('Escape');
 

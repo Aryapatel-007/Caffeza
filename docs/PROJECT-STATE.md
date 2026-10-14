@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-14 by Rishi (P48 PetPooja's way; kitchen bell off by default; test database)
+Last updated: 2026-10-14 by Rishi (P49 removing a dish before it is sent; the captain's phone order, 👁 and kitchen Recall range)
 
 ---
 
@@ -529,6 +529,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-14 | P46: an open item is a real menu item marked open, whose name and price staff type at the table; everyone who takes orders may add one, with no PIN. | Rishi's choice. A placeholder dish gives the typed line a category (so a kitchen station) and a GST rate, and every bill, report and ticket keeps working on frozen lines. Never on the guests' page or a platform: only staff may price a dish. |
 | 2026-10-14 | P44: the day-end message is plain text in the manager's own words (GLOSSARY section 29), built from Day Close's figures and R3, emailed through Resend to the owner's chosen addresses at Day Close and on a button; the Day End page lays the day out in PetPooja's three steps. | Rishi asked for both, with PetPooja's screens as the model the manager knows. One set of figures means the message, Day Close and R2 never disagree. The email goes only to addresses the owner set, so it may carry the cash a blind manager does not see on screen. No Resend SDK: one HTTPS call, as Razorpay. |
 | 2026-10-14 | A sign-in lasts 365 days, renewed on every refresh (`REFRESH_TOKEN_TTL` default `365d`, was `30d`), so a device stays signed in until Sign out. Firebase SMS sign-in was considered and not built. | Rishi wants captains and the kitchen never asked to sign in again. Sessions already renewed every 15 minutes in use, so 30 days only ended a device left unused for a month. Firebase phone sign-in would add a 6-digit SMS code to every new sign-in, a billed SMS plan and a rewrite of M0, and Rishi chose to keep phone and password. A lost device's session still ends when the owner switches the person off or resets their password. 365, not more: Chrome caps a cookie at 400 days. |
+| 2026-10-14 | P49: a dish not yet sent to the kitchen is removed with no reason and leaves nothing behind (`DELETE /orders/:orderId/lines/:lineId`): no cancelled line, no audit line, no report row. A sent dish still goes through Undo and Change. The golden day's API fixture still cancels the unsent Cheesy Tornado with its reason, so every golden number stands; the browser golden day removes it. | Rishi: the guest changing their mind before the order goes in is not the captain's fault and should not show anywhere. Nothing was cooked, so there is nothing to count. CONVENTIONS section 3 already names the unfired draft line as the one thing DELETE is for. |
 | 2026-10-13 | P43: an Other payment must say its mode (Cheque, Bank transfer, Wallet, Coupon, or typed), stored as the payment's `reference`. | Rishi asked for Other with its mode. A field already shown on the bill and kept per payment carries it, so no schema change; reports keep these payments under Other. |
 | 2026-10-13 | P42: anyone but the kitchen login changes a sent dish from the order screen's Change: fewer of it, a new note, remove it, or swap it. `approvals.lineCancel` now asks the PIN only for a dish that was made: marked ready, or said to be made ("Already made by the kitchen"). A dish sent but not made changes with no PIN and no questions. | Rishi asked for it, and chose the PIN "only once it's cooked". A kitchen often cooks before ticking, so "made" is the kitchen's tick or the person's word, which keeps thrown-away food audited and the golden day's Thecha cancel (made, PIN) unchanged. Lowering a quantity splits the line, so the part taken off is an ordinary cancelled line for reports; only its share of stock comes back, and a later remove returns what is still out, never more. Nothing prints; the kitchen screen shows Changed or Cancelled. |
 | 2026-10-13 | P42: the KITCHEN login sees only the ticket board: no rail, bottom bar, Home or Availability; any other address opens the board; the bar has only the name and Sign out. | Rishi asked for "only KOT". Availability and This device go with it: a manager marks dishes out of stock, and sets a kitchen tablet's printer while signed in on it. The server's permissions are unchanged. |
@@ -558,6 +559,19 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-14 Rishi, P49 removing a dish before it is sent; the captain's phone, 👁 and Recall range
+
+What was built or decided:
+1. P49, spec first (`078c54e`): `docs/prompts/P49-remove-before-sending.md`, API-CONTRACT "P49". Server: `DELETE /orders/:orderId/lines/:lineId?version=` (`removeOrderLine` in `orderController.js`, `removeOrderLineSchema`): only a not-sent line, only an order with no live bill, pulled through the version. Screens: a not-sent dish has **Remove** on the order (no sheet, no reason), and a dish card's minus at 1 removes it the same way (`OrderScreenPage.jsx`, `OrderLineList.jsx`, `api/orders.js` `removeOrderLine`).
+2. The captain's phone (from Z Chaat's screenshot): each dish on the order is one compact row, with Change on the same line as its name and price.
+3. 👁 on a busy table shows only its current order: each KOT with its time and dishes, what is not sent yet, and the item total (`TableHistorySheet.jsx`).
+4. Kitchen Recall has **How far back**: 30 minutes, 1 hour (default), 3 hours or the whole day, kept per device (`recallRange` in `useDeviceSettings.js`).
+
+Tests: `removeBeforeSending.test.js` (2): the removal leaves no cancelled line or audit, and the refusals (sent, billed, stale version, another restaurant, the kitchen login). Browser: new `e2e/removeBeforeSending.spec.js` and `e2e/captainPhoneOrder.spec.js`; `petpooja.spec.js` and `recallUndoSend.spec.js` changed on purpose for the simpler 👁 and the range; the golden day's 8:50 PM step now removes the Cheesy Tornado (TEST-DATA notes why the numbers stand). Full `npm test`: 1,320 passing, 0 failing; all 26 browser specs pass; lint and build pass.
+
+Anything the other developer needs to know:
+Arya: `Cancel line` no longer shows for a not-sent dish; the cancel endpoint still accepts one, for the API and the golden fixture.
 
 ### 2026-10-14 Rishi, P48 PetPooja's way, the bell off by default, and a test database
 

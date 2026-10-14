@@ -448,6 +448,14 @@ export const cancelOrderLineSchema = z.object({
     .superRefine(requireNoteForOther),
 });
 
+/** P49. Remove a dish not sent yet: the version in the query, as a DELETE has no body. */
+export const removeOrderLineSchema = z.object({
+  params: orderLineParams,
+  query: z.object({
+    version: z.coerce.number({ error: 'Is required. Send the version you last read.' }).int('Must be a whole number.').min(1, 'Must be 1 or more.'),
+  }),
+});
+
 /** P42. Lower a sent line's quantity: the new quantity, and 12.6's answers for the part taken off. */
 export const reduceOrderLineSchema = z.object({
   params: orderLineParams,
