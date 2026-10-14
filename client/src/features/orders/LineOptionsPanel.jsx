@@ -5,6 +5,8 @@ import ApprovalStep, { useApproval } from '../../components/ui/ApprovalStep.jsx'
 import Money, { moneyText } from '../../components/ui/Money.jsx';
 import Sheet from '../../components/ui/Sheet.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
+import Input from '../../components/ui/Input.jsx';
+import { parseRupeesToPaise } from '../../utils/formatMoney.js';
 
 /**
  * Choosing a size, extras, a quantity and a note before a line goes on.
@@ -32,9 +34,15 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, ne
   const [addOnIds, setAddOnIds] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
+  // P46. An open item's name and price, typed here.
+  const isOpen = item.isOpenItem === true;
+  const [openName, setOpenName] = useState('');
+  const [openPrice, setOpenPrice] = useState('');
+  const openPriceInPaise = isOpen ? parseRupeesToPaise(openPrice) : null;
+  const openReady = !isOpen || (openName.trim().length > 0 && openPriceInPaise !== null && openPriceInPaise > 0);
 
   const chosenVariant = item.variants.find((variant) => variant.id === variantId);
-  const unitPrice = chosenVariant ? chosenVariant.priceInPaise : item.priceInPaise;
+  const unitPrice = isOpen ? (openPriceInPaise ?? 0) : chosenVariant ? chosenVariant.priceInPaise : item.priceInPaise;
 
   const addOnTotal = item.addOns
     .filter((addOn) => addOnIds.includes(addOn.id))
@@ -108,6 +116,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, ne
         quantity,
         ...(addOnIds.length > 0 ? { addOnIds } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(isOpen ? { openItem: { name: openName.trim(), priceInPaise: openPriceInPaise } } : {}),
       },
       approval.body,
     );
@@ -129,7 +138,7 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, ne
           <button
             type="button"
             // Every size out of stock means nothing here can be ordered.
-            disabled={isBusy || (item.variants.length > 0 && !variantId) || !approval.ready}
+            disabled={isBusy || (item.variants.length > 0 && !variantId) || !approval.ready || !openReady}
             onClick={pick}
             className="flex min-h-14 flex-1 items-center justify-between gap-2 rounded-lg bg-accent px-4 text-on-accent hover:brightness-110 disabled:opacity-60"
           >
@@ -140,6 +149,14 @@ export default function LineOptionsPanel({ item, onCancel, onConfirm, isBusy, ne
       }
     >
       {item.description && <p className="type-body mb-4 text-muted">{item.description}</p>}
+
+      {/* P46. An open item: what it is and what it costs, typed by staff. */}
+      {isOpen && (
+        <div className="mb-6 flex flex-col gap-3">
+          <Input label="Name" value={openName} maxLength={80} onChange={(event) => setOpenName(event.target.value)} placeholder="e.g. Extra chutney" />
+          <Input label="Price (₹)" inputMode="decimal" value={openPrice} onChange={(event) => setOpenPrice(event.target.value)} placeholder="e.g. 20" />
+        </div>
+      )}
 
       {item.variants.length > 0 && (
         <fieldset className="mb-6">

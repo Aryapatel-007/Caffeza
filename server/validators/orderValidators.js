@@ -41,6 +41,7 @@ import {
   nonEmptyString,
   objectId,
   paginationQuery,
+  paise,
   phoneIndia,
   reasonFields,
   requireNoteForOther,
@@ -249,6 +250,17 @@ const lineRequest = z
       .max(MAX_LINE_QUANTITY, `Cannot be more than ${MAX_LINE_QUANTITY}.`),
     addOnIds: z.array(objectId).optional(),
     notes,
+    /**
+     * P46. Only for an open item: the dish's name and price, typed by staff.
+     * The one place a client names a price, and only for a dish marked open.
+     */
+    openItem: z
+      .object({
+        name: z.string({ error: 'Is required.' }).trim().min(1, 'Type the dish\'s name.').max(80, 'Cannot be longer than 80 characters.'),
+        priceInPaise: paise.refine((value) => value >= 1, 'Must be more than zero.'),
+      })
+      .strict('Is not a field you can set on an open item.')
+      .optional(),
   })
   .strict('Is not a field you can set on a line. The server prices the line itself.');
 

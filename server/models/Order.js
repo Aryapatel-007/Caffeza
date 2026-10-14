@@ -227,6 +227,8 @@ const orderLineSchema = new mongoose.Schema(
      * other price.
      */
     priceSource: { type: String, enum: ['MENU', 'PLATFORM'], default: 'MENU' },
+    // P46. An open item: `itemName` and `unitPriceInPaise` are what staff typed.
+    isOpenItem: { type: Boolean, default: false },
 
     status: {
       type: String,

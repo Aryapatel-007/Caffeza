@@ -43,6 +43,8 @@ const SNAPSHOT_FIELDS = [
   'priceSource',
   'categoryId',
   'categoryName',
+  // P46.
+  'isOpenItem',
 ];
 
 function unsentCopy(line, req, at) {

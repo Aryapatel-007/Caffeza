@@ -105,6 +105,8 @@ export function toBillLine(line) {
     // P03. Frozen on the order line when it was added; null on older orders.
     categoryId: line.categoryId ?? null,
     categoryName: line.categoryName ?? null,
+    // P46.
+    isOpenItem: line.isOpenItem === true,
   };
 }
 

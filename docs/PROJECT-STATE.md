@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-14 by Rishi (P44 the Day End page and email; P45 the kitchen bell)
+Last updated: 2026-10-14 by Rishi (P46 open item)
 
 ---
 
@@ -525,6 +525,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-12 | Z Chaat takes no payment online: guests pay at the counter by the QR code, card or cash, and bookings take no deposit; the cafe confirms the table. The public page says so whenever no gateway is connected. | Rishi's word, 2026-10-12. The online-payment branch stays in the code for a restaurant that connects Razorpay. |
 | 2026-10-12 | Later the same day: Z Chaat's table bookings take an advance of ₹50 a person, paid online when booking through Z Chaat's own Razorpay, taken off the bill, like Zomato. Takeaway stays paid at the counter. This narrows the row above to takeaway. | Rishi's choice, from three offered (online, by QR after confirming, at the counter). Per person because the deposit setting already exists (`depositPerPersonInPaise`); a flat per-booking amount would have needed a new setting. Needs Razorpay connected in Settings, Payments, and `PAYMENT_SECRETS_KEY` on the server. |
 | 2026-10-12 | P38: a dish on a kitchen ticket is marked ready by a Cooking / Ready switch, not by tapping its row; switching it off is the undo. | Rishi asked for an on/off switch. A switch shows the state in place and cannot be set by brushing the row. The tested helper `tickDish` now uses the switch, changed on purpose. |
+| 2026-10-14 | P46: an open item is a real menu item marked open, whose name and price staff type at the table; everyone who takes orders may add one, with no PIN. | Rishi's choice. A placeholder dish gives the typed line a category (so a kitchen station) and a GST rate, and every bill, report and ticket keeps working on frozen lines. Never on the guests' page or a platform: only staff may price a dish. |
 | 2026-10-14 | P44: the day-end message is plain text in the manager's own words (GLOSSARY section 29), built from Day Close's figures and R3, emailed through Resend to the owner's chosen addresses at Day Close and on a button; the Day End page lays the day out in PetPooja's three steps. | Rishi asked for both, with PetPooja's screens as the model the manager knows. One set of figures means the message, Day Close and R2 never disagree. The email goes only to addresses the owner set, so it may carry the cash a blind manager does not see on screen. No Resend SDK: one HTTPS call, as Razorpay. |
 | 2026-10-14 | A sign-in lasts 365 days, renewed on every refresh (`REFRESH_TOKEN_TTL` default `365d`, was `30d`), so a device stays signed in until Sign out. Firebase SMS sign-in was considered and not built. | Rishi wants captains and the kitchen never asked to sign in again. Sessions already renewed every 15 minutes in use, so 30 days only ended a device left unused for a month. Firebase phone sign-in would add a 6-digit SMS code to every new sign-in, a billed SMS plan and a rewrite of M0, and Rishi chose to keep phone and password. A lost device's session still ends when the owner switches the person off or resets their password. 365, not more: Chrome caps a cookie at 400 days. |
 | 2026-10-13 | P43: an Other payment must say its mode (Cheque, Bank transfer, Wallet, Coupon, or typed), stored as the payment's `reference`. | Rishi asked for Other with its mode. A field already shown on the bill and kept per payment carries it, so no schema change; reports keep these payments under Other. |
@@ -556,6 +557,18 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-14 Rishi, P46 open item
+
+What was built or decided:
+Asked for by Rishi; everyone who takes orders adds one, no PIN. Spec first (`spec the open item`): `docs/prompts/P46-open-item.md`, API-CONTRACT "P46", DB-SCHEMA section 50, GLOSSARY section 31.
+1. Server: `menuitems.isOpenItem`; a line request's `openItem: { name, priceInPaise }`, frozen as the line's `itemName` and `unitPriceInPaise` with `isOpenItem: true` (`buildLineSnapshots`), refused without it, with sizes or extras, on a normal dish, and from a guest (no signed-in person). `bills.lines[].isOpenItem` through `toBillLine`. The public menu and platform item mapping leave open items out, and a mapping to one is refused. R11 keys open items by their typed name. P41's and P42's line copies keep the flag.
+2. Client: Open item in the menu item editor (sizes and extras hidden); the dish sheet asks Name and Price for an open item; the card reads "Type name and price"; open items never merge on a card's stepper, on the order screen or the delivery page.
+
+Tests: `openItem.test.js` (4): the typed name and price frozen at the item's GST for a captain; refusals; never from a guest; the kitchen ticket, two bill rows and two R11 rows. Dropping the typed name from R11's key on purpose fails it. Browser: new `e2e/openItem.spec.js` (a captain on a phone adds "Extra chutney" at ₹20 and sends it). Full `npm test`: 1,313 passing, 0 failing. Lint and build pass.
+
+Anything the other developer needs to know:
+Not pushed. Z Chaat's "Open item" is to be added after the deploy, as the owner.
 
 ### 2026-10-14 Rishi, P44 and P45 deployed
 

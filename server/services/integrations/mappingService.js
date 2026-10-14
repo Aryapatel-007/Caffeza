@@ -22,8 +22,10 @@ async function channelConnection(req, provider) {
 
 /** The dish, size and extras must be this restaurant's: 422 otherwise. */
 async function assertOurs(req, { menuItemId, variantId = null, addOnMap = {} }) {
-  const item = await MenuItem.findOne({ ...scoped(req), _id: menuItemId }).select('variants addOns').lean();
+  const item = await MenuItem.findOne({ ...scoped(req), _id: menuItemId }).select('variants addOns isOpenItem').lean();
   if (!item) throw new BusinessRuleError('That dish is not on this menu.');
+  // P46. A platform's item has its own price; an open item's is typed by staff.
+  if (item.isOpenItem) throw new BusinessRuleError('An open item cannot be matched to a platform item.');
   if (variantId && !item.variants.some((variant) => String(variant._id) === String(variantId))) {
     throw new BusinessRuleError('That size is not on this dish.');
   }
@@ -99,7 +101,8 @@ export async function importMappings(req, provider, { csv, apply = false }) {
   if (!header || header.fields.map((field) => field.toLowerCase()).join(',') !== 'external_item_id,external_variant_id,menu_item,size') {
     throw new BusinessRuleError('The first row must be: external_item_id,external_variant_id,menu_item,size');
   }
-  const items = await MenuItem.find({ ...scoped(req), isActive: true }).select('name nameLower variants').lean();
+  // P46. An open item is priced by staff, never by a platform.
+  const items = await MenuItem.find({ ...scoped(req), isActive: true, isOpenItem: { $ne: true } }).select('name nameLower variants').lean();
   const planned = [];
   const problems = [];
   for (const { line, fields } of data) {

@@ -188,7 +188,8 @@ export default function OrderScreenPage() {
     for (const line of order?.lines ?? []) {
       if (line.status !== 'PENDING') continue;
       counts.set(line.menuItemId, (counts.get(line.menuItemId) ?? 0) + line.quantity);
-      const isSimple = !line.variantId && line.addOns.length === 0 && !line.notes;
+      // P46. Two open items are two dishes, whatever their card: never merged.
+      const isSimple = !line.variantId && line.addOns.length === 0 && !line.notes && !line.isOpenItem;
       // P29. With a bill, a line changes only through the bill, so a tap adds a new line.
       if (isSimple && !order.billId && !simple.has(line.menuItemId)) simple.set(line.menuItemId, line);
     }

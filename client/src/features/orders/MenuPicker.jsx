@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 
 import { MinusIcon, PlusIcon } from '../../components/ui/icons/index.jsx';
-import Money from '../../components/ui/Money.jsx';
+import Money from '../../components/ui/Money.jsx';
+
 import Spinner from '../../components/ui/Spinner.jsx';
 
 /**
@@ -148,7 +149,8 @@ function DishCard({ item, line, pendingCount, disabled, onOpen, onStep, onRemove
       </button>
 
       <div className="mt-3 flex flex-col gap-2 min-[600px]:flex-row min-[600px]:items-center min-[600px]:justify-between">
-        <Money paise={item.priceInPaise} size="num" />
+        {/* P46. An open item's price is typed when it is added. */}
+        {item.isOpenItem ? <span className="type-caption text-muted">Type name and price</span> : <Money paise={item.priceInPaise} size="num" />}
 
         {line ? (
           <div className="flex items-center justify-between rounded-lg border border-ink">

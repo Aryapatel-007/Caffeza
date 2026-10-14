@@ -54,6 +54,8 @@ const SNAPSHOT_FIELDS = [
   'priceSource',
   'categoryId',
   'categoryName',
+  // P46.
+  'isOpenItem',
   'status',
   'kotId',
   'addedBy',
