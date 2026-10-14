@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-13 by Rishi (P43 Other with the mode of payment)
+Last updated: 2026-10-14 by Rishi (a one-year sign-in; Khuman singh's login switched off)
 
 ---
 
@@ -555,6 +555,19 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-14 Rishi, a one-year sign-in, and one login switched off
+
+What was built or decided:
+1. A sign-in lasts a year, renewed on every refresh: `REFRESH_TOKEN_TTL` defaults to `365d` (`server/config/env.js`, `.env.example`), and Render sets none, so this is Z Chaat's. Devices already signed in move to it on their next refresh. Firebase SMS sign-in was asked about and not built (decision log). Spec first (`spec a one-year sign-in, renewed on use`).
+2. Khuman singh's login (CASHIER, 9510035006) on Z Chaat switched off at Rishi's word, the way `PATCH /users/:userId/status` does it: `isActive` false, sessions ended (none were open), and `USER_DEACTIVATED` recorded with the owner as actor. The record stays.
+
+Tests: `auth.test.js` gains two: the cookie's Max-Age equals `REFRESH_TOKEN_TTL`, and the default in `env.js` is `365d`. 40 passing. Lint passes. The full suite was not run (one setting and two tests changed).
+
+Deployed 2026-10-14 at 12:04 PM, at Rishi's word: pushed `52631ee..e1e2f49`. Render runs `e1e2f49`, database connected.
+
+Anything the other developer needs to know:
+Arya: your `.env` still says `REFRESH_TOKEN_TTL=30d`, which only matters on your machine; `.env.example` now says `365d`. This Mac reached Atlas again from 89.38.97.215 on 14 October.
 
 ### 2026-10-13 Rishi, P43 Other with the mode of payment
 
