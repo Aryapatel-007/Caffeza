@@ -26,7 +26,7 @@ A **Bill No** box in the top bar, for the till roles (owner, manager, cashier): 
 
 ## F. Table history (👁)
 
-A sheet listing what the table has had today: each order and, for each of its sends, the KOT time, who sent it, the dishes and quantities, dishes cancelled and why, and the bill's number and status. Read-only: nothing on it adds to the current order or sends a KOT.
+A sheet listing what the table has had today: each order and, for each of its sends, the KOT time, who sent it, the dishes and quantities, dishes cancelled and why, and the bill's number and status. Read-only: nothing on it adds to the current order or sends a KOT. The server: `GET /tables/:tableId/history`, which attaches the people's names, the KOT numbers and the bill.
 
 ## G. Typed extras
 

@@ -8583,6 +8583,28 @@ None new.
 `number`, a whole number from 1: the bills whose `billSequence` is that
 number, in any series, newest first. With the other filters as before.
 
+## 1a. `GET /tables/:tableId/history`
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. Read-only. The table's orders opened on
+today's business date (or `?date=YYYY-MM-DD`), newest first:
+
+```json
+{ "tableName": "Table 5", "businessDate": "2026-10-14", "orders": [
+  { "orderId": "...", "orderNumber": 12, "status": "BILLED", "openedAt": "...",
+    "openedByName": "Shivam", "guestCount": 3,
+    "sends": [ { "firedAt": "...", "kotNumbers": [41], "sentByName": "Shivam",
+      "lines": [ { "itemName": "Pani Puri", "variantName": null, "quantity": 2,
+        "addOnNames": [], "status": "SERVED" } ] } ],
+    "notSent": [ { "itemName": "...", "quantity": 1 } ],
+    "cancelled": [ { "itemName": "...", "quantity": 1, "at": "...", "byName": "Govind",
+      "reason": "Guest changed the order", "wasPrepared": false } ],
+    "bill": { "billId": "...", "billNumber": "2026-27/000012", "status": "PAID",
+      "grandTotalInPaise": 42000 } } ] }
+```
+
+A send is the order's lines that share one `firedAt`. Names are attached when
+read, as labels only (P13's rule). 404 for another restaurant's table.
+
 ## 2. Typed extras on a line (M2 12.1 and 12.4)
 
 A line request may carry `extras: [{ name, priceInPaise }]`, at most 5: `name`
