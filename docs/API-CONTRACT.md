@@ -8618,3 +8618,29 @@ public request with extras is refused as the open item is (P46).
 
 None new.
 
+---
+
+# P49 Removing a dish before it is sent
+
+`docs/prompts/P49-remove-before-sending.md`. One new endpoint.
+
+```
+DELETE /api/v1/orders/:orderId/lines/:lineId?version=7
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. Only a `PENDING` line: otherwise 422
+`BUSINESS_RULE_VIOLATED`, "This dish has been sent to the kitchen. Use Change."
+An order with a live bill: 422, "This table has a bill. Change the items from
+the bill." `version` is required; a stale one is 409 `VERSION_CONFLICT`.
+
+The line is removed from `orders.lines` (a `$pull` through the version). No
+reason, no cancelled line, no audit line, no stock movement: it never reached
+the kitchen. Response 200: the order.
+
+This is the "unfired draft order line" CONVENTIONS section 3 names as the one
+kind of thing DELETE is for. A sent line is never deleted.
+
+## Error codes
+
+None new.
+
