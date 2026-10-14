@@ -8,7 +8,7 @@ import RequireFeature from './components/RequireFeature.jsx';
 import RequireRole from './components/RequireRole.jsx';
 import LoginPage from './features/auth/LoginPage.jsx';
 import BillScreenPage from './features/billing/BillScreenPage.jsx';
-import DashboardPage from './features/dashboard/DashboardPage.jsx';
+import HomePage from './features/dashboard/HomePage.jsx';
 import KitchenDisplayPage from './features/kitchen/KitchenDisplayPage.jsx';
 import FloorViewPage from './features/orders/FloorViewPage.jsx';
 import OrderScreenPage from './features/orders/OrderScreenPage.jsx';
@@ -152,7 +152,7 @@ export default function App() {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <HomePage />
           </ProtectedRoute>
         }
       />

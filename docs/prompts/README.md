@@ -63,6 +63,6 @@ The full table, with dependencies and owners, is in
 | P52 | Campaigns: offers and new dishes | Written by Arya, not saved here yet; comes after P37 has run on a real WhatsApp account. Numbered P38 in P37's prompt. |
 | P53 | Attribution and campaign reporting | Not written yet. Numbered P39 in P37's prompt. |
 | P54 | Constant backups | In progress. Written as P44. |
-| P51 | The owner's home: today at a glance | Specified 2026-10-15. |
+| P51 | The owner's home: today at a glance | Built 2026-10-15. Arya's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.
