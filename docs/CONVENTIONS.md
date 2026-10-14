@@ -270,6 +270,12 @@ WAITING_FOR_KITCHEN        422  money taken on a bill whose order has items not 
 ORDER_ALREADY_BILLED       422  undoing ready in the kitchen on an order that has a live bill
 ```
 
+Added by P44:
+
+```
+EMAIL_SEND_FAILED          502  Resend refused or could not be reached
+```
+
 ### Paging
 
 Every list endpoint takes `?page=1&limit=50`.
@@ -465,9 +471,3 @@ Call the endpoint with a valid token from the wrong role. It must fail with 403.
 Call the endpoint with a valid token from restaurant A, using a record ID that belongs to restaurant B. It must fail with 404.
 
 Money and GST calculation logic gets real automated tests. That is the one place where a quiet bug costs a client money.
-
-Added by P44:
-
-```
-EMAIL_SEND_FAILED          502  Resend refused or could not be reached
-```
