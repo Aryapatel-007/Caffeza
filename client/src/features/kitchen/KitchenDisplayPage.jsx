@@ -16,6 +16,7 @@ import { rememberPrinted, useDeviceSettings } from '../printing/useDeviceSetting
 import EmptyState from '../../components/ui/EmptyState.jsx';
 import Spinner from '../../components/ui/Spinner.jsx';
 import { useLiveInterval } from '../../api/live.js';
+import { kitchenBell, onUnlockChange, soundIsUnlocked, speak, unlockSound } from '../online/alertSound.js';
 
 const ALL_STATIONS = 'ALL';
 
@@ -226,6 +227,43 @@ export default function KitchenDisplayPage() {
     .sort((a, b) => b.doneAt - a.doneAt);
   const nameOf = (kot, lineId) => kot.lines.find((line) => line.id === lineId)?.itemName ?? 'That dish';
 
+  /**
+   * P45. A loud bell for a ticket, or a new round on one, this screen has not
+   * shown before, then "KOT 12, Table 5" aloud when spoken alerts are on. The
+   * tickets on the board when the screen opens are taken as seen, so opening
+   * the screen in the middle of service is silent. One bell for a batch.
+   */
+  const seenRounds = useRef(null);
+  const [soundUnlocked, setSoundUnlocked] = useState(soundIsUnlocked);
+  useEffect(() => onUnlockChange(setSoundUnlocked), []);
+  useEffect(() => {
+    // Browsers allow sound only after a tap; any tap on the page will do.
+    const onTap = () => unlockSound();
+    document.addEventListener('pointerdown', onTap);
+    return () => document.removeEventListener('pointerdown', onTap);
+  }, []);
+  // A station changed on this screen starts from what is on the board, silently.
+  useEffect(() => {
+    seenRounds.current = null;
+  }, [stationFilter]);
+  useEffect(() => {
+    if (!tickets.isSuccess) return;
+    const rounds = kots.flatMap((kot) => [...new Set(kot.lines.map((line) => line.round ?? 1))].map((round) => ({ key: `${kot.id}:${round}`, kot })));
+    if (seenRounds.current === null) {
+      seenRounds.current = new Set(rounds.map((entry) => entry.key));
+      return;
+    }
+    const fresh = rounds.filter((entry) => !seenRounds.current.has(entry.key));
+    for (const entry of fresh) seenRounds.current.add(entry.key);
+    if (fresh.length === 0 || !device.kitchenSound) return;
+    kitchenBell();
+    if (device.speakAlerts) {
+      const first = fresh[0].kot;
+      speak(`KOT ${first.kotNumber}, ${first.tableName ?? `order ${first.orderNumber}`}`);
+    }
+    // `kots` is derived from tickets.data and the station; those decide whether anything is new.
+  }, [tickets.data, stationFilter]);
+
   return (
     <main className="v2 min-h-full bg-ground text-ink">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 sm:px-6">
@@ -238,6 +276,15 @@ export default function KitchenDisplayPage() {
         </div>
 
         <div className="ml-auto flex items-center gap-3 text-right">
+          {/* P45. The bell for a new ticket, on or off on this device. */}
+          <button
+            type="button"
+            aria-pressed={device.kitchenSound}
+            onClick={() => updateDevice({ kitchenSound: !device.kitchenSound })}
+            className="type-button min-h-12 rounded-lg border border-line bg-surface px-4 hover:bg-sunken"
+          >
+            {device.kitchenSound ? 'Sound on' : 'Sound off'}
+          </button>
           {/* P41. Bring a finished ticket back, as on PetPooja. */}
           <button
             type="button"
@@ -279,6 +326,11 @@ export default function KitchenDisplayPage() {
           </div>
         )}
 
+        {device.kitchenSound && !soundUnlocked && (
+          <p role="status" className="type-label w-full rounded-lg border border-open bg-open-tint px-4 py-3 text-ink">
+            Tap anywhere to turn on the sound for new tickets.
+          </p>
+        )}
         {error && <p className="type-body w-full text-alert">{error}</p>}
         {notice && <p className="type-body w-full text-muted">{notice}</p>}
       </header>

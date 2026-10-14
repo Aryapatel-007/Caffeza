@@ -59,6 +59,33 @@ export function chime() {
   });
 }
 
+/**
+ * P45. The kitchen bell for a new ticket: three strong notes, rising, played
+ * twice, about a second and a half. Square waves at a high level, so it
+ * carries over a kitchen; far louder than the chime. Rings once per call.
+ */
+export function kitchenBell() {
+  // A browser test counts the rings, as it counts prints. Only a test sets this.
+  if (typeof window !== 'undefined' && typeof window.__E2E_SOUND__ === 'function') window.__E2E_SOUND__('kitchen-bell');
+  if (!context || context.state !== 'running') return;
+  const start = context.currentTime;
+  for (const offset of [0, 0.75]) {
+    [784, 988, 1175].forEach((frequency, index) => {
+      const at = offset + index * 0.18;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = 'square';
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, start + at);
+      gain.gain.exponentialRampToValueAtTime(0.6, start + at + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + at + 0.34);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(start + at);
+      oscillator.stop(start + at + 0.36);
+    });
+  }
+}
+
 /** Says a line aloud in Indian English, after the chime. */
 export function speak(text) {
   try {

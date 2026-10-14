@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-14 by Rishi (P44 the Day End page and the day-end email)
+Last updated: 2026-10-14 by Rishi (P44 the Day End page and email; P45 the kitchen bell)
 
 ---
 
@@ -556,6 +556,18 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-14 Rishi, P45 a loud bell on the kitchen screen
+
+What was built or decided:
+Asked for by Rishi: a loud sound when a KOT is sent, for the chef and the waiters. Client only; spec `docs/prompts/P45-kitchen-bell.md`, GLOSSARY section 30.
+1. `kitchenBell()` in `features/online/alertSound.js`: three square-wave notes, rising, twice, about 1.5 s, far louder than the P23 chime.
+2. The kitchen screen rings once for each batch of tickets or new rounds it has not shown, then says "KOT 12, Table 5" when This device's spoken alerts are on. Tickets already on the board when it opens, or when the station is changed, do not ring. A banner asks for one tap until the browser allows sound. "Sound on / Sound off" in the header, kept per device (`kitchenSound`, on by default).
+
+Tests: new `e2e/kitchenBell.spec.js` (no ring for the ticket already there; the banner gone after a tap; one ring for a new ticket; none with Sound off), counting rings through `window.__E2E_SOUND__`, which only a test sets. Ringing on opening on purpose fails it. The kitchen specs and the golden day pass. Lint and build pass. No server change, so the server suite was not rerun.
+
+Anything the other developer needs to know:
+Not pushed. Each kitchen tablet needs one tap after it is opened before it can ring: browsers refuse sound until then. The volume is also the tablet's own: turn it up.
 
 ### 2026-10-14 Rishi, P44 the Day End page and the day-end email
 

@@ -70,6 +70,8 @@ const DEFAULTS = Object.freeze({
   // P23. The online alert on this device: the chime and banner, and the spoken line.
   onlineAlerts: true,
   speakAlerts: true,
+  // P45. The kitchen screen rings a loud bell for a new ticket.
+  kitchenSound: true,
 });
 
 /** Same-tab listeners. The `storage` event only reaches other tabs. */
