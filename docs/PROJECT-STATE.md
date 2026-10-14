@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-14 by Rishi (P46 open item)
+Last updated: 2026-10-14 by Rishi (P46 open item, P47 Other modes)
 
 ---
 
@@ -557,6 +557,18 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-14 Rishi, P47 Other modes kept in Settings
+
+What was built or decided:
+Asked for by Rishi: Swiggy, Zomato and EazyDiner under Other, and an easy way in Settings to add more. Spec first (`spec other modes kept in settings`): `docs/prompts/P47-other-modes.md`, API-CONTRACT "P47", DB-SCHEMA section 51, GLOSSARY section 32.
+1. `settings.payments.otherModes` (default Swiggy Dineout, Zomato Dineout, EazyDiner, Cheque, Bank transfer, Coupon; at most 12, each 1 to 40 characters, no repeats ignoring case), on `GET /auth/me` as `payments.otherModes`.
+2. The payment panel's Other offers the restaurant's list; a mode can still be typed. Settings, Payment methods gains **Other modes**: chips with ×, a box with Add, saved with the settings' reason, and a warning while Other itself is off.
+
+Tests: `payments.test.js` gains one (the defaults, a cashier's `/auth/me` following the owner's change, the refusals, a manager refused); `settings.test.js` and `auth.test.js` pin the new field, changed on purpose. Browser: `e2e/otherPayment.spec.js` gains the owner adding Paytm in Settings and the cashier paying by it. Full `npm test`: 1,314 passing; all 23 browser specs pass. Lint and build pass.
+
+Anything the other developer needs to know:
+Not pushed. Other is still switched off at Z Chaat until its owner switches it on (Settings, Payment methods).
 
 ### 2026-10-14 Rishi, P46 open item
 

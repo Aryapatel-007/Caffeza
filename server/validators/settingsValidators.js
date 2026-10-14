@@ -331,7 +331,15 @@ const cash = z
 
 /** Payments. P25 Part I. */
 const payments = z
-  .object({ requireTerminalForLinkedMethods: z.boolean({ error: 'Must be true or false.' }).optional() })
+  .object({
+    requireTerminalForLinkedMethods: z.boolean({ error: 'Must be true or false.' }).optional(),
+    // P47. The modes Other offers one tap each. A PATCH replaces the list.
+    otherModes: z
+      .array(z.string().trim().min(1, 'A mode needs a name.').max(40, 'Cannot be longer than 40 characters.'), { error: 'Must be a list of modes.' })
+      .max(12, 'At most 12 modes.')
+      .refine((list) => new Set(list.map((mode) => mode.toLowerCase())).size === list.length, 'The same mode is listed twice.')
+      .optional(),
+  })
   .strict();
 
 /** Reports. P25 Part J. "" or null clears the On Hold Tally code. */

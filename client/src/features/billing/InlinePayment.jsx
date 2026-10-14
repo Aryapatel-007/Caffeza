@@ -23,8 +23,8 @@ import MethodButtons from './MethodButtons.jsx';
  * one tap on a method and one on Record payment. Methods are the restaurant's
  * configured ones this bill may use, passed in; the server still decides.
  */
-/** P43. The modes Other is most often, one tap each. Anything else is typed. */
-const OTHER_MODES = ['Cheque', 'Bank transfer', 'Wallet', 'Coupon'];
+/** P43. Used only before /auth/me carries the restaurant's own list (P47). Anything else is typed. */
+const FALLBACK_OTHER_MODES = ['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Cheque', 'Bank transfer', 'Coupon'];
 
 export default function InlinePayment({ billId, methods, outstandingInPaise, isBusy, error, onConfirm, onTerminalFinished }) {
   // Until one is picked, the first allowed method is selected. Derived, because
@@ -51,6 +51,8 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
   const amountInPaise = typed === null ? outstandingInPaise : parseRupeesToPaise(typed);
   const isCash = method?.code === 'CASH';
   const isOther = method?.code === 'OTHER';
+  // P47. The owner's list, from Settings, Payment methods.
+  const otherModes = features?.payments?.otherModes ?? FALLBACK_OTHER_MODES;
   const tenderedInPaise = countedTotal(counts, denominations);
   const changeInPaise = tenderedInPaise - (amountInPaise ?? 0);
   const change = changeInPaise > 0 ? suggestChange(changeInPaise, denominations) : null;
@@ -74,7 +76,7 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
             <fieldset className="mb-4">
               <legend className="mb-1 type-label">Mode of payment</legend>
               <div className="mb-2 flex flex-wrap gap-2">
-                {OTHER_MODES.map((mode) => (
+                {otherModes.map((mode) => (
                   <button
                     key={mode}
                     type="button"

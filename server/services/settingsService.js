@@ -81,6 +81,7 @@ const SETTING_PATHS = Object.freeze({
   'cash.usualFloatInPaise': 'settings.cash.usualFloatInPaise',
   'cash.showDrawerTotalToStaff': 'settings.cash.showDrawerTotalToStaff',
   'payments.requireTerminalForLinkedMethods': 'settings.payments.requireTerminalForLinkedMethods',
+  'payments.otherModes': 'settings.payments.otherModes',
   'reports.onHoldTallyCode': 'settings.reports.onHoldTallyCode',
   'reports.dayEndEmails': 'settings.reports.dayEndEmails',
 

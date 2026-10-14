@@ -223,7 +223,7 @@ export async function me(req, res) {
   // P25. Whether a captain may bill and take payment, so the order screen knows. The server still decides.
   // P25 Part F. The active notes and coins, for the cash counter on the till.
   // P29. Revisions, print before payment, ready means served and the cash book's categories and usual float.
-  const { features, discounts, billing, approvals, floor, appearance, online, cash, kitchen } = await getSettings(req.restaurantId, { req });
+  const { features, discounts, billing, approvals, floor, appearance, online, cash, kitchen, payments } = await getSettings(req.restaurantId, { req });
   const now = nowUtc();
 
   return sendSuccess(res, {
@@ -248,6 +248,8 @@ export async function me(req, res) {
       revisePrintedBill: approvals.revisePrintedBill,
     },
     kitchen: { readyMeansServed: kitchen.readyMeansServed },
+    // P47. The modes Other offers one tap each; a cashier cannot read GET /settings.
+    payments: { otherModes: payments?.otherModes ?? [] },
     // P25 Part I. The card machines this device may send a payment to.
     terminals: await activeTerminals(req),
     cash: {

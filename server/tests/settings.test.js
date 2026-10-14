@@ -71,7 +71,8 @@ const DEFAULTS = {
     usualFloatInPaise: 200000,
     showDrawerTotalToStaff: false,
   },
-  payments: { requireTerminalForLinkedMethods: true },
+  // P47 added otherModes.
+  payments: { requireTerminalForLinkedMethods: true, otherModes: ['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Cheque', 'Bank transfer', 'Coupon'] },
   // P25 Part J.
   // P44 added dayEndEmails.
   reports: { onHoldTallyCode: null, dayEndEmails: [] },

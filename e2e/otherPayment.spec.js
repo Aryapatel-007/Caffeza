@@ -71,3 +71,52 @@ test('a cashier takes a cheque through Other', async ({ browser }) => {
   expect(paid.payments.map((payment) => [payment.method, payment.reference])).toEqual([['OTHER', 'Cheque']]);
   await page.screenshot({ path: 'e2e/screenshots/other-payment.png', fullPage: true });
 });
+
+test('the owner adds Paytm to Other modes in Settings, and the cashier pays by it (P47)', async ({ browser }) => {
+  const golden = await resetGolden();
+  await at('15:05', DAY);
+  const [owner, manager, captain, cashier] = await Promise.all(['Owner', 'Manager', 'Budha Singh', 'Counter'].map((name) => tokenOf(golden, name)));
+
+  // In Settings, as the owner: Other on, then Paytm added to Other modes and saved with a reason.
+  const boss = await signIn(browser, { name: 'Owner', phone: golden.phones.Owner, password: golden.password, device: 'computer' });
+  await boss.page.goto('/settings');
+  await expect(boss.page.getByRole('heading', { name: 'Other modes' })).toBeVisible();
+  await expect(boss.page.getByText('Other is switched off, so these are not shown.')).toBeVisible();
+  const methods = await api('GET', '/payment-methods?includeInactive=true', owner);
+  await api('PATCH', `/payment-methods/${methods.find((method) => method.code === 'OTHER').id}`, owner, { isActive: true });
+  await boss.page.getByLabel('New mode').fill('Paytm');
+  await boss.page.getByRole('button', { name: 'Add', exact: true }).click();
+  await boss.page.getByRole('heading', { name: 'Other modes' }).scrollIntoViewIfNeeded();
+  await boss.page.screenshot({ path: 'e2e/screenshots/other-modes-settings.png' });
+  await boss.page.getByLabel('Why are you changing this?').fill('Paytm at the counter');
+  await boss.page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(boss.page.getByText('Settings saved.')).toBeVisible();
+
+  // A bill, printed, paid by Other with the new mode.
+  const order = await api('POST', '/orders', captain, {
+    orderType: 'DINE_IN',
+    tableId: golden.ids.tables['Table 3'],
+    guestCount: 2,
+    lines: [{ menuItemId: golden.ids.items['Half & Half Pizza'], quantity: 1 }],
+  });
+  const fired = await api('POST', `/orders/${order.id}/fire`, captain, { version: order.version });
+  for (const kot of fired.kots) await api('PATCH', `/kots/${kot.id}/ready`, manager);
+  const served = await api('GET', `/orders/${order.id}`, captain);
+  const bill = await api('POST', '/bills', cashier, { orderId: order.id, version: served.version });
+  await api('POST', `/bills/${bill.id}/printed`, cashier);
+
+  const counter = await signIn(browser, { name: 'Counter', phone: golden.phones.Counter, password: golden.password, device: 'computer' });
+  await counter.page.goto(`/bills/${bill.id}`);
+  const area = counter.page.getByRole('region', { name: 'Take payment' });
+  await area.getByRole('button', { name: /^Other/ }).click();
+  const modes = area.getByRole('group', { name: 'Mode of payment' });
+  for (const mode of ['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Paytm']) {
+    await expect(modes.getByRole('button', { name: mode, exact: true })).toBeVisible();
+  }
+  await modes.getByRole('button', { name: 'Paytm', exact: true }).click();
+  await area.getByRole('button', { name: /^Record payment/ }).click();
+  await expect(counter.page.getByText('Other · Paytm', { exact: false })).toBeVisible();
+  const paid = await api('GET', `/bills/${bill.id}`, cashier);
+  expect(paid.payments.map((payment) => [payment.method, payment.reference])).toEqual([['OTHER', 'Paytm']]);
+});
+

@@ -316,9 +316,14 @@ const denominationSchema = new mongoose.Schema(
  * Payments. P25 Part I. When true, a method linked to a card machine is taken
  * on the machine, never typed in, except by an owner or manager with a reason.
  */
+/** P47. The modes Other offers one tap each, until the owner changes them. */
+export const DEFAULT_OTHER_MODES = Object.freeze(['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Cheque', 'Bank transfer', 'Coupon']);
+
 const paymentSettingsSchema = new mongoose.Schema(
   {
     requireTerminalForLinkedMethods: { type: Boolean, required: true, default: true },
+    // P47.
+    otherModes: { type: [String], default: () => [...DEFAULT_OTHER_MODES] },
   },
   { _id: false },
 );

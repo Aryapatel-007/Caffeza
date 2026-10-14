@@ -806,3 +806,22 @@ describe('golden day pieces at their real times', () => {
     assert.equal(new Date(paid.payments[0].receivedAt).toISOString(), '2026-09-26T18:32:00.000Z');
   });
 });
+
+describe('P47 Other modes', () => {
+  it('starts with Swiggy Dineout, Zomato Dineout and EazyDiner, and a cashier reads the owner\'s list', async () => {
+    const floor = await seedFloor();
+    const { tokens } = floor;
+    const me = (token) => request('GET', '/api/v1/auth/me', { token });
+    assert.deepEqual((await me(tokens.CASHIER)).body.data.payments.otherModes, ['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Cheque', 'Bank transfer', 'Coupon']);
+
+    const set = (token, otherModes) => patchSettings(token, { reason: 'P47 test', payments: { otherModes } });
+    assert.equal((await set(tokens.OWNER, ['Swiggy Dineout', 'Paytm'])).status, 200);
+    assert.deepEqual((await me(tokens.CASHIER)).body.data.payments.otherModes, ['Swiggy Dineout', 'Paytm']);
+
+    assert.equal((await set(tokens.OWNER, Array.from({ length: 13 }, (_, index) => `Mode ${index}`))).status, 400, 'too many');
+    assert.equal((await set(tokens.OWNER, ['x'.repeat(41)])).status, 400, 'too long');
+    assert.equal((await set(tokens.OWNER, ['  '])).status, 400, 'empty');
+    assert.equal((await set(tokens.OWNER, ['Paytm', 'paytm'])).status, 400, 'the same mode twice');
+    assert.equal((await set(tokens.MANAGER, ['Paytm'])).status, 403, 'settings are the owner\'s');
+  });
+});
