@@ -2904,3 +2904,10 @@ original line, keyed `{lineId}:{ingredientId}:CANCELLATION_RETURN:{newLineId}`.
 5, lowercased. `dayclosures.dayEndEmail`: `{ sentAt: Date, to: [String],
 error: String }` or null, default null; written after a close, never part of
 the close's transaction.
+
+## 50. Open items (P46)
+
+`menuitems.isOpenItem`: Boolean, default false. `orders.lines[].isOpenItem` and
+`bills.lines[].isOpenItem`: Boolean, default false, frozen when the line is
+added; on such a line `itemName` and `unitPriceInPaise` are what staff typed.
+

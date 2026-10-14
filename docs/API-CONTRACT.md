@@ -8504,3 +8504,52 @@ refused. OWNER through `PATCH /settings`, audited as `SETTINGS_CHANGED`.
 ## Error codes
 
 `EMAIL_SEND_FAILED` 502.
+
+---
+
+# P46 Open item
+
+`docs/prompts/P46-open-item.md`. New fields only; no new endpoint or code.
+
+## 1. Menu items (M1)
+
+`POST /menu-items` and `PATCH /menu-items/:itemId` take `isOpenItem` (boolean,
+default false), OWNER and MANAGER as for the rest of the item. Every read of an
+item returns it. `priceInPaise` is still required (0 is allowed) and is not used
+for an open item.
+
+## 2. Order lines (M2 12.1 and 12.4)
+
+A line request may carry `openItem: { name, priceInPaise }`: `name` trimmed, 1
+to 80 characters; `priceInPaise` an integer from 1 to the money ceiling.
+
+- The menu item is an open item and `openItem` is missing: 422
+  `BUSINESS_RULE_VIOLATED`, "Type the dish's name and price."
+- The menu item is not an open item and `openItem` is sent: 422, "Only an open
+  item takes a typed name and price."
+- An open item with `variantId` or `addOnIds`: 422, "An open item has no sizes
+  or extras."
+
+The line freezes `itemName` = the typed name, `unitPriceInPaise` = the typed
+price, `taxRateBps` = the item's, the item's category, and `isOpenItem: true`.
+
+## 3. Bills (M3)
+
+`bills.lines[].isOpenItem`, copied from the order line. The receipt, the
+invoice and every report read the frozen name and price, as for any line.
+
+## 4. Where open items never appear
+
+`GET /public/:slug/menu` and the public quote leave them out, and a public
+request naming one is refused as a dish not on the menu. The M21 item mapping
+lists, unmatched list and CSV import leave them out.
+
+## 5. R11
+
+The by-item grouping adds the typed name for open items, so each shows under
+its own name.
+
+## Error codes
+
+None new.
+

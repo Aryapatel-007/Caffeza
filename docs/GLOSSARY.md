@@ -624,3 +624,14 @@ Added by P45.
 | **Sound on / Sound off** | On the kitchen screen: whether this device rings for a new ticket |
 | **Tap anywhere to turn on the sound** | Shown until the first tap, which browsers need before any sound |
 
+---
+
+## 31. Open item words
+
+Added by P46.
+
+| Term | Meaning |
+|---|---|
+| **Open item** | A dish on the menu whose name and price staff type when ordering, for anything not on the menu |
+| **Type name and price** | An open item's card on the order screen |
+
