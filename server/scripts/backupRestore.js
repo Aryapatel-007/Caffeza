@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const REPORT_FILE = path.join(tmpdir(), 'caffeza-restore-report.json');
+export const REPORT_FILE = path.join(tmpdir(), 'erp-restore-report.json');
 
 export class ArgumentError extends Error {}
 

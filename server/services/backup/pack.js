@@ -18,7 +18,7 @@ import { createGunzip, createGzip } from 'node:zlib';
 
 import { decryptFile, encryptStream } from './crypto.js';
 
-export const tempPath = (suffix) => path.join(tmpdir(), `caffeza-backup-${randomUUID()}${suffix}`);
+export const tempPath = (suffix) => path.join(tmpdir(), `erp-backup-${randomUUID()}${suffix}`);
 
 /** Lines to an encrypted, gzipped temp file: { path, bytes, sha256, md5Base64 }. */
 export async function packLines(lines, key) {

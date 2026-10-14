@@ -26,7 +26,7 @@ import mongoose from 'mongoose';
 
 import { BACKUP_FOLDERS, BACKUP_KINDS, BACKUP_STATUSES, BackupRun } from '../../models/BackupRun.js';
 import { BACKUP_STATE_IDS, BackupState } from '../../models/BackupState.js';
-import { toIst } from '../../utils/time.js';
+import { nowUtc, toIst } from '../../utils/time.js';
 import {
   EXCLUDED_COLLECTIONS,
   FLUSH_AT_BYTES,
@@ -76,9 +76,9 @@ const timeWords = (at) => (at ? toIst(at) : 'the start');
 export class ChangeDiary {
   /**
    * `ctx` is { db, storage, key }. `onLostPlace` is called when a full copy is
-   * needed; `now` reads the clock (Date.now in service, a fake in tests).
+   * needed; `now` reads the clock (nowUtc in service, a fake in tests).
    */
-  constructor(ctx, { onLostPlace = () => {}, now = () => new Date() } = {}) {
+  constructor(ctx, { onLostPlace = () => {}, now = () => nowUtc() } = {}) {
     this.ctx = ctx;
     this.onLostPlace = onLostPlace;
     this.now = now;
@@ -171,7 +171,7 @@ export class ChangeDiary {
     const first = events[0];
     const last = events.at(-1);
     const objectKey = journalKey(first.at, last.at);
-    const startedAt = new Date();
+    const startedAt = nowUtc();
     let packed = null;
     try {
       packed = await packLines(
@@ -183,7 +183,7 @@ export class ChangeDiary {
       const wait = FLUSH_RETRY_MS[Math.min(this.retryCount, FLUSH_RETRY_MS.length - 1)];
       this.retryCount += 1;
       this.retryAt = this.now().getTime() + wait;
-      await BackupRun.create({ kind: BACKUP_KINDS.JOURNAL, status: BACKUP_STATUSES.FAILED, startedAt, finishedAt: new Date(), folder: BACKUP_FOLDERS.JOURNAL, eventCount: events.length, error: `Upload failed, trying again in ${Math.round(wait / 1000)} seconds: ${plainError(error)}` });
+      await BackupRun.create({ kind: BACKUP_KINDS.JOURNAL, status: BACKUP_STATUSES.FAILED, startedAt, finishedAt: nowUtc(), folder: BACKUP_FOLDERS.JOURNAL, eventCount: events.length, error: `Upload failed, trying again in ${Math.round(wait / 1000)} seconds: ${plainError(error)}` });
       if (packed) await rm(packed.path, { force: true });
       return null;
     }
@@ -195,14 +195,14 @@ export class ChangeDiary {
     this.retryCount = 0;
     await BackupState.updateOne(
       { _id: BACKUP_STATE_IDS.JOURNAL },
-      { $set: { resumeToken: last.token, lastFlushAt: new Date(), lastEventClusterTime: last.clusterTime, lastEventAt: last.at } },
+      { $set: { resumeToken: last.token, lastFlushAt: nowUtc(), lastEventClusterTime: last.clusterTime, lastEventAt: last.at } },
       { upsert: true },
     );
     const run = await BackupRun.create({
       kind: BACKUP_KINDS.JOURNAL,
       status: BACKUP_STATUSES.OK,
       startedAt,
-      finishedAt: new Date(),
+      finishedAt: nowUtc(),
       folder: BACKUP_FOLDERS.JOURNAL,
       objectKey,
       bytes: packed.bytes,
@@ -239,7 +239,7 @@ export class ChangeDiary {
   /** Stops, records the gap everywhere, and asks for a full copy. */
   async loseYourPlace(since, why) {
     await this.#close();
-    const now = new Date();
+    const now = nowUtc();
     const gapSince = since ?? now;
     await BackupState.updateOne(
       { _id: BACKUP_STATE_IDS.JOURNAL },
@@ -263,7 +263,7 @@ export class ChangeDiary {
     const state = await BackupState.findById(BACKUP_STATE_IDS.JOURNAL).lean();
     for (const since of state?.pendingGapMarkers ?? []) {
       try {
-        const body = encryptBuffer(Buffer.from(JSON.stringify({ format: FORMAT_VERSION, since: since.toISOString(), recordedAt: new Date().toISOString() })), this.ctx.key);
+        const body = encryptBuffer(Buffer.from(JSON.stringify({ format: FORMAT_VERSION, since: since.toISOString(), recordedAt: nowUtc().toISOString() })), this.ctx.key);
         await uploadBuffer(this.ctx.storage, gapKey(since), body, createHash('md5').update(body).digest('base64'));
         await BackupState.updateOne({ _id: BACKUP_STATE_IDS.JOURNAL }, { $pull: { pendingGapMarkers: since } });
       } catch {
