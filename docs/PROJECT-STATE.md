@@ -576,6 +576,24 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-15 Arya, P54 constant backups
+
+In progress. The prompt, written as "P44", is `docs/prompts/P54-constant-backups.md`. Tests before: 1,357, all passing.
+
+```
+P54 progress
+- [ ] A Spec
+- [ ] B Encrypted files and the storage client
+- [ ] C Full copies
+- [ ] D The change diary
+- [ ] E Restore and verify tools
+- [ ] F The weekly practice restore
+- [ ] G The owner's view and alerts
+- [ ] H Runbook
+- [ ] I Full check
+- [ ] J Switched on in production (needs Arya)
+```
+
 ### 2026-10-15 Arya, P37 and the WhatsApp assistant merged onto Rishi's P38 to P50
 
 Pulled Rishi's 42 commits (P38 to P50, deployed) and merged them with Arya's 9 unpushed ones (P37, and the assistant). The assistant is renumbered P51 (it was P39, which Rishi's "a captain cannot change a printed bill" holds); campaigns P52, attribution P53. Its prompt is now `docs/prompts/P51-whatsapp-assistant.md`; GLOSSARY sections 35 and 36, DB-SCHEMA sections 54 and 55, API-CONTRACT "P37" and "P51". Conflicts were only in the docs and `server/scripts/e2eServer.js` (both fakes kept: Meta, the model and Resend). After the merge: 1,357 tests, all passing; `npm run e2e`, all 29 specs; lint and build pass. Nothing pushed.

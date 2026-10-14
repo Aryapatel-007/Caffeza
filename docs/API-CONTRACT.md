@@ -8036,6 +8036,9 @@ start and its opening hours, to group and judge them.
 6. `sleptInWorkingHours`: business dates with more than 2 such starts, newest
    first. The Server card in Settings names them.
 
+P54 adds `GET /api/v1/system/backups` beside this one: see "P54 Constant
+backups".
+
 ## 4. `GET /api/v1/auth/me` additions
 
 `online` gains `opensAtMinutes` and `closesAtMinutes`, so every role's screen
@@ -8929,3 +8932,76 @@ inbox and the Chats screen read again at once.
 ## Error codes
 
 None new. A staff reply outside the window is 422 `BUSINESS_RULE_VIOLATED`.
+
+# P54 Constant backups
+
+`docs/prompts/P54-constant-backups.md` (written as P44). Additive. Beside P30's
+`GET /api/v1/system/starts`, and like it about the server, not a restaurant.
+
+## 1. `GET /api/v1/system/backups`
+
+OWNER only; 403 for every other role. No query. Reads `backupruns` and
+`backupstate` (DB-SCHEMA section 56) and returns nothing about any restaurant.
+
+```json
+{
+  "success": true,
+  "data": {
+    "enabled": true,
+    "lastSnapshot": { "at": "2026-10-14T06:00:12Z", "status": "OK", "bytes": 1840221 },
+    "lastJournalFlush": { "at": "2026-10-14T09:55:03Z", "eventCount": 214 },
+    "behindSeconds": 41,
+    "gapSince": null,
+    "failuresLast7Days": 0,
+    "database": { "bytes": 18874368, "limitBytes": 536870912 },
+    "fullCopies": "EVERY_6_HOURS",
+    "storage": { "estimatedBytes": 126877696, "freeBytes": 10000000000, "last30DaysBytes": 9437184 },
+    "state": "OK"
+  }
+}
+```
+
+1. `lastSnapshot`: the newest snapshot run, whatever its status; `at` is when it
+   finished, or started while running. `null` before the first.
+2. `lastJournalFlush`: the newest `OK` diary upload. `null` before the first.
+3. `behindSeconds`: seconds since the oldest change waiting to be uploaded; 0
+   when nothing waits. `null` when backups are off.
+4. `state`:
+   1. `OFF`: backups are not enabled.
+   2. `FAILING`: the newest run of either kind failed, or `gapSince` is set.
+   3. `LATE`: a change has waited more than 15 minutes, or there is no `OK`
+      snapshot in the last 7 hours (25 hours when `fullCopies` is `DAILY`) and
+      none is running.
+   4. `OK`: otherwise.
+5. `database.limitBytes`: 512 MB, Atlas M0's limit, a named constant that
+   changes if the tier does.
+6. `fullCopies`: `EVERY_6_HOURS` or `DAILY`, from the slow-down rule.
+7. `storage.estimatedBytes`: the server key cannot list the bucket, so this is
+   counted from our own records: `OK` runs still inside each folder's keep time
+   (11 days for `snapshots/6h/`, 91 for `snapshots/daily/`), plus every monthly
+   copy and diary file ever uploaded (`backupstate.storage.foreverBytes`).
+   `freeBytes` is Backblaze's free 10 GB. `last30DaysBytes` is what the
+   monthly copies and the diary added in the last 30 days, for the card's
+   "lasts about N years".
+
+## 2. R1 Today
+
+When `state` is `LATE` or `FAILING`, R1 Today's `alerts` gain one row for the
+OWNER only: kind `Backup`, the sentence "Backups have stopped since 9:55 AM."
+(the last good diary upload or copy, India time), and a link to `/settings`.
+No other role sees it, and R1's figures and checks do not change.
+
+## 3. Built differently from the prompt
+
+1. The daily copy is the first full copy of each backup day, which starts at
+   5:30 AM India time, and the monthly copy is the first of each month.
+   Render's free server sleeps from about 2:30 AM to 8:30 AM, so a copy
+   scheduled for exactly 5:30 AM would never run; the first copy after it,
+   at wake-up, takes its place.
+2. Each upload is one PutObject from a temp file, with `Content-MD5`, and the
+   SDK's checksums set to `WHEN_REQUIRED`: Backblaze B2 rejects the newer
+   default checksum headers, and a file of this size never needs multipart.
+3. A gap is also written to the bucket (DB-SCHEMA section 56), so a restore
+   from an empty database still refuses a time inside it.
+4. The tools read with the drill key from `BACKUP_DRILL_KEY_ID` and
+   `BACKUP_DRILL_SECRET`, which the server never needs.

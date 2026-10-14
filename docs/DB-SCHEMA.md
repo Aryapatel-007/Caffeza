@@ -3030,3 +3030,54 @@ Two more keys the restaurant may add: `BOOKING_CONFIRMED` and `BOOKING_DECLINED`
 | `greeting` | String or null | null |
 | `handoffHours` | String or null | null |
 | `dailyAiLimit` | Number | 500 |
+
+## 56. Backups (P54)
+
+`docs/prompts/P54-constant-backups.md`. Two collections about the server, not a
+restaurant, exactly like `serverstarts` (section 44): neither has a
+`restaurantId`, neither applies `baseSchema` or `tenantGuard`, and both are in
+`SERVER_MODELS`, which the purge tool and the seed wipe skip. They hold no
+restaurant's data: times, sizes, object keys and plain error words. Neither is
+in a full copy or the change diary, so the diary never records its own writing.
+
+### `backupruns` (new)
+
+One document per attempt. Kept 90 days by a TTL index on `startedAt`.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `kind` | enum | | `SNAPSHOT` or `JOURNAL` |
+| `status` | enum | `RUNNING` | `RUNNING`, `OK` or `FAILED` |
+| `startedAt`, `finishedAt` | Date | | UTC; `finishedAt` null while running |
+| `folder` | enum or null | null | Snapshots: `monthly`, `daily` or `6h`. Journal: `journal` |
+| `objectKey` | String or null | null | Where the file went, like `snapshots/daily/2026/10/14/2026-10-14T00-00-00Z.snap.gz.enc` |
+| `bytes` | Number | 0 | Size of the uploaded, encrypted file |
+| `sha256` | String or null | null | Of the uploaded, encrypted file |
+| `fromClusterTime`, `toClusterTime` | Timestamp or null | null | A snapshot's start time, or the first and last change in a diary file |
+| `eventCount` | Number | 0 | Diary files only |
+| `collections` | [{ name, count }] | [] | Snapshots only |
+| `databaseBytes` | Number | 0 | Snapshots only: data plus index size from `dbStats` |
+| `error` | String or null | null | Plain words, never a secret, never a document. Also the note when full copies switch between every 6 hours and once a day |
+
+Indexes: `{ startedAt: 1 }` with a 90-day TTL, which does not lead with
+`restaurantId` because MongoDB's TTL needs a single date field, as
+`serverstarts`; `{ kind: 1, status: 1, startedAt: -1 }`. The one-snapshot-at-a-time
+claim is a unique partial index on `{ kind: 1 }` filtered to
+`status: 'RUNNING'`, so two copies can never run at once.
+
+### `backupstate` (new)
+
+Small documents by `_id`. Built with three, not the prompt's one, because
+`backupruns` expires after 90 days and the running state must not:
+
+| `_id` | Fields | Notes |
+|---|---|---|
+| `journal` | `resumeToken`, `lastFlushAt`, `lastEventClusterTime`, `lastEventAt`, `gapSince` | `gapSince` is null unless the diary lost its place |
+| `snapshots` | `fullCopies` (`EVERY_6_HOURS` or `DAILY`), `changedAt` | The slow-down rule's current setting |
+| `storage` | `foreverBytes` | Bytes of every monthly copy and diary file ever uploaded: they are kept forever, but their `backupruns` rows are not |
+
+### In the bucket, not the database
+
+A gap the diary could not cover is also written to the bucket as a small
+encrypted marker, `journal/YYYY/MM/DD/<from UTC>_<to UTC>.gap.enc`, because a
+real restore starts from an empty database and cannot read `backupruns`.

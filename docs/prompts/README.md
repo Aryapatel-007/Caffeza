@@ -62,5 +62,6 @@ The full table, with dependencies and owners, is in
 | P51 | The WhatsApp assistant: questions, table bookings, and stop | Built 2026-10-12 against a fake Meta and a fake model; the eval run on Groq. Numbered P39 when written; merged with Rishi's P38 to P50 on 2026-10-15. Waits for P37's real WhatsApp account and a paid AI key. Rishi's read outstanding. |
 | P52 | Campaigns: offers and new dishes | Written by Arya, not saved here yet; comes after P37 has run on a real WhatsApp account. Numbered P38 in P37's prompt. |
 | P53 | Attribution and campaign reporting | Not written yet. Numbered P39 in P37's prompt. |
+| P54 | Constant backups | In progress. Written as P44. |
 
 Prompt files that do not exist yet are added as they are written.

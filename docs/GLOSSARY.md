@@ -717,3 +717,18 @@ Added by P51.
 | **AI key** | The key to Anthropic, Groq or Gemini the assistant uses |
 | **Window open** | The guest wrote in the last 24 hours, so staff can reply freely |
 | **Window closed** | The guest last wrote more than 24 hours ago; WhatsApp allows no free reply, so staff call instead |
+
+---
+
+## 37. Backup words
+
+Added by P54.
+
+| Term | Meaning |
+|---|---|
+| **Backup** | A copy of the whole database kept outside it, in Backblaze B2, encrypted |
+| **Full copy** | The whole database at one moment: every 6 hours, or once a day when the database is large |
+| **Change diary** | Every change to the database, saved every 5 minutes, kept forever |
+| **Restore** | Rebuild the database as it was at a chosen minute, from a full copy and the change diary, into a new empty database |
+| **Practice restore** | A restore every Sunday on GitHub into a throwaway database, to prove the backups work |
+| **Backed up** | How long ago the last change was saved, like "Backed up 3 minutes ago" |

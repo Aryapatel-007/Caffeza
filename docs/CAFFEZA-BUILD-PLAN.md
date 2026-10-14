@@ -123,6 +123,7 @@ Each prompt names its model at the top.
 | P49 | Before a dish is sent, the captain changes it freely | M2 | P48 | Rishi | Sonnet, medium |
 | P50 | Close a table opened by mistake | M2 | P49 | Rishi | Sonnet, medium |
 | P51 | The WhatsApp assistant: questions, table bookings, and stop | M21, M14, M22 | P37 | Arya | Opus, high |
+| P54 | Constant backups | Phase 2 operations | P43 | Arya | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.
