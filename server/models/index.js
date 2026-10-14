@@ -46,6 +46,8 @@ import { Refund } from './Refund.js';
 import { Reservation } from './Reservation.js';
 import { Restaurant } from './Restaurant.js';
 import { ServerStart } from './ServerStart.js';
+import { BackupRun } from './BackupRun.js';
+import { BackupState } from './BackupState.js';
 import { Station } from './Station.js';
 import { StockMovement } from './StockMovement.js';
 import { Table } from './Table.js';
@@ -59,6 +61,8 @@ export const ALL_MODELS = Object.freeze([
   AccountEntry,
   AttendanceEntry,
   AuditLog,
+  BackupRun,
+  BackupState,
   Bill,
   Branch,
   CashMovement,
@@ -103,5 +107,7 @@ export const ALL_MODELS = Object.freeze([
  * data. The purge tool and the seed wipe skip them, because no restaurant owns
  * their documents. `restaurants` itself is the other exception, handled on its
  * own as the tenant. A new model joins this list only for the same reason.
+ * P54: the backups' runs and state join it: like a server start, a backup is
+ * the server's, and holds no restaurant's data.
  */
-export const SERVER_MODELS = Object.freeze([ServerStart]);
+export const SERVER_MODELS = Object.freeze([ServerStart, BackupRun, BackupState]);

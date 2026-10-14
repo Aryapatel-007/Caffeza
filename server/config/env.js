@@ -137,6 +137,29 @@ const trustProxyVar = z
     }
   });
 
+/** Present text, or null when absent or empty. */
+const nullableText = z.preprocess((value) => {
+  const text = value === undefined || value === null ? '' : String(value).trim();
+  return text === '' ? null : text;
+}, z.string().nullable());
+
+/** P54. A backup key: 32 random bytes in base64, never the .env.example placeholder. */
+export function backupKeyProblem(name, value) {
+  if (/replace_me/i.test(value)) return `${name} is still the placeholder from .env.example. Make a key with: npm run backup:key`;
+  if (Buffer.from(value, 'base64').length !== 32) return `${name} must be 32 random bytes in base64. Make one with: npm run backup:key`;
+  return null;
+}
+
+/** P54. What backups need to run, in the order a person would fill them in. */
+export const BACKUP_REQUIRED = Object.freeze([
+  'BACKUP_ENCRYPTION_KEY',
+  'BACKUP_S3_ENDPOINT',
+  'BACKUP_S3_REGION',
+  'BACKUP_S3_BUCKET',
+  'BACKUP_S3_KEY_ID',
+  'BACKUP_S3_SECRET',
+]);
+
 function isValidTimeZone(value) {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: value });
@@ -255,6 +278,23 @@ const envSchema = z
       'RESEND_API_BASE must be a bare origin with no trailing slash.',
     ),
 
+    /**
+     * P54. Backups to Backblaze B2 through its S3 API. Off by default, and
+     * always off under NODE_ENV=test, where tests call the services directly.
+     * With on, every variable in BACKUP_REQUIRED must be set: see the refine
+     * below. The drill key is for the restore tools only, never the server.
+     */
+    BACKUP_ENABLED: enumVar('BACKUP_ENABLED', ['on', 'off'], 'off'),
+    BACKUP_ENCRYPTION_KEY: nullableText,
+    BACKUP_OLD_KEYS: nullableText.transform((value) => (value ? value.split(',').map((key) => key.trim()).filter(Boolean) : [])),
+    BACKUP_S3_ENDPOINT: nullableText,
+    BACKUP_S3_REGION: nullableText,
+    BACKUP_S3_BUCKET: nullableText,
+    BACKUP_S3_KEY_ID: nullableText,
+    BACKUP_S3_SECRET: nullableText,
+    BACKUP_DRILL_KEY_ID: nullableText,
+    BACKUP_DRILL_SECRET: nullableText,
+
     /** P24. Razorpay's API address. Tests and the e2e server point it at a fake. */
     RAZORPAY_API_BASE: optionalVar('RAZORPAY_API_BASE', 'https://api.razorpay.com').refine(
       whenPresent((value) => /^https?:[/][/][^/]+$/.test(value)),
@@ -281,6 +321,22 @@ const envSchema = z
   .refine((values) => values.NODE_ENV !== 'production' || values.INTEGRATION_SECRETS_KEY, {
     error: 'INTEGRATION_SECRETS_KEY must be set in production. Make one with: openssl rand -base64 32',
     path: ['INTEGRATION_SECRETS_KEY'],
+  })
+  // P54. Backups switched on with something missing would fail quietly at the
+  // first copy; fail loudly at boot instead, naming what is missing.
+  .superRefine((values, ctx) => {
+    if (values.BACKUP_ENABLED !== 'on' || values.NODE_ENV === 'test') return;
+    for (const name of BACKUP_REQUIRED) {
+      if (!values[name]) ctx.addIssue({ code: 'custom', path: [name], message: `${name} must be set when BACKUP_ENABLED is on. See docs/DEPLOYMENT.md section 8.` });
+    }
+    if (values.BACKUP_ENCRYPTION_KEY) {
+      const problem = backupKeyProblem('BACKUP_ENCRYPTION_KEY', values.BACKUP_ENCRYPTION_KEY);
+      if (problem) ctx.addIssue({ code: 'custom', path: ['BACKUP_ENCRYPTION_KEY'], message: problem });
+    }
+    for (const old of values.BACKUP_OLD_KEYS) {
+      const problem = backupKeyProblem('BACKUP_OLD_KEYS', old);
+      if (problem) ctx.addIssue({ code: 'custom', path: ['BACKUP_OLD_KEYS'], message: problem });
+    }
   })
   // In development and test an absent TRUST_PROXY means false. In production
   // someone has to have decided, even if the decision is false.
@@ -323,4 +379,6 @@ export const config = Object.freeze({
   isDevelopment: parsed.data.NODE_ENV === 'development',
   isTest: parsed.data.NODE_ENV === 'test',
   isProduction: parsed.data.NODE_ENV === 'production',
+  // P54. Never under test: the tests drive the backup services themselves.
+  backupsOn: parsed.data.BACKUP_ENABLED === 'on' && parsed.data.NODE_ENV !== 'test',
 });

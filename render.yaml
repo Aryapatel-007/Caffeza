@@ -42,3 +42,22 @@ services:
       # P44. The day-end email. The key is a secret, set in Render's dashboard.
       - key: RESEND_API_KEY
         sync: false
+      # P54. Backups to Backblaze B2 (docs/DEPLOYMENT.md section 8). Every value is
+      # typed into Render's dashboard by hand, never written in a file. BACKUP_ENABLED
+      # stays off until the rest are set: with on, the server refuses to start without them.
+      - key: BACKUP_ENABLED
+        sync: false
+      - key: BACKUP_ENCRYPTION_KEY
+        sync: false
+      - key: BACKUP_OLD_KEYS
+        sync: false
+      - key: BACKUP_S3_ENDPOINT
+        sync: false
+      - key: BACKUP_S3_REGION
+        sync: false
+      - key: BACKUP_S3_BUCKET
+        sync: false
+      - key: BACKUP_S3_KEY_ID
+        sync: false
+      - key: BACKUP_S3_SECRET
+        sync: false

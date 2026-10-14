@@ -32,6 +32,11 @@
     "import:menu": "npm run import:menu --workspace=server --",
     "smoke": "npm run smoke --workspace=server --",
     "assistant:eval": "npm run assistant:eval --workspace=server --",
+    "backup:key": "npm run backup:key --workspace=server --",
+    "backup:list": "npm run backup:list --workspace=server --",
+    "backup:restore": "npm run backup:restore --workspace=server --",
+    "backup:verify": "npm run backup:verify --workspace=server --",
+    "backup:drill": "npm run backup:drill --workspace=server --",
     "e2e": "playwright test --config e2e/playwright.config.js",
     "e2e:cloud": "playwright test --config e2e/cloud.config.js"
   },
