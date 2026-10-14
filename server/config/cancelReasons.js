@@ -41,6 +41,13 @@ export const ORDER_CANCEL_REASONS = freezeList([
   { code: 'OTHER', label: 'Other' },
 ]);
 
+/**
+ * P50. The code an order closed because it was opened by mistake keeps.
+ * Written only by POST /orders/:orderId/close, on an order nothing was sent
+ * from, so it is not in the list a manager's Cancel order offers or accepts.
+ */
+export const ORDER_OPENED_BY_MISTAKE = 'OPENED_BY_MISTAKE';
+
 /** Voiding a bill. */
 export const BILL_VOID_REASONS = freezeList([
   { code: 'WRONG_TABLE', label: 'Billed to the wrong table' },

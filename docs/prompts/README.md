@@ -57,6 +57,6 @@ The full table, with dependencies and owners, is in
 | P47 | Other modes: Swiggy, Zomato and EazyDiner one tap away, kept in Settings | Built 2026-10-14. Arya's read outstanding. |
 | P48 | PetPooja's way: the floor, Recall, change, typed extras, the counter screen, a test site | Built 2026-10-14. Arya's read outstanding. |
 | P49 | Before a dish is sent, the captain changes it freely | Built 2026-10-14. Arya's read outstanding. |
-| P50 | Close a table opened by mistake | Specified 2026-10-14. |
+| P50 | Close a table opened by mistake | Built 2026-10-14. Arya's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.

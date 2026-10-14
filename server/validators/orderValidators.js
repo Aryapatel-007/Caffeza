@@ -483,6 +483,9 @@ export const fireOrderSchema = z.object({
 /** P41. Undo the last Send: the version, nothing else. */
 export const undoSendSchema = fireOrderSchema;
 
+/** P50. Close an order opened by mistake: the version, nothing else. */
+export const closeOrderSchema = fireOrderSchema;
+
 export const markLineServedSchema = z.object({
   params: orderLineParams,
   body: z.object({ version }).strict('Is not a field you can set here.'),

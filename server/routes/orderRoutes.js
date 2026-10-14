@@ -13,6 +13,7 @@ import { ROLES } from '../config/roles.js';
 import {
   addOrderLines,
   cancelOrder,
+  closeOrder,
   cancelOrderLine,
   postNoCharge,
   createOrder,
@@ -52,6 +53,7 @@ import {
   addOrderLinesSchema,
   cancelOrderLineSchema,
   cancelOrderSchema,
+  closeOrderSchema,
   noChargeSchema,
   createOrderSchema,
   createTableSchema,
@@ -175,6 +177,8 @@ router.patch('/orders/:orderId/table', ...floor, validate(moveOrderTableSchema),
  * owner allows it (`settings.approvals.managerTasks`). A WAITER never.
  */
 router.post('/orders/:orderId/cancel', ...managersOrTill, validate(cancelOrderSchema), cancelOrder);
+// P50. An order nothing was sent from, closed by anyone who takes orders.
+router.post('/orders/:orderId/close', ...floor, validate(closeOrderSchema), closeOrder);
 
 /** P08. Giving food away free is manager work, the same as cancelling a whole order. P28 as above. */
 router.post('/orders/:orderId/no-charge', ...managersOrTill, validate(noChargeSchema), postNoCharge);

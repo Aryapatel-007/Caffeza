@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-14 by Rishi (P49 removing a dish before it is sent; the captain's phone order, 👁 and kitchen Recall range)
+Last updated: 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -530,6 +530,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-14 | P44: the day-end message is plain text in the manager's own words (GLOSSARY section 29), built from Day Close's figures and R3, emailed through Resend to the owner's chosen addresses at Day Close and on a button; the Day End page lays the day out in PetPooja's three steps. | Rishi asked for both, with PetPooja's screens as the model the manager knows. One set of figures means the message, Day Close and R2 never disagree. The email goes only to addresses the owner set, so it may carry the cash a blind manager does not see on screen. No Resend SDK: one HTTPS call, as Razorpay. |
 | 2026-10-14 | A sign-in lasts 365 days, renewed on every refresh (`REFRESH_TOKEN_TTL` default `365d`, was `30d`), so a device stays signed in until Sign out. Firebase SMS sign-in was considered and not built. | Rishi wants captains and the kitchen never asked to sign in again. Sessions already renewed every 15 minutes in use, so 30 days only ended a device left unused for a month. Firebase phone sign-in would add a 6-digit SMS code to every new sign-in, a billed SMS plan and a rewrite of M0, and Rishi chose to keep phone and password. A lost device's session still ends when the owner switches the person off or resets their password. 365, not more: Chrome caps a cookie at 400 days. |
 | 2026-10-14 | P49: a dish not yet sent to the kitchen is removed with no reason and leaves nothing behind (`DELETE /orders/:orderId/lines/:lineId`): no cancelled line, no audit line, no report row. A sent dish still goes through Undo and Change. The golden day's API fixture still cancels the unsent Cheesy Tornado with its reason, so every golden number stands; the browser golden day removes it. | Rishi: the guest changing their mind before the order goes in is not the captain's fault and should not show anywhere. Nothing was cooked, so there is nothing to count. CONVENTIONS section 3 already names the unfired draft line as the one thing DELETE is for. |
+| 2026-10-14 | P50: an order nothing was ever sent from is closed by anyone who takes orders, with no reason or PIN (`POST /orders/:orderId/close`). It is kept, cancelled as `OPENED_BY_MISTAKE` with its unsent dishes removed, writes no audit line, and R15 and Day Close leave it out. A send that was undone still counts as sent, so that order needs the manager's Cancel order. | Rishi: a table opened by mistake should simply close. Orders are never deleted, so a code marks it rather than a delete; nothing reached the kitchen, so there is nothing to count. The code is not in the manager's reason list, so a real cancellation cannot be hidden behind it. |
 | 2026-10-13 | P43: an Other payment must say its mode (Cheque, Bank transfer, Wallet, Coupon, or typed), stored as the payment's `reference`. | Rishi asked for Other with its mode. A field already shown on the bill and kept per payment carries it, so no schema change; reports keep these payments under Other. |
 | 2026-10-13 | P42: anyone but the kitchen login changes a sent dish from the order screen's Change: fewer of it, a new note, remove it, or swap it. `approvals.lineCancel` now asks the PIN only for a dish that was made: marked ready, or said to be made ("Already made by the kitchen"). A dish sent but not made changes with no PIN and no questions. | Rishi asked for it, and chose the PIN "only once it's cooked". A kitchen often cooks before ticking, so "made" is the kitchen's tick or the person's word, which keeps thrown-away food audited and the golden day's Thecha cancel (made, PIN) unchanged. Lowering a quantity splits the line, so the part taken off is an ordinary cancelled line for reports; only its share of stock comes back, and a later remove returns what is still out, never more. Nothing prints; the kitchen screen shows Changed or Cancelled. |
 | 2026-10-13 | P42: the KITCHEN login sees only the ticket board: no rail, bottom bar, Home or Availability; any other address opens the board; the bar has only the name and Sign out. | Rishi asked for "only KOT". Availability and This device go with it: a manager marks dishes out of stock, and sets a kitchen tablet's printer while signed in on it. The server's permissions are unchanged. |
@@ -559,6 +560,18 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-14 Rishi, P50 closing a table opened by mistake
+
+What was built or decided:
+Asked for by Rishi. Spec first (`spec closing a table opened by mistake`): `docs/prompts/P50-close-a-table-opened-by-mistake.md`, API-CONTRACT "P50", DB-SCHEMA section 53, GLOSSARY section 34.
+1. Server: `POST /orders/:orderId/close` (`closeOrder` in `orderController.js`, `closeOrderSchema`), for owner, manager, cashier and captain: only an open order with no bill whose lines were never sent; the unsent lines are pulled and the order cancelled as `ORDER_OPENED_BY_MISTAKE` (`config/cancelReasons.js`, added to the order model's enum, not to the manager's list). `computeDayFigures` and R15 leave these orders out.
+2. Order screen: **Close table** (or **Close order** off the floor) in the order's footer while nothing has been sent, in place of Cancel the whole order; a sheet confirms, then the floor.
+
+Tests: `closeOrderByMistake.test.js` (3): a captain closes it, the table is free and opens again, no audit line, not in R15 or R2; refused on a stale version, for the kitchen login, another restaurant, once sent, after an undone send, and with a bill; the manager's Cancel order refuses the code. Dropping the R15 rule on purpose fails the first. Browser: new `e2e/closeTableByMistake.spec.js` (a captain on a phone closes Table 12; once a dish is sent, no Close table). Full `npm test`: 1,323 passing, 0 failing; all 27 browser specs pass; lint and build pass.
+
+Anything the other developer needs to know:
+A manager on an order with nothing sent now sees Close table, not Cancel the whole order; the cancel endpoint itself is unchanged.
 
 ### 2026-10-14 Rishi, P49 removing a dish before it is sent; the captain's phone, 👁 and Recall range
 

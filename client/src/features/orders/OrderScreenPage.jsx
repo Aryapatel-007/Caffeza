@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { BackIcon } from '../../components/ui/icons/index.jsx';
 import Money from '../../components/ui/Money.jsx';
-import Sheet from '../../components/ui/Sheet.jsx';
+import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
 import { getMenuTree } from '../../api/menu.js';
@@ -13,6 +13,7 @@ import {
   addOrderLines,
   cancelOrder,
   cancelOrderLine,
+  closeOrder,
   editOrderLine,
   removeOrderLine,
   fireOrder,
@@ -99,6 +100,7 @@ export default function OrderScreenPage() {
   const [search, setSearch] = useState('');
   const [pickingItem, setPickingItem] = useState(null);
   const [cancelling, setCancelling] = useState(null);
+  const navigate = useNavigate();
   const [isReviewing, setIsReviewing] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   // P26. Opened from a bill's Add items, the menu shows at once.
@@ -235,6 +237,9 @@ export default function OrderScreenPage() {
   // P28. A cashier may too, with a PIN, when the owner allows it.
   const canCancelOrder = CAN_CANCEL_ORDER.includes(user?.role) || (user?.role === 'CASHIER' && approvals.managerTasks);
   const canMove = isOpen && order.orderType === 'DINE_IN';
+  // P50. Nothing ever sent to the kitchen: anyone who takes orders closes it, opened by mistake.
+  const canClose = isOpen && !hasBill && order.lines.every((line) => !line.firedAt && ['PENDING', 'CANCELLED'].includes(line.status));
+  const placeName = order.orderType === 'DINE_IN' ? order.tableName ?? 'this table' : `order #${order.orderNumber}`;
   // Takeaway and delivery have no table, so on a wide screen the order is a
   // ledger beside the menu rather than a bar and a slide-over.
   // P48. The till's computer gets PetPooja's counter screen for every order: menu beside the order.
@@ -317,6 +322,8 @@ export default function OrderScreenPage() {
       onFire={fire}
       onFireAndPrint={isTill ? fireAndPrint : null}
       onCancelOrder={() => setCancelling({ kind: 'order' })}
+      onCloseOrder={canClose ? () => setCancelling({ kind: 'close' }) : null}
+      closeLabel={order.orderType === 'DINE_IN' ? 'Close table' : 'Close order'}
       onNoCharge={() => setCancelling({ kind: 'noCharge' })}
     />
   );
@@ -629,6 +636,35 @@ export default function OrderScreenPage() {
         />
       )}
 
+      {cancelling?.kind === 'close' && (
+        <Sheet
+          title={`Close ${placeName}?`}
+          subtitle="It was opened by mistake. Nothing has gone to the kitchen, so nothing is recorded."
+          onClose={() => setCancelling(null)}
+          footer={
+            <SheetActions
+              cancelLabel="Keep it open"
+              onCancel={() => setCancelling(null)}
+              confirmLabel={order.orderType === 'DINE_IN' ? 'Close table' : 'Close order'}
+              disabled={write.isPending}
+              onConfirm={() =>
+                run({
+                  run: () => closeOrder(order.id, order.version),
+                  onDone: () => {
+                    setCancelling(null);
+                    navigate('/floor');
+                  },
+                })
+              }
+            />
+          }
+        >
+          {order.lines.some((line) => line.status === 'PENDING') && (
+            <p className="type-body text-muted">The dishes not sent go with it.</p>
+          )}
+        </Sheet>
+      )}
+
       {cancelling?.kind === 'noCharge' && (
         <NoChargePanel
           order={order}
@@ -701,6 +737,9 @@ function OrderDetails({
   onFireAndPrint = null,
   onCancelOrder,
   onNoCharge,
+  // P50. Close an order nothing was sent from; null when something was.
+  onCloseOrder = null,
+  closeLabel = 'Close table',
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -760,7 +799,18 @@ function OrderDetails({
           </button>
         )}
 
-        {isOpen && canCancelOrder && (
+        {onCloseOrder && (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={onCloseOrder}
+            className="type-button min-h-12 w-full rounded-lg border border-ink bg-surface hover:bg-sunken disabled:opacity-50"
+          >
+            {closeLabel}
+          </button>
+        )}
+
+        {isOpen && canCancelOrder && !onCloseOrder && (
           <button
             type="button"
             disabled={isBusy}

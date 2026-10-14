@@ -131,6 +131,11 @@ export function removeOrderLine(orderId, lineId, version) {
   return api.delete(`/orders/${orderId}/lines/${lineId}?version=${version}`);
 }
 
+/** P50. Closes an order nothing was sent from, opened by mistake. Returns the order. */
+export function closeOrder(orderId, version) {
+  return api.post(`/orders/${orderId}/close`, { version });
+}
+
 /**
  * `wasPrepared` is required when the line has been to the kitchen and must be
  * absent when it has not. The caller decides from the line's own status; the

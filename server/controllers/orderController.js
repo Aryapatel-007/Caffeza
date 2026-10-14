@@ -13,6 +13,7 @@
  */
 import {
   ORDER_CANCEL_REASONS,
+  ORDER_OPENED_BY_MISTAKE,
   reasonText,
 } from '../config/cancelReasons.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
@@ -314,6 +315,45 @@ export async function fireOrder(req, res) {
   // P05: `kots` is every ticket, one per station; `kot` is the first of them.
   // P36: with one ticket per order, `kots` is that ticket, and `round` the Send just made.
   return sendSuccess(res, { kot, kots, order, round });
+}
+
+/**
+ * POST /orders/:orderId/close. P50: an order nothing was ever sent from was
+ * opened by mistake, and anyone who takes orders closes it with no reason.
+ * Orders are never deleted, so it is kept, cancelled as OPENED_BY_MISTAKE,
+ * with its unsent dishes removed as P49 removes one. Nothing reached the
+ * kitchen, so there is no stock, no ticket and no audit line, and reports
+ * leave it out.
+ */
+export async function closeOrder(req, res) {
+  const { orderId } = req.params;
+  const { version } = req.body;
+  const order = await loadOrderInTenant(req, orderId);
+  assertOrderIsOpen(order);
+  assertNoLiveBill(order);
+  const everSent = order.lines.some((line) => line.firedAt || ![ORDER_LINE_STATUSES.PENDING, ORDER_LINE_STATUSES.CANCELLED].includes(line.status));
+  if (everSent) {
+    throw new BusinessRuleError('Dishes have been sent to the kitchen. Ask a manager to cancel the order.');
+  }
+
+  const updated = await applyVersionedUpdate(req, {
+    orderId,
+    version,
+    update: {
+      $pull: { lines: { status: ORDER_LINE_STATUSES.PENDING } },
+      $set: {
+        status: ORDER_STATUSES.CANCELLED,
+        isCancelled: true,
+        cancelledAt: nowUtc(),
+        cancelledBy: req.user.id,
+        cancelReasonCode: ORDER_OPENED_BY_MISTAKE,
+        cancelReason: null,
+      },
+    },
+  });
+
+  req.log?.info({ actorId: req.user.id, role: req.user.role, orderId: String(updated._id), orderNumber: updated.orderNumber }, 'Order closed, opened by mistake.');
+  return sendSuccess(res, serialiseOrder(updated));
 }
 
 /**

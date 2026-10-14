@@ -12,7 +12,7 @@
  */
 import mongoose from 'mongoose';
 
-import { LINE_CANCEL_REASON_CODES, ORDER_CANCEL_REASON_CODES } from '../config/cancelReasons.js';
+import { LINE_CANCEL_REASON_CODES, ORDER_CANCEL_REASON_CODES, ORDER_OPENED_BY_MISTAKE } from '../config/cancelReasons.js';
 import { NO_CHARGE_REASON_CODES } from '../config/noChargeReasons.js';
 import { MAX_PAISE } from '../utils/money.js';
 import { MAX_BASIS_POINTS } from '../validators/common.js';
@@ -378,7 +378,8 @@ const orderSchema = new mongoose.Schema({
   /** From P04 the optional note. Older orders keep their free-text reason here. */
   cancelReason: { type: String, trim: true, maxlength: CANCEL_REASON_MAX_LENGTH, default: null },
   /** P04. The fixed reason, from ORDER_CANCEL_REASONS. Null before P04. */
-  cancelReasonCode: { type: String, enum: [...ORDER_CANCEL_REASON_CODES, null], default: null },
+  // P50. OPENED_BY_MISTAKE is written only by closing an order nothing was sent from.
+  cancelReasonCode: { type: String, enum: [...ORDER_CANCEL_REASON_CODES, ORDER_OPENED_BY_MISTAKE, null], default: null },
 
   /**
    * P08. Null unless the status is NO_CHARGE. `valueInPaise` is the live line
