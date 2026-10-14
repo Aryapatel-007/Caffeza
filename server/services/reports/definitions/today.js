@@ -21,7 +21,7 @@ import { z } from 'zod';
 import { Bill } from '../../../models/Bill.js';
 import { Order, ORDER_LINE_STATUSES, OCCUPYING_ORDER_STATUSES } from '../../../models/Order.js';
 import { sumPaise } from '../../../utils/money.js';
-import { businessDateFor, businessDateRangeToUtc, nowUtc } from '../../../utils/time.js';
+import { businessDateFor, businessDateRangeToUtc, formatTimeIst12, nowUtc } from '../../../utils/time.js';
 import { computeDayFigures } from '../../dayFiguresService.js';
 import { computeLineTotalInPaise } from '../../orderService.js';
 import { runRangeChecks } from '../../reconciliationService.js';
@@ -29,6 +29,7 @@ import { getSetting } from '../../settingsService.js';
 import { LABELS } from '../labels.js';
 import { FIGURE_COLUMNS, MANAGERS, toBills } from './shared.js';
 import { listAlerts } from '../../integrations/alertService.js';
+import { backupAlert } from '../../backup/statusService.js';
 
 /** Over 20% of the item total. */
 const LARGE_DISCOUNT_BPS = 2000;
@@ -70,6 +71,7 @@ const ALERT_WORDS = {
   DISCOUNT: 'Discount over 20%',
   CANCELLED_AFTER_PREP: 'Cancelled after preparation',
   INTEGRATION: 'Integration',
+  BACKUP: 'Backup',
 };
 
 /** A bill live at `now`: never voided, or voided later. */
@@ -192,6 +194,21 @@ export default {
       drill: alert.link ? { detail: { report: 'LINK', query: { to: alert.link } } } : {},
     }));
     alertRows.push(...integrationRows);
+    // P54. Backups that stopped are the owner's to know, and nobody else's.
+    if (req.user?.role === 'OWNER') {
+      const backup = await backupAlert(now);
+      if (backup) {
+        alertRows.push({
+          kind: ALERT_WORDS.BACKUP,
+          kindCode: 'BACKUP',
+          at: backup.since ?? now,
+          detail: backup.since ? `Backups have stopped since ${formatTimeIst12(backup.since)}.` : 'Backups have not run yet.',
+          amountInPaise: null,
+          link: '/settings',
+          drill: { detail: { report: 'LINK', query: { to: '/settings' } } },
+        });
+      }
+    }
 
     const day = { from: date, to: date };
     const tiles = {

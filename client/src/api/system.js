@@ -57,3 +57,8 @@ export async function watchServerOnLoad() {
 export function getServerStarts(days = 7) {
   return api.get(`/system/starts?days=${days}`);
 }
+
+/** GET /system/backups. OWNER only. P54. */
+export function getServerBackups() {
+  return api.get('/system/backups');
+}

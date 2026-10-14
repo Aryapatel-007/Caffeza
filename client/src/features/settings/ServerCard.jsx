@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { getServerStarts } from '../../api/system.js';
 import { formatDayIst, formatTimeIst } from '../../utils/formatDate.js';
+import ServerBackups from './ServerBackups.jsx';
 import { Section } from './settingsParts.jsx';
 
 /** A business date label, read at midday India time, as "Thu 9 Oct". */
@@ -20,7 +21,7 @@ export default function ServerCard() {
   const starts = useQuery({ queryKey: ['system', 'starts', 7], queryFn: () => getServerStarts(7) });
 
   return (
-    <Section title="Server" description="How often the free server started. It sleeps after 15 minutes with no one using it.">
+    <Section title="Server" description="How often the free server started, and its backups. It sleeps after 15 minutes with no one using it.">
       {starts.isPending ? (
         <p className="type-body text-muted">Reading the server's starts…</p>
       ) : starts.isError ? (
@@ -28,6 +29,11 @@ export default function ServerCard() {
       ) : (
         <ServerSummary data={starts.data} />
       )}
+      {/* P54. */}
+      <div className="mt-4 grid gap-2">
+        <h3 className="type-heading">Backups</h3>
+        <ServerBackups />
+      </div>
     </Section>
   );
 }
