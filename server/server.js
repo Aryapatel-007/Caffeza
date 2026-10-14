@@ -32,6 +32,7 @@ import { PHOTO_UPLOAD_PATH } from './routes/paymentRoutes.js';
 import hookRoutes, { HOOKS_PATH } from './routes/hookRoutes.js';
 import tallyBridgeRoutes, { TALLY_BRIDGE_PATH } from './routes/tallyBridgeRoutes.js';
 import routes from './routes/index.js';
+import { startBackups, stopBackups } from './services/backup/backupService.js';
 import { startJobLoop } from './services/integrations/jobRunner.js';
 import { attachLiveChannel, closeLiveChannel } from './services/live/socketServer.js';
 import { recordServerStart } from './services/serverStartService.js';
@@ -263,6 +264,8 @@ export async function startServer() {
     // P30. One row per start, so the owner can see whether the server slept in
     // working hours. A failure to write it never stops the server.
     recordServerStart().catch((error) => logger.warn({ err: error }, 'Could not record this server start.'));
+    // P54. Backups, when BACKUP_ENABLED is on. A failure is logged and shown to the owner, never thrown.
+    startBackups().catch((error) => logger.warn({ err: error }, 'Backups could not start.'));
   });
 
   // P33. The live channel rides the same HTTP server, ahead of Express, so no
@@ -271,9 +274,11 @@ export async function startServer() {
 
   // The listener closes first so an in-flight request is not cut off partway
   // through a database call.
-  installShutdownHandlers(() => {
+  installShutdownHandlers(async () => {
     closeLiveChannel(live);
-    return closeHttpServer(server);
+    await closeHttpServer(server);
+    // P54. What the change diary has waiting goes up before the database closes.
+    await stopBackups().catch((error) => logger.warn({ err: error }, 'Backups did not stop cleanly.'));
   });
 
   return server;
