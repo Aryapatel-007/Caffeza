@@ -92,7 +92,8 @@ export default {
       { $group: { _id: null, count: { $sum: 1 }, valueInPaise: { $sum: '$noCharge.valueInPaise' } } },
     ]);
     const [voided] = await Bill.aggregate([
-      { $match: { ...scopedForAggregate(req), isVoided: true, businessDate: { $gte: params.from, $lte: params.to } } },
+      // P56. Whole voids only; the documents issued below still count every voided number.
+      { $match: { ...scopedForAggregate(req), isVoided: true, isVoidedToChangeItems: { $ne: true }, businessDate: { $gte: params.from, $lte: params.to } } },
       { $group: { _id: null, count: { $sum: 1 }, valueInPaise: { $sum: '$grandTotalInPaise' } } },
     ]);
 

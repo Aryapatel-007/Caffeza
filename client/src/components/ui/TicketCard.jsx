@@ -47,6 +47,8 @@ export default function TicketCard({
   targetMinutes,
   lines,
   notPrinted = false,
+  // P56. The order's note for every dish, read before the dishes.
+  note = null,
   isBusy = false,
   onLineReady,
   onLineUndo = null,
@@ -80,6 +82,12 @@ export default function TicketCard({
 
       {notPrinted && (
         <p className="type-label border-b border-line bg-alert-tint px-4 py-2 text-alert">Not printed. Tap Reprint.</p>
+      )}
+
+      {note && (
+        <p className="type-label border-b border-line bg-sunken px-3 py-2">
+          <span className="font-semibold">For all items:</span> {note}
+        </p>
       )}
 
       <ul className="flex flex-1 flex-col px-1 py-0.5">

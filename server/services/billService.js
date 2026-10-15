@@ -704,7 +704,7 @@ export async function voidBill(req, billId, { reasonCode, note = null, approvedB
  * The core of voiding, inside the transaction it is given. P25 Part E voids a
  * bill and re-issues it in one transaction through here.
  */
-export async function voidBillInSession(req, billId, { reasonCode, note = null, at = nowUtc(), approvedBy = null }, session) {
+export async function voidBillInSession(req, billId, { reasonCode, note = null, at = nowUtc(), approvedBy = null, toChangeItems = false }, session) {
   const bill = await readBill(req, billId, session);
   assertNotVoided(bill);
   // P10: a closed day's bills stay as they are.
@@ -718,6 +718,8 @@ export async function voidBillInSession(req, billId, { reasonCode, note = null, 
   // P04: a fixed code, and the free-text field now holds the optional note.
   bill.voidReasonCode = reasonCode;
   bill.voidReason = note ?? null;
+  // P56. Voided only so the items could change, and billed again: on no list of voided bills.
+  bill.isVoidedToChangeItems = toChangeItems;
   await bill.save(session ? { session } : {});
 
   await Order.updateOne(

@@ -23,6 +23,8 @@ import {
   giveNoCharge,
   markLineServed,
   moveOrderToTable,
+  setKitchenNote,
+  setOrderCustomer,
 } from '../../api/orders.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getKotTicket } from '../../api/kitchen.js';
@@ -32,6 +34,8 @@ import { formatTimeIst } from '../../utils/formatDate.js';
 import BillOrderButton from '../billing/BillOrderButton.jsx';
 import Bilingual from '../i18n/Bilingual.jsx';
 import CancelPanel from './CancelPanel.jsx';
+import GuestDetailsSheet from './GuestDetailsSheet.jsx';
+import KitchenNoteSheet from './KitchenNoteSheet.jsx';
 import { LINE_CANCEL_REASONS, ORDER_CANCEL_REASONS } from './cancelReasons.js';
 import LineOptionsPanel from './LineOptionsPanel.jsx';
 import MenuPicker from './MenuPicker.jsx';
@@ -115,6 +119,14 @@ export default function OrderScreenPage() {
    * second PIN. Never stored on the device; leaving the screen forgets it.
    */
   const [printedBillApproval, setPrintedBillApproval] = useState(null);
+  /**
+   * P56. The note for all dishes being edited, and the guest's details asked
+   * on a table's first Send. `askingGuest` holds the send waiting for them;
+   * Skip is remembered for this visit to the screen.
+   */
+  const [isNotingAll, setIsNotingAll] = useState(false);
+  const [askingGuest, setAskingGuest] = useState(null);
+  const [guestSkipped, setGuestSkipped] = useState(false);
   /**
    * P41. The last Send, for its Undo bar. The server allows the undo for 60
    * seconds and only while nothing is ready; the bar shows for the same minute
@@ -258,23 +270,49 @@ export default function OrderScreenPage() {
       successMessage: `${line.itemName} removed.`,
     });
 
-  const fire = () =>
+  /**
+   * P56. A table's first Send asks for the guest's details, unless the order
+   * has them (a seated booking does) or this screen skipped them already.
+   */
+  const needsGuestDetails =
+    order.orderType === 'DINE_IN' &&
+    !hasBill &&
+    !order.customerName &&
+    !order.customerPhone &&
+    !guestSkipped &&
+    order.lines.every((line) => !line.firedAt);
+  const askGuestThen = (send) => (needsGuestDetails ? setAskingGuest({ send }) : send(null));
+
+  /** P56. The guest's details first, when given, then the Send on the version they leave. */
+  const sendToKitchen = async (guest) => {
+    let { version } = order;
+    if (guest) ({ version } = await setOrderCustomer(order.id, { version, ...guest }));
+    return fireOrder(order.id, version);
+  };
+  const afterGuestFailed = () => {
+    setAskingGuest(null);
+    orderQuery.refetch();
+  };
+
+  const fire = (guest = null) =>
     run({
-      run: () => fireOrder(order.id, order.version),
+      run: () => sendToKitchen(guest),
       onDone: () => {
         setIsReviewing(false);
+        setAskingGuest(null);
         // P41. The bar says "Sent to the kitchen." with its Undo, instead of a toast.
         setToast(null);
         setNow(Date.now());
         setLastSendAt(Date.now());
       },
+      onFailed: afterGuestFailed,
     });
 
   /** P48. KOT & Print: send, then print each new ticket on this device's printer. */
-  const fireAndPrint = () =>
+  const fireAndPrint = (guest = null) =>
     run({
       run: async () => {
-        const result = await fireOrder(order.id, order.version);
+        const result = await sendToKitchen(guest);
         try {
           for (const kot of result.kots ?? [result.kot]) {
             const { text } = await getKotTicket(kot.id, { width: charactersFor(device.printer), ...(result.round ? { round: result.round } : {}) });
@@ -287,10 +325,21 @@ export default function OrderScreenPage() {
       },
       onDone: () => {
         setIsReviewing(false);
+        setAskingGuest(null);
         setNow(Date.now());
         setLastSendAt(Date.now());
       },
+      onFailed: afterGuestFailed,
     });
+
+  /** P56. One note for every dish; null clears it. */
+  const saveKitchenNote = (kitchenNote) =>
+    run({
+      run: () => setKitchenNote(order.id, { version: order.version, kitchenNote }),
+      successMessage: kitchenNote ? 'Note saved for all dishes.' : 'Note cleared.',
+      onDone: () => setIsNotingAll(false),
+    });
+  const canNoteAll = isOpen || order.status === 'READY_TO_BILL';
 
   const undoLastSend = () =>
     run({
@@ -319,8 +368,8 @@ export default function OrderScreenPage() {
       onCancelLine={(line) => setCancelling({ kind: 'line', line })}
       onRemoveDraft={removeDraft}
       onChangeSentLine={(line) => setChangingLine(line)}
-      onFire={fire}
-      onFireAndPrint={isTill ? fireAndPrint : null}
+      onFire={() => askGuestThen(fire)}
+      onFireAndPrint={isTill ? () => askGuestThen(fireAndPrint) : null}
       onCancelOrder={() => setCancelling({ kind: 'order' })}
       onCloseOrder={canClose ? () => setCancelling({ kind: 'close' }) : null}
       closeLabel={order.orderType === 'DINE_IN' ? 'Close table' : 'Close order'}
@@ -358,6 +407,12 @@ export default function OrderScreenPage() {
               )}
               {order.customerName && ` · ${order.customerName}`}
             </p>
+            {/* P56. The note for all dishes, while set. */}
+            {order.kitchenNote && (
+              <p className="type-caption mt-1">
+                <span className="font-semibold">For all dishes:</span> {order.kitchenNote}
+              </p>
+            )}
           </div>
         </div>
 
@@ -373,6 +428,16 @@ export default function OrderScreenPage() {
                 className="type-body min-h-12 w-full rounded-lg border border-muted bg-surface px-4 text-ink placeholder:text-muted"
               />
             </label>
+          )}
+          {canNoteAll && (
+            <button
+              type="button"
+              disabled={write.isPending}
+              onClick={() => setIsNotingAll(true)}
+              className="type-button min-h-12 whitespace-nowrap rounded-lg border border-ink bg-surface px-4 hover:bg-sunken disabled:opacity-50"
+            >
+              Note for all dishes
+            </button>
           )}
           {canMove && (
             <button
@@ -464,7 +529,7 @@ export default function OrderScreenPage() {
                 <button
                   type="button"
                   disabled={pendingCount === 0 || write.isPending}
-                  onClick={fire}
+                  onClick={() => askGuestThen(fire)}
                   className="min-h-14 rounded-lg bg-accent px-4 text-on-accent hover:brightness-110 disabled:opacity-50 sm:px-8"
                 >
                   {pendingCount === 0 ? (
@@ -681,6 +746,23 @@ export default function OrderScreenPage() {
               },
             })
           }
+        />
+      )}
+
+      {isNotingAll && (
+        <KitchenNoteSheet current={order.kitchenNote} isBusy={write.isPending} onCancel={() => setIsNotingAll(false)} onSave={saveKitchenNote} />
+      )}
+
+      {askingGuest && (
+        <GuestDetailsSheet
+          placeName={placeLabel(order)}
+          isBusy={write.isPending}
+          onCancel={() => setAskingGuest(null)}
+          onSave={(guest) => askingGuest.send(guest)}
+          onSkip={() => {
+            setGuestSkipped(true);
+            askingGuest.send(null);
+          }}
         />
       )}
 

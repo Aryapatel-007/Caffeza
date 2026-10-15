@@ -9055,9 +9055,10 @@ wrapped to the ticket's width.
 Roles: OWNER, MANAGER, CASHIER, WAITER. Each field is optional and validated as
 on `POST /orders` (section 12.1); at least one of `customerName` and
 `customerPhone` is required, and `offersConsent: true` needs `customerPhone`,
-otherwise 400. The order must be `OPEN` with no `billId`, otherwise 422
-`BUSINESS_RULE_VIOLATED`, "This order has a bill, so the guest's details are on
-it already." A stale `version` is 409.
+otherwise 400. An order with a bill is 422 `BUSINESS_RULE_VIOLATED`, "This
+order has a bill, so the guest's details are on it already."; any other order
+not `OPEN` is 422, "This order is closed, so the guest's details cannot
+change." A stale `version` is 409.
 
 `customerPhone` on an order that already has a different one is 422
 `BUSINESS_RULE_VIOLATED`, "This order already has the guest's mobile." The same
@@ -9074,14 +9075,17 @@ still accepts them.
 
 A bill voided inside `POST /bills/:billId/cancel-lines` (M3 16.4) or
 `POST /bills/:billId/reopen` (P26) carries `isVoidedToChangeItems: true`.
-Every other void leaves it `false`.
+Every other void leaves it `false`, and so does cancel-lines when it cancels
+every item, because the whole order goes with the bill. A whole-order cancel of
+an order reopened from a bill sets that bill's mark back to `false`.
 
 Left out of, wherever `isVoided` is true and `isVoidedToChangeItems` is true:
 
 | Where | What changes |
 |---|---|
-| `GET /bills` | With `includeVoided=true`, these bills are not listed and not in `summary.voidedCount`. With `number=`, they are found as before. |
-| R19 Bill List | `status=VOIDED` matches only bills not voided to change items |
+| `GET /bills` | With `includeVoided=true`, these bills are not listed and not in `meta.totals.voidedCount`. With `number=`, they are found as before. |
+| `GET /bills/summary` | `voidedCount` and `voidedInPaise` |
+| R19 Bill List | `status=VOIDED` matches only bills not voided to change items, unless `billNumber` is given, so the invoice register's drill still opens one |
 | R15 | `voids` section |
 | R1 Today | `VOID` alerts |
 | R2 and Day Close | `controls.voidedBills` |

@@ -6,7 +6,8 @@
  *
  *   items   each line cancelled on its own, by `lines[].cancelledAt`;
  *   orders  each whole order cancelled, by `orders.cancelledAt`;
- *   voids   each voided bill, by the bill's business date.
+ *   voids   each bill voided as a whole, by the bill's business date. P56: a
+ *           bill voided only to change its items is not one.
  *
  * A line cancelled together with its order is part of that order, not an item
  * row, and takes the order's reason (P04: such a line stores only the note).
@@ -131,7 +132,8 @@ export default {
       Order.find({ ...tenant, $or: [{ 'lines.cancelledAt': { $gte: start, $lt: end } }, { cancelledAt: { $gte: start, $lt: end } }] })
         .select('orderNumber orderType tableName platform openedBy isCancelled cancelledAt cancelledBy cancelReasonCode cancelReason lines')
         .lean(),
-      Bill.find({ ...tenant, businessDate: { $gte: params.from, $lte: params.to }, isVoided: true })
+      // P56. Only bills voided as a whole: one voided to change its items shows as the items, above.
+      Bill.find({ ...tenant, businessDate: { $gte: params.from, $lte: params.to }, isVoided: true, isVoidedToChangeItems: { $ne: true } })
         .sort({ voidedAt: 1 })
         .select('billNumber grandTotalInPaise voidReasonCode voidReason voidedBy voidedAt')
         .lean(),

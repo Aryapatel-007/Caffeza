@@ -1,34 +1,58 @@
 /**
- * P27, through the screens: a captain on a phone seats Table 2 with the
- * guest's name and mobile, and the guest's yes to offers; the owner finds the
- * guest on the Customers screen, with the visit.
+ * P27 and P56, through the screens: a captain on a phone seats Table 2 with
+ * only the guests, adds a dish and a note for all dishes, and gives the
+ * guest's name, mobile and yes to offers on the first Send. The kitchen sees
+ * the note on the ticket; the owner finds the guest on the Customers screen.
  */
 import { expect, test } from '@playwright/test';
 
 import { at, resetGolden } from './helpers/clock.js';
 import { signIn } from './helpers/people.js';
 import { gotoFloor, tile } from './pages/floor.js';
+import { addItems } from './pages/order.js';
 
 const DAY = '2026-09-26';
 
 test.describe.configure({ mode: 'serial' });
 
-test('a guest seated with their details shows on the Customers screen', async ({ browser }) => {
+test("the guest's details on the first Send, and a note for all dishes on the ticket", async ({ browser }) => {
   const golden = await resetGolden();
   await at('19:00', DAY);
 
   const captain = await signIn(browser, { name: 'Khuman Singh', phone: golden.phones['Khuman Singh'], password: golden.password, device: 'phone' });
   await gotoFloor(captain.page);
   await tile(captain.page, 'Table 2', 'free').click();
-  const sheet = captain.page.getByRole('dialog');
-  await sheet.getByRole('button', { name: '3', exact: true }).click();
+  const seat = captain.page.getByRole('dialog');
+  await seat.getByRole('button', { name: '3', exact: true }).click();
+  await expect(seat.getByLabel('Guest name')).toHaveCount(0);
+  await seat.getByRole('button', { name: /^Start order/ }).click();
+  await expect(captain.page).toHaveURL(/\/orders\/[a-f0-9]{24}$/);
+
+  await addItems(captain.page, ['Caffe Latte']);
+  await captain.page.getByRole('button', { name: 'Note for all dishes' }).click();
+  const note = captain.page.getByRole('dialog', { name: 'Note for all dishes' });
+  await note.getByRole('button', { name: 'Less spicy' }).click();
+  await note.getByRole('button', { name: 'Jain' }).click();
+  await note.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(captain.page.getByText('Less spicy, Jain').first()).toBeVisible();
+
+  await captain.page.getByRole('button', { name: /^Send \d+ to (the )?kitchen/ }).filter({ visible: true }).first().click();
+  const sheet = captain.page.getByRole('dialog', { name: 'Guest details' });
   await sheet.getByLabel('Guest name').fill('Meera Joshi');
   await sheet.getByLabel('Mobile number').fill('98250 12345');
   await sheet.getByText('The guest agrees to offers and news by SMS or WhatsApp').click();
   await captain.page.screenshot({ path: 'e2e/screenshots/seat-guest-details.png', fullPage: true });
-  await sheet.getByRole('button', { name: /^Start order/ }).click();
-  await expect(captain.page).toHaveURL(/\/orders\/[a-f0-9]{24}$/);
+  await sheet.getByRole('button', { name: 'Save and send' }).click();
+  await expect(captain.page.getByText('Sent to the kitchen.')).toBeVisible();
   await expect(captain.page.getByText('Meera Joshi').first()).toBeVisible();
+  expect(await captain.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  const kitchen = await signIn(browser, { name: 'Manager', phone: golden.phones.Manager, password: golden.password, device: 'computer' });
+  await kitchen.page.goto('/kitchen');
+  await kitchen.page.getByRole('tab', { name: 'All stations' }).click();
+  const ticket = kitchen.page.locator('article').filter({ hasText: 'Table 2' });
+  await expect(ticket.getByText('For all items:')).toBeVisible();
+  await expect(ticket).toContainText('Less spicy, Jain');
 
   const owner = await signIn(browser, { name: 'Owner', phone: golden.phones.Owner, password: golden.password, device: 'computer' });
   await owner.page.goto('/customers');

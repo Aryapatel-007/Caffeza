@@ -60,8 +60,8 @@ export default function FloorViewPage() {
   });
 
   const open = useMutation({
-    mutationFn: ({ tableId, guestCount, guest = {} }) =>
-      createOrder({ orderType: 'DINE_IN', tableId, ...(guestCount ? { guestCount } : {}), ...guest }),
+    // P56. Only the guests here; their name and mobile are asked on the first Send.
+    mutationFn: ({ tableId, guestCount }) => createOrder({ orderType: 'DINE_IN', tableId, ...(guestCount ? { guestCount } : {}) }),
     onSuccess: (order) => {
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       navigate(`/orders/${order.id}`);
@@ -252,7 +252,7 @@ export default function FloorViewPage() {
           isBusy={open.isPending}
           allowSkip={!floor.requireGuestCount}
           onCancel={() => setSeating(null)}
-          onConfirm={(guestCount, guest) => open.mutate({ tableId: seating.id, guestCount, guest })}
+          onConfirm={(guestCount) => open.mutate({ tableId: seating.id, guestCount })}
           reservation={seating.occupancy.upcomingReservation}
           onSeatReservation={(reservation) => seatBooking.mutate({ reservation, table: seating })}
         />

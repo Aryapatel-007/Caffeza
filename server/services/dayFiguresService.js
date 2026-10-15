@@ -483,7 +483,8 @@ export async function computeDayFigures(req, businessDate, { session = null, upT
   });
 
   const liveBills = dayBills.filter((bill) => !bill.isVoided);
-  const voidedBills = dayBills.filter((bill) => bill.isVoided);
+  // P56. Whole voids only. A bill voided before P56 has no mark, so a closed day's figures never move.
+  const voidedBills = dayBills.filter((bill) => bill.isVoided && !bill.isVoidedToChangeItems);
   const inDay = (instant) => instant && businessDateFor(instant, startMinutes) === businessDate;
 
   const cashFromBillsInPaise = sum(billsWithDayPayments, (bill) =>

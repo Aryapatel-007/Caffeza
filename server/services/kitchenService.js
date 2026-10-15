@@ -65,6 +65,8 @@ export function serialiseKot(kot) {
   // P36. Each line's station and sent time, the ticket's standing in for a line from before P36.
   json.rounds = json.rounds ?? 1;
   json.lastFiredAt = json.lastFiredAt ?? json.firedAt;
+  // P56. The order's note for every dish; null on a ticket from before P56.
+  json.kitchenNote = json.kitchenNote ?? null;
   json.lines = (json.lines ?? []).map((line) => ({
     ...line,
     stationId: line.stationId ?? json.stationId ?? null,
@@ -185,7 +187,7 @@ export async function fireOrder(req, { orderId, version }) {
       for (const ticket of tickets.filter((entry) => entry.append)) {
         await Kot.updateOne(
           { ...scoped(req), _id: ticket.kotId },
-          { $push: { lines: { $each: ticket.lines } }, $set: { rounds: round, lastFiredAt: firedAt } },
+          { $push: { lines: { $each: ticket.lines } }, $set: { rounds: round, lastFiredAt: firedAt, kitchenNote: order.kitchenNote ?? null } },
           options,
         );
       }
@@ -208,6 +210,8 @@ export async function fireOrder(req, { orderId, version }) {
             stationName: ticket.station?.name ?? null,
             rounds: 1,
             lastFiredAt: firedAt,
+            // P56. The order's note for every dish.
+            kitchenNote: order.kitchenNote ?? null,
             lines: ticket.lines,
             firedBy: req.user.id,
             firedAt,

@@ -365,6 +365,7 @@ export default function KitchenDisplayPage() {
                 targetMinutes={targetFor(kot)}
                 lines={kot.lines}
                 notPrinted={notPrinted.has(kot.id)}
+                note={kot.kitchenNote}
                 onReprint={() => printKot(kot.id, { reprint: true })}
                 isBusy={markReady.isPending || undo.isPending}
                 onLineReady={(lineId) => markReady.mutate({ kotId: kot.id, lineId, label: `${nameOf(kot, lineId)} marked ready.` })}

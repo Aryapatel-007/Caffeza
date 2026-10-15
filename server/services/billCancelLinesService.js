@@ -123,7 +123,7 @@ async function runInSession(req, { billId, lines, reasonCode, note, names, appro
   const voided = await voidBillInSession(
     req,
     billId,
-    { reasonCode: 'ITEMS_CHANGED', note: `Items cancelled after billing: ${names.join(', ')}`.slice(0, 500) },
+    { reasonCode: 'ITEMS_CHANGED', note: `Items cancelled after billing: ${names.join(', ')}`.slice(0, 500), toChangeItems: true },
     session,
   );
 
@@ -204,6 +204,8 @@ async function runInSession(req, { billId, lines, reasonCode, note, names, appro
       session,
     );
     orderCancelled = true;
+    // P56. Nothing is billed again: the whole bill went with the whole order, so it is a void on every list.
+    await Bill.updateOne({ ...scoped(req), _id: voided._id }, { $set: { isVoidedToChangeItems: false } }, { session });
     // 6. Nothing is carried, so every payment is left over.
     leftovers = await leftoversWithoutBill(req, { voided, order, today }, session);
   }

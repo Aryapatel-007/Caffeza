@@ -123,6 +123,8 @@ export const MADE_LINE_STATUSES = Object.freeze([ORDER_LINE_STATUSES.READY, ORDE
 
 export const CUSTOMER_NAME_MAX_LENGTH = 100;
 export const LINE_NOTES_MAX_LENGTH = 200;
+/** P56. One note for every dish on the order. */
+export const KITCHEN_NOTE_MAX_LENGTH = 200;
 export const CANCEL_REASON_MAX_LENGTH = 200;
 export const MIN_GUEST_COUNT = 1;
 export const MAX_GUEST_COUNT = 100;
@@ -345,6 +347,12 @@ const orderSchema = new mongoose.Schema({
 
   customerName: { type: String, trim: true, maxlength: CUSTOMER_NAME_MAX_LENGTH, default: null },
   customerPhone: { type: String, trim: true, default: null },
+
+  /**
+   * P56. One instruction for every dish, like "Less spicy". Copied onto the
+   * order's kitchen tickets, and printed on each as FOR ALL ITEMS.
+   */
+  kitchenNote: { type: String, trim: true, maxlength: KITCHEN_NOTE_MAX_LENGTH, default: null },
 
   status: {
     type: String,

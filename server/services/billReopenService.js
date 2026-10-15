@@ -43,7 +43,7 @@ export async function reopenBill(req, billId, { approval = null } = {}) {
   const session = await mongoose.startSession();
   try {
     await session.withTransaction(async () => {
-      const voided = await voidBillInSession(req, billId, { reasonCode: 'ITEMS_CHANGED', note: 'Reopened to add items' }, session);
+      const voided = await voidBillInSession(req, billId, { reasonCode: 'ITEMS_CHANGED', note: 'Reopened to add items', toChangeItems: true }, session);
       await Order.updateOne({ ...scoped(req), _id: voided.orderId }, { $set: { reopenedFromBillId: voided._id } }, { session });
       await recordAudit(
         req,

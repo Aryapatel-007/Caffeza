@@ -103,6 +103,8 @@ const kotSchema = new mongoose.Schema({
   rounds: { type: Number, min: 1, validate: wholeNumber, default: 1 },
   /** P36. When the latest round was sent. Null means `firedAt`. */
   lastFiredAt: { type: Date, default: null },
+  /** P56. The order's note for every dish, kept in step with `orders.kitchenNote`. */
+  kitchenNote: { type: String, trim: true, default: null },
 });
 
 kotSchema.plugin(baseSchemaPlugin);

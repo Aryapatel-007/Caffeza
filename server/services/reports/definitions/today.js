@@ -119,7 +119,7 @@ async function lastWeek(tenant, date, now) {
 async function alerts(tenant, date, now, startMinutes) {
   const { start, end } = businessDateRangeToUtc(date, date, startMinutes);
   const [voids, discounts, noCharge, cancelled] = await Promise.all([
-    Bill.find({ ...tenant, businessDate: date, isVoided: true, voidedAt: { $lte: now } }).select('billNumber grandTotalInPaise voidedAt').lean(),
+    Bill.find({ ...tenant, businessDate: date, isVoided: true, isVoidedToChangeItems: { $ne: true }, voidedAt: { $lte: now } }).select('billNumber grandTotalInPaise voidedAt').lean(),
     Bill.find({ ...tenant, businessDate: date, 'discount.appliedAt': { $lte: now }, ...liveAt(now) })
       .select('billNumber subtotalInPaise discount')
       .lean(),

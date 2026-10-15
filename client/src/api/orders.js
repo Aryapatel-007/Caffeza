@@ -172,6 +172,16 @@ export function moveOrderToTable(orderId, { version, tableId }) {
   return api.patch(`/orders/${orderId}/table`, { version, tableId });
 }
 
+/** P56. One note for every dish; null clears it. */
+export function setKitchenNote(orderId, { version, kitchenNote }) {
+  return api.patch(`/orders/${orderId}/kitchen-note`, { version, kitchenNote });
+}
+
+/** P56. The guest's name, mobile and their yes to offers, before the first KOT. */
+export function setOrderCustomer(orderId, { version, ...guest }) {
+  return api.patch(`/orders/${orderId}/customer`, { version, ...guest });
+}
+
 /**
  * OWNER and MANAGER only, unlike cancelling a single line.
  *

@@ -18,7 +18,7 @@ import { parseRupeesToPaise } from '../../utils/formatMoney.js';
  * them out, and sends back ids and a quantity. The server prices the line.
  */
 /** The requests a cafe hears most, one tap each. Jain is asked for in most Gujarat restaurants. */
-const QUICK_NOTES = ['Less spicy', 'Extra spicy', 'No onion', 'Jain', 'Less sugar', 'No ice'];
+export const QUICK_NOTES = ['Less spicy', 'Extra spicy', 'No onion', 'Jain', 'Less sugar', 'No ice'];
 
 /**
  * `needsApproval`, P40: the dish would go onto a bill already printed, so a

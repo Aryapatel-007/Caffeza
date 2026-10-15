@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test';
 
 import { at, resetGolden } from './helpers/clock.js';
 import { signIn } from './helpers/people.js';
-import { addFromPanel } from './pages/order.js';
+import { addFromPanel, skipGuestDetails } from './pages/order.js';
 
 const DAY = '2026-09-26';
 const APP = 'http://127.0.0.1:5055/api/v1';
@@ -100,6 +100,9 @@ test('PetPooja\'s way: floor, history, Recall Bill, counter, change, kitchen', a
   await sheet.getByLabel('₹', { exact: true }).fill('30');
   await addFromPanel(page);
   await panel.getByRole('button', { name: 'KOT & Print' }).click();
+  // P56. The table's first Send asks for the guest's details.
+  const asked = await page.getByRole('dialog', { name: 'Guest details' }).waitFor({ timeout: 3000 }).then(() => true, () => false);
+  if (asked) await skipGuestDetails(page);
   await expect.poll(() => counter.prints.length).toBeGreaterThan(0);
   const order3 = (await api('GET', `/tables/${tables['Table 3']}/history`, cashier)).orders[0];
   expect(JSON.stringify(order3)).toContain('Extra cheese');

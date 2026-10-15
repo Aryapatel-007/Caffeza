@@ -40,8 +40,20 @@ export async function addFromPanel(page, note = null) {
 
 export async function sendToKitchen(page) {
   await page.getByRole('button', { name: /^Send \d+ to (the )?kitchen/ }).filter({ visible: true }).first().click();
-  await expect(page.getByText('Sent to the kitchen.')).toBeVisible();
+  const sent = page.getByText('Sent to the kitchen.');
+  // P56. A table's first Send asks for the guest's details; these tests skip them.
+  const guest = page.getByRole('dialog', { name: 'Guest details' });
+  await expect(sent.or(guest).first()).toBeVisible();
+  if (await guest.isVisible()) await skipGuestDetails(page);
+  await expect(sent).toBeVisible();
   await page.getByRole('button', { name: 'Dismiss' }).click().catch(() => {});
+}
+
+/** P56. Skips the Guest details sheet a table's first Send opens. */
+export async function skipGuestDetails(page) {
+  const guest = page.getByRole('dialog', { name: 'Guest details' });
+  await guest.getByRole('button', { name: 'Skip, send without details' }).click();
+  await expect(guest).toHaveCount(0);
 }
 
 /** The lines and the order's own actions: a sheet on a table's order, the panel beside a counter order. */

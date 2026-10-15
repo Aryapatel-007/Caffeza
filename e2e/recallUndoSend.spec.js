@@ -9,6 +9,7 @@ import { at, resetGolden } from './helpers/clock.js';
 import { signIn } from './helpers/people.js';
 import { gotoFloor, tile } from './pages/floor.js';
 import { openStation, tickets } from './pages/kitchen.js';
+import { skipGuestDetails } from './pages/order.js';
 
 const DAY = '2026-09-26';
 const APP = 'http://127.0.0.1:5055/api/v1';
@@ -50,6 +51,7 @@ test('a captain undoes a Send, and the kitchen recalls a finished ticket', async
 
   await captain.page.goto(`/orders/${order.id}`);
   await captain.page.getByRole('button', { name: /^Send 1 to (the )?kitchen/ }).filter({ visible: true }).first().click();
+  await skipGuestDetails(captain.page);
   const bar = captain.page.getByRole('status').filter({ hasText: 'Sent to the kitchen.' });
   await expect(bar).toBeVisible();
   await bar.getByRole('button', { name: 'Undo', exact: true }).click();
