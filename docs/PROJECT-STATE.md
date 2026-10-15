@@ -590,7 +590,7 @@ P54 progress
 - [x] F The weekly practice restore (`a58f9f4`)
 - [x] G The owner's view and alerts (`6b0c63e`)
 - [x] H Runbook (`579a6ae`): DEPLOYMENT.md section 8
-- [ ] I Full check: the server suite run once (below), fixes in `d811aed`; still to do: `npm run e2e`, and the check by hand (Part I item 4)
+- [x] I Full check: the server suite (below), fixes in `d811aed`; `npm run e2e` all 29 specs pass; the check by hand passed
 - [ ] J Switched on in production (needs Arya)
 ```
 
@@ -603,7 +603,9 @@ Built differently from the prompt, each written into API-CONTRACT "P54" section 
 4. `backupstate` has three documents (journal, snapshots, storage), so the kept-forever byte total outlives the 90-day runs.
 5. Verify reads through the models' native collections, so the tenant-guard tripwire is unchanged.
 
-Next session: `npm run e2e`; the check by hand (BACKUP_ENABLED=on against the fake S3 and an in-memory database, make a bill, flush the diary, restore before and after it); then, before pushing, `npm run db:indexes` on the live database for `backupruns`, and check with Arya that `BACKUP_ENABLED` on Render is off or the encryption key is in: with on and no key, the server refuses to start.
+Checked by hand on 2026-10-15, against an in-memory database and the fake B2 (never the live database), with `BACKUP_ENABLED=on` through `startBackups`: the first full copy went to `snapshots/monthly/`; an order, then a bill (`2026-27/000001`) at 12:04 PM; the diary uploaded 28 changes on its own within 5 minutes. `npm run backup:restore` to 12:03 gave the order and no bill; to `latest`, the bill; `backup:verify` passed counts, the invoice series and C12; `backup:list` showed the copy and the diary file with no gaps; a restore into the "live" database was refused.
+
+Also 2026-10-15: removing a temporary git worktree whose `node_modules` was a link deleted part of the real `node_modules` (Windows' path limit stopped `git worktree remove` partway). Nothing in the repository was touched; `npm ci` restored it. Never link `node_modules` into a worktree.
 
 Waiting for Arya: the encryption key from `npm run backup:key`, run in your own terminal and never pasted into chat, into Render and the GitHub secrets; the GitHub drill secrets and variables (DEPLOYMENT.md section 8.6).
 
