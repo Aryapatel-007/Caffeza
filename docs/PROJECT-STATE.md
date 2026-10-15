@@ -587,8 +587,10 @@ Asked for by Rishi with the dashboard's code, then: the owner signs in to a dash
 
 Tests: `e2e/ownerDashboard.spec.js` (above, in the prompt's Tests). All 28 browser specs pass; the design, client-name and online client guards pass (16); lint and build pass. No server change. Checked by eye from the screenshot at phone size.
 
+Merged onto Arya's P37, P51 and P54 and checked together on 2026-10-15: `npm test` 1,388 passing, 0 failing; all 30 browser specs pass; lint and build pass. Deployed the same day at Rishi's word: pushed `8188099..97553fa`; Render runs `97553fa`, database connected; Vercel serves `index-GNiJKosX.js`, the same build tested here.
+
 Anything the other developer needs to know:
-The dashboard reads R1, R2 and R4 by their row words and section keys; a change to those shows up here. The `dash-*` colour classes are for this page only. Not pushed.
+The dashboard reads R1, R2 and R4 by their row words and section keys; a change to those shows up here. The `dash-*` colour classes are for this page only.
 
 ### 2026-10-15 Arya, P54 constant backups
 
