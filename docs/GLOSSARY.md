@@ -734,9 +734,9 @@ Added by P54.
 | **Backed up** | How long ago the last change was saved, like "Backed up 3 minutes ago" |
 ---
 
-## 35. The owner's dashboard
+## 38. The owner's dashboard
 
-Added by P51. Words on the owner's dashboard; every figure on it keeps its word above.
+Added by P55. Words on the owner's dashboard; every figure on it keeps its word above.
 
 | Term | Meaning |
 |---|---|

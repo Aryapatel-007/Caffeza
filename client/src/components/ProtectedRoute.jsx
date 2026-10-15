@@ -18,7 +18,7 @@ import Spinner from './ui/Spinner.jsx';
 /** P42. The kitchen login sees the ticket board and nothing else. */
 const KITCHEN_ONLY_PATH = '/kitchen';
 
-/** `bare`: the screen draws its own page, outside the ERP's frame (P51, the owner's dashboard). */
+/** `bare`: the screen draws its own page, outside the ERP's frame (P55, the owner's dashboard). */
 export default function ProtectedRoute({ children, bare = false }) {
   const { isAuthenticated, isRestoring, user } = useAuth();
   const location = useLocation();

@@ -168,7 +168,7 @@
 }
 
 /*
- * P51. The owner's dashboard, /owner: its own look, from Rishi's design, only
+ * P55. The owner's dashboard, /owner: its own look, from Rishi's design, only
  * inside `[data-owner]`, which that page sets; no ERP screen reads these.
  * A cool grey page, white cards, ink text, five indigo steps for bars and
  * columns, amber for unpaid, red for waste, green for the checks.
@@ -232,7 +232,7 @@
   --color-masala-soft: var(--masala-soft);
   --color-leaf: var(--leaf);
 
-  /* P51. The owner's dashboard, defined under [data-owner] above. */
+  /* P55. The owner's dashboard, defined under [data-owner] above. */
   --color-dash-page: var(--dash-page);
   --color-dash-card: var(--dash-card);
   --color-dash-line: var(--dash-line);

@@ -88,7 +88,7 @@ function useMoreGroups() {
       title: 'Service',
       items: [
         { to: '/dashboard', label: 'Home', show: true },
-        // P51. The owner's dashboard, outside the ERP.
+        // P55. The owner's dashboard, outside the ERP.
         { to: '/owner', label: 'Dashboard', show: role === 'OWNER' },
         { to: '/floor', label: 'Floor', show: floor },
         { to: '/orders/takeaway', label: 'Takeaway', show: floor },

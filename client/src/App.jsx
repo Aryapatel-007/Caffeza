@@ -144,7 +144,7 @@ const PublicSite = lazy(() => import('./features/public/PublicSite.jsx'));
  * One entry per screen. As modules land they add their own routes here and
  * their screens live under /features.
  */
-/** P51. Signing in, or opening the address alone: the owner's dashboard for the owner, the ERP's home for everyone else. */
+/** P55. Signing in, or opening the address alone: the owner's dashboard for the owner, the ERP's home for everyone else. */
 function HomeRedirect() {
   const { user } = useAuth();
   return <Navigate to={user?.role === 'OWNER' ? '/owner' : '/dashboard'} replace />;
@@ -154,7 +154,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<ProtectedRoute bare><HomeRedirect /></ProtectedRoute>} />
-      {/* P51. The owner's dashboard, its own page outside the ERP's frame. */}
+      {/* P55. The owner's dashboard, its own page outside the ERP's frame. */}
       <Route
         path="/owner"
         element={

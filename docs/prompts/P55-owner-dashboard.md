@@ -1,4 +1,6 @@
-# P51 The owner's dashboard, beside the ERP
+# P55 The owner's dashboard, beside the ERP
+
+Written as P51 on 2026-10-15; renumbered P55 when merged with Arya's P51 (the WhatsApp assistant) to P54 the same day.
 
 **Asked for by:** Rishi, 2026-10-15, with the dashboard's code: "we have to build the owner dashboard because the owner is only interested in the important stats for his account." Then, the same day: "for the owner two things, one the dashboard and the portal, our ERP: when the owner logs in he should see the dashboard with the important stats, and if he wants to see the details then he will surf in the ERP; the UI for the dashboard I gave you the code."
 **Modules:** M19, M20.

@@ -11,7 +11,7 @@ import { drillHref } from '../reports/catalog.js';
 import { hourLabel, shortBusinessDate } from '../reports/formatReport.js';
 
 /**
- * P51. The owner's dashboard: the day's important figures on one phone-sized
+ * P55. The owner's dashboard: the day's important figures on one phone-sized
  * screen, outside the ERP's frame. "Open the ERP" goes to everything else.
  *
  * Its look is Rishi's design, in its own tokens under `[data-owner]`
