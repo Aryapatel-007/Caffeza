@@ -158,10 +158,11 @@ function Figures({ date, today, day, hours }) {
 
   const controls = sectionOf(day, 'controls');
   const watch = [
-    { label: 'Cancelled after preparation', row: lineOf(controls, 'Wasted value'), alert: true, count: null },
     { label: 'Discounts', row: lineOf(controls, 'Discounts'), unit: ['bill', 'bills'] },
     { label: 'Voided bills', row: lineOf(controls, 'Voided bills'), unit: ['bill', 'bills'] },
     { label: 'No Charge', row: lineOf(controls, 'No Charge'), unit: ['order', 'orders'] },
+    // P56. Whole cancellations only, in place of single dishes.
+    { label: 'Orders cancelled', row: lineOf(controls, 'Orders cancelled'), unit: ['order', 'orders'] },
   ].filter((entry) => entry.row);
 
   const checks = day.checks ?? [];

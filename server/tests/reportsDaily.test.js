@@ -139,8 +139,9 @@ describe('R2 Day Close', () => {
     const controls = section(data, 'controls').rows;
     assert.deepEqual([line(controls, 'Discounts').count, line(controls, 'Discounts').amountInPaise], [6, 42390]);
     assert.deepEqual([line(controls, 'No Charge').count, line(controls, 'No Charge').amountInPaise], [1, 23000]);
-    assert.deepEqual([line(controls, 'Items cancelled').count, line(controls, 'Items cancelled').amountInPaise], [2, 75000]);
-    assert.equal(line(controls, 'Wasted value').amountInPaise, 39000);
+    // P56. Single dishes cancelled are off the list, and still in the stored figures.
+    assert.equal(line(controls, 'Items cancelled'), undefined);
+    assert.equal(line(controls, 'Wasted value'), undefined);
     assert.deepEqual([line(controls, 'Orders cancelled').count, line(controls, 'Orders cancelled').amountInPaise], [0, 0]);
     assert.deepEqual([line(controls, 'Voided bills').count, line(controls, 'Voided bills').amountInPaise], [1, 34700]);
 

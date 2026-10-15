@@ -744,7 +744,7 @@ Added by P55. Words on the owner's dashboard; every figure on it keeps its word 
 | **Where the money went** | How the day's bills were settled: each payment method, On Hold and Unpaid |
 | **By hour** | Net sales in each hour of the day, India time |
 | **Busiest** | The hour with the most net sales |
-| **Watch list** | The day's controls: discounts, voided bills, No Charge. P56 took items cancelled and wasted value off it |
+| **Watch list** | The day's controls: discounts, voided bills, No Charge, orders cancelled. P56 took items cancelled and wasted value off it |
 | **Figures to** | The time the figures were read, while the day is open |
 | **Dashboard** | The owner's page of the day's important figures, outside the ERP |
 | **Open the ERP** | From the dashboard into everything else: floor, bills, reports, settings |

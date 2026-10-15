@@ -50,7 +50,7 @@ describe('closing a table opened by mistake', () => {
     const today = businessDateFor(nowUtc());
     const r15 = ok(await request('GET', `/api/v1/reports/v2/cancellations?from=${today}&to=${today}`, { token: tokens.OWNER }), 'R15');
     assert.equal(r15.sections.find((section) => section.key === 'orders').rows.length, 0, 'not a cancelled order in R15');
-    assert.equal(r15.sections.find((section) => section.key === 'items').rows.length, 0, 'nor a cancelled item');
+    assert.equal(r15.sections.find((section) => section.key === 'items'), undefined, 'P56: R15 has no single items');
     const r2 = ok(await request('GET', `/api/v1/reports/v2/day-close?date=${today}`, { token: tokens.OWNER }), 'R2');
     const controls = r2.sections.find((section) => section.key === 'controls').rows;
     assert.equal(controls.find((row) => row.line === 'Orders cancelled').count, 0, 'not in the day\'s figures');

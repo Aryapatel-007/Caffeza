@@ -170,13 +170,16 @@ describe('only whole voids in the void lists', () => {
 
     const r15 = ok(await request('GET', `/api/v1/reports/v2/cancellations?${range}`, { token: tokens.OWNER }), 'R15');
     assert.deepEqual(numbers(section(r15, 'voids').rows), [whole.billNumber], "R15's voids");
-    assert.ok(section(r15, 'items').rows.some((row) => row.itemName === 'Dahi Puri'), 'the item is an item change');
+    assert.equal(section(r15, 'items'), undefined, 'nor the dish: R15 shows whole cancellations only');
 
     const r1 = ok(await request('GET', '/api/v1/reports/v2/today', { token: tokens.OWNER }), 'R1');
     assert.deepEqual(section(r1, 'alerts').rows.filter((row) => row.kindCode === 'VOID').map((row) => row.detail), [whole.billNumber], "R1's alerts");
 
     const r2 = ok(await request('GET', `/api/v1/reports/v2/day-close?date=${today}`, { token: tokens.OWNER }), 'R2');
     assert.equal(section(r2, 'controls').rows.find((row) => row.line === 'Voided bills').count, 1, "R2's Voided bills");
+    assert.equal(section(r2, 'controls').rows.find((row) => row.line === 'Items cancelled'), undefined, "R2 lists no single dishes");
+    const day = ok(await request('GET', `/api/v1/day-close/${today}`, { token: tokens.OWNER }), 'day');
+    assert.equal(day.figures.controls.cancelledItems.count, 1, 'the stored figures still count the dish, for C12');
 
     const register = ok(await request('GET', `/api/v1/reports/v2/invoice-register?${range}`, { token: tokens.OWNER }), 'R10');
     const voidedInRegister = register.rows.filter((row) => row.status === 'Voided').map((row) => row.billNumber).sort();

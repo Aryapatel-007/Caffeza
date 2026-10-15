@@ -589,10 +589,11 @@ Asked for by Rishi, with his answers: one note for the order; the guest's detail
 
 Tests: `orderNoteGuestVoids.test.js` (6): the note on the order, ticket, later round, printed KOT and a sent ticket, and its refusals; the guest's details, one visit with consent, no second visit, no swapped mobile, refused with a bill; a bill voided to cancel an item missing from every void list but in the register, a manager's void on all of them, and cancelling everything a whole void. Dropping the mark from R15's query on purpose fails it. Full `npm test`: 1,394 passing, 0 failing (1,388 before). Browser: `e2e/customers.spec.js` rewritten for the new flow (a captain on a phone seats with only guests, sets Less spicy, Jain for all dishes, gives the guest's details on Send; the kitchen ticket shows the note; the owner finds the guest), the send helper and two specs skip the new sheet. All 30 browser specs pass. Lint and build pass.
 
-Not pushed or deployed. The test site on this Mac (localhost:5174, `restaurant-erp-test`) runs it.
+4. No single-item cancels on the cancellation reports (Part D, Rishi's word after seeing R15, spec `2c6c129`): R15 has no Items cancelled or Bills changed before payment section, and its summaries and wasted value count only whole orders; R2's controls, the Day Close screen, the Day End page (its card is now Orders cancelled) and the printed Day Close lose Items cancelled, Wasted value and Bills changed; the owner's dashboard watch list loses Cancelled after preparation and gains Orders cancelled. `computeDayFigures` and the closure snapshot are unchanged, so C12 and every check read the same figures. Tests changed on purpose: R15's golden-day test (no items, wasted ₹0.00), R2's controls, the bill revision test, P50's and P56's. TEST-DATA's R15 and Section G lines updated.
+
 
 Anything the other developer needs to know:
-Arya: an e2e step that sends a table's first KOT now meets Guest details; `sendToKitchen` in `e2e/pages/order.js` skips it, and `skipGuestDetails` is there for a direct Send click. Bills voided before today keep showing as voided.
+Arya: R15 no longer has `items` or `billChanges` sections; R11, R12, the audit trail and R1's alerts still show single cancelled dishes. An e2e step that sends a table's first KOT now meets Guest details; `sendToKitchen` in `e2e/pages/order.js` skips it, and `skipGuestDetails` is there for a direct Send click. Bills voided before today keep showing as voided.
 
 ### 2026-10-15 Rishi, P55 the owner's dashboard, beside the ERP
 

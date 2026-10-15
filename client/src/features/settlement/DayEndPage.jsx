@@ -135,12 +135,12 @@ function Overview({ day }) {
     <>
       <section aria-label="Day at a glance" className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Card title="Bills" amountInPaise={sales.billTotalInPaise} count={sales.billCount} />
+        {/* P56. Whole cancellations only. */}
         <Card
-          title="Cancelled items"
-          amountInPaise={controls.cancelledItems?.valueInPaise ?? 0}
-          count={controls.cancelledItems?.count ?? 0}
-          countLabel="Items"
-          note={controls.cancelledOrders?.count ? `and ${controls.cancelledOrders.count} whole ${controls.cancelledOrders.count === 1 ? 'order' : 'orders'}` : null}
+          title="Orders cancelled"
+          amountInPaise={controls.cancelledOrders?.valueInPaise ?? 0}
+          count={controls.cancelledOrders?.count ?? 0}
+          countLabel="Orders"
         />
         <Card title="No Charge" amountInPaise={controls.noCharge?.valueInPaise ?? 0} count={controls.noCharge?.count ?? 0} countLabel="Orders" />
         <Card title="Voided bills" amountInPaise={controls.voidedBills?.valueInPaise ?? 0} count={controls.voidedBills?.count ?? 0} />

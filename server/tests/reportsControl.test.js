@@ -103,22 +103,12 @@ describe('R14 Discounts', () => {
 });
 
 describe('R15 Cancellations and Voids', () => {
-  it('items: Thecha Paneer Chilli after preparation and Cheesy Tornado before, both by Khuman Singh; wasted ₹390.00', async () => {
+  it('P56: whole cancellations only, so the golden day\'s two single dishes are not on it and nothing was wasted', async () => {
     const { data } = await report('cancellations');
-    const items = section(data, 'items');
-    assert.equal(items.rows.length, 2);
-    const thecha = row(items.rows, 'Thecha Paneer Chilli', 'itemName');
-    assert.deepEqual(
-      [thecha.lineTotalInPaise, thecha.stage, thecha.stageLabel, thecha.reason, thecha.cancelledByName, thecha.tableName, thecha.captainName],
-      [39000, 'AFTER_PREPARATION', 'Cancelled after preparation', 'Guest changed the order', 'Khuman Singh', 'Table 11', 'Khuman Singh'],
-    );
-    const tornado = row(items.rows, 'Cheesy Tornado', 'itemName');
-    assert.deepEqual(
-      [tornado.lineTotalInPaise, tornado.stage, tornado.reason, tornado.cancelledByName],
-      [36000, 'BEFORE_PREPARATION', 'Wrong item entered', 'Khuman Singh'],
-    );
-    assert.deepEqual(items.totals, { quantity: 2, lineTotalInPaise: 75000 });
-    assert.equal(data.headline.wastedValueInPaise, 39000);
+    assert.equal(section(data, 'items'), undefined);
+    assert.equal(section(data, 'billChanges'), undefined);
+    assert.deepEqual(section(data, 'byItem').rows, []);
+    assert.equal(data.headline.wastedValueInPaise, 0);
     assert.deepEqual(section(data, 'orders').rows, []);
     // P29 added C13.
     assert.deepEqual(data.checks.map((check) => [check.id, check.passed]), [['C6', true], ['C7', true], ['C13', true]]);
@@ -151,7 +141,6 @@ describe('R15 Cancellations and Voids', () => {
     resetClockForTests();
 
     const { data } = await report('cancellations', 'from=2026-09-28&to=2026-09-28');
-    assert.deepEqual(section(data, 'items').rows, []);
     const orders = section(data, 'orders');
     assert.deepEqual(orders.rows.map((entry) => [entry.tableName, entry.lineTotalInPaise, entry.reason, entry.cancelledByName]), [['Table 2', 18000, 'Guest left', 'Manager']]);
     const byReason = section(data, 'byReason');

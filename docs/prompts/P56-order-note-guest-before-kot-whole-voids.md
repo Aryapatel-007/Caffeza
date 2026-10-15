@@ -39,7 +39,7 @@ An item cancelled on a paid bill (P25), or dishes added after billing (P26), voi
 Rishi, later the same day, on R15's Items cancelled: "no need of showing this item cancelled too". Asked what else, he chose all three: R15's summaries and wasted value, R15's Bills changed before payment, and the item lines on Day Close and the owner's dashboard.
 
 1. R15 Cancellations and Voids keeps Orders cancelled, Bills voided and Bills paid before printing. The Items cancelled and Bills changed before payment sections are gone. By reason, By person, By item and the Wasted value headline count only the dishes of orders cancelled as a whole. The orders section is the paged one.
-2. R2's controls, the Day Close screen, the Day End page and the printed Day Close no longer show Items cancelled, Wasted value or Bills changed before payment. The owner's dashboard watch list loses Cancelled after preparation with them. The Day End page's Cancelled items card becomes Orders cancelled.
+2. R2's controls, the Day Close screen, the Day End page and the printed Day Close no longer show Items cancelled, Wasted value or Bills changed before payment. The owner's dashboard watch list loses Cancelled after preparation with them, and gains Orders cancelled. The Day End page's Cancelled items card becomes Orders cancelled.
 3. Nothing stored changes. `computeDayFigures` still works out `cancelledItems` and `billRevisions`, so a closed day's snapshot, C12 and every other check are untouched, and the records are still there to read: each order shows its cancelled dishes, the audit trail keeps every cancel after preparation, and R11 and R12 keep their cancelled columns.
 
 
