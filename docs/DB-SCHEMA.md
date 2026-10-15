@@ -3081,3 +3081,18 @@ Small documents by `_id`. Built with three, not the prompt's one, because
 A gap the diary could not cover is also written to the bucket as a small
 encrypted marker, `journal/YYYY/MM/DD/<from UTC>_<to UTC>.gap.enc`, because a
 real restore starts from an empty database and cannot read `backupruns`.
+
+## 57. A note for every dish, the guest before the first KOT, whole voids (P56)
+
+`docs/prompts/P56-order-note-guest-before-kot-whole-voids.md`. Additive: every
+field has a default, and no existing value changes.
+
+| Collection | Field | Type | Default | Notes |
+|---|---|---|---|---|
+| `orders` | `kitchenNote` | String or null | null | Up to 200 characters. One note for every dish on the order, set by `PATCH /orders/:orderId/kitchen-note` |
+| `kots` | `kitchenNote` | String or null | null | The order's `kitchenNote`, copied when the ticket is made, when a round is added, and when the note changes |
+| `bills` | `isVoidedToChangeItems` | Boolean | false | True only on a bill voided by cancelling items after billing (M3 16.4) or reopening to add items (P26). Never set on a bill voided before P56 |
+
+`orders.customerName` and `orders.customerPhone` (section 41) can now also be
+set after the order opens, by `PATCH /orders/:orderId/customer`, until it has a
+bill.

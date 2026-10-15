@@ -9013,3 +9013,85 @@ owner's dashboard, `/owner`, reads three existing reports for today's business d
 `GET /reports/v2/day-close?date=` (R2: `sales`, `orderTypes`, `controls`,
 `money`, `checks`, `openDays`), and `GET /reports/v2/hours?from=&to=` (R4: `byHour`).
 
+
+# P56 A note for every dish, the guest before the first KOT, whole voids
+
+`docs/prompts/P56-order-note-guest-before-kot-whole-voids.md`. Two new endpoints
+and one changed meaning.
+
+## 1. `PATCH /api/v1/orders/:orderId/kitchen-note`
+
+```
+{ "version": 7, "kitchenNote": "Less spicy, Jain" }
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. `kitchenNote` is a string of 1 to 200
+characters after trimming, or `null` to clear it; an empty string is stored as
+`null`. The order must be `OPEN` or `READY_TO_BILL`, otherwise 422
+`BUSINESS_RULE_VIOLATED`, "This order is closed, so its note cannot change."
+`version` is required; a stale one is 409 `VERSION_CONFLICT`.
+
+The order's `kitchenNote` is set in one versioned write, then every kitchen
+ticket of the order gets the same `kitchenNote`. Not audited. Response 200: the
+order.
+
+`POST /orders/:orderId/fire` writes the order's `kitchenNote` onto a ticket it
+makes, and onto the ticket a new round is added to (P36). `GET /kots` and
+`GET /kots/:kotId` return `kitchenNote` on every ticket, `null` when none.
+`GET /kots/:kotId/ticket` prints it under the destination line:
+
+```
+FOR ALL ITEMS: Less spicy, Jain
+```
+
+wrapped to the ticket's width.
+
+## 2. `PATCH /api/v1/orders/:orderId/customer`
+
+```
+{ "version": 7, "customerName": "Meera Joshi", "customerPhone": "9825012345", "offersConsent": true }
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. Each field is optional and validated as
+on `POST /orders` (section 12.1); at least one of `customerName` and
+`customerPhone` is required, and `offersConsent: true` needs `customerPhone`,
+otherwise 400. The order must be `OPEN` with no `billId`, otherwise 422
+`BUSINESS_RULE_VIOLATED`, "This order has a bill, so the guest's details are on
+it already." A stale `version` is 409.
+
+`customerPhone` on an order that already has a different one is 422
+`BUSINESS_RULE_VIOLATED`, "This order already has the guest's mobile." The same
+number again changes nothing. When the order had no mobile and now has one, the
+visit is recorded exactly as `POST /orders` records it (M22), with the consent
+when `offersConsent` is true; a failure to record it never fails the request.
+Response 200: the order.
+
+The order screen asks for these on a dine-in order's first Send, so seating a
+table (`POST /orders` from the floor) no longer sends them. `POST /orders`
+still accepts them.
+
+## 3. Bills voided to change items
+
+A bill voided inside `POST /bills/:billId/cancel-lines` (M3 16.4) or
+`POST /bills/:billId/reopen` (P26) carries `isVoidedToChangeItems: true`.
+Every other void leaves it `false`.
+
+Left out of, wherever `isVoided` is true and `isVoidedToChangeItems` is true:
+
+| Where | What changes |
+|---|---|
+| `GET /bills` | With `includeVoided=true`, these bills are not listed and not in `summary.voidedCount`. With `number=`, they are found as before. |
+| R19 Bill List | `status=VOIDED` matches only bills not voided to change items |
+| R15 | `voids` section |
+| R1 Today | `VOID` alerts |
+| R2 and Day Close | `controls.voidedBills` |
+| GST report | Not sales, Voided bills |
+
+Unchanged, and still counting every voided bill: R10 Invoice Register, R2's
+invoice series, the GST report's documents issued, every check C1 to C14, and
+Tally. Bills voided before P56 have no mark and are counted as before, so a
+closed day's snapshot never changes.
+
+## Error codes
+
+None new.

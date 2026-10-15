@@ -751,3 +751,17 @@ Added by P55. Words on the owner's dashboard; every figure on it keeps its word 
 | **% of total** | On the dashboard, a row's bill total against the day's, in whole percents adding up to 100 |
 | **Cancelled after preparation** | On the watch list, the wasted value: items the kitchen had made, at menu price, before GST |
 
+---
+
+## 39. Order note and guest details
+
+Added by P56.
+
+| Term | Meaning |
+|---|---|
+| **Note for all dishes** | One instruction for every dish on the order, like "Less spicy". Printed at the top of every KOT as "FOR ALL ITEMS". |
+| **FOR ALL ITEMS** | The printed KOT's word for the note for all dishes |
+| **Guest details** | The guest's name, mobile and their yes to offers, asked on a table's first Send to the kitchen |
+| **Save and send** | Keep the guest's details and send the dishes to the kitchen |
+| **Skip, send without details** | Send the dishes without the guest's details |
+| **Voided to change items** | A bill voided only so its items could change after billing, and billed again. Not a voided bill on any list; its numbers stay in the invoice register. |
