@@ -17,7 +17,7 @@ import { BACKUP_STATE_IDS, BackupState, FULL_COPIES } from '../models/BackupStat
 import { ALL_MODELS } from '../models/index.js';
 import { ChangeDiary } from '../services/backup/journalService.js';
 import { restoreBackup, eventsToReplay, parseListing, planRestore } from '../services/backup/restoreService.js';
-import { collectionsToCopy, currentFullCopies, folderFor, fullCopiesFor, isDue, maybeRunSnapshot, runSnapshot } from '../services/backup/snapshotService.js';
+import { collectionsToCopy, currentFullCopies, folderFor, fullCopiesFor, isDue, maybeRunSnapshot, plainError, runSnapshot } from '../services/backup/snapshotService.js';
 import { s3Client } from '../services/backup/storage.js';
 import { checkCounts, checkInvoiceSeries, verifyDatabase } from '../services/backup/verifyService.js';
 import { computeDayFigures } from '../services/dayFiguresService.js';
@@ -398,6 +398,11 @@ describe('full copies', () => {
     setClockForTests(at(222));
     assert.equal((await maybeRunSnapshot(ctx)).status, 'OK', 'once storage works the next try succeeds');
     assert.equal(await maybeRunSnapshot(ctx), null, 'and copies go back to their slots');
+  });
+
+  it("keep Backblaze's key ID out of the error the owner reads", () => {
+    assert.equal(plainError(new Error("The key 'made-up-key-id' is not valid")), 'The storage key is not valid');
+    assert.equal(plainError(new Error('Signature validation failed')), 'Signature validation failed');
   });
 
   it('slow down to once a day past 4 GB a week, and speed up again under 3 GB', async () => {
