@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups pushed and switched on, the first copy refused by Backblaze). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups pushed and switched on; backups reach Backblaze). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -597,7 +597,7 @@ P54 progress
 - [x] G The owner's view and alerts (`6b0c63e`)
 - [x] H Runbook (`579a6ae`): DEPLOYMENT.md section 8
 - [x] I Full check: the server suite (below), fixes in `d811aed`; `npm run e2e` all 29 specs pass; the check by hand passed
-- [ ] J Switched on in production: on, and the server key's secret refused by Backblaze; the practice restore not yet run
+- [ ] J Switched on in production: the first full copy and diary upload confirmed on 2026-10-15; the practice restore on GitHub not yet run
 ```
 
 Tests before: 1,357, all passing. After: 1,388 (31 new: `backup.test.js` 18, `backupFiles.test.js` 6, `backupStatus.test.js` 7). On the full run 9 failed. 3 were P54's and are fixed: temp file names said "caffeza", the diary read `new Date()`, and the pinned `SERVER_MODELS` list now has the two backup models (changed on purpose). The other 6 (`auditTrail.test.js` 4, `reports.test.js` 2) fail the same way on `39810be`, the commit before P54, run at the same hour, 5:25 AM India time: the known time-of-day problem, now seen in `auditTrail.test.js` too. Lint and build pass.
@@ -616,7 +616,9 @@ Also 2026-10-15: removing a temporary git worktree whose `node_modules` was a li
 Part J, 2026-10-15. Arya set the encryption key, the Backblaze settings and `BACKUP_ENABLED=on` on Render, and the drill secrets and variables on GitHub. `npm run db:indexes` on the live database first created `backupruns`' two indexes (`kind_1_status_1_startedAt_-1`, `one_running_snapshot`); then `8188099` was pushed and Render restarted on it at 12:09 PM. Read back from the live database (read only): the diary is watching (it has its place), and every full copy fails with Backblaze's "Signature validation failed", once a minute. A made-up key ID gets "The key ... is not valid" from Backblaze instead, so Backblaze knows `BACKUP_S3_KEY_ID`, and `BACKUP_S3_SECRET` is not that key's secret. Each try read 0.7 MB, the whole live database.
 Fixed in code (not yet pushed): a failed copy is tried again after 2, 10, 30 minutes, then every hour (`waitingAfterFailure` in `snapshotService.js`, a test that fails when the wait is removed, tried on purpose); DEPLOYMENT.md section 8.5 gains a table of Backblaze's errors and what each means.
 
-Waiting for Arya: type `BACKUP_S3_SECRET` again on Render (the write-only key's applicationKey; a new key if it is lost), Save and deploy; then the practice restore from GitHub's Actions tab.
+Retyping the secret did not help. Arya then made a new write-only key and put its key ID and secret on Render (restart 12:43 PM). Read back from the live database: the first full copy was OK at 12:45 PM (`snapshots/monthly/2026/10/`, 60 KB), and the diary's first upload at 12:50 PM held 3 changes from 12:26 to 12:44 PM, made while uploads were still refused, so none was lost. Backblaze's "The key '...' is not valid" put the key ID into `backupruns` and onto the owner's card; `plainError` now writes "storage key" instead (`9ea7a41`). The secret scan test caught the real key ID when it was pasted into the new test, and it was replaced with a made-up one before the commit.
+
+Waiting for Arya: the practice restore, run once by hand from GitHub's Actions tab; and the OK to push `44439fc` and `9ea7a41`.
 
 ### 2026-10-15 Arya, P37 and the WhatsApp assistant merged onto Rishi's P38 to P50
 
