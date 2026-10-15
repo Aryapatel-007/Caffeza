@@ -734,16 +734,20 @@ Added by P54.
 | **Backed up** | How long ago the last change was saved, like "Backed up 3 minutes ago" |
 ---
 
-## 35. The owner's home
+## 35. The owner's dashboard
 
-Added by P51. Headings on the owner's home; every figure under them keeps its word above.
+Added by P51. Words on the owner's dashboard; every figure on it keeps its word above.
 
 | Term | Meaning |
 |---|---|
 | **Where the sales came from** | The day's bill total by order type, and delivery by platform |
 | **Where the money went** | How the day's bills were settled: each payment method, On Hold and Unpaid |
 | **By hour** | Net sales in each hour of the day, India time |
-| **Busiest hour** | The hour with the most net sales |
+| **Busiest** | The hour with the most net sales |
 | **Watch list** | The day's controls: items cancelled, wasted value, discounts, voided bills, No Charge, orders cancelled |
 | **Figures to** | The time the figures were read, while the day is open |
+| **Dashboard** | The owner's page of the day's important figures, outside the ERP |
+| **Open the ERP** | From the dashboard into everything else: floor, bills, reports, settings |
+| **% of total** | On the dashboard, a row's bill total against the day's, in whole percents adding up to 100 |
+| **Cancelled after preparation** | On the watch list, the wasted value: items the kitchen had made, at menu price, before GST |
 

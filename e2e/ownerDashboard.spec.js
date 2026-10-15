@@ -1,6 +1,7 @@
 /**
- * P51. The owner's home on a phone: today's figures, read from R1, R2 and R4.
- * A manager keeps the old home.
+ * P51. The owner signs in to the dashboard, outside the ERP: today's figures,
+ * read from R1, R2 and R4, and a way into the ERP and back. A manager is not
+ * sent there.
  */
 import { expect, test } from '@playwright/test';
 
@@ -22,7 +23,7 @@ async function api(method, path, token, body) {
 }
 const tokenOf = async (golden, name) => (await api('POST', '/auth/login', null, { phone: golden.phones[name], password: golden.password })).accessToken;
 
-test('the owner reads today at a glance on a phone', async ({ browser }) => {
+test('the owner signs in to the dashboard, and opens the ERP from it', async ({ browser }) => {
   const golden = await resetGolden();
   await at('20:05', DAY);
   const [manager, captain, cashier] = await Promise.all(['Manager', 'Budha Singh', 'Counter'].map((name) => tokenOf(golden, name)));
@@ -43,8 +44,10 @@ test('the owner reads today at a glance on a phone', async ({ browser }) => {
   await at('21:42', DAY);
   const owner = await signIn(browser, { name: 'Owner', phone: golden.phones.Owner, password: golden.password, device: 'phone' });
   const page = owner.page;
-  await page.goto('/dashboard');
+  // Signing in lands the owner on the dashboard, outside the ERP: no menu bar.
+  await expect(page).toHaveURL(/\/owner$/);
   await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Floor' })).toHaveCount(0);
   await expect(page.getByText('Day open · figures to 9:42')).toBeVisible();
 
   const rupees = (paise) => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
@@ -52,26 +55,32 @@ test('the owner reads today at a glance on a phone', async ({ browser }) => {
   await expect(page.getByText(rupees(billTotal)).first()).toBeVisible();
   const cards = page.getByRole('region', { name: 'Bills, covers and unpaid' });
   await expect(cards).toContainText('Bills2');
-  await expect(cards).toContainText(`Unpaid${rupees(unpaid.grandTotalInPaise)}1 bill`);
+  await expect(cards).toContainText(`Unpaid${rupees(unpaid.grandTotalInPaise)}(1 bill)`);
 
-  await expect(page.getByRole('heading', { name: 'Where the sales came from' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Dine-in/ })).toBeVisible();
+  const salesCard = page.locator('section', { has: page.getByRole('heading', { name: 'Where the sales came from' }) });
+  await expect(salesCard).toContainText('Dine-in');
+  await expect(salesCard).toContainText('100% of total · 2 bills');
   const moneyCard = page.locator('section', { has: page.getByRole('heading', { name: 'Where the money went' }) });
   await expect(moneyCard).toContainText(`Cash${rupees(paid.grandTotalInPaise)}`);
-  await expect(moneyCard).toContainText(`Total ${rupees(billTotal)}`);
-  await expect(page.getByText('Busiest hour 8pm')).toBeVisible();
+  await expect(moneyCard).toContainText(`Unpaid${rupees(unpaid.grandTotalInPaise)}`);
+  await expect(moneyCard).toContainText(`Total${rupees(billTotal)}`);
+  await expect(page.getByText('Busiest 8pm')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Watch list' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Checks' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Day End', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Checks' })).toContainText('balance checks passed');
+  await expect(page.getByRole('link', { name: 'Day Close', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: 'e2e/screenshots/owner-home.png' });
-  await page.getByRole('heading', { name: 'By hour' }).scrollIntoViewIfNeeded();
-  await page.screenshot({ path: 'e2e/screenshots/owner-home-hours.png' });
-  await page.getByRole('link', { name: 'Day End', exact: true }).scrollIntoViewIfNeeded();
-  await page.screenshot({ path: 'e2e/screenshots/owner-home-end.png' });
+  await page.screenshot({ path: 'e2e/screenshots/owner-dashboard.png', fullPage: true });
 
-  // A manager keeps the old home.
+  // The ERP is one tap away, and its menu leads back.
+  await page.getByRole('link', { name: 'Open the ERP' }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.getByRole('button', { name: 'More' }).click();
+  await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+  await expect(page).toHaveURL(/\/owner$/);
+
+  // A manager signs in to the ERP's home, and the dashboard is not theirs.
   const person = await signIn(browser, { name: 'Manager', phone: golden.phones.Manager, password: golden.password, device: 'phone' });
-  await person.page.goto('/dashboard');
+  await expect(person.page).toHaveURL(/\/dashboard$/);
+  await person.page.goto('/owner');
   await expect(person.page.getByRole('heading', { name: 'Where the sales came from' })).toHaveCount(0);
 });

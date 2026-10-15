@@ -9005,11 +9005,11 @@ No other role sees it, and R1's figures and checks do not change.
    from an empty database still refuses a time inside it.
 4. The tools read with the drill key from `BACKUP_DRILL_KEY_ID` and
    `BACKUP_DRILL_SECRET`, which the server never needs.
-# P51 The owner's home
+# P51 The owner's dashboard
 
 `docs/prompts/P51-owner-home.md`. No new endpoint and no change to any. The
-owner's home reads three existing reports for today's business date:
+owner's dashboard, `/owner`, reads three existing reports for today's business date:
 `GET /reports/v2/today` (R1: its `money` section and `extra.asAt`),
 `GET /reports/v2/day-close?date=` (R2: `sales`, `orderTypes`, `controls`,
-`checks`, `openDays`), and `GET /reports/v2/hours?from=&to=` (R4: `byHour`).
+`money`, `checks`, `openDays`), and `GET /reports/v2/hours?from=&to=` (R4: `byHour`).
 

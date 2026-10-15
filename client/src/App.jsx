@@ -8,7 +8,9 @@ import RequireFeature from './components/RequireFeature.jsx';
 import RequireRole from './components/RequireRole.jsx';
 import LoginPage from './features/auth/LoginPage.jsx';
 import BillScreenPage from './features/billing/BillScreenPage.jsx';
-import HomePage from './features/dashboard/HomePage.jsx';
+import DashboardPage from './features/dashboard/DashboardPage.jsx';
+import OwnerDashboardPage from './features/owner/OwnerDashboardPage.jsx';
+import { useAuth } from './context/AuthContext.jsx';
 import KitchenDisplayPage from './features/kitchen/KitchenDisplayPage.jsx';
 import FloorViewPage from './features/orders/FloorViewPage.jsx';
 import OrderScreenPage from './features/orders/OrderScreenPage.jsx';
@@ -142,17 +144,34 @@ const PublicSite = lazy(() => import('./features/public/PublicSite.jsx'));
  * One entry per screen. As modules land they add their own routes here and
  * their screens live under /features.
  */
+/** P51. Signing in, or opening the address alone: the owner's dashboard for the owner, the ERP's home for everyone else. */
+function HomeRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={user?.role === 'OWNER' ? '/owner' : '/dashboard'} replace />;
+}
+
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<ProtectedRoute bare><HomeRedirect /></ProtectedRoute>} />
+      {/* P51. The owner's dashboard, its own page outside the ERP's frame. */}
+      <Route
+        path="/owner"
+        element={
+          <ProtectedRoute bare>
+            <RequireRole roles={['OWNER']}>
+              <OwnerDashboardPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
       <Route path="/login" element={<LoginPage />} />
 
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <HomePage />
+            <DashboardPage />
           </ProtectedRoute>
         }
       />

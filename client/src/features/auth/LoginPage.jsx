@@ -65,7 +65,8 @@ export default function LoginPage() {
   const [isResetting, setIsResetting] = useState(false);
 
   // Where they were headed before ProtectedRoute sent them here.
-  const destination = location.state?.from?.pathname ?? '/dashboard';
+  // P51. With nowhere in particular to go, `/` sends the owner to the dashboard and everyone else home.
+  const destination = location.state?.from?.pathname ?? '/';
 
   // Someone already signed in has no business on this screen. Rendering a
   // redirect rather than calling navigate() during render, which is a side
