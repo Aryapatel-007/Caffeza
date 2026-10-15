@@ -9005,3 +9005,7 @@ No other role sees it, and R1's figures and checks do not change.
    from an empty database still refuses a time inside it.
 4. The tools read with the drill key from `BACKUP_DRILL_KEY_ID` and
    `BACKUP_DRILL_SECRET`, which the server never needs.
+5. After a failed full copy the next waits 2 minutes, then 10, then 30, then
+   every hour, until one succeeds (`SNAPSHOT_RETRY_MS`). Every try reads the
+   whole database against Atlas M0's weekly read limit, and the first live
+   deploy, with a wrong secret, tried once a minute. Added 2026-10-15.

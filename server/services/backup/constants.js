@@ -28,6 +28,12 @@ export const FLUSH_AT_BYTES = 5 * 1024 ** 2;
 export const MAX_WAITING_BYTES = 20 * 1024 ** 2;
 /** A failed upload is tried again after these, then every 10 minutes. */
 export const FLUSH_RETRY_MS = Object.freeze([30_000, 2 * 60_000, 10 * 60_000]);
+/**
+ * After a failed full copy, the wait before the next: every try reads the
+ * whole database, which counts against Atlas M0's weekly read limit, so a
+ * wrong key must not read it once a minute until someone notices.
+ */
+export const SNAPSHOT_RETRY_MS = Object.freeze([2 * 60_000, 10 * 60_000, 30 * 60_000, 60 * 60_000]);
 
 /** How long the bucket keeps each folder (its lifecycle rules, DEPLOYMENT.md section 8). Null is forever. */
 export const KEEP_DAYS = Object.freeze({ '6h': 11, daily: 91, monthly: null, journal: null });

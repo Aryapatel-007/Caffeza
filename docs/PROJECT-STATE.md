@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups pushed and switched on, the first copy refused by Backblaze). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -554,6 +554,12 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-12 | `npm run assistant:eval` is the check on the system prompt: 82 labelled guest messages in English, Hindi, Gujarati and Hinglish, sent once each to a real model with the real prompt and tools. The bar is no clear stop missed, nothing that is not a stop taken as one, and 95% overall. It is run by hand, with a key from the root `.env`, never in `npm test`. | A prompt is code nobody can unit test. The eval is how a change to it is known to be better or worse, and the numbers go here each time. |
 | 2026-10-11 | P37, built differently from its prompt: the prompt was written as P34 and renumbered P37 (campaigns P38, attribution P39), at Arya's choice; it was built against a fake Meta because Z Chaat has no WhatsApp Business Account yet; the idempotency key is the integration job's `dedupeKey` on its existing unique index, not a new collection; a job names the guest by id, never by number; a 4xx from Meta is final and never retried; a delivery failure that says the number is not on WhatsApp sets `customers.whatsappUnreachableAt`; the receipt hangs on the bill becoming PAID in the model, after commit, through `utils/afterCommit.js`, which P33's live channel now shares. | The number clash would have repeated the double P30. Every other point is written into API-CONTRACT "P37" and DB-SCHEMA section 47, so the next reader does not take it for a mistake. |
 | 2026-10-15 | Arya's WhatsApp prompts are renumbered on the merge with Rishi's P38 to P50: the assistant, written as P39, is P51; campaigns, P38 in P37's prompt, are P52; attribution, P39 there, is P53. P37 keeps its number. | Both developers numbered prompts from P38 the same week, and Rishi's reached `main` first and are deployed. Renumbering the unpushed ones breaks nothing live. |
+| 2026-10-15 | The database is backed up by the server itself: an encrypted full copy every 6 hours and an encrypted diary of every change every 5 minutes, to Backblaze B2. (P54) | Atlas's free tier has no backups, and the owner does not want a paid plan. The diary lets the data be rebuilt as it was at any minute, which a nightly copy alone cannot. |
+| 2026-10-15 | Every change ever made, and one full copy a month, are kept forever; daily copies 90 days and 6-hour copies 10 days. | Arya asked to keep everything. The diary and the monthly copies together can rebuild any moment, and the data is compressed text, so years fit in the free 10 GB. Keeping every full copy forever would store the same data again four times a day and add nothing. |
+| 2026-10-15 | The server's storage key can write but never delete; old files are removed by the bucket's own lifecycle rules. | Stolen server settings must not be enough to wipe the backups. |
+| 2026-10-15 | Sessions (`refreshtokens`) are never backed up. | After a restore everyone signs in again; old sessions must never come back to life. |
+| 2026-10-15 | A practice restore runs every Sunday on GitHub and checks counts, the invoice series and C12. | A backup nobody has restored is only a hope. |
+| 2026-10-15 | A failed full copy is tried again after 2 minutes, then 10, 30, and every hour, not every minute. | The first live deploy had a wrong storage secret and tried once a minute; every try reads the whole database against Atlas M0's weekly read limit. Harmless at 0.7 MB today, not at 200 MB. |
 ---
 
 ## Open questions
@@ -578,7 +584,7 @@ Newest entry at the top. Keep the last ten or so, delete older ones.
 
 ### 2026-10-15 Arya, P54 constant backups
 
-Paused at Arya's word, in Part I. Nothing of P54 is pushed. The prompt, written as "P44", is `docs/prompts/P54-constant-backups.md` (P44 was Rishi's).
+Pushed (`8188099`) and switched on at Z Chaat; the first full copy is refused by Backblaze, see Part J below. The prompt, written as "P44", is `docs/prompts/P54-constant-backups.md` (P44 was Rishi's).
 
 ```
 P54 progress
@@ -591,7 +597,7 @@ P54 progress
 - [x] G The owner's view and alerts (`6b0c63e`)
 - [x] H Runbook (`579a6ae`): DEPLOYMENT.md section 8
 - [x] I Full check: the server suite (below), fixes in `d811aed`; `npm run e2e` all 29 specs pass; the check by hand passed
-- [ ] J Switched on in production (needs Arya)
+- [ ] J Switched on in production: on, and the server key's secret refused by Backblaze; the practice restore not yet run
 ```
 
 Tests before: 1,357, all passing. After: 1,388 (31 new: `backup.test.js` 18, `backupFiles.test.js` 6, `backupStatus.test.js` 7). On the full run 9 failed. 3 were P54's and are fixed: temp file names said "caffeza", the diary read `new Date()`, and the pinned `SERVER_MODELS` list now has the two backup models (changed on purpose). The other 6 (`auditTrail.test.js` 4, `reports.test.js` 2) fail the same way on `39810be`, the commit before P54, run at the same hour, 5:25 AM India time: the known time-of-day problem, now seen in `auditTrail.test.js` too. Lint and build pass.
@@ -607,7 +613,10 @@ Checked by hand on 2026-10-15, against an in-memory database and the fake B2 (ne
 
 Also 2026-10-15: removing a temporary git worktree whose `node_modules` was a link deleted part of the real `node_modules` (Windows' path limit stopped `git worktree remove` partway). Nothing in the repository was touched; `npm ci` restored it. Never link `node_modules` into a worktree.
 
-Waiting for Arya: the encryption key from `npm run backup:key`, run in your own terminal and never pasted into chat, into Render and the GitHub secrets; the GitHub drill secrets and variables (DEPLOYMENT.md section 8.6).
+Part J, 2026-10-15. Arya set the encryption key, the Backblaze settings and `BACKUP_ENABLED=on` on Render, and the drill secrets and variables on GitHub. `npm run db:indexes` on the live database first created `backupruns`' two indexes (`kind_1_status_1_startedAt_-1`, `one_running_snapshot`); then `8188099` was pushed and Render restarted on it at 12:09 PM. Read back from the live database (read only): the diary is watching (it has its place), and every full copy fails with Backblaze's "Signature validation failed", once a minute. A made-up key ID gets "The key ... is not valid" from Backblaze instead, so Backblaze knows `BACKUP_S3_KEY_ID`, and `BACKUP_S3_SECRET` is not that key's secret. Each try read 0.7 MB, the whole live database.
+Fixed in code (not yet pushed): a failed copy is tried again after 2, 10, 30 minutes, then every hour (`waitingAfterFailure` in `snapshotService.js`, a test that fails when the wait is removed, tried on purpose); DEPLOYMENT.md section 8.5 gains a table of Backblaze's errors and what each means.
+
+Waiting for Arya: type `BACKUP_S3_SECRET` again on Render (the write-only key's applicationKey; a new key if it is lost), Save and deploy; then the practice restore from GitHub's Actions tab.
 
 ### 2026-10-15 Arya, P37 and the WhatsApp assistant merged onto Rishi's P38 to P50
 

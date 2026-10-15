@@ -269,6 +269,17 @@ database: the server refuses to start while `backupruns`' indexes are missing.
 Then, in Settings, Server, Backups: within a few minutes, "Backed up just
 now. Full copy at ...".
 
+If the card says backups are failing, its last error is Backblaze's own:
+
+| Error | What it means | What to do |
+|---|---|---|
+| `Signature validation failed` | Backblaze knows the key ID, but the secret does not belong to it | Type `BACKUP_S3_SECRET` again, the key's applicationKey, shown only once when the key was made; if it is lost, make a new write-only key and type both |
+| `The key '...' is not valid` | No such key ID on that endpoint | Check `BACKUP_S3_KEY_ID` is the server key's keyID, and that `BACKUP_S3_ENDPOINT` is the bucket's own endpoint |
+| `Access Denied` | The key cannot write to this bucket | Check the key is for this bucket, with Write access |
+
+A failed full copy is tried again after 2 minutes, then 10, 30, and every
+hour, so after a fix, Save and deploy for a copy at once.
+
 ### 8.6 GitHub: the weekly practice restore
 
 `.github/workflows/backup-drill.yml` runs every Sunday at 6:00 AM India time.
