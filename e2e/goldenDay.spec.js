@@ -456,8 +456,10 @@ test('the golden day, through the screens', async ({ browser }) => {
     page = await report(`captains?${range}`);
     await expect(row(page, 'Khuman Singh')).toContainText('₹2,735.00');
 
+    // P56. Whole cancellations only: B11's void is there, the two single dishes are not.
     page = await report(`cancellations?${range}`);
-    await expect(page.locator('main')).toContainText('₹390.00');
+    await expect(page.locator('main')).toContainText('CFA/C/22452');
+    await expect(page.locator('main')).not.toContainText('Thecha Paneer Chilli');
 
     page = await report(`no-charge?${range}`);
     await expect(page.locator('tbody tr').filter({ hasText: '₹230.00' })).toHaveCount(1);
