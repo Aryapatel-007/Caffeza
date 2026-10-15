@@ -9096,6 +9096,20 @@ invoice series, the GST report's documents issued, every check C1 to C14, and
 Tally. Bills voided before P56 have no mark and are counted as before, so a
 closed day's snapshot never changes.
 
+## 4. R15 and the day's controls without single-item cancels
+
+R15 `cancellations` returns the sections `orders` (paged; `meta.total` counts
+orders), `voids`, `paidBeforePrint`, `byReason`, `byPerson` and `byItem`. There
+is no `items` and no `billChanges` section. The three summaries and
+`headline.wastedValueInPaise` add up only the lines of orders cancelled as a
+whole in the range. The report's default `columns` are the orders section's.
+
+R2 `day-close`'s `controls` section has no `Items cancelled`, `Wasted value` or
+`Bills changed before payment` line. `GET /day-close/:date` and the closure's
+snapshot still carry `figures.controls.cancelledItems` and `billRevisions`
+exactly as before, so C12 and every check read the same figures; the Day Close
+screen, the Day End page and the printed Day Close stop showing them.
+
 ## Error codes
 
 None new.

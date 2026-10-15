@@ -34,9 +34,17 @@ An item cancelled on a paid bill (P25), or dishes added after billing (P26), voi
 4. The item itself still shows in R15's Items cancelled, which is where item changes belong.
 5. Bills voided before this change are not marked, and keep showing. A closed day therefore never changes, and C12 stays green.
 
-## Tests
+## D. No single-item cancels on the cancellation reports
+
+Rishi, later the same day, on R15's Items cancelled: "no need of showing this item cancelled too". Asked what else, he chose all three: R15's summaries and wasted value, R15's Bills changed before payment, and the item lines on Day Close and the owner's dashboard.
+
+1. R15 Cancellations and Voids keeps Orders cancelled, Bills voided and Bills paid before printing. The Items cancelled and Bills changed before payment sections are gone. By reason, By person, By item and the Wasted value headline count only the dishes of orders cancelled as a whole. The orders section is the paged one.
+2. R2's controls, the Day Close screen, the Day End page and the printed Day Close no longer show Items cancelled, Wasted value or Bills changed before payment. The owner's dashboard watch list loses Cancelled after preparation with them. The Day End page's Cancelled items card becomes Orders cancelled.
+3. Nothing stored changes. `computeDayFigures` still works out `cancelledItems` and `billRevisions`, so a closed day's snapshot, C12 and every other check are untouched, and the records are still there to read: each order shows its cancelled dishes, the audit trail keeps every cancel after preparation, and R11 and R12 keep their cancelled columns.
+
 
 1. A captain sets the note; the order and its ticket carry it; a round added later carries it; changing it reaches the ticket already sent; the printed KOT prints `FOR ALL ITEMS:`. Refused on a billed or cancelled order, a stale version, the kitchen login and another restaurant.
 2. A captain seats a table with no details and sets them before the first Send: the order has them, the customer has one visit and the consent. The same mobile again records no second visit; another mobile is refused; refused with a bill.
 3. A cashier cancels an item on a paid bill: the voided bill is marked, and is missing from the bills list's voided view and count, R19 Voided, R15's voids, R1's alerts and R2's Voided bills, while the invoice register and R15's items still show it. A manager's own Void shows everywhere as before. Dropping the mark from R15's query on purpose fails the test.
-4. Browser: a captain on a phone seats a table with only guests, adds two dishes and a note for all dishes, taps Send, gives the guest's details, and the kitchen ticket shows the note; the owner finds the guest on Customers. Every other browser spec skips the details sheet.
+4. R15 on the golden day has no items or bill changes sections, wasted value ₹0.00, and its void; R2's controls have no Items cancelled, Wasted value or Bills changed line; `computeDayFigures` still has `cancelledItems`.
+5. Browser: a captain on a phone seats a table with only guests, adds two dishes and a note for all dishes, taps Send, gives the guest's details, and the kitchen ticket shows the note; the owner finds the guest on Customers. Every other browser spec skips the details sheet.
