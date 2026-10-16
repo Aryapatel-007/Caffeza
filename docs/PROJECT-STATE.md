@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-17 by Rishi (fix: Void on the cash book sent no id). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -578,6 +578,16 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-17 Rishi, Void on the cash book fixed
+
+What was built or decided:
+Every Void on the cash book failed with "Must be a valid id." (seen on Z Chaat's top-up of 14 October). `getCashBook` in `services/cashService.js` read the movements with `.lean()`, so `present` returned `_id` and no `id`, and the screen posted `/cash-movements/undefined/void`. The read now returns documents, so every entry goes through the model's `toJSON` with `id`, as `GET /cash-movements` already did. No contract change.
+
+Tests: `cashBook.test.js` 12 passing, one new ("voiding from the cash book"), which fails with `.lean()` put back. Full suite not run.
+
+Anything the other developer needs to know:
+Rishi asked for a cashier to be able to change cash book entries too. The contract allows only OWNER and MANAGER to void (M16 section 3 and the role table), and no entry can be edited. Not changed: that needs a spec change first, probably a cashier void behind a manager's PIN, as P28 did for paid out.
 
 ### 2026-10-15 Rishi, P56 a note for every dish, the guest before the first KOT, whole voids
 

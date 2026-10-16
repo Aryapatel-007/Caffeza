@@ -300,7 +300,7 @@ export async function readCashBook(req, { date } = {}) {
       ],
     }),
   ]);
-  const movements = await CashMovement.find({ ...scoped(req), businessDate }).sort({ at: 1 }).lean();
+  const movements = await CashMovement.find({ ...scoped(req), businessDate }).sort({ at: 1 });
   const live = movements.filter((movement) => !movement.isVoided);
   const ofType = (type) => live.filter((movement) => movement.type === type);
   const float = ofType(CASH_MOVEMENT_TYPES.OPENING_FLOAT)[0] ?? null;
