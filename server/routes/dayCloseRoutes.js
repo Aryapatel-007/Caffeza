@@ -49,7 +49,8 @@ router.get('/cash-movements', ...till, validate(listCashSchema), getCash);
 // P29 Part F. The cash book: the till reads it; the server leaves out what a role may not see.
 router.get('/cash-book', ...till, validate(cashBookSchema), getCashBook);
 router.post('/cash-movements', ...till, validate(recordCashSchema), postCash);
-router.post('/cash-movements/:movementId/void', ...managers, validate(voidCashSchema), postVoidCash);
+// A cashier voids with a manager's PIN; cashService decides.
+router.post('/cash-movements/:movementId/void', ...till, validate(voidCashSchema), postVoidCash);
 
 router.get('/day-close', ...managers, validate(listDaysSchema), getDays);
 router.post('/day-close', ...managers, validate(closeDaySchema), postCloseDay);

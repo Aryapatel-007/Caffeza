@@ -245,8 +245,14 @@ export async function recordCashMovement(req, body) {
   }
 }
 
-/** POST /cash-movements/:id/void. OWNER and MANAGER, with a reason. */
-export async function voidCashMovement(req, movementId, { reason }) {
+/**
+ * POST /cash-movements/:id/void. OWNER and MANAGER, with a reason; from
+ * 2026-10-17 a CASHIER too, with an owner's or manager's PIN, exactly as for
+ * an expense.
+ */
+export async function voidCashMovement(req, movementId, { reason, approval = null }) {
+  const { approvals } = await getSettings(req.restaurantId, { req });
+  const voidApprovedBy = await approverForManagerTask(req, approval, approvals, 'Only an owner or a manager can void a cash entry.');
   const movement = await CashMovement.findOne({ ...scoped(req), _id: movementId });
   if (!movement) throw new NotFoundError('Cash entry not found.');
   if (movement.isVoided) throw new BusinessRuleError('This cash entry is already voided.');
@@ -257,6 +263,7 @@ export async function voidCashMovement(req, movementId, { reason }) {
   movement.voidedAt = nowUtc();
   movement.voidedBy = req.user.id;
   movement.voidReason = reason;
+  movement.voidApprovedBy = voidApprovedBy;
   await movement.save();
   return present(movement, await seesDrawerTotal(req));
 }
