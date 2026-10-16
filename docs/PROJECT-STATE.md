@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-17 by Rishi (fix: Void on the cash book sent no id). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -579,15 +579,17 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
-### 2026-10-17 Rishi, Void on the cash book fixed
+### 2026-10-17 Rishi, Void on the cash book fixed, a cashier's void with a PIN, and a bigger menu search
 
 What was built or decided:
-Every Void on the cash book failed with "Must be a valid id." (seen on Z Chaat's top-up of 14 October). `getCashBook` in `services/cashService.js` read the movements with `.lean()`, so `present` returned `_id` and no `id`, and the screen posted `/cash-movements/undefined/void`. The read now returns documents, so every entry goes through the model's `toJSON` with `id`, as `GET /cash-movements` already did. No contract change.
+1. Every Void on the cash book failed with "Must be a valid id." (seen on Z Chaat's top-up of 14 October). `readCashBook` in `services/cashService.js` read the movements with `.lean()`, so `present` returned `_id` and no `id`, and the screen posted `/cash-movements/undefined/void`. It now returns documents, with `id`, as `GET /cash-movements` already did.
+2. At Rishi's request, a cashier may void a cash entry with an owner's or manager's PIN, exactly like a cashier's expense (P28 `approverForManagerTask`, under `approvals.managerTasks`; with that off a cashier cannot void). Spec first (`spec a cashier's void of a cash entry with a manager's pin`): API-CONTRACT M16 section 3 and the role table, DB-SCHEMA section 42 `cashmovements.voidApprovedBy` (additive, default null). The route moved to the till roles; the service decides. Client: a cashier's Void opens `VoidEntrySheet` (reason and the PIN step); owners and managers keep the inline Void.
+3. Captains could barely use the menu search on a phone: it shared the order screen's header row with Note for all dishes, Switch table and Add more dishes, and shrank to a sliver. It is now `features/orders/MenuSearch.jsx`, its own full-width row above the dishes, 56px tall with larger text, a search icon and a clear button, held at the top while the menu scrolls; the delivery screen uses it too. Results are ranked (`searchRank` in `MenuPicker.jsx`): a name starting with the search, then a word starting with it, then any other match, and every typed word must be in the name. Typing "latte" had listed Chole Kulcha Platter before Caffe Latte.
 
-Tests: `cashBook.test.js` 12 passing, one new ("voiding from the cash book"), which fails with `.lean()` put back. Full suite not run.
+Tests: `cashBook.test.js` (one new, which fails with `.lean()` put back), `approvals.test.js` (one new: cashier refused without a PIN, 401 on a wrong one, voided with the right one and `voidApprovedBy` stored, refused with manager tasks off), `dayClose.test.js` and `cashCount.test.js` all pass. `e2e/cashBook.spec.js` gains a cashier voiding a top-up with the PIN on a phone; it, `goldenDay.spec.js`, `customers.spec.js` and `captainBilling.spec.js` pass. The search was checked by screenshot at 380 and 768 wide. Lint and build pass.
 
 Anything the other developer needs to know:
-Rishi asked for a cashier to be able to change cash book entries too. The contract allows only OWNER and MANAGER to void (M16 section 3 and the role table), and no entry can be edited. Not changed: that needs a spec change first, probably a cashier void behind a manager's PIN, as P28 did for paid out.
+Arya: a cashier's void of a cash entry now writes `voidApprovedBy`; nothing reads it yet. A cash void still writes no audit line, as before.
 
 ### 2026-10-15 Rishi, P56 a note for every dish, the guest before the first KOT, whole voids
 

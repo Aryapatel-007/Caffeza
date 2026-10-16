@@ -7,6 +7,7 @@ import Money from '../../components/ui/Money.jsx';
 import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
+import MenuSearch from './MenuSearch.jsx';
 import { getMenuTree } from '../../api/menu.js';
 import { getBill } from '../../api/bills.js';
 import {
@@ -416,19 +417,7 @@ export default function OrderScreenPage() {
           </div>
         </div>
 
-        <div className="flex flex-1 items-center justify-end gap-2 sm:max-w-xl">
-          {showMenu && (
-            <label className="relative block w-full max-w-sm">
-              <span className="sr-only">Search the menu</span>
-              <input
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search dishes"
-                className="type-body min-h-12 w-full rounded-lg border border-muted bg-surface px-4 text-ink placeholder:text-muted"
-              />
-            </label>
-          )}
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {canNoteAll && (
             <button
               type="button"
@@ -479,6 +468,7 @@ export default function OrderScreenPage() {
               </button>
             </div>
           )}
+          <MenuSearch value={search} onChange={setSearch} />
           <MenuPicker
             tree={menuQuery.data}
             isPending={menuQuery.isPending}
