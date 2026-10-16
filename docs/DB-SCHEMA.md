@@ -2714,6 +2714,7 @@ Every new field has a default, so nothing is migrated.
 | `orders` | `cancelApprovedBy` | ObjectId or null | null | The same, for a whole-order cancel |
 | `bills` | `voidApprovedBy` | ObjectId or null | null | The same, for a void |
 | `cashmovements` | `approvedBy` | ObjectId or null | null | The same, for a paid in or paid out |
+| `cashmovements` | `voidApprovedBy` | ObjectId or null | null | Added 2026-10-17. The OWNER or MANAGER who approved a cashier's void of a cash entry |
 | `restaurants` | `settings.approvals.lineCancel` | Boolean | true | |
 | `restaurants` | `settings.approvals.paidIn` | Boolean | true | |
 | `restaurants` | `settings.approvals.managerTasks` | Boolean | true | |

@@ -5355,7 +5355,7 @@ Stored in `cashmovements`, DB-SCHEMA section 24.
 |---|---|
 | `GET /api/v1/cash-movements?date=YYYY-MM-DD` | OWNER, MANAGER, CASHIER. Default today's business date. |
 | `POST /api/v1/cash-movements` | `OPENING_FLOAT` and `PAID_IN`: OWNER, MANAGER, CASHIER. `PAID_OUT`: OWNER, MANAGER, and writes `CASH_PAID_OUT`, entity `CASH`, with the amount and reason. |
-| `POST /api/v1/cash-movements/:id/void` | OWNER, MANAGER. Body `{ reason }`. |
+| `POST /api/v1/cash-movements/:id/void` | OWNER, MANAGER, CASHIER. Body `{ reason, approval? }`. From 2026-10-17 a CASHIER may void with an owner's or manager's PIN, as for a paid out (P28 `approverForManagerTask`): `approval` is required for a cashier, and a cashier is refused with 403 when `approvals.managerTasks` is off. The approver is stored as `voidApprovedBy`. |
 
 Body `{ type, amountInPaise, reason? }`. `reason` 1 to 200 characters, required
 for `PAID_IN` and `PAID_OUT`. The business date is always today's; no request can
@@ -5530,7 +5530,7 @@ once per write:
 | GET /cash-movements | yes | yes | yes | no | no | no |
 | POST /cash-movements, float or paid in | yes | yes | yes | no | no | no |
 | POST /cash-movements, paid out | yes | yes | no | no | no | no |
-| POST /cash-movements/:id/void | yes | yes | no | no | no | no |
+| POST /cash-movements/:id/void | yes | yes | with a manager's PIN | no | no | no |
 | POST /cash-movements, cash taken out (P29) | yes | yes | no | no | no | no |
 | POST /cash-movements, cash check (P29) | yes | yes | yes | no | no | no |
 | GET /cash-book (P29) | yes | yes | yes | no | no | no |
