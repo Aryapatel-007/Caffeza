@@ -66,6 +66,6 @@ The full table, with dependencies and owners, is in
 | P55 | The owner's dashboard, beside the ERP | Built 2026-10-15. Written as P51 and renumbered on merging Arya's P51 to P54. Arya's read outstanding. |
 | P56 | A note for every dish, the guest's details before the first KOT, and only whole voids in the void lists | Built 2026-10-15. Arya's read outstanding. |
 | P57 | The bill in one place: review, discount, then Save or Save & Print | Built 2026-10-17. Arya's read outstanding. |
-| P58 | One kitchen ticket per Send, not per station | Built 2026-10-17, not pushed. Z Chaat's owner switches it off in Settings, Kitchen, after the deploy. Rishi's read outstanding. |
+| P58 | One kitchen ticket per Send, not per station | Built and deployed 2026-10-17. Z Chaat's owner switches it off in Settings, Kitchen, after the deploy. Rishi's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.

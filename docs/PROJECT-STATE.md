@@ -598,7 +598,7 @@ Asked for by Arya for Z Chaat: no Chaat Counter or Beverages sections on the KOT
 
 Tests: `oneTicketPerSend.test.js` (5): one ticket across three stations with no station and each line's own; a second Send a second ticket with the next number; on, three tickets as P05; one ticket per order with no station; the default, `/auth/me`, owner only. With the rule removed on purpose, 2 of 5 fail. Changed on purpose: `settings.test.js` and `printBeforePayment.test.js` pin the kitchen block. Full suite after the merge with Rishi's P55 to P57: 1,407, 1,406 passing; the one failure was `printBeforePayment.test.js` pinning `/auth/me`'s kitchen block, updated and passing. `npm run e2e`: all 34 pass, with the new `e2e/oneTicketPerSend.spec.js`. Lint and build pass.
 
-Not pushed, at Arya's word. Nothing was changed on the live server or database. After the deploy, Z Chaat's owner switches "A separate ticket for each station" off in Settings, Kitchen.
+Deployed 2026-10-17 at Arya's word: pushed `e6af277..59b3c77` (with the P54 backup fixes and Rishi's Singapore notes). Render runs `59b3c77`, database connected; Vercel serves `index-BC_-JFp9.js`, the same build made here. No new index. Nothing was changed in Z Chaat's records: its owner switches "A separate ticket for each station" off in Settings, Kitchen.
 
 ### 2026-10-17 Rishi, Z Chaat's database moved to Atlas Singapore
 
