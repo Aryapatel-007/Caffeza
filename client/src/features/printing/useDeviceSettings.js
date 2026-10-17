@@ -50,7 +50,7 @@ const DEFAULTS = Object.freeze({
   autoPrintKots: false,
   // P25 Part D. A counter computer prints the bills captains send it.
   printCaptainBills: false,
-  // P29 Part D. The counter prints a bill the moment it is made here.
+  // P29 Part D, retired by P57: Save & Print on the order screen says when to print. Kept so old saved settings still read.
   printBillOnCreate: false,
   printedBillRequests: [],
   // P25 Part I. The card machine on this counter, by its Pine Labs client id.

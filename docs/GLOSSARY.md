@@ -732,3 +732,49 @@ Added by P54.
 | **Restore** | Rebuild the database as it was at a chosen minute, from a full copy and the change diary, into a new empty database |
 | **Practice restore** | A restore every Sunday on GitHub into a throwaway database, to prove the backups work |
 | **Backed up** | How long ago the last change was saved, like "Backed up 3 minutes ago" |
+---
+
+## 38. The owner's dashboard
+
+Added by P55. Words on the owner's dashboard; every figure on it keeps its word above.
+
+| Term | Meaning |
+|---|---|
+| **Where the sales came from** | The day's bill total by order type, and delivery by platform |
+| **Where the money went** | How the day's bills were settled: each payment method, On Hold and Unpaid |
+| **By hour** | Net sales in each hour of the day, India time |
+| **Busiest** | The hour with the most net sales |
+| **Watch list** | The day's controls: discounts, voided bills, No Charge, orders cancelled. P56 took items cancelled and wasted value off it |
+| **Figures to** | The time the figures were read, while the day is open |
+| **Dashboard** | The owner's page of the day's important figures, outside the ERP |
+| **Open the ERP** | From the dashboard into everything else: floor, bills, reports, settings |
+| **% of total** | On the dashboard, a row's bill total against the day's, in whole percents adding up to 100 |
+| **Cancelled after preparation** | On the watch list, the wasted value: items the kitchen had made, at menu price, before GST |
+
+---
+
+## 39. Order note and guest details
+
+Added by P56.
+
+| Term | Meaning |
+|---|---|
+| **Note for all dishes** | One instruction for every dish on the order, like "Less spicy". Printed at the top of every KOT as "FOR ALL ITEMS". |
+| **FOR ALL ITEMS** | The printed KOT's word for the note for all dishes |
+| **Guest details** | The guest's name, mobile and their yes to offers, asked on a table's first Send to the kitchen |
+| **Save and send** | Keep the guest's details and send the dishes to the kitchen |
+| **Skip, send without details** | Send the dishes without the guest's details |
+| **Voided to change items** | A bill voided only so its items could change after billing, and billed again. Not a voided bill on any list; its numbers stay in the invoice register. |
+
+---
+
+## 40. The bill in one place
+
+Added by P57.
+
+| Term | Meaning |
+|---|---|
+| **Bill** | On a served order, the box under the dishes: the discount, the totals and Save, before the bill is made |
+| **Add discount** | Choose a discount before the bill is made. Nothing is saved until Save. |
+| **Save** | Make the bill, print nothing |
+| **Save & Print** | Make the bill and print it (P48's word, now on every served order) |

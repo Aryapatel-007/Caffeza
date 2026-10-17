@@ -2402,6 +2402,9 @@ like `"2026-27"`, in `FINANCIAL_YEAR` mode, and the prefix, like `"CFA/C/"`, in
 `PREFIX` mode. Bills created before P02 have `null`, which means the financial
 year series.
 
+From P57 the request may also carry a `discount` and `preview: true`; see "P57
+The bill in one place".
+
 ### 14.2 Read one bill
 
 ```
@@ -5355,7 +5358,7 @@ Stored in `cashmovements`, DB-SCHEMA section 24.
 |---|---|
 | `GET /api/v1/cash-movements?date=YYYY-MM-DD` | OWNER, MANAGER, CASHIER. Default today's business date. |
 | `POST /api/v1/cash-movements` | `OPENING_FLOAT` and `PAID_IN`: OWNER, MANAGER, CASHIER. `PAID_OUT`: OWNER, MANAGER, and writes `CASH_PAID_OUT`, entity `CASH`, with the amount and reason. |
-| `POST /api/v1/cash-movements/:id/void` | OWNER, MANAGER. Body `{ reason }`. |
+| `POST /api/v1/cash-movements/:id/void` | OWNER, MANAGER, CASHIER. Body `{ reason, approval? }`. From 2026-10-17 a CASHIER may void with an owner's or manager's PIN, as for a paid out (P28 `approverForManagerTask`): `approval` is required for a cashier, and a cashier is refused with 403 when `approvals.managerTasks` is off. The approver is stored as `voidApprovedBy`. |
 
 Body `{ type, amountInPaise, reason? }`. `reason` 1 to 200 characters, required
 for `PAID_IN` and `PAID_OUT`. The business date is always today's; no request can
@@ -5530,7 +5533,7 @@ once per write:
 | GET /cash-movements | yes | yes | yes | no | no | no |
 | POST /cash-movements, float or paid in | yes | yes | yes | no | no | no |
 | POST /cash-movements, paid out | yes | yes | no | no | no | no |
-| POST /cash-movements/:id/void | yes | yes | no | no | no | no |
+| POST /cash-movements/:id/void | yes | yes | with a manager's PIN | no | no | no |
 | POST /cash-movements, cash taken out (P29) | yes | yes | no | no | no | no |
 | POST /cash-movements, cash check (P29) | yes | yes | yes | no | no | no |
 | GET /cash-book (P29) | yes | yes | yes | no | no | no |
@@ -9009,3 +9012,170 @@ No other role sees it, and R1's figures and checks do not change.
    every hour, until one succeeds (`SNAPSHOT_RETRY_MS`). Every try reads the
    whole database against Atlas M0's weekly read limit, and the first live
    deploy, with a wrong secret, tried once a minute. Added 2026-10-15.
+
+# P55 The owner's dashboard
+
+`docs/prompts/P55-owner-dashboard.md`. No new endpoint and no change to any. The
+owner's dashboard, `/owner`, reads three existing reports for today's business date:
+`GET /reports/v2/today` (R1: its `money` section and `extra.asAt`),
+`GET /reports/v2/day-close?date=` (R2: `sales`, `orderTypes`, `controls`,
+`money`, `checks`, `openDays`), and `GET /reports/v2/hours?from=&to=` (R4: `byHour`).
+
+
+# P56 A note for every dish, the guest before the first KOT, whole voids
+
+`docs/prompts/P56-order-note-guest-before-kot-whole-voids.md`. Two new endpoints
+and one changed meaning.
+
+## 1. `PATCH /api/v1/orders/:orderId/kitchen-note`
+
+```
+{ "version": 7, "kitchenNote": "Less spicy, Jain" }
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. `kitchenNote` is a string of 1 to 200
+characters after trimming, or `null` to clear it; an empty string is stored as
+`null`. The order must be `OPEN` or `READY_TO_BILL`, otherwise 422
+`BUSINESS_RULE_VIOLATED`, "This order is closed, so its note cannot change."
+`version` is required; a stale one is 409 `VERSION_CONFLICT`.
+
+The order's `kitchenNote` is set in one versioned write, then every kitchen
+ticket of the order gets the same `kitchenNote`. Not audited. Response 200: the
+order.
+
+`POST /orders/:orderId/fire` writes the order's `kitchenNote` onto a ticket it
+makes, and onto the ticket a new round is added to (P36). `GET /kots` and
+`GET /kots/:kotId` return `kitchenNote` on every ticket, `null` when none.
+`GET /kots/:kotId/ticket` prints it under the destination line:
+
+```
+FOR ALL ITEMS: Less spicy, Jain
+```
+
+wrapped to the ticket's width.
+
+## 2. `PATCH /api/v1/orders/:orderId/customer`
+
+```
+{ "version": 7, "customerName": "Meera Joshi", "customerPhone": "9825012345", "offersConsent": true }
+```
+
+Roles: OWNER, MANAGER, CASHIER, WAITER. Each field is optional and validated as
+on `POST /orders` (section 12.1); at least one of `customerName` and
+`customerPhone` is required, and `offersConsent: true` needs `customerPhone`,
+otherwise 400. An order with a bill is 422 `BUSINESS_RULE_VIOLATED`, "This
+order has a bill, so the guest's details are on it already."; any other order
+not `OPEN` is 422, "This order is closed, so the guest's details cannot
+change." A stale `version` is 409.
+
+`customerPhone` on an order that already has a different one is 422
+`BUSINESS_RULE_VIOLATED`, "This order already has the guest's mobile." The same
+number again changes nothing. When the order had no mobile and now has one, the
+visit is recorded exactly as `POST /orders` records it (M22), with the consent
+when `offersConsent` is true; a failure to record it never fails the request.
+Response 200: the order.
+
+The order screen asks for these on a dine-in order's first Send, so seating a
+table (`POST /orders` from the floor) no longer sends them. `POST /orders`
+still accepts them.
+
+## 3. Bills voided to change items
+
+A bill voided inside `POST /bills/:billId/cancel-lines` (M3 16.4) or
+`POST /bills/:billId/reopen` (P26) carries `isVoidedToChangeItems: true`.
+Every other void leaves it `false`, and so does cancel-lines when it cancels
+every item, because the whole order goes with the bill. A whole-order cancel of
+an order reopened from a bill sets that bill's mark back to `false`.
+
+Left out of, wherever `isVoided` is true and `isVoidedToChangeItems` is true:
+
+| Where | What changes |
+|---|---|
+| `GET /bills` | With `includeVoided=true`, these bills are not listed and not in `meta.totals.voidedCount`. With `number=`, they are found as before. |
+| `GET /bills/summary` | `voidedCount` and `voidedInPaise` |
+| R19 Bill List | `status=VOIDED` matches only bills not voided to change items, unless `billNumber` is given, so the invoice register's drill still opens one |
+| R15 | `voids` section |
+| R1 Today | `VOID` alerts |
+| R2 and Day Close | `controls.voidedBills` |
+| GST report | Not sales, Voided bills |
+
+Unchanged, and still counting every voided bill: R10 Invoice Register, R2's
+invoice series, the GST report's documents issued, every check C1 to C14, and
+Tally. Bills voided before P56 have no mark and are counted as before, so a
+closed day's snapshot never changes.
+
+## 4. R15 and the day's controls without single-item cancels
+
+R15 `cancellations` returns the sections `orders` (paged; `meta.total` counts
+orders), `voids`, `paidBeforePrint`, `byReason`, `byPerson` and `byItem`. There
+is no `items` and no `billChanges` section. The three summaries and
+`headline.wastedValueInPaise` add up only the lines of orders cancelled as a
+whole in the range. The report's default `columns` are the orders section's.
+
+R2 `day-close`'s `controls` section has no `Items cancelled`, `Wasted value` or
+`Bills changed before payment` line. `GET /day-close/:date` and the closure's
+snapshot still carry `figures.controls.cancelledItems` and `billRevisions`
+exactly as before, so C12 and every check read the same figures; the Day Close
+screen, the Day End page and the printed Day Close stop showing them.
+
+## Error codes
+
+None new.
+
+# P57 The bill in one place
+
+Asked for by Rishi, 2026-10-17. The prompt is `docs/prompts/P57-bill-in-one-place.md`.
+
+## 1. `POST /bills` takes a discount and a preview
+
+```
+POST /api/v1/bills
+```
+
+```json
+{
+  "orderId": "652f...",
+  "version": 9,
+  "discount": { "kind": "PERCENT", "rateBps": 1000, "reasonCode": "REGULAR_GUEST", "note": null },
+  "preview": true
+}
+```
+
+Both new fields are optional; without them the endpoint is exactly M3 14.1.
+
+`discount` is the body of `POST /bills/:billId/discount` (14.4): `kind`
+`FLAT` with `valueInPaise`, or `PERCENT` with `rateBps`, `reasonCode`, `note`
+(required for `OTHER`) and `fundedBy` (default `RESTAURANT`; `PLATFORM` only for
+a platform reason). It is applied to the new bill inside the creating
+transaction, stored exactly as 14.4 stores it, with `appliedBy` the caller, and
+writes the same `DISCOUNT_APPLIED` audit line once the transaction commits.
+
+- 403 `FORBIDDEN` when the caller may not give that discount
+  (`billPermissionService.assertCanDiscount`, as 14.4): a captain never; a
+  cashier only a platform discount, and only when
+  `discounts.cashierMayApplyPlatformDiscounts` is on.
+- 422 `BUSINESS_RULE_VIOLATED` when a flat discount is more than the item total.
+- 422 `BUSINESS_RULE_VIOLATED`, "This order carries its last bill's discount.
+  Change it on the new bill.", on an order with `reopenedFromBillId` (P26).
+
+`preview: true` runs the whole creation, discount included, inside its
+transaction and rolls it back. Nothing is written: no bill, no bill number used
+(the counter is untouched), no change to the order or its version, no audit
+line, no live-channel announcement. Response 200:
+
+```json
+{ "preview": true, "billNumber": null, "subtotalInPaise": 42000, "discount": { "amountInPaise": 4200 }, "taxBreakdown": [], "roundOffInPaise": 0, "grandTotalInPaise": 39700, "lines": [] }
+```
+
+the bill as it would be, every figure from `utils/tax.js` as on a real bill,
+with `billNumber` null and no `id`. Every refusal a real creation makes (order
+not ready, stale version, closed day, wrong restaurant, a captain not allowed to
+bill) a preview makes too.
+
+## 2. Roles
+
+Unchanged from 14.1 and P25 Part D for creating; `discount` adds 14.4's rule.
+
+## Error codes
+
+None new.

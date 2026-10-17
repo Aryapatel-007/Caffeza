@@ -161,8 +161,9 @@ function scopedToRestaurant(req) {
  * degraded version of it worth shipping. See utils/errors.js
  * TransactionRequiredError.
  */
-export async function createBill(req, { orderId, version }) {
+export async function createBill(req, { orderId, version, discount = null, preview = false }) {
   const session = await mongoose.startSession();
+  let previewed = null;
 
   try {
     let created = null;
@@ -173,10 +174,25 @@ export async function createBill(req, { orderId, version }) {
     await session.withTransaction(async () => {
       carriedSummary = null;
       online = null;
+      previewed = null;
       // P26. A reopened order carries the voided bill's discount and payments.
       const order = await Order.findOne({ ...scoped(req), _id: orderId }).select('reopenedFromBillId advancePaymentId').session(session).lean();
+      // P57. Its discount is the voided bill's; a new one is given on the new bill.
+      if (discount && order?.reopenedFromBillId) {
+        throw new BusinessRuleError("This order carries its last bill's discount. Change it on the new bill.");
+      }
       const voided = order?.reopenedFromBillId ? await Bill.findOne({ ...scoped(req), _id: order.reopenedFromBillId }).session(session) : null;
-      created = await createBillInSession(req, { orderId, version, discount: voided?.discount ?? null }, session);
+      created = await createBillInSession(req, { orderId, version, discount: voided?.discount ?? null, requested: discount }, session);
+      /**
+       * P57. A preview is the bill exactly as it would be, then rolled back:
+       * no number used, no order change, no audit line, nothing announced.
+       */
+      if (preview) {
+        const shape = created.toJSON();
+        delete shape.id;
+        previewed = { ...shape, preview: true, billNumber: null };
+        throw new PreviewOnly();
+      }
       if (voided) {
         const today = await todayBusinessDate(req);
         const result = await carryPayments(req, { voided, newBill: created, order: { ...order, _id: order._id }, today }, session);
@@ -199,8 +215,12 @@ export async function createBill(req, { orderId, version }) {
       if (payment) await refund(req, payment, { amountInPaise: online.amountInPaise, reason: 'The bill came to less than was paid' });
     }
 
+    // P57. The discount given with the bill is audited as one given on it.
+    if (discount) await auditDiscount(req, created, created.discount);
+
     return carriedSummary ? { ...created.toJSON(), carried: carriedSummary } : created;
   } catch (error) {
+    if (error instanceof PreviewOnly) return previewed;
     throw await billCreationErrorFor(req, orderId, error);
   } finally {
     await session.endSession();
@@ -234,7 +254,7 @@ export async function billCreationErrorFor(req, orderId, error) {
  * fundedBy, appliedBy }`; a flat amount larger than the new item total is
  * capped at it.
  */
-export async function createBillInSession(req, { orderId, version, discount = null }, session) {
+export async function createBillInSession(req, { orderId, version, discount = null, requested = null }, session) {
   const order = await Order.findOne({ ...scoped(req), _id: orderId }).session(session);
   if (!order) throw new NotFoundError('Order not found.');
 
@@ -247,7 +267,8 @@ export async function createBillInSession(req, { orderId, version, discount = nu
   assertBillHasLines(lines);
 
   const at = nowUtc();
-  const carried = discount ? carriedDiscount(discount, lines) : null;
+  // P57. A discount chosen before the bill is made; otherwise one carried from a voided bill.
+  const carried = requested ? requestedDiscount(req, requested, lines, at) : discount ? carriedDiscount(discount, lines) : null;
   const totals = computeBillTotals({ lines, discount: carried?.request ?? null });
   /**
    * Read inside the transaction, so the bill is numbered from the invoice
@@ -337,6 +358,24 @@ function carriedDiscount(discount, lines) {
   };
 }
 
+/**
+ * P57. A discount given as the bill is made: the same amount, refusal and
+ * stored shape as POST /bills/:billId/discount.
+ */
+function requestedDiscount(req, { kind, valueInPaise, rateBps, reasonCode, note = null, fundedBy = 'RESTAURANT' }, lines, at) {
+  const subtotal = sumPaise(...lines.map((line) => line.lineTotalInPaise));
+  const request = { kind, valueInPaise: valueInPaise ?? null, rateBps: rateBps ?? null };
+  const amountInPaise = resolveDiscountAmount(request, subtotal);
+  assertDiscountFits(amountInPaise, subtotal);
+  return {
+    request,
+    stored: { ...request, amountInPaise, reason: note ?? null, reasonCode, fundedBy, appliedBy: req.user.id, appliedAt: at },
+  };
+}
+
+/** Thrown inside a preview's transaction so it rolls back. Never leaves this file. */
+class PreviewOnly extends Error {}
+
 /** A standalone mongod cannot start a transaction, and billing needs one. */
 function isTransactionUnavailable(error) {
   const message = String(error?.message ?? '');
@@ -395,17 +434,22 @@ export async function applyDiscount(
   applyTotals(bill, bill.lines, totals);
   await bill.save();
 
+  await auditDiscount(req, bill, bill.discount);
+
+  return bill;
+}
+
+/** DISCOUNT_APPLIED, the same line whether the discount came with the bill (P57) or after it. */
+async function auditDiscount(req, bill, discount) {
   await recordAudit(req, {
     action: AUDIT_ACTIONS.DISCOUNT_APPLIED,
     entityType: AUDIT_ENTITY_TYPES.BILL,
     entityId: bill._id,
     entityLabel: bill.billNumber,
-    reason: reasonText(DISCOUNT_REASONS, reasonCode, note),
-    amountInPaise,
-    details: { kind, rateBps: rateBps ?? null, reasonCode, fundedBy },
+    reason: reasonText(DISCOUNT_REASONS, discount.reasonCode, discount.reason),
+    amountInPaise: discount.amountInPaise,
+    details: { kind: discount.kind, rateBps: discount.rateBps ?? null, reasonCode: discount.reasonCode, fundedBy: discount.fundedBy },
   });
-
-  return bill;
 }
 
 /**
@@ -704,7 +748,7 @@ export async function voidBill(req, billId, { reasonCode, note = null, approvedB
  * The core of voiding, inside the transaction it is given. P25 Part E voids a
  * bill and re-issues it in one transaction through here.
  */
-export async function voidBillInSession(req, billId, { reasonCode, note = null, at = nowUtc(), approvedBy = null }, session) {
+export async function voidBillInSession(req, billId, { reasonCode, note = null, at = nowUtc(), approvedBy = null, toChangeItems = false }, session) {
   const bill = await readBill(req, billId, session);
   assertNotVoided(bill);
   // P10: a closed day's bills stay as they are.
@@ -718,6 +762,8 @@ export async function voidBillInSession(req, billId, { reasonCode, note = null, 
   // P04: a fixed code, and the free-text field now holds the optional note.
   bill.voidReasonCode = reasonCode;
   bill.voidReason = note ?? null;
+  // P56. Voided only so the items could change, and billed again: on no list of voided bills.
+  bill.isVoidedToChangeItems = toChangeItems;
   await bill.save(session ? { session } : {});
 
   await Order.updateOne(

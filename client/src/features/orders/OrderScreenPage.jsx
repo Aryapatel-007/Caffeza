@@ -7,6 +7,7 @@ import Money from '../../components/ui/Money.jsx';
 import Sheet, { SheetActions } from '../../components/ui/Sheet.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
 import Toast from '../../components/ui/Toast.jsx';
+import MenuSearch from './MenuSearch.jsx';
 import { getMenuTree } from '../../api/menu.js';
 import { getBill } from '../../api/bills.js';
 import {
@@ -23,15 +24,20 @@ import {
   giveNoCharge,
   markLineServed,
   moveOrderToTable,
+  setKitchenNote,
+  setOrderCustomer,
 } from '../../api/orders.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getKotTicket } from '../../api/kitchen.js';
 import { charactersFor, printText } from '../printing/printText.js';
 import { useDeviceSettings } from '../printing/useDeviceSettings.js';
 import { formatTimeIst } from '../../utils/formatDate.js';
-import BillOrderButton from '../billing/BillOrderButton.jsx';
+import BillComposer from '../billing/BillComposer.jsx';
+import BillOrderButton, { mayBill } from '../billing/BillOrderButton.jsx';
 import Bilingual from '../i18n/Bilingual.jsx';
 import CancelPanel from './CancelPanel.jsx';
+import GuestDetailsSheet from './GuestDetailsSheet.jsx';
+import KitchenNoteSheet from './KitchenNoteSheet.jsx';
 import { LINE_CANCEL_REASONS, ORDER_CANCEL_REASONS } from './cancelReasons.js';
 import LineOptionsPanel from './LineOptionsPanel.jsx';
 import MenuPicker from './MenuPicker.jsx';
@@ -115,6 +121,14 @@ export default function OrderScreenPage() {
    * second PIN. Never stored on the device; leaving the screen forgets it.
    */
   const [printedBillApproval, setPrintedBillApproval] = useState(null);
+  /**
+   * P56. The note for all dishes being edited, and the guest's details asked
+   * on a table's first Send. `askingGuest` holds the send waiting for them;
+   * Skip is remembered for this visit to the screen.
+   */
+  const [isNotingAll, setIsNotingAll] = useState(false);
+  const [askingGuest, setAskingGuest] = useState(null);
+  const [guestSkipped, setGuestSkipped] = useState(false);
   /**
    * P41. The last Send, for its Undo bar. The server allows the undo for 60
    * seconds and only while nothing is ready; the bar shows for the same minute
@@ -245,6 +259,8 @@ export default function OrderScreenPage() {
   // P48. The till's computer gets PetPooja's counter screen for every order: menu beside the order.
   const isTill = ['OWNER', 'MANAGER', 'CASHIER'].includes(user?.role);
   const isCounter = order.orderType !== 'DINE_IN' || isTill;
+  // P57. Everything served and no bill yet: the Bill box under the dishes, PetPooja's way.
+  const composing = order.status === 'READY_TO_BILL' && !hasBill && !addingMore && mayBill(user, features, order);
 
   const changeQuantity = (line, quantity) =>
     run({
@@ -258,23 +274,49 @@ export default function OrderScreenPage() {
       successMessage: `${line.itemName} removed.`,
     });
 
-  const fire = () =>
+  /**
+   * P56. A table's first Send asks for the guest's details, unless the order
+   * has them (a seated booking does) or this screen skipped them already.
+   */
+  const needsGuestDetails =
+    order.orderType === 'DINE_IN' &&
+    !hasBill &&
+    !order.customerName &&
+    !order.customerPhone &&
+    !guestSkipped &&
+    order.lines.every((line) => !line.firedAt);
+  const askGuestThen = (send) => (needsGuestDetails ? setAskingGuest({ send }) : send(null));
+
+  /** P56. The guest's details first, when given, then the Send on the version they leave. */
+  const sendToKitchen = async (guest) => {
+    let { version } = order;
+    if (guest) ({ version } = await setOrderCustomer(order.id, { version, ...guest }));
+    return fireOrder(order.id, version);
+  };
+  const afterGuestFailed = () => {
+    setAskingGuest(null);
+    orderQuery.refetch();
+  };
+
+  const fire = (guest = null) =>
     run({
-      run: () => fireOrder(order.id, order.version),
+      run: () => sendToKitchen(guest),
       onDone: () => {
         setIsReviewing(false);
+        setAskingGuest(null);
         // P41. The bar says "Sent to the kitchen." with its Undo, instead of a toast.
         setToast(null);
         setNow(Date.now());
         setLastSendAt(Date.now());
       },
+      onFailed: afterGuestFailed,
     });
 
   /** P48. KOT & Print: send, then print each new ticket on this device's printer. */
-  const fireAndPrint = () =>
+  const fireAndPrint = (guest = null) =>
     run({
       run: async () => {
-        const result = await fireOrder(order.id, order.version);
+        const result = await sendToKitchen(guest);
         try {
           for (const kot of result.kots ?? [result.kot]) {
             const { text } = await getKotTicket(kot.id, { width: charactersFor(device.printer), ...(result.round ? { round: result.round } : {}) });
@@ -287,10 +329,21 @@ export default function OrderScreenPage() {
       },
       onDone: () => {
         setIsReviewing(false);
+        setAskingGuest(null);
         setNow(Date.now());
         setLastSendAt(Date.now());
       },
+      onFailed: afterGuestFailed,
     });
+
+  /** P56. One note for every dish; null clears it. */
+  const saveKitchenNote = (kitchenNote) =>
+    run({
+      run: () => setKitchenNote(order.id, { version: order.version, kitchenNote }),
+      successMessage: kitchenNote ? 'Note saved for all dishes.' : 'Note cleared.',
+      onDone: () => setIsNotingAll(false),
+    });
+  const canNoteAll = isOpen || order.status === 'READY_TO_BILL';
 
   const undoLastSend = () =>
     run({
@@ -319,8 +372,8 @@ export default function OrderScreenPage() {
       onCancelLine={(line) => setCancelling({ kind: 'line', line })}
       onRemoveDraft={removeDraft}
       onChangeSentLine={(line) => setChangingLine(line)}
-      onFire={fire}
-      onFireAndPrint={isTill ? fireAndPrint : null}
+      onFire={() => askGuestThen(fire)}
+      onFireAndPrint={isTill ? () => askGuestThen(fireAndPrint) : null}
       onCancelOrder={() => setCancelling({ kind: 'order' })}
       onCloseOrder={canClose ? () => setCancelling({ kind: 'close' }) : null}
       closeLabel={order.orderType === 'DINE_IN' ? 'Close table' : 'Close order'}
@@ -358,21 +411,25 @@ export default function OrderScreenPage() {
               )}
               {order.customerName && ` · ${order.customerName}`}
             </p>
+            {/* P56. The note for all dishes, while set. */}
+            {order.kitchenNote && (
+              <p className="type-caption mt-1">
+                <span className="font-semibold">For all dishes:</span> {order.kitchenNote}
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-1 items-center justify-end gap-2 sm:max-w-xl">
-          {showMenu && (
-            <label className="relative block w-full max-w-sm">
-              <span className="sr-only">Search the menu</span>
-              <input
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search dishes"
-                className="type-body min-h-12 w-full rounded-lg border border-muted bg-surface px-4 text-ink placeholder:text-muted"
-              />
-            </label>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {canNoteAll && (
+            <button
+              type="button"
+              disabled={write.isPending}
+              onClick={() => setIsNotingAll(true)}
+              className="type-button min-h-12 whitespace-nowrap rounded-lg border border-ink bg-surface px-4 hover:bg-sunken disabled:opacity-50"
+            >
+              Note for all dishes
+            </button>
           )}
           {canMove && (
             <button
@@ -393,7 +450,7 @@ export default function OrderScreenPage() {
               {hasBill ? 'Add to this bill' : 'Add more dishes'}
             </button>
           )}
-          {(!isOpen || hasBill) && <BillOrderButton order={order} />}
+          {hasBill && <BillOrderButton order={order} />}
         </div>
         {captainLockedOut && (
           <p className="type-caption mt-2 rounded-lg bg-sunken px-3 py-2 text-muted">This bill has been printed. Only the counter or a manager can change it now.</p>
@@ -414,6 +471,7 @@ export default function OrderScreenPage() {
               </button>
             </div>
           )}
+          <MenuSearch value={search} onChange={setSearch} />
           <MenuPicker
             tree={menuQuery.data}
             isPending={menuQuery.isPending}
@@ -464,7 +522,7 @@ export default function OrderScreenPage() {
                 <button
                   type="button"
                   disabled={pendingCount === 0 || write.isPending}
-                  onClick={fire}
+                  onClick={() => askGuestThen(fire)}
                   className="min-h-14 rounded-lg bg-accent px-4 text-on-accent hover:brightness-110 disabled:opacity-50 sm:px-8"
                 >
                   {pendingCount === 0 ? (
@@ -501,6 +559,7 @@ export default function OrderScreenPage() {
       ) : (
         <section aria-label="This order" className="mx-auto w-full max-w-3xl rounded-[10px] bg-surface border border-line">
           {details}
+          {composing && <BillComposer order={order} onStale={() => orderQuery.refetch()} />}
         </section>
       )}
 
@@ -681,6 +740,23 @@ export default function OrderScreenPage() {
               },
             })
           }
+        />
+      )}
+
+      {isNotingAll && (
+        <KitchenNoteSheet current={order.kitchenNote} isBusy={write.isPending} onCancel={() => setIsNotingAll(false)} onSave={saveKitchenNote} />
+      )}
+
+      {askingGuest && (
+        <GuestDetailsSheet
+          placeName={placeLabel(order)}
+          isBusy={write.isPending}
+          onCancel={() => setAskingGuest(null)}
+          onSave={(guest) => askingGuest.send(guest)}
+          onSkip={() => {
+            setGuestSkipped(true);
+            askingGuest.send(null);
+          }}
         />
       )}
 

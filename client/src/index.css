@@ -167,6 +167,33 @@
   --leaf: #3a6f36;
 }
 
+/*
+ * P55. The owner's dashboard, /owner: its own look, from Rishi's design, only
+ * inside `[data-owner]`, which that page sets; no ERP screen reads these.
+ * A cool grey page, white cards, ink text, five indigo steps for bars and
+ * columns, amber for unpaid, red for waste, green for the checks.
+ * Ink on page 16.6:1, muted on card 5.2:1, amber on card 6.4:1.
+ */
+[data-owner] {
+  --dash-page: #f5f6f9;
+  --dash-card: #ffffff;
+  --dash-line: #e4e7ee;
+  --dash-track: #f0f2f6;
+  --dash-ink: #13161f;
+  --dash-muted: #636c7e;
+  --dash-1: #3a3f9e;
+  --dash-1-hover: #323687;
+  --dash-2: #6367be;
+  --dash-3: #9093d4;
+  --dash-4: #c2c4e8;
+  --dash-5: #dadcf0;
+  --dash-warn: #8a5a00;
+  --dash-alert: #a3301a;
+  --dash-ok: #166b45;
+  --dash-ok-tint: #eaf5f0;
+  --dash-ok-line: #cde5d8;
+}
+
 @theme inline {
   --color-ground: var(--ground);
   --color-surface: var(--surface);
@@ -204,6 +231,25 @@
   --color-masala: var(--masala);
   --color-masala-soft: var(--masala-soft);
   --color-leaf: var(--leaf);
+
+  /* P55. The owner's dashboard, defined under [data-owner] above. */
+  --color-dash-page: var(--dash-page);
+  --color-dash-card: var(--dash-card);
+  --color-dash-line: var(--dash-line);
+  --color-dash-track: var(--dash-track);
+  --color-dash-ink: var(--dash-ink);
+  --color-dash-muted: var(--dash-muted);
+  --color-dash-1: var(--dash-1);
+  --color-dash-1-hover: var(--dash-1-hover);
+  --color-dash-2: var(--dash-2);
+  --color-dash-3: var(--dash-3);
+  --color-dash-4: var(--dash-4);
+  --color-dash-5: var(--dash-5);
+  --color-dash-warn: var(--dash-warn);
+  --color-dash-alert: var(--dash-alert);
+  --color-dash-ok: var(--dash-ok);
+  --color-dash-ok-tint: var(--dash-ok-tint);
+  --color-dash-ok-line: var(--dash-ok-line);
 
   --shadow-float: var(--float-shadow);
 

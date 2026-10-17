@@ -448,6 +448,12 @@ const billSchema = new mongoose.Schema({
   voidReason: { type: String, trim: true, maxlength: VOID_REASON_MAX_LENGTH, default: null },
   /** P04. The fixed reason, from BILL_VOID_REASONS. Null before P04. */
   voidReasonCode: { type: String, enum: [...BILL_VOID_REASON_CODES, null], default: null },
+  /**
+   * P56. Voided only so the items could change after billing (cancel-lines,
+   * reopen), and billed again. Left out of every list of voided bills; kept in
+   * the invoice register and every check. False on every bill voided before P56.
+   */
+  isVoidedToChangeItems: { type: Boolean, default: false },
 
   /**
    * Frozen from the order at bill creation. P03. "Captain" is whoever opened

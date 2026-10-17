@@ -23,6 +23,8 @@ import {
   listOrders,
   markLineServed,
   moveOrderToTable,
+  setKitchenNote,
+  setOrderCustomer,
   undoSend,
   reduceOrderLine,
   removeOrderLine,
@@ -70,6 +72,8 @@ import {
   markKotReadySchema,
   markLineServedSchema,
   moveOrderTableSchema,
+  kitchenNoteSchema,
+  orderCustomerSchema,
   kotTicketSchema,
   readKotSchema,
   readOrderSchema,
@@ -162,6 +166,9 @@ router.post('/orders/:orderId/lines/:lineId/reduce', ...floor, validate(reduceOr
 // P41. The same roles as firing.
 router.post('/orders/:orderId/undo-send', ...floor, validate(undoSendSchema), undoSend);
 router.patch('/orders/:orderId/table', ...floor, validate(moveOrderTableSchema), moveOrderToTable);
+// P56. One note for every dish, and the guest's details before the first KOT.
+router.patch('/orders/:orderId/kitchen-note', ...floor, validate(kitchenNoteSchema), setKitchenNote);
+router.patch('/orders/:orderId/customer', ...floor, validate(orderCustomerSchema), setOrderCustomer);
 
 /**
  * Cancelling a WHOLE order is manager work, unlike cancelling one line, which

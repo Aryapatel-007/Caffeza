@@ -25,7 +25,9 @@ import {
   ORDER_STATUSES,
   ORDER_TYPES,
 } from '../models/Order.js';
+import { Kot } from '../models/Kot.js';
 import { recordAudit } from '../services/auditService.js';
+import { recordVisit, staffConsent } from '../services/customerService.js';
 import { cancelKotLinesFor, fireOrder as fireOrderToKitchen } from '../services/kitchenService.js';
 import { changeSentNote, reduceSentLine } from '../services/sentLineService.js';
 import { undoSend as undoSendToKitchen } from '../services/undoSendService.js';
@@ -507,6 +509,74 @@ export async function moveOrderToTable(req, res) {
 }
 
 /**
+ * PATCH /orders/:orderId/kitchen-note. P56.
+ *
+ * One note for every dish, like "Less spicy". The order's kitchen tickets get
+ * the same note, so the kitchen sees the latest one on dishes already sent.
+ * Not audited: it is an instruction to the kitchen, not money.
+ */
+export async function setKitchenNote(req, res) {
+  const { orderId } = req.params;
+  const { version, kitchenNote } = req.body;
+
+  const order = await loadOrderInTenant(req, orderId);
+  if (![ORDER_STATUSES.OPEN, ORDER_STATUSES.READY_TO_BILL].includes(order.status)) {
+    throw new BusinessRuleError('This order is closed, so its note cannot change.');
+  }
+
+  const updated = await applyVersionedUpdate(req, { orderId, version, update: { $set: { kitchenNote } } });
+  await Kot.updateMany({ ...scoped(req), orderId: updated._id }, { $set: { kitchenNote } });
+
+  return sendSuccess(res, serialiseOrder(updated));
+}
+
+/**
+ * PATCH /orders/:orderId/customer. P56.
+ *
+ * The guest's details, asked on a table's first Send rather than when it is
+ * seated. A mobile, once on the order, is never swapped for another: the visit
+ * was recorded against it. The first mobile records the visit exactly as
+ * opening an order with one does (P27), and never fails the request.
+ */
+export async function setOrderCustomer(req, res) {
+  const { orderId } = req.params;
+  const { version, customerName, customerPhone, offersConsent } = req.body;
+
+  const order = await loadOrderInTenant(req, orderId);
+  if (order.billId || order.status === ORDER_STATUSES.BILLED) {
+    throw new BusinessRuleError("This order has a bill, so the guest's details are on it already.");
+  }
+  if (order.status !== ORDER_STATUSES.OPEN) {
+    throw new BusinessRuleError("This order is closed, so the guest's details cannot change.");
+  }
+  if (customerPhone && order.customerPhone && customerPhone !== order.customerPhone) {
+    throw new BusinessRuleError("This order already has the guest's mobile.");
+  }
+
+  const firstPhone = Boolean(customerPhone) && !order.customerPhone;
+  const updated = await applyVersionedUpdate(req, {
+    orderId,
+    version,
+    update: {
+      $set: {
+        ...(customerName !== undefined ? { customerName } : {}),
+        ...(firstPhone ? { customerPhone } : {}),
+      },
+    },
+  });
+
+  if (firstPhone) {
+    try {
+      await recordVisit(req, updated, offersConsent ? staffConsent() : null);
+    } catch (error) {
+      req.log?.warn({ err: { message: error?.message }, orderId: String(updated._id) }, 'Could not record the customer visit.');
+    }
+  }
+
+  return sendSuccess(res, serialiseOrder(updated));
+}
+
+/**
  * POST /orders/:orderId/cancel
  *
  * OWNER and MANAGER only, and that is the whole point of the endpoint.
@@ -616,6 +686,11 @@ export async function cancelOrder(req, res) {
     });
 
     await cancelKotLinesFor(req, { orderId, orderLineIds: stillLive }, session);
+
+    // P56. A bill voided to add items, whose order now goes as a whole, is a whole void after all.
+    if (order.reopenedFromBillId) {
+      await Bill.updateOne({ ...scoped(req), _id: order.reopenedFromBillId }, { $set: { isVoidedToChangeItems: false } }, session ? { session } : {});
+    }
 
     /**
      * P04. ORDER_CANCELLED was in the audit list from M3 and nothing wrote it,

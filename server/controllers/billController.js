@@ -68,8 +68,13 @@ export async function postBill(req, res) {
     const order = await Order.findOne({ ...scoped(req), _id: req.body.orderId }).select('orderType').lean();
     assertCanBill(req.user, order, await getSettingsGroup(req, 'billing'));
   }
+  // P57. A discount given with the bill follows the bill screen's rule exactly.
+  if (req.body.discount) {
+    const cashierMayApplyPlatformDiscounts = await getSetting(req.restaurantId, 'discounts.cashierMayApplyPlatformDiscounts', { req });
+    assertCanDiscount(req.user, { reasonCode: req.body.discount.reasonCode, cashierMayApplyPlatformDiscounts });
+  }
   const bill = await createBill(req, req.body);
-  return sendSuccess(res, bill, 201);
+  return sendSuccess(res, bill, req.body.preview ? 200 : 201);
 }
 
 /** GET /bills/:billId */
@@ -113,6 +118,8 @@ export async function listBills(req, res) {
   const filter = { ...scoped(req), businessDate: { $gte: from, $lte: to } };
   if (status) filter.status = status;
   if (!includeVoided) filter.isVoided = false;
+  // P56. A bill voided only so its items could change, and billed again, is on no list of voided bills.
+  else filter.isVoidedToChangeItems = { $ne: true };
 
   const [bills, total] = await Promise.all([
     Bill.find(filter)
@@ -149,7 +156,9 @@ export async function listBills(req, res) {
           $sum: { $cond: [{ $eq: ['$isVoided', false] }, '$amountPaidInPaise', 0] },
         },
         billCount: { $sum: { $cond: [{ $eq: ['$isVoided', false] }, 1, 0] } },
-        voidedCount: { $sum: { $cond: [{ $eq: ['$isVoided', true] }, 1, 0] } },
+        voidedCount: {
+          $sum: { $cond: [{ $and: [{ $eq: ['$isVoided', true] }, { $ne: ['$isVoidedToChangeItems', true] }] }, 1, 0] },
+        },
       },
     },
   ]);
@@ -298,11 +307,12 @@ export async function getSummary(req, res) {
   const match = { ...scoped(req), businessDate: { $gte: from, $lte: to } };
 
   const bills = await Bill.find(match).select(
-    'grandTotalInPaise totalTaxInPaise roundOffInPaise subtotalInPaise discount taxBreakdown payments isVoided',
+    'grandTotalInPaise totalTaxInPaise roundOffInPaise subtotalInPaise discount taxBreakdown payments isVoided isVoidedToChangeItems',
   );
 
   const live = bills.filter((bill) => !bill.isVoided);
-  const voided = bills.filter((bill) => bill.isVoided);
+  // P56. Whole voids only: a bill voided to change its items was billed again.
+  const voided = bills.filter((bill) => bill.isVoided && !bill.isVoidedToChangeItems);
 
   const slabs = new Map();
   for (const bill of live) {

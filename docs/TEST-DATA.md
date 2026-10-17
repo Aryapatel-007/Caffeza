@@ -368,14 +368,9 @@ Table 16 counts B12 only; the voided B11 on the same table is left out. Turns pe
 
 Percent off: B01 10.00%, B02 5.04%, B08 39.60%, B09 50.00%, B14 2.56%, B16 5.00%. All six were applied by Manager.
 
-**R15 Cancellations and Voids** (P17)
+**R15 Cancellations and Voids** (P17; P56 removed its item rows)
 
-| Item | Line total | Stage | Cancel reason | Cancelled by |
-|---|---|---|---|---|
-| Thecha Paneer Chilli | ₹390.00 | Cancelled after preparation | Guest changed the order | Khuman Singh |
-| Cheesy Tornado | ₹360.00 | Cancelled before preparation | Wrong item entered | Khuman Singh |
-
-Wasted value ₹390.00. Voids: CFA/C/22452, ₹347.00, Billed to the wrong table, by Manager. No whole order is cancelled.
+No whole order is cancelled, so R15 has no order rows and wasted value ₹0.00. Voids: CFA/C/22452, ₹347.00, Billed to the wrong table, by Manager. The two single dishes cancelled on the golden day are not on R15 (P56); they stay on their orders and in R11 and R12.
 
 **R16 No Charge:** Table 29, College Sandwich, ₹230.00 before GST, Corporate office order, opened by Ranjeet Paswan, approved by Manager.
 **R17 On Hold:** as of 26 September, E-210 Office ₹47.00 and W-330 Office ₹504.00. As of 27 September, after section 5's collection, W-330 Office ₹0.00 and E-210 Office ₹47.00, oldest unpaid bill 26 September, 1 day.
@@ -414,7 +409,7 @@ Alerts: none. The large discounts (B08 at 6:06 PM, B09 at 6:30 PM), the No Charg
 |---|---|
 | Discounts | 6, total ₹423.90. Largest three: B08 ₹200.00, B02 ₹73.07, B01 ₹53.00. |
 | No Charge | 1, value ₹230.00 |
-| Items cancelled | 2, value ₹750.00, wasted value ₹390.00 |
+| Items cancelled | 2, value ₹750.00, wasted value ₹390.00. In the stored figures only; P56 took the line off R2 and Day Close's screens |
 | Orders cancelled | 0 |
 | Voided bills | 1, B11, ₹347.00, "Billed to the wrong table" |
 

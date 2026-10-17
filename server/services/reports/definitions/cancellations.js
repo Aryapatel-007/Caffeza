@@ -1,20 +1,20 @@
 /**
  * R15 Cancellations and Voids. M19, built in P17. docs/API-CONTRACT.md "M19" R15.
  *
- * Three kinds of money leaving without a sale, each dated by the business date
- * of when it happened:
+ * Whole cancellations only (P56): a dish cancelled on its own, or taken off an
+ * unpaid bill, is not on this report. It stays on its order, in the audit
+ * trail, and in R11 and R12. Each kind is dated by when it happened:
  *
- *   items   each line cancelled on its own, by `lines[].cancelledAt`;
  *   orders  each whole order cancelled, by `orders.cancelledAt`;
- *   voids   each voided bill, by the bill's business date.
+ *   voids   each bill voided as a whole, by the bill's business date. P56: a
+ *           bill voided only to change its items is not one.
  *
- * A line cancelled together with its order is part of that order, not an item
- * row, and takes the order's reason (P04: such a line stores only the note).
- * The summary groups every cancelled line, both kinds, by reason, person and
- * item. Wasted value is the line total of lines made and thrown away, from
- * `wasPrepared: true`, whichever way they were cancelled.
+ * A line cancelled together with its order is part of that order and takes the
+ * order's reason (P04: such a line stores only the note). The summary groups
+ * those lines by reason, person and item. Wasted value is the line total of
+ * those made and thrown away, from `wasPrepared: true`.
  */
-import { BILL_VOID_REASONS, LINE_CANCEL_REASONS, ORDER_CANCEL_REASONS, ORDER_OPENED_BY_MISTAKE } from '../../../config/cancelReasons.js';
+import { BILL_VOID_REASONS, ORDER_CANCEL_REASONS, ORDER_OPENED_BY_MISTAKE } from '../../../config/cancelReasons.js';
 import { Bill } from '../../../models/Bill.js';
 import { Order, ORDER_LINE_STATUSES } from '../../../models/Order.js';
 import { sumPaise } from '../../../utils/money.js';
@@ -31,20 +31,6 @@ export const STAGES = Object.freeze({
   REMOVED_FROM_BILL: 'Removed from the bill before payment',
 });
 
-const CHANGE_WORDS = { REMOVED: 'Removed', ADDED: 'Added' };
-
-const changeColumns = [
-  { key: 'billNumber', label: LABELS.INVOICE_NUMBER, type: 'text' },
-  { key: 'at', label: LABELS.TIME, type: 'time' },
-  { key: 'change', label: LABELS.CHANGE, type: 'text' },
-  { key: 'items', label: LABELS.ITEMS, type: 'text' },
-  { key: 'beforeInPaise', label: LABELS.BILL_TOTAL_BEFORE, type: 'money' },
-  { key: 'afterInPaise', label: LABELS.BILL_TOTAL_AFTER, type: 'money' },
-  { key: 'changedByName', label: LABELS.CHANGED_BY, type: 'text' },
-  { key: 'approvedByName', label: LABELS.APPROVED_BY, type: 'text' },
-  { key: 'afterPrinting', label: LABELS.AFTER_PRINTING, type: 'text' },
-];
-
 const paidBeforePrintColumns = [
   { key: 'billNumber', label: LABELS.INVOICE_NUMBER, type: 'text' },
   { key: 'billedAt', label: LABELS.TIME_ISSUED, type: 'time' },
@@ -53,18 +39,6 @@ const paidBeforePrintColumns = [
 
 const label = (list, code) => list.find((reason) => reason.code === code)?.label ?? null;
 const withNote = (text, note) => (text && note ? `${text}: ${note}` : text ?? note ?? 'Not recorded');
-
-const itemColumns = [
-  { key: 'cancelledAt', label: LABELS.TIME, type: 'time' },
-  { key: 'tableName', label: LABELS.TABLE, type: 'text' },
-  { key: 'captainName', label: LABELS.CAPTAIN, type: 'text' },
-  { key: 'itemName', label: LABELS.ITEM, type: 'text' },
-  { key: 'quantity', label: LABELS.QUANTITY, type: 'count' },
-  { key: 'lineTotalInPaise', label: LABELS.LINE_TOTAL, type: 'money' },
-  { key: 'stageLabel', label: LABELS.STAGE, type: 'text' },
-  { key: 'reason', label: LABELS.CANCEL_REASON, type: 'text' },
-  { key: 'cancelledByName', label: LABELS.CANCELLED_BY, type: 'text' },
-];
 
 const orderColumns = [
   { key: 'cancelledAt', label: LABELS.TIME, type: 'time' },
@@ -120,23 +94,22 @@ export default {
   schema: reportQuery([], { paged: true }),
   filters: [],
   dimensions: [],
-  columns: itemColumns,
+  columns: orderColumns,
 
   async query(req, baseMatch, params, ctx) {
     const { start, end } = await instantsFor(req, params.from, params.to);
     const tenant = tenantOf(baseMatch);
     const inRange = (instant) => instant && instant >= start && instant < end;
 
-    const [orders, voidedBills, revisedBills, paidUnprinted] = await Promise.all([
-      Order.find({ ...tenant, $or: [{ 'lines.cancelledAt': { $gte: start, $lt: end } }, { cancelledAt: { $gte: start, $lt: end } }] })
+    const [orders, voidedBills, paidUnprinted] = await Promise.all([
+      Order.find({ ...tenant, isCancelled: true, cancelledAt: { $gte: start, $lt: end } })
         .select('orderNumber orderType tableName platform openedBy isCancelled cancelledAt cancelledBy cancelReasonCode cancelReason lines')
         .lean(),
-      Bill.find({ ...tenant, businessDate: { $gte: params.from, $lte: params.to }, isVoided: true })
+      // P56. Only bills voided as a whole: one voided only to change its items was billed again.
+      Bill.find({ ...tenant, businessDate: { $gte: params.from, $lte: params.to }, isVoided: true, isVoidedToChangeItems: { $ne: true } })
         .sort({ voidedAt: 1 })
         .select('billNumber grandTotalInPaise voidReasonCode voidReason voidedBy voidedAt')
         .lean(),
-      // P29. Bills revised in the range's hours, and live bills paid before they were printed.
-      Bill.find({ ...tenant, 'revisions.at': { $gte: start, $lt: end } }).select('billNumber businessDate revisions').lean(),
       Bill.find({ ...tenant, businessDate: { $gte: params.from, $lte: params.to }, isVoided: false, paymentBeforePrint: true })
         .sort({ billedAt: 1 })
         .select('billNumber businessDate billedAt grandTotalInPaise')
@@ -147,7 +120,6 @@ export default {
     const bills = await Bill.find({ ...tenant, orderId: { $in: orders.map((order) => order._id) } }).select('orderId captainName').lean();
     const captainByOrder = new Map(bills.filter((bill) => bill.captainName).map((bill) => [String(bill.orderId), bill.captainName]));
 
-    const itemLines = [];
     const orderRows = [];
     const everyLine = [];
     for (const order of orders) {
@@ -173,17 +145,6 @@ export default {
           });
         }
       }
-      for (const line of order.lines) {
-        if (line.status !== ORDER_LINE_STATUSES.CANCELLED || !inRange(line.cancelledAt) || withOrder(line)) continue;
-        const entry = {
-          line,
-          order,
-          reason: label(LINE_CANCEL_REASONS, line.cancelReasonCode) ?? 'Not recorded',
-          cancelledBy: line.cancelledBy ? String(line.cancelledBy) : null,
-        };
-        itemLines.push(entry);
-        everyLine.push(entry);
-      }
     }
 
     const names = await ctx.personNames([
@@ -191,7 +152,6 @@ export default {
       ...orderRows.map((row) => row.cancelledBy),
       ...orders.map((order) => order.openedBy),
       ...voidedBills.map((bill) => bill.voidedBy),
-      ...revisedBills.flatMap((bill) => bill.revisions.flatMap((entry) => [entry.by, entry.approvedBy])),
     ]);
     const nameOf = (id) => (id ? names.get(String(id)) ?? 'Unknown' : 'Not recorded');
 
@@ -216,13 +176,6 @@ export default {
       };
     };
 
-    const items = itemLines
-      .map((entry) => {
-        const row = shaped(entry);
-        if (entry.line.cancelReason) row.reason = `${row.reason}: ${entry.line.cancelReason}`;
-        return { ...row, drill: { itemName: { report: 'ORDER', query: { orderId: row.orderId } } } };
-      })
-      .sort((a, b) => a.cancelledAt - b.cancelledAt);
     const allLines = everyLine.map(shaped);
 
     const ordersSection = orderRows
@@ -238,25 +191,6 @@ export default {
       drill: { billNumber: toBills({ from: params.from, to: params.to, status: 'VOIDED', billNumber: bill.billNumber }) },
     }));
 
-    const billChanges = revisedBills
-      .flatMap((bill) =>
-        bill.revisions
-          .filter((entry) => inRange(entry.at))
-          .map((entry) => ({
-            billNumber: bill.billNumber,
-            at: entry.at,
-            kind: entry.kind,
-            change: CHANGE_WORDS[entry.kind] ?? entry.kind,
-            items: entry.lines.map((line) => `${line.quantity} × ${line.variantName ? `${line.itemName} (${line.variantName})` : line.itemName}`).join(', '),
-            beforeInPaise: entry.previousGrandTotalInPaise,
-            afterInPaise: entry.newGrandTotalInPaise,
-            changedByName: nameOf(entry.by),
-            approvedByName: entry.approvedBy ? nameOf(entry.approvedBy) : null,
-            afterPrinting: entry.wasPrinted ? 'Yes' : 'No',
-            drill: { billNumber: toBills({ from: bill.businessDate, to: bill.businessDate, billNumber: bill.billNumber }) },
-          })),
-      )
-      .sort((a, b) => a.at - b.at);
     const paidBeforePrint = paidUnprinted.map((bill) => ({
       billNumber: bill.billNumber,
       billedAt: bill.billedAt,
@@ -273,20 +207,10 @@ export default {
     return {
       sections: [
         {
-          key: 'items',
-          title: 'Items cancelled',
-          columns: itemColumns,
-          rows: items.slice((page - 1) * limit, page * limit),
-          totals: {
-            quantity: sumPaise(0, ...items.map((row) => row.quantity)),
-            lineTotalInPaise: sumPaise(0, ...items.map((row) => row.lineTotalInPaise)),
-          },
-        },
-        {
           key: 'orders',
           title: 'Orders cancelled',
           columns: orderColumns,
-          rows: ordersSection,
+          rows: ordersSection.slice((page - 1) * limit, page * limit),
           totals: { count: ordersSection.length, lineTotalInPaise: sumPaise(0, ...ordersSection.map((row) => row.lineTotalInPaise)) },
         },
         {
@@ -295,16 +219,6 @@ export default {
           columns: voidColumns,
           rows: voids,
           totals: { count: voids.length, billTotalInPaise: sumPaise(0, ...voids.map((row) => row.billTotalInPaise)) },
-        },
-        {
-          key: 'billChanges',
-          title: 'Bills changed before payment',
-          columns: changeColumns,
-          rows: billChanges,
-          totals: {
-            count: billChanges.length,
-            removedValueInPaise: sumPaise(0, ...billChanges.filter((row) => row.kind === 'REMOVED').map((row) => row.beforeInPaise - row.afterInPaise)),
-          },
         },
         {
           key: 'paidBeforePrint',
@@ -318,7 +232,7 @@ export default {
         { key: 'byItem', title: 'By item', columns: summaryColumns(LABELS.ITEM), rows: byItem, totals: summaryTotals(byItem) },
       ],
       extra: { headline: { wastedValueInPaise } },
-      meta: { page, limit, total: items.length },
+      meta: { page, limit, total: ordersSection.length },
     };
   },
 

@@ -217,20 +217,20 @@ export default function BillScreenPage() {
   };
 
   /**
-   * P29 Part D. A bill just made on this counter prints at once when this
-   * device asks for it. Once, and only for the till: a captain's bill goes to
-   * the counter's queue as before.
+   * P57. Save & Print on the order screen: the bill just made prints here, on
+   * this device, once. Save prints nothing. A captain's goes to the counter's
+   * queue instead, sent before arriving here.
    */
-  const justMade = Boolean(location.state?.justMade);
+  const printNow = Boolean(location.state?.printNow);
   const tillRole = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER].includes(user?.role);
   useEffect(() => {
-    if (!justMade || autoPrinted.current || !bill || !device.printBillOnCreate || !tillRole) return;
+    if (!printNow || autoPrinted.current || !bill || !tillRole) return;
     if ((bill.printCount ?? 0) > 0 || bill.isVoided) return;
     autoPrinted.current = true;
     navigate(location.pathname, { replace: true, state: null });
     print();
     // print reads the device's printer; whether to print at all is decided by the values above.
-  }, [justMade, bill, device.printBillOnCreate, tillRole]);
+  }, [printNow, bill, tillRole]);
 
   if (billQuery.isPending) {
     return (

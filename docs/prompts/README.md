@@ -63,5 +63,8 @@ The full table, with dependencies and owners, is in
 | P52 | Campaigns: offers and new dishes | Written by Arya, not saved here yet; comes after P37 has run on a real WhatsApp account. Numbered P38 in P37's prompt. |
 | P53 | Attribution and campaign reporting | Not written yet. Numbered P39 in P37's prompt. |
 | P54 | Constant backups | Done, waiting for Arya to switch on: the storage secret, then the practice restore. Written as P44. |
+| P55 | The owner's dashboard, beside the ERP | Built 2026-10-15. Written as P51 and renumbered on merging Arya's P51 to P54. Arya's read outstanding. |
+| P56 | A note for every dish, the guest's details before the first KOT, and only whole voids in the void lists | Built 2026-10-15. Arya's read outstanding. |
+| P57 | The bill in one place: review, discount, then Save or Save & Print | Built 2026-10-17. Arya's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.

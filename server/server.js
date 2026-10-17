@@ -256,7 +256,9 @@ export async function startServer() {
   // P25 Part G. One loop per process; version 1 runs one instance.
   if (!config.isTest) startJobLoop();
 
-  const server = app.listen(config.PORT, () => {
+  // 2026-10-17. Bound to 0.0.0.0 by name: Render's port scan looks there, and
+  // with Node's default (::) a deploy timed out though the server was answering.
+  const server = app.listen(config.PORT, '0.0.0.0', () => {
     logger.info(
       { port: config.PORT, environment: config.NODE_ENV, api: API_PREFIX },
       'Server listening.',

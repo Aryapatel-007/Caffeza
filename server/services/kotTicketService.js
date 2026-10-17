@@ -82,6 +82,10 @@ export function renderKotTicket({ kot, order = null, firedByName = null, width =
     if (line.length <= width) push(line);
     else for (const part of wrapName(line, width)) push(part);
   }
+  // P56. One note for every dish, where the cook reads it before the dishes.
+  if (kot.kitchenNote) {
+    for (const part of wrapName(`FOR ALL ITEMS: ${kot.kitchenNote}`, width)) push(part);
+  }
   if (firedByName) {
     for (const part of wrapName(`By ${firedByName}`, width)) push(part);
   }

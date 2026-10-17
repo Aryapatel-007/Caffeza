@@ -110,8 +110,6 @@ function Figures({ day }) {
         <dl>
           <Row label={`Discounts (${controls.discounts.count})`} value={<Money paise={controls.discounts.totalInPaise} />} />
           <Row label={`No Charge (${controls.noCharge.count})`} value={<Money paise={controls.noCharge.valueInPaise} />} />
-          <Row label={`Items cancelled (${controls.cancelledItems.count})`} value={<Money paise={controls.cancelledItems.valueInPaise} />} />
-          <Row label="Wasted value" value={<Money paise={controls.cancelledItems.wastedValueInPaise} />} />
           <Row label={`Orders cancelled (${controls.cancelledOrders.count})`} value={<Money paise={controls.cancelledOrders.valueInPaise} />} />
           <Row label={`Voided bills (${controls.voidedBills.count})`} value={<Money paise={controls.voidedBills.valueInPaise} />} />
         </dl>

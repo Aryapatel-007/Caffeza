@@ -182,27 +182,15 @@ describe('golden day B05, the shake taken off before payment', () => {
     const query = `from=${GOLDEN_DATE}&to=${GOLDEN_DATE}`;
     const r15 = ok(await request('GET', `/api/v1/reports/v2/cancellations?${query}`, { token: golden.tokens.OWNER }), 'R15');
     const section = (key) => r15.sections.find((entry) => entry.key === key);
-    const items = section('items').rows;
-    assert.equal(items.length, 1);
-    assert.equal(items[0].itemName, 'Ferrero Hazelnut Shake');
-    assert.equal(items[0].stage, 'REMOVED_FROM_BILL');
-    assert.equal(items[0].stageLabel, 'Removed from the bill before payment');
+    // P56. A dish taken off an unpaid bill is on no cancellation report: no items, no bill changes, no void.
+    assert.equal(section('items'), undefined);
+    assert.equal(section('billChanges'), undefined);
     assert.equal(section('voids').rows.length, 0);
-    const changes = section('billChanges');
-    assert.equal(changes.rows.length, 1);
-    assert.equal(changes.rows[0].billNumber, 'CFA/C/22446');
-    assert.equal(changes.rows[0].change, 'Removed');
-    assert.equal(changes.rows[0].beforeInPaise, 79500);
-    assert.equal(changes.rows[0].afterInPaise, 44900);
-    assert.equal(changes.rows[0].afterPrinting, 'No');
-    assert.equal(changes.totals.removedValueInPaise, 34600);
     assert.equal(r15.checks.find((check) => check.id === 'C13').passed, true);
 
     const r2 = ok(await request('GET', `/api/v1/reports/v2/day-close?date=${GOLDEN_DATE}`, { token: golden.tokens.OWNER }), 'R2');
     const controls = r2.sections.find((entry) => entry.key === 'controls').rows;
-    const changed = controls.find((row) => row.line === 'Bills changed before payment');
-    assert.equal(changed.count, 1);
-    assert.equal(changed.amountInPaise, 34600);
+    assert.equal(controls.find((row) => row.line === 'Bills changed before payment'), undefined, 'P56: off the list');
 
     const r10 = ok(await request('GET', `/api/v1/reports/v2/invoice-register?${query}`, { token: golden.tokens.OWNER }), 'R10');
     const rows = r10.rows.filter((row) => row.billNumber === 'CFA/C/22446');

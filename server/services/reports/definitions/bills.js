@@ -38,7 +38,12 @@ export async function billFilterMatch(req, params) {
   if (params.captainId) match.captainId = oid(params.captainId);
   if (params.table) match.tableName = params.table;
   if (params.method) match['payments.method'] = params.method;
-  if (params.status === 'VOIDED') match.isVoided = true;
+  if (params.status === 'VOIDED') {
+    match.isVoided = true;
+    // P56. Voided only to change the items, and billed again: not a voided bill.
+    // Found by its number, as the invoice register's drill does.
+    if (!params.billNumber) match.isVoidedToChangeItems = { $ne: true };
+  }
   else if (params.status) match.status = params.status;
   if (params.categoryName) match['lines.categoryName'] = params.categoryName;
   if (params.itemName) match['lines.itemName'] = params.itemName;

@@ -22,6 +22,7 @@ import {
   MIN_LINE_QUANTITY,
   CANCEL_REASON_MAX_LENGTH,
   CUSTOMER_NAME_MAX_LENGTH,
+  KITCHEN_NOTE_MAX_LENGTH,
   LINE_NOTES_MAX_LENGTH,
   ORDER_STATUS_VALUES,
   ORDER_TYPES,
@@ -494,6 +495,45 @@ export const markLineServedSchema = z.object({
 export const moveOrderTableSchema = z.object({
   params: orderIdParam,
   body: z.object({ version, tableId: objectId }).strict('Is not a field you can set here.'),
+});
+
+/** P56. One note for every dish; an empty string, like null, clears it. */
+export const kitchenNoteSchema = z.object({
+  params: orderIdParam,
+  body: z
+    .object({
+      version,
+      kitchenNote: z
+        .string({ error: 'Must be text, or null.' })
+        .trim()
+        .max(KITCHEN_NOTE_MAX_LENGTH, `Cannot be longer than ${KITCHEN_NOTE_MAX_LENGTH} characters.`)
+        .transform((value) => value || null)
+        .nullable(),
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+/** P56. The guest's details, set before the first KOT. */
+export const orderCustomerSchema = z.object({
+  params: orderIdParam,
+  body: z
+    .object({
+      version,
+      customerName: nonEmptyString
+        .max(CUSTOMER_NAME_MAX_LENGTH, `Cannot be longer than ${CUSTOMER_NAME_MAX_LENGTH} characters.`)
+        .optional(),
+      customerPhone: phoneIndia.optional(),
+      offersConsent: z.boolean({ error: 'Must be true or false.' }).optional(),
+    })
+    .strict('Is not a field you can set here.')
+    .refine((body) => body.customerName !== undefined || body.customerPhone !== undefined, {
+      path: ['customerName'],
+      message: "Give the guest's name or mobile.",
+    })
+    .refine((body) => !body.offersConsent || Boolean(body.customerPhone), {
+      path: ['offersConsent'],
+      message: "Add the guest's mobile number to record that they agreed to offers.",
+    }),
 });
 
 export const cancelOrderSchema = z.object({
