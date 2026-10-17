@@ -1,4 +1,6 @@
 import { lazy, Suspense } from 'react';
+
+import { loadScreen } from './utils/loadScreen.js';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { ScreenLoading } from './components/AppShell.jsx';
@@ -23,7 +25,8 @@ import { ROLES } from './features/users/roles.js';
  * The service screens above stay in the main chunk: a captain or a cashier never waits for
  * one mid-rush. AppShell's Suspense draws the screen's still shape while a chunk arrives.
  */
-const lazyScreen = (load, name) => lazy(() => load().then((group) => ({ default: group[name] })));
+// loadScreen reloads once when a screen's file is gone after a deploy, rather than a blank page.
+const lazyScreen = (load, name) => lazy(() => loadScreen(load).then((group) => ({ default: group[name] })));
 const reportsGroup = () => import('./routes/reports.js');
 const settlementGroup = () => import('./routes/settlement.js');
 const settingsGroup = () => import('./routes/settings.js');
@@ -136,7 +139,7 @@ const SETTINGS_ROLES = [ROLES.OWNER];
  * P23. The guest's page, in its own chunk. Since P32 the back-office screens
  * are in chunks of their own too, so a guest no longer downloads them.
  */
-const PublicSite = lazy(() => import('./features/public/PublicSite.jsx'));
+const PublicSite = lazy(() => loadScreen(() => import('./features/public/PublicSite.jsx')));
 
 /**
  * Routes.

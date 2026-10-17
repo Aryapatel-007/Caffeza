@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -587,6 +587,18 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-18 Rishi, a screen that cannot load reloads once instead of going blank
+
+What was built or decided:
+Rishi saw a blank page on Bills in the test portal: the portal had stopped (a session background task, 2 hours at most), and Bills' code comes from the settlement chunk (P32), so the failed `import()` unmounted the whole app. The same happens on the live app to any tablet left open across a deploy: Vercel answers an old chunk's address with `index.html`. Client only, no spec change.
+1. `client/src/utils/loadScreen.js`: every lazy screen (`lazyScreen` in `App.jsx`, and the public site) reloads the page once when its file cannot load, at most once in 10 seconds (`sessionStorage`), so the new file names are fetched.
+2. `client/src/components/ScreenErrorBoundary.jsx`, around `App` in `main.jsx`: if a screen still fails, "This screen could not load. Check the connection, then reload." with Reload, never a blank page. A class component, the one exception to CONVENTIONS section 10, because React catches render errors only in a class.
+
+Tests: new `e2e/staleScreen.spec.js` (the settlement chunk answered with HTML: one reload, then the message; with the file back, Reload opens Bills). It, `goldenDay.spec.js` and `billInOnePlace.spec.js` pass; the design, client-name and online client guards (16) pass; lint and build pass.
+
+Anything the other developer needs to know:
+Arya: a new lazy screen goes through `lazyScreen` or `loadScreen`, never a bare `lazy(() => import(...))`.
 
 ### 2026-10-17 Arya, P58 one kitchen ticket per Send, not per station
 
