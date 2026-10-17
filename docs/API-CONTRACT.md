@@ -2402,6 +2402,9 @@ like `"2026-27"`, in `FINANCIAL_YEAR` mode, and the prefix, like `"CFA/C/"`, in
 `PREFIX` mode. Bills created before P02 have `null`, which means the financial
 year series.
 
+From P57 the request may also carry a `discount` and `preview: true`; see "P57
+The bill in one place".
+
 ### 14.2 Read one bill
 
 ```
@@ -9109,6 +9112,64 @@ R2 `day-close`'s `controls` section has no `Items cancelled`, `Wasted value` or
 snapshot still carry `figures.controls.cancelledItems` and `billRevisions`
 exactly as before, so C12 and every check read the same figures; the Day Close
 screen, the Day End page and the printed Day Close stop showing them.
+
+## Error codes
+
+None new.
+
+# P57 The bill in one place
+
+Asked for by Rishi, 2026-10-17. The prompt is `docs/prompts/P57-bill-in-one-place.md`.
+
+## 1. `POST /bills` takes a discount and a preview
+
+```
+POST /api/v1/bills
+```
+
+```json
+{
+  "orderId": "652f...",
+  "version": 9,
+  "discount": { "kind": "PERCENT", "rateBps": 1000, "reasonCode": "REGULAR_GUEST", "note": null },
+  "preview": true
+}
+```
+
+Both new fields are optional; without them the endpoint is exactly M3 14.1.
+
+`discount` is the body of `POST /bills/:billId/discount` (14.4): `kind`
+`FLAT` with `valueInPaise`, or `PERCENT` with `rateBps`, `reasonCode`, `note`
+(required for `OTHER`) and `fundedBy` (default `RESTAURANT`; `PLATFORM` only for
+a platform reason). It is applied to the new bill inside the creating
+transaction, stored exactly as 14.4 stores it, with `appliedBy` the caller, and
+writes the same `DISCOUNT_APPLIED` audit line once the transaction commits.
+
+- 403 `FORBIDDEN` when the caller may not give that discount
+  (`billPermissionService.assertCanDiscount`, as 14.4): a captain never; a
+  cashier only a platform discount, and only when
+  `discounts.cashierMayApplyPlatformDiscounts` is on.
+- 422 `BUSINESS_RULE_VIOLATED` when a flat discount is more than the item total.
+- 422 `BUSINESS_RULE_VIOLATED`, "This order carries its last bill's discount.
+  Change it on the new bill.", on an order with `reopenedFromBillId` (P26).
+
+`preview: true` runs the whole creation, discount included, inside its
+transaction and rolls it back. Nothing is written: no bill, no bill number used
+(the counter is untouched), no change to the order or its version, no audit
+line, no live-channel announcement. Response 200:
+
+```json
+{ "preview": true, "billNumber": null, "subtotalInPaise": 42000, "discount": { "amountInPaise": 4200 }, "taxBreakdown": [], "roundOffInPaise": 0, "grandTotalInPaise": 39700, "lines": [] }
+```
+
+the bill as it would be, every figure from `utils/tax.js` as on a real bill,
+with `billNumber` null and no `id`. Every refusal a real creation makes (order
+not ready, stale version, closed day, wrong restaurant, a captain not allowed to
+bill) a preview makes too.
+
+## 2. Roles
+
+Unchanged from 14.1 and P25 Part D for creating; `discount` adds 14.4's rule.
 
 ## Error codes
 

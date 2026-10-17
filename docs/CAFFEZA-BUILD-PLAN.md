@@ -126,6 +126,7 @@ Each prompt names its model at the top.
 | P54 | Constant backups | Phase 2 operations | P43 | Arya | Opus, high |
 | P55 | The owner's dashboard, beside the ERP | M19, M20 | P18, P44 | Rishi | Opus, high |
 | P56 | A note for every dish, the guest's details before the first KOT, and only whole voids in the void lists | M2, M3, M18, M19, M22 | P27, P36, P50 | Rishi | Opus, high |
+| P57 | The bill in one place: review, discount, then Save or Save & Print | M3, M2 | P29, P42, P48 | Rishi | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

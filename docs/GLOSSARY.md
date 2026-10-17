@@ -765,3 +765,16 @@ Added by P56.
 | **Save and send** | Keep the guest's details and send the dishes to the kitchen |
 | **Skip, send without details** | Send the dishes without the guest's details |
 | **Voided to change items** | A bill voided only so its items could change after billing, and billed again. Not a voided bill on any list; its numbers stay in the invoice register. |
+
+---
+
+## 40. The bill in one place
+
+Added by P57.
+
+| Term | Meaning |
+|---|---|
+| **Bill** | On a served order, the box under the dishes: the discount, the totals and Save, before the bill is made |
+| **Add discount** | Choose a discount before the bill is made. Nothing is saved until Save. |
+| **Save** | Make the bill, print nothing |
+| **Save & Print** | Make the bill and print it (P48's word, now on every served order) |
