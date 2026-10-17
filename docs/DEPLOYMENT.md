@@ -614,6 +614,7 @@ Found by P30 on 2026-10-10, by reading the cluster's own node tags.
 | Part | Region |
 |---|---|
 | Render service `zchaat-pos-api` | Singapore |
+| Atlas cluster `cluster0.onbbqdp` (live since 2026-10-17) | AWS Singapore (`ap-southeast-1`) |
 | Atlas `cluster0.dkcsfcz` | AWS `ap-south-1`, Mumbai |
 
 Every query crosses Singapore to Mumbai and back. `authenticate` makes two
