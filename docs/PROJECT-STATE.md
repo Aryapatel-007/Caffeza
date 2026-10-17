@@ -564,6 +564,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-15 | A practice restore runs every Sunday on GitHub and checks counts, the invoice series and C12. | A backup nobody has restored is only a hope. |
 | 2026-10-15 | A failed full copy is tried again after 2 minutes, then 10, 30, and every hour, not every minute. | The first live deploy had a wrong storage secret and tried once a minute; every try reads the whole database against Atlas M0's weekly read limit. Harmless at 0.7 MB today, not at 200 MB. |
 | 2026-10-17 | P57: a served order is billed from a Bill box under its dishes: the discount chosen there, the totals shown from a preview of `POST /bills` (`preview: true`, rolled back, no number used), then Save or Save & Print. `POST /bills` takes the discount in the same request. Bill this order and This device's "Print the bill as soon as it is made" are gone. | Rishi, with PetPooja's billing screen: a discount or a change after the bill printed meant a PIN and a second print. A preview keeps every figure on the server, and one request means a bill never prints without its discount. |
+| 2026-10-17 | P58: `kitchen.splitTicketsByStation` (default on). Off, each Send to the kitchen is one ticket with every dish and no station of its own, and the kitchen screen has no station chips; each ticket line still keeps its station. | Arya, for Z Chaat: "only table wise", but a later Send from the same table must still be its own KOT. A setting rather than a new default, so no restaurant changes until its owner switches it; the line stations keep R13's kitchen time by station. |
 ---
 
 ## Open questions
@@ -585,6 +586,18 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-17 Arya, P58 one kitchen ticket per Send, not per station
+
+Asked for by Arya for Z Chaat: no Chaat Counter or Beverages sections on the KOT, only the table, and a later Send from the same table still its own KOT. Seen on the live data (read only): Table 2's one Send at 7:46 PM on 17 October made KOT 204 (Chaat Counter) and KOT 205 (Kitchen). The prompt is `docs/prompts/P58-one-ticket-per-send.md`; spec `0512be6`, code `bef7f18`.
+
+1. `settings.kitchen.splitTicketsByStation`, default on, in the kitchen group of `GET` and `PATCH /settings` (owner) and on `/auth/me`. Settings, Kitchen: "A separate ticket for each station".
+2. Off (`kitchenService.fireOrder`): one ticket per Send with every dish (with `oneTicketPerOrder` off, as at Z Chaat) or the order's one ticket (on); the ticket's own station is null, so it prints under KITCHEN. Lines keep their stations.
+3. Off, the kitchen screen: no station chips, every ticket whole whatever station the device saved, auto-print prints each new ticket whole without a station chosen. Only one kitchen device should auto-print.
+
+Tests: `oneTicketPerSend.test.js` (5): one ticket across three stations with no station and each line's own; a second Send a second ticket with the next number; on, three tickets as P05; one ticket per order with no station; the default, `/auth/me`, owner only. With the rule removed on purpose, 2 of 5 fail. Changed on purpose: `settings.test.js` and `printBeforePayment.test.js` pin the kitchen block. Full suite after the merge with Rishi's P55 to P57: 1,407, 1,406 passing; the one failure was `printBeforePayment.test.js` pinning `/auth/me`'s kitchen block, updated and passing. `npm run e2e`: all 34 pass, with the new `e2e/oneTicketPerSend.spec.js`. Lint and build pass.
+
+Not pushed, at Arya's word. Nothing was changed on the live server or database. After the deploy, Z Chaat's owner switches "A separate ticket for each station" off in Settings, Kitchen.
 
 ### 2026-10-17 Rishi, Z Chaat's database copied to Atlas Singapore, waiting for Render's switch
 
