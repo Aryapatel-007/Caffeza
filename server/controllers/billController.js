@@ -68,8 +68,13 @@ export async function postBill(req, res) {
     const order = await Order.findOne({ ...scoped(req), _id: req.body.orderId }).select('orderType').lean();
     assertCanBill(req.user, order, await getSettingsGroup(req, 'billing'));
   }
+  // P57. A discount given with the bill follows the bill screen's rule exactly.
+  if (req.body.discount) {
+    const cashierMayApplyPlatformDiscounts = await getSetting(req.restaurantId, 'discounts.cashierMayApplyPlatformDiscounts', { req });
+    assertCanDiscount(req.user, { reasonCode: req.body.discount.reasonCode, cashierMayApplyPlatformDiscounts });
+  }
   const bill = await createBill(req, req.body);
-  return sendSuccess(res, bill, 201);
+  return sendSuccess(res, bill, req.body.preview ? 200 : 201);
 }
 
 /** GET /bills/:billId */

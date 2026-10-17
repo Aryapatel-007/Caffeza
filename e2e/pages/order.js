@@ -150,7 +150,8 @@ export async function giveNoCharge(page, reason) {
 export async function billOrder(page) {
   await page.reload();
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  await page.getByRole('button', { name: 'Bill this order' }).click();
+  // P57. The Bill box's Save makes the bill and prints nothing; these tests print where they mean to.
+  await page.getByRole('region', { name: 'Bill' }).getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL(/\/bills\/[a-f0-9]{24}$/);
   return page.url();
 }

@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -557,6 +557,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-12 | `npm run assistant:eval` is the check on the system prompt: 82 labelled guest messages in English, Hindi, Gujarati and Hinglish, sent once each to a real model with the real prompt and tools. The bar is no clear stop missed, nothing that is not a stop taken as one, and 95% overall. It is run by hand, with a key from the root `.env`, never in `npm test`. | A prompt is code nobody can unit test. The eval is how a change to it is known to be better or worse, and the numbers go here each time. |
 | 2026-10-11 | P37, built differently from its prompt: the prompt was written as P34 and renumbered P37 (campaigns P38, attribution P39), at Arya's choice; it was built against a fake Meta because Z Chaat has no WhatsApp Business Account yet; the idempotency key is the integration job's `dedupeKey` on its existing unique index, not a new collection; a job names the guest by id, never by number; a 4xx from Meta is final and never retried; a delivery failure that says the number is not on WhatsApp sets `customers.whatsappUnreachableAt`; the receipt hangs on the bill becoming PAID in the model, after commit, through `utils/afterCommit.js`, which P33's live channel now shares. | The number clash would have repeated the double P30. Every other point is written into API-CONTRACT "P37" and DB-SCHEMA section 47, so the next reader does not take it for a mistake. |
 | 2026-10-15 | Arya's WhatsApp prompts are renumbered on the merge with Rishi's P38 to P50: the assistant, written as P39, is P51; campaigns, P38 in P37's prompt, are P52; attribution, P39 there, is P53. P37 keeps its number. | Both developers numbered prompts from P38 the same week, and Rishi's reached `main` first and are deployed. Renumbering the unpushed ones breaks nothing live. |
+| 2026-10-17 | P57: a served order is billed from a Bill box under its dishes: the discount chosen there, the totals shown from a preview of `POST /bills` (`preview: true`, rolled back, no number used), then Save or Save & Print. `POST /bills` takes the discount in the same request. Bill this order and This device's "Print the bill as soon as it is made" are gone. | Rishi, with PetPooja's billing screen: a discount or a change after the bill printed meant a PIN and a second print. A preview keeps every figure on the server, and one request means a bill never prints without its discount. |
 ---
 
 ## Open questions
@@ -578,6 +579,20 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-17 Rishi, P57 the bill in one place
+
+What was built or decided:
+Asked for by Rishi with a photo of PetPooja's billing screen: once the food is served, a discount, a removed dish or a second look must come before the bill is made and printed, not after. Spec first (`spec the bill in one place: ...`): `docs/prompts/P57-bill-in-one-place.md`, API-CONTRACT "P57" and a pointer in 14.1, GLOSSARY section 40.
+1. Server: `POST /bills` takes an optional `discount` (14.4's body), applied inside the creating transaction through `requestedDiscount` in `services/billService.js`, stored as 14.4 stores it and audited as `DISCOUNT_APPLIED` once committed (`auditDiscount`, now shared with `applyDiscount`); the controller checks it with `assertCanDiscount`. An order reopened from a bill refuses it (422). `preview: true` runs the whole creation and rolls it back (`PreviewOnly`), answering the bill with `billNumber: null` and no `id`, status 200.
+2. Order screen: a served order with no bill shows the **Bill** box (`features/billing/BillComposer.jsx`) under its dishes: Add discount (the bill's `DiscountPanel`, for those who may discount), Item total, Discount, CGST and SGST, Round-off and Bill total from the preview, re-read on every change to the order or the discount, then **Save** and **Save & Print** (a captain's: Save & Print at counter, through the print queue). `BillOrderButton` now only opens an existing bill. The bill screen prints on arrival only after Save & Print (`state.printNow`); This device's "Print the bill as soon as it is made" is removed.
+
+Tests: `billInOnePlace.test.js` (4): a preview writes nothing (no bill, no counter, no order version change, no audit) and matches the real bill; a discounted preview matches bill-then-discount; billing with a discount stores it, names who gave it, audits it once and matches bill-then-discount; refusals (cashier and captain discounts 403, flat over the total 422, stale 409, another restaurant 404, a reopened order 422). Removing the rollback on purpose fails 2. Browser: new `e2e/billInOnePlace.spec.js` (a manager on the counter computer discounts 10% before saving, the total falls, Save & Print prints once and asks for the payment; a captain on a phone has no discount, no sideways scroll, and Save & Print at counter queues it); `e2e/pages/order.js` `billOrder` clicks Save. Those two and addAfterBilling, billRevision, cancelAfterBilling, captainBilling, customers, the golden day, online (3), printedBillAdd and whatsapp pass. Full `npm test`: 1,400 passing, 0 failing (a first run stalled at 30 minutes while browser tests and the test portal ran beside it; rerun alone in 12 minutes). Lint passes.
+
+Also answered: the server runs on Render in Singapore (`render.yaml` `region: singapore`, free plan) and the database is the Atlas cluster `cluster0.dkcsfcz` in AWS Mumbai (`ap-south-1`), read 2026-10-17 from the cluster's node tags and the live release's `serverstarts` row there. The Singapore copy from 10 October (`cluster0.onbbqdp`) was never switched to.
+
+Anything the other developer needs to know:
+Arya: "Bill this order" is gone from the order screen; a served order is billed from its Bill box. An e2e step that bills uses `billOrder`, which now clicks Save.
 
 ### 2026-10-17 Rishi, Void on the cash book fixed, a cashier's void with a PIN, and a bigger menu search
 

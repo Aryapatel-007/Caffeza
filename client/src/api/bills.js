@@ -24,9 +24,12 @@ function toQuery(params = {}) {
   return query ? `?${query}` : '';
 }
 
-/** Creates the bill for an order. The order's current version, from the order screen. */
-export function createBill({ orderId, version }) {
-  return api.post('/bills', { orderId, version });
+/**
+ * Creates the bill for an order. The order's current version, from the order screen.
+ * P57: with the discount chosen before Save, and `preview` for the totals shown before it.
+ */
+export function createBill({ orderId, version, discount, preview }) {
+  return api.post('/bills', { orderId, version, ...(discount ? { discount } : {}), ...(preview ? { preview: true } : {}) });
 }
 
 export function getBill(billId) {
