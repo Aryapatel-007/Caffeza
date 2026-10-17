@@ -580,6 +580,14 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-17 Rishi, Z Chaat's database copied to Atlas Singapore, waiting for Render's switch
+
+At Rishi's word, with the Singapore cluster's address and password (`cluster0.onbbqdp`, AWS `ap-southeast-1`, free M0, no backups). The address is in this Mac's `.env` as `SINGAPORE_MONGO_URI` only.
+1. The Singapore `restaurant-erp` held the copy of 10 October, with the 26 trial bills deleted from the live database on 13 October, whose numbers the real bills reuse; `sync` never deletes, so merging would have put two bills under one number. That copy was saved to the git-ignored `backups/singapore-stale-copy-2026-10-17T13-47-07-456Z/` (477 documents, each file read back), then the database dropped, checked first to be the Singapore cluster and not the live address.
+2. Indexes built there (`npm run db:indexes`): 42 collections, 263 indexes, no documents. Then `npm run db:copy -- copy` from Mumbai: 23 collections, 2,469 documents; `verify` found every document on both sides, and a SHA-256 over every collection found each document identical field for field. Bills `2026-27/000001` to `000079`, no gap, no repeat; counters BILL 79, ORDER 90, KOT 199, RESERVATION 1.
+3. `db:copy -- sync` runs every 30 seconds from this Mac until Render's `MONGO_URI` changes, and once more after it.
+Still to do: Rishi changes `MONGO_URI` on Render to the Singapore address; check `/api/v1/health` and a live screen; the last sync; this Mac's `MONGO_URI` moved to Singapore. The Mumbai cluster is left untouched as the backup. The password was pasted into a chat: change it in Atlas once the move is done, then update Render and `.env`.
+
 ### 2026-10-17 Rishi, P57 the bill in one place
 
 What was built or decided:
@@ -1589,6 +1597,6 @@ Things that are broken or half done, so nobody rediscovers them.
 | The online page address has no printable QR code yet, only a link with Copy. | Rishi, 2026-10-08 | OPEN. Needs a small client QR library, which is a dependency decision. |
 | Client date filters assume the business day starts at 5:00 AM, because cashiers cannot read `GET /settings`. If a restaurant changes `businessDayStartsAtMinutes`, default dates on the bills list, attendance register and report screens will be off. Caffeza uses 5:00 AM. | Arya, P01 | OPEN |
 | The API is on Render's free plan, so it sleeps after fifteen minutes with no request, and the first screen after that waits for it to start: about a minute by Render's account. Not measured, because Z Chaat was in service all through P30; `docs/PERFORMANCE-BASELINE.md` section 1 has the command to run before opening. | Rishi, P30, 2026-10-10 | OPEN by Rishi's choice. A paid plan removes it with no code change: `plan: starter` in `render.yaml`. |
-| The server is in Singapore and the Atlas cluster in Mumbai, so every query crosses between them. | Rishi, P30, 2026-10-10 | IN PROGRESS 2026-10-10: a new cluster in AWS Singapore (`cluster0.onbbqdp`) holds a verified copy, kept caught up every 30 seconds, waiting for Rishi to set `MONGO_URI` on Render. DEPLOYMENT.md section 15. |
+| The server is in Singapore and the Atlas cluster in Mumbai, so every query crosses between them. | Rishi, P30, 2026-10-10 | IN PROGRESS again 2026-10-17: the Singapore cluster emptied of its stale 10 October copy, filled with an exact copy and kept caught up every 30 seconds; waiting for Render's `MONGO_URI`. Before that, 2026-10-10: a new cluster in AWS Singapore (`cluster0.onbbqdp`) holds a verified copy, kept caught up every 30 seconds, waiting for Rishi to set `MONGO_URI` on Render. DEPLOYMENT.md section 15. |
 | `auditTrail.test.js` (4 tests) fails when run between 5:00 and 9:00 AM India time, like the `reports.test.js` row above; the same on `39810be` as after P54. | Arya, P54, 2026-10-15 | OPEN. A test problem, not a product one: set the clock in those tests. |
 | `e2e/goldenDay.spec.js` can fail at 8:40 PM: the Live Kitchen's half-second hold on Table 18's ticket does not take, and `markReady` waits for a ticket that stays. Seen once, on the full run of 2026-10-11; the golden day passed on its own run straight after. | Arya, P35, 2026-10-11 | OPEN. A test timing flake, not seen in service. If it comes back, `markReady` in `e2e/pages/kitchen.js` should wait for the hold's own confirmation instead of a fixed 700 ms press. |
