@@ -778,3 +778,13 @@ Added by P57.
 | **Add discount** | Choose a discount before the bill is made. Nothing is saved until Save. |
 | **Save** | Make the bill, print nothing |
 | **Save & Print** | Make the bill and print it (P48's word, now on every served order) |
+
+---
+
+## 41. Kitchen tickets without stations
+
+Added by P58.
+
+| Term | Meaning |
+|---|---|
+| **A separate ticket for each station** | The setting `kitchen.splitTicketsByStation`. Off: each Send to the kitchen is one ticket with every dish on it, headed KITCHEN; the next Send from the same table is a new ticket with a new KOT number |

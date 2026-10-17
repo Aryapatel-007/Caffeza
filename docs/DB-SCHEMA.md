@@ -3097,3 +3097,12 @@ field has a default, and no existing value changes.
 `orders.customerName` and `orders.customerPhone` (section 41) can now also be
 set after the order opens, by `PATCH /orders/:orderId/customer`, until it has a
 bill.
+
+## 58. One kitchen ticket per Send (P58)
+
+`docs/prompts/P58-one-ticket-per-send.md`. Additive: a default, no existing
+value changes, and no migration.
+
+| Collection | Field | Type | Default | Notes |
+|---|---|---|---|---|
+| `restaurants` | `settings.kitchen.splitTicketsByStation` | Boolean | true | Off: a Send's dishes go on one ticket with no station of its own, instead of one ticket per station. Each ticket line still keeps its station |

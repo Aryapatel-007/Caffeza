@@ -9179,3 +9179,44 @@ Unchanged from 14.1 and P25 Part D for creating; `discount` adds 14.4's rule.
 ## Error codes
 
 None new.
+
+# P58 One kitchen ticket per Send, not per station
+
+Asked for by Arya on 2026-10-17. `docs/prompts/P58-one-ticket-per-send.md`.
+Additive: with the new setting at its default, every endpoint behaves exactly
+as before.
+
+## 1. The setting
+
+`settings.kitchen.splitTicketsByStation`, Boolean, default `true`, on `GET` and
+`PATCH /settings` in the `kitchen` group (M7), OWNER to change, with the usual
+reason and audit line. `GET /auth/me` `kitchen` gains `splitTicketsByStation`
+beside `readyMeansServed`.
+
+## 2. Firing (changes M18 section 2 and P36 section 2)
+
+With the setting off, `POST /orders/:orderId/fire`:
+
+1. Routes every pending line to its station exactly as M18 section 2, and each
+   ticket line freezes `stationId` and `stationName` as P36 says.
+2. With `kitchen.oneTicketPerOrder` off, makes one new ticket for the Send,
+   holding every pending line, with a newly reserved `kotNumber`. A later Send
+   makes another ticket with the next number.
+3. With `kitchen.oneTicketPerOrder` on, adds to the order's one ticket as P36.
+4. The ticket's own `stationId` and `stationName` are null, even when every
+   line went to one station. The printed ticket's heading is therefore
+   `KITCHEN` (M18 3.1).
+
+The response shape is unchanged: `{ kot, kots: [kot], order, round }`.
+
+With the setting on, firing is exactly as before.
+
+## 3. Reading, marking ready, printing, reports
+
+Unchanged. A screen that shows whole tickets reads them without `stationId`,
+marks them ready without it, and prints them without it (P36 sections 3 to 5).
+R13 still groups by each line's own station.
+
+## Error codes
+
+None new.
