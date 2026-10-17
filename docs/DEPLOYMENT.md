@@ -662,7 +662,7 @@ and before anyone opens a screen:
 
 A second copy of the app where staff practise, at
 `https://zchaat-pos-test.onrender.com`, with its own database,
-`restaurant-erp-test` on the same Atlas cluster. Nothing there touches a real
+`restaurant-erp-test` on the same Atlas cluster as the live one (Singapore, `cluster0.onbbqdp`, since 2026-10-17). Nothing there touches a real
 bill or a real invoice number. One Render service serves both the screens and
 the API: the Dockerfile builds the client and the server serves it, so there is
 no second Vercel project.
