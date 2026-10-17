@@ -104,6 +104,10 @@ export async function loadKotInTenant(req, kotId) {
  * one new ticket per station on every Send, which is how a table that ordered
  * mains later got a second ticket.
  *
+ * P58. With `kitchen.splitTicketsByStation` off, a Send's lines are not split:
+ * one new ticket per Send (or the order's one ticket), with no station of its
+ * own. Each line still keeps its station, for R13.
+ *
  * A KOT number is reserved before the transaction, so an aborted fire leaves a
  * gap in the sequence rather than reusing a number. Kitchen tickets tolerate
  * gaps; see models/Counter.js for why bills will not.
@@ -125,6 +129,7 @@ export async function fireOrder(req, { orderId, version }) {
    */
   const groups = await routeLinesToStations(req, pending);
   const oneTicket = (await getSetting(req.restaurantId, 'kitchen.oneTicketPerOrder', { req })) !== false;
+  const splitByStation = (await getSetting(req.restaurantId, 'kitchen.splitTicketsByStation', { req })) !== false;
   const firedAt = nowUtc();
 
   // P36. The order's ticket, when it already has one and the restaurant keeps one per order.
@@ -156,12 +161,13 @@ export async function fireOrder(req, { orderId, version }) {
    */
   const reserve = () => nextNumber({ restaurantId: req.restaurantId, branchId: req.branchId, name: COUNTER_NAMES.KOT });
   const tickets = [];
-  if (oneTicket) {
+  if (oneTicket || !splitByStation) {
     tickets.push({
       kotId: existing?._id ?? new mongoose.Types.ObjectId(),
       kotNumber: existing ? existing.kotNumber : await reserve(),
       append: Boolean(existing),
-      station: groups.length === 1 ? groups[0].station : null,
+      // P58. Not split: the ticket has no station of its own, even if every line went to one.
+      station: splitByStation && groups.length === 1 ? groups[0].station : null,
       lines: groups.flatMap((group) => group.lines.map((line) => ticketLine(line, group.station))),
     });
   } else {

@@ -261,6 +261,8 @@ const kitchenSettingsSchema = new mongoose.Schema(
     readyMeansServed: { type: Boolean, required: true, default: true },
     /** P36. One ticket per order, every round and station on it. Off: one per station per Send, as P05. */
     oneTicketPerOrder: { type: Boolean, required: true, default: true },
+    /** P58. Off: a Send's dishes go on one ticket with no station of its own. Lines keep theirs. */
+    splitTicketsByStation: { type: Boolean, required: true, default: true },
   },
   { _id: false },
 );

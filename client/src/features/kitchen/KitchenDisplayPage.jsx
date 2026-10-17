@@ -56,18 +56,24 @@ function finishedAt(lines) {
  * remembered on the device. With auto-print on and one station chosen, every
  * ticket that appears for the first time prints once.
  *
+ * P58. With `kitchen.splitTicketsByStation` off, there are no stations here:
+ * no picker, every ticket whole, whatever station the device has saved, and
+ * auto-print prints every new ticket whole.
+ *
  * Everything here is sized for someone standing back from a screen with their
  * hands full: big type, whole rows as tap targets, and no nested navigation.
  */
 export default function KitchenDisplayPage() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, features } = useAuth();
   const [device, updateDevice] = useDeviceSettings();
   const [error, setError] = useState(null);
   // KOT ids whose print failed on this screen. Shown as "Not printed".
   const [notPrinted, setNotPrinted] = useState(() => new Set());
 
-  const chosenStation = device.kitchenStationId ?? user?.stationId ?? ALL_STATIONS;
+  // P58. Without stations, the device's saved station is kept but not used.
+  const usesStations = features?.kitchen?.splitTicketsByStation !== false;
+  const chosenStation = usesStations ? (device.kitchenStationId ?? user?.stationId ?? ALL_STATIONS) : ALL_STATIONS;
   const stationFilter = chosenStation === ALL_STATIONS ? undefined : chosenStation;
 
   const stations = useQuery({ queryKey: ['stations'], queryFn: () => listStations() });
@@ -167,17 +173,18 @@ export default function KitchenDisplayPage() {
    */
   const printing = useRef(false);
   useEffect(() => {
-    if (!device.autoPrintKots || !stationFilter || !tickets.isSuccess || printing.current) return;
+    // P58. Without stations, every ticket is this device's to print.
+    if (!device.autoPrintKots || (usesStations && !stationFilter) || !tickets.isSuccess || printing.current) return;
     /**
      * P36. One slip per round of a ticket with this station's dishes in it,
      * remembered as "ticket:round". A ticket id on its own, remembered before
      * P36, stands for its first round.
      */
     const onScreen = (tickets.data?.data ?? []).flatMap((kot) =>
-      [...new Set(kot.lines.filter((line) => line.stationId === stationFilter).map((line) => line.round ?? 1))].map((round) => `${kot.id}:${round}`),
+      [...new Set(kot.lines.filter((line) => !stationFilter || line.stationId === stationFilter).map((line) => line.round ?? 1))].map((round) => `${kot.id}:${round}`),
     );
     const printedBefore = (key) => device.printedKotIds.includes(key) || (key.endsWith(':1') && device.printedKotIds.includes(key.slice(0, -2)));
-    const seedKey = `${device.autoPrintArmedAt ?? 0}:${stationFilter}`;
+    const seedKey = `${device.autoPrintArmedAt ?? 0}:${stationFilter ?? 'all'}`;
 
     if (device.autoPrintSeededFor !== seedKey) {
       updateDevice((current) => ({
@@ -203,7 +210,7 @@ export default function KitchenDisplayPage() {
     })();
     // printKot reads the device width; the dependencies below are what decide
     // whether there is anything new to print.
-  }, [tickets.data, device.autoPrintKots, device.autoPrintSeededFor, device.autoPrintArmedAt, stationFilter]);
+  }, [tickets.data, device.autoPrintKots, device.autoPrintSeededFor, device.autoPrintArmedAt, stationFilter, usesStations]);
 
   const clock = useMinuteClock();
   const targets = new Map((stations.data ?? []).map((station) => [station.id, station.targetMinutes ?? DEFAULT_TARGET_MINUTES]));
@@ -304,13 +311,13 @@ export default function KitchenDisplayPage() {
           <p className="type-num-tile">{formatTimeIst(clock)}</p>
           <p className="type-caption text-muted">
             Updates every 10 seconds
-            {device.autoPrintKots && stationFilter && ' · Printing new tickets'}
+            {device.autoPrintKots && (stationFilter || !usesStations) && ' · Printing new tickets'}
           </p>
           </div>
         </div>
 
         {/* P05. The station picker. Remembered on this device. */}
-        {(stations.data ?? []).length > 0 && (
+        {usesStations && (stations.data ?? []).length > 0 && (
           <div className="-mx-1 flex w-full gap-2 overflow-x-auto px-1" role="tablist" aria-label="Station">
             {[{ id: ALL_STATIONS, name: 'All stations' }, ...(stations.data ?? [])].map((station) => {
               const active = chosenStation === station.id;

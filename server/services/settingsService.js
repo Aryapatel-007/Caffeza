@@ -74,6 +74,7 @@ const SETTING_PATHS = Object.freeze({
   'approvals.revisePrintedBill': 'settings.approvals.revisePrintedBill',
   'kitchen.readyMeansServed': 'settings.kitchen.readyMeansServed',
   'kitchen.oneTicketPerOrder': 'settings.kitchen.oneTicketPerOrder',
+  'kitchen.splitTicketsByStation': 'settings.kitchen.splitTicketsByStation',
 
   'dayClose.showCashDifferenceToManager': 'settings.dayClose.showCashDifferenceToManager',
   'cash.denominations': 'settings.cash.denominations',

@@ -388,6 +388,13 @@ export default function SettingsPage() {
               checked={form.kitchen.oneTicketPerOrder ?? true}
               onChange={set('kitchen', 'oneTicketPerOrder')}
             />
+            {/* P58. */}
+            <Checkbox
+              label="A separate ticket for each station"
+              hint="Each station, like Chaat Counter or Beverages, gets its own ticket and the kitchen screen shows the stations. Off: every Send is one ticket with all its dishes, and the kitchen screen shows whole tickets."
+              checked={form.kitchen.splitTicketsByStation ?? true}
+              onChange={set('kitchen', 'splitTicketsByStation')}
+            />
           </Section>
         )}
 

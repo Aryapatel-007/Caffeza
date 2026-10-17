@@ -263,6 +263,8 @@ const kitchen = z
   .object({
     readyMeansServed: z.boolean({ error: 'Must be true or false.' }).optional(),
     oneTicketPerOrder: z.boolean({ error: 'Must be true or false.' }).optional(),
+    // P58.
+    splitTicketsByStation: z.boolean({ error: 'Must be true or false.' }).optional(),
   })
   .strict();
 
