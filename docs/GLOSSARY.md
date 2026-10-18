@@ -788,3 +788,18 @@ Added by P58.
 | Term | Meaning |
 |---|---|
 | **A separate ticket for each station** | The setting `kitchen.splitTicketsByStation`. Off: each Send to the kitchen is one ticket with every dish on it, headed KITCHEN; the next Send from the same table is a new ticket with a new KOT number |
+
+---
+
+## 42. Signing in and out
+
+Added 2026-10-19, for the livelier sign-in screen and the account menu.
+
+| Term | Meaning |
+|---|---|
+| **Good morning, Good afternoon, Good evening, Working late** | The sign-in greeting, by the hour in India: from 5 AM, noon, 5 PM and 11 PM |
+| **Show password, Hide** | Shows the password as typed, or hides it again |
+| **Caps Lock is on** | The keyboard's Caps Lock is on while the password is typed |
+| **Account** | The person's initials in the top bar; it opens their name, role, This device and Sign out |
+| **Hold to sign out** | Sign out is pressed and held, so a stray tap on a shared device never signs anyone out. From the keyboard it asks "Sign out now?" instead |
+| **Signed out** | Shown once on the sign-in screen after someone signs out on this device: "Abhay, you are signed out. See you next shift." |

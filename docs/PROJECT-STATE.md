@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -587,6 +587,36 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-19 Rishi, a livelier sign-in screen, and Sign out held in an account menu
+
+Client only, no spec change; Rishi found both too plain. DESIGN-SYSTEM 13d, GLOSSARY section 42.
+1. Sign-in (`features/auth/LoginPage.jsx`, `signInParts.jsx`): the panel shows the time and day in India and a floor of 12 tables that take their seats as the person types; the greeting follows the hour; Phone or email shows what it has read and counts a phone's digits; Password has Show and a Caps Lock warning; a refused sign-in shakes the form once (`refused` keyframes) and selects the password; after a sign-out it says "Abhay, you are signed out. See you next shift." once (`signedOut.js`, session storage, first name only).
+2. Sign out (`components/AccountMenu.jsx`): the person's initials in the top bar open their name, role, restaurant, This device and Sign out, also on the kitchen login's bar. Sign out is held for 0.7s; a tap says to hold; from the keyboard or with reduced motion it asks "Sign out now?". The More sheet uses the same button. `Input` gains optional `leading` and `trailing`.
+
+Tests: new `e2e/signInAndOut.spec.js` (3). It, passwordReset, editSentDish (the kitchen login), captainBilling and ownerDashboard pass; the design and client-name guards pass (13). Lint and build pass. Checked by screenshot at 380, 768 and 1280, plain and branded, day and night: no sideways scroll. Not checked: 130% text size, a real phone's long-press.
+
+Anything the other developer needs to know:
+Arya: Sign out is no longer a plain button; an e2e step that signs out holds it, as `signInAndOut.spec.js` does.
+
+### 2026-10-19 Rishi, a captain's bill prints at the counter with the till tab in the background
+
+Client only, no spec change. Rishi: a captain's bill printed only while the counter's page was on screen.
+1. `printText.js` `nextFrame` waited for an animation frame before measuring and printing, and a browser runs none for a hidden tab, so the print hung, and with it every captain bill after it, until someone came back to the tab. A 100 ms timer now ends the wait too.
+2. Two tabs of the till on one computer each printed the same captain bill. `CaptainBillPrinter` now prints under a Web Lock (`captain-bill-printer`) and reads the device's printed list again before each print.
+
+Tests: `e2e/captainBilling.spec.js` gains "with two tabs open at the counter, a captain bill still prints once"; with the lock removed it fails, printed twice. It, the first captain billing test, `billInOnePlace.spec.js` and the golden day pass. Lint and build pass.
+Not checked: the hidden-tab fix itself. Chrome keeps a page it is driving visible, so a background tab could not be made in a test, and the browser tests print through their hook, which skips the wait. Whether Chrome with `--kiosk-printing` prints from a background tab still needs a check at the counter with the Rugtek.
+
+### 2026-10-19 Rishi, orders 110, 111 and 13 cancelled on Z Chaat
+
+At Rishi's word, on the live database (Atlas Singapore), at 3:41 AM on 19 October, which is still business date 18 October. No code changed.
+1. Why they stayed open: Abhay Singh opened takeaways 110 and 111 at 2:48 and 2:50 PM on 18 October and sent them (7 KOTs). The kitchen marked every dish ready, which under ready means served (P29) put both orders in waiting for the bill, and nobody billed them. Close table (P50) cannot take them, because dishes were sent. From 3:21 to 3:36 AM the owner's login billed and voided them four times: bills `2026-27/000127` to `000130`, reasons "mistake by developer", "mistake by rishi developer", "rishi" and Cancelled by the platform. Voiding a bill puts its order back in waiting, so each try left the order open. Delivery order 13, from 13 October, had been waiting the same way since then.
+2. Rishi was offered a hard delete with the bill counter set back. He chose to keep the records. So the three orders were cancelled as the owner through `POST /orders/:orderId/cancel` (a one-off in-process script, not kept): reason Other, "Not a real order. Entered by mistake, never made.", made: no. Each wrote `ORDER_CANCELLED`. They count on 18 October's cancellations, not on closed 13 October. No order is now open or waiting.
+3. Bills 127 to 130 are left voided in the register and the void lists. They had no payments and were never printed.
+
+Anything the other developer needs to know:
+A takeaway the kitchen marks ready waits for the bill until someone bills or cancels it; voiding its bill does not close it.
 
 ### 2026-10-18 Rishi, a screen that cannot load reloads once instead of going blank
 

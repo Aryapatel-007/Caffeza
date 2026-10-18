@@ -22,8 +22,8 @@ import {
   MoreIcon,
   ReceiptIcon,
   ScooterIcon,
-  SignOutIcon,
 } from './ui/icons/index.jsx';
+import AccountMenu, { SignOutButton } from './AccountMenu.jsx';
 import LiveConnection from './LiveConnection.jsx';
 import Sheet from './ui/Sheet.jsx';
 import Spinner from './ui/Spinner.jsx';
@@ -203,7 +203,7 @@ function MoreButton({ onClick, layout }) {
 }
 
 function MoreSheet({ onClose }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const groups = useMoreGroups();
   return (
     <Sheet title="All places" subtitle={user ? `${user.name}` : null} onClose={onClose}>
@@ -229,10 +229,7 @@ function MoreSheet({ onClose }) {
             </ul>
           </div>
         ))}
-        <button type="button" onClick={logout} className="type-button flex min-h-12 items-center gap-2 rounded-lg border border-ink px-4">
-          <SignOutIcon />
-          Sign out
-        </button>
+        <SignOutButton />
       </nav>
     </Sheet>
   );
@@ -284,7 +281,7 @@ export function ScreenLoading() {
 }
 
 export default function AppShell({ children }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { pathname } = useLocation();
   const places = useMainPlaces();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -300,12 +297,7 @@ export default function AppShell({ children }) {
       <div className="v2 flex h-full flex-col bg-ground text-ink">
         <header className="flex min-h-12 flex-none items-center justify-between gap-3 border-b border-line bg-surface px-4 print:hidden">
           <TopBarMark isService />
-          <span className="flex items-center gap-3">
-            <span className="type-caption truncate text-muted">{user?.name}</span>
-            <button type="button" onClick={logout} className="type-label min-h-12 rounded-lg px-3 text-muted hover:bg-sunken hover:text-ink">
-              Sign out
-            </button>
-          </span>
+          <AccountMenu />
         </header>
         <LiveConnection />
         <div className="relative min-h-0 flex-1 overflow-y-auto print:overflow-visible">
@@ -343,7 +335,7 @@ export default function AppShell({ children }) {
           <span className="flex items-center gap-3">
             {/* P48. Recall Bill, as on PetPooja: the till finds a bill by its number. */}
             {['OWNER', 'MANAGER', 'CASHIER'].includes(user?.role) && <BillNoSearch />}
-            <span className="type-caption truncate text-muted">{user?.name}</span>
+            <AccountMenu />
           </span>
         </header>
 
