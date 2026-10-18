@@ -24,8 +24,26 @@ function escapeHtml(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** Lets the frame's content paint before measuring or printing. */
-const nextFrame = (win) => new Promise((resolve) => win.requestAnimationFrame(() => setTimeout(resolve, 30)));
+/**
+ * Lets the frame's content paint before measuring or printing.
+ *
+ * A browser runs no animation frame for a tab that is not showing, so waiting
+ * on one alone hung every print from a till whose cashier had opened another
+ * tab: a captain's bill sat unprinted until someone came back (Z Chaat,
+ * 2026-10-19). A timer ends the wait too; layout is still worked out when
+ * measured, shown or not.
+ */
+const nextFrame = (win) =>
+  new Promise((resolve) => {
+    let waited = false;
+    const done = () => {
+      if (waited) return;
+      waited = true;
+      setTimeout(resolve, 30);
+    };
+    win.requestAnimationFrame(done);
+    setTimeout(done, 100);
+  });
 
 /**
  * Prints an HTML body on this device's printer. `bodyHtml` is trusted markup

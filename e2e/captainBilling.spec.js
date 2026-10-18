@@ -1,7 +1,7 @@
 /**
  * P25 Part D, through the screens: a captain on a phone makes a bill and
  * sends it to the counter; the counter computer, set to print bills sent by
- * captains, prints it once.
+ * captains, prints it once, and once only with two tabs of the till open.
  */
 import { expect, test } from '@playwright/test';
 
@@ -45,4 +45,34 @@ test('a captain bills a table and it prints once at the counter', async ({ brows
   expect(counter.prints[0].text).toMatch(/Caffe Latte/);
   await counter.page.waitForTimeout(11_000);
   expect(counter.prints).toHaveLength(1);
+});
+
+test('with two tabs open at the counter, a captain bill still prints once', async ({ browser }) => {
+  const golden = await resetGolden();
+  await at('12:00', DAY);
+
+  const counter = await signIn(browser, { name: 'Counter', phone: golden.phones.Counter, password: golden.password, device: 'computer' });
+  await counter.page.goto('/device');
+  await counter.page.getByText('Print bills sent by captains').click();
+  await counter.page.goto('/bills');
+  // The cashier opens a second tab of the till on the same computer.
+  const secondTab = await counter.context.newPage();
+  await secondTab.goto('/reports');
+
+  const captain = await signIn(browser, { name: 'Khuman Singh', phone: golden.phones['Khuman Singh'], password: golden.password, device: 'phone' });
+  const station = await signIn(browser, { name: 'Manager', phone: golden.phones.Manager, password: golden.password, device: 'tablet' });
+
+  await openTable(captain.page, 'Table 4', 2);
+  await addItems(captain.page, ['Caffe Latte']);
+  await sendToKitchen(captain.page);
+  await markReady(station.page, 'Beverages', 'Table 4');
+  await serveAll(captain.page);
+  await billOrder(captain.page);
+  await captain.page.getByRole('button', { name: 'Print at counter' }).click();
+  await expect(captain.page.getByText('Sent to the counter. It prints there.')).toBeVisible();
+
+  await expect.poll(() => counter.prints.length, { timeout: 20_000 }).toBe(1);
+  await counter.page.waitForTimeout(11_000);
+  expect(counter.prints).toHaveLength(1);
+  expect(counter.prints[0].text).toContain('Table 4');
 });

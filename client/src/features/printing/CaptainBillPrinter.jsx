@@ -7,11 +7,13 @@ import { useTheme } from '../../context/ThemeProvider.jsx';
 import { ROLES } from '../users/roles.js';
 
 import { printBill } from './printBill.js';
-import { rememberPrinted, useDeviceSettings } from './useDeviceSettings.js';
+import { readDeviceSettings, rememberPrinted, useDeviceSettings } from './useDeviceSettings.js';
 import { useLiveInterval } from '../../api/live.js';
 
 const TILL = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER];
 const POLL_MS = 5000;
+// One printer of captains' bills at a time on this device, whatever the number of tabs.
+const PRINT_LOCK = 'captain-bill-printer';
 
 /**
  * Prints the bills captains send to the counter. P25 Part D, API-CONTRACT M3
@@ -48,9 +50,11 @@ export default function CaptainBillPrinter() {
     if (fresh.length === 0) return;
 
     busy.current = true;
-    (async () => {
+    const printFresh = async () => {
       for (const bill of fresh) {
         const key = `${bill.id}:${bill.printRequestedAt}`;
+        // Read again from storage: another tab of this device may have printed it while this one waited.
+        if (readDeviceSettings().printedBillRequests.includes(key)) continue;
         try {
           await printBill(bill.id, { printer: device.printer, logoDataUrl: brand.logos?.LIGHT_GROUND?.dataUrl ?? null });
         } catch {
@@ -59,8 +63,20 @@ export default function CaptainBillPrinter() {
         }
         updateDevice((current) => ({ printedBillRequests: rememberPrinted(current.printedBillRequests, [key]) }));
       }
-      busy.current = false;
-      queryClient.invalidateQueries({ queryKey: ['print-queue'] });
+    };
+    (async () => {
+      try {
+        /**
+         * Two tabs of the till on one computer each run this. The lock lets one
+         * print at a time, and the check above skips what the other just
+         * printed, so a captain's bill never prints twice on one device.
+         */
+        if (navigator.locks) await navigator.locks.request(PRINT_LOCK, printFresh);
+        else await printFresh();
+      } finally {
+        busy.current = false;
+        queryClient.invalidateQueries({ queryKey: ['print-queue'] });
+      }
     })();
   }, [enabled, queue.isSuccess, queue.data, device.printedBillRequests, device.printer, brand, updateDevice, queryClient]);
 
