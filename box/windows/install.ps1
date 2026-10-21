@@ -59,6 +59,11 @@ $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
   Fail 'Run this as Administrator: double-click "Install Cafe POS.bat", and say Yes when Windows asks.'
 }
+# The server runs from this folder for good, so it must not be one that WhatsApp, a
+# browser's downloads or Windows' clean-up can empty.
+if ($Root -match '\\AppData\\|\\Temp\\|\\Downloads(\\|$)|\\OneDrive') {
+  Fail "This folder is a download or app folder, which can be emptied at any time:`n  $Root`nMove the CafePOS folder (the one with Install Cafe POS in it) to C:\CafePOS, then double-click Install Cafe POS there."
+}
 if (-not (Test-Path (Join-Path $Root 'server\server.js'))) { Fail "This script must stay inside the CafePOS folder. Looked in $Root." }
 if (-not (Test-Path (Join-Path $Root 'client\dist\index.html'))) { Fail 'The screens are missing (client\dist). Use the CafePOS.zip made by box/windows/make-package.sh.' }
 New-Item -ItemType Directory -Force -Path $DataDir, $LogDir | Out-Null
@@ -125,6 +130,9 @@ if (Test-Path $EnvFile) {
   if ($existing) { $port = [int]$existing.Matches[0].Groups[1].Value }
 } elseif ($busy80) { $port = 8080 }
 
+# A bare origin never names the default port: http://localhost, not http://localhost:80.
+$origin = 'http://localhost'
+if ($port -ne 80) { $origin = "http://localhost:$port" }
 if (-not (Test-Path $EnvFile)) {
   $lines = @(
     'NODE_ENV=production',
@@ -134,7 +142,7 @@ if (-not (Test-Path $EnvFile)) {
     "JWT_ACCESS_SECRET=$(New-Secret 48)",
     "JWT_REFRESH_SECRET=$(New-Secret 48)",
     "INTEGRATION_SECRETS_KEY=$(New-Secret 32)",
-    "CLIENT_ORIGIN=http://localhost:$port",
+    "CLIENT_ORIGIN=$origin",
     'TRUST_PROXY=false',
     "BOX_DATA_DIR=$DataDir",
     '# Empty: the address staff open is worked out from the WiFi this PC is on.',
@@ -163,6 +171,9 @@ function Set-EnvLine($key, $value) {
   $lines += "$key=$value"
   Set-Content -Path $EnvFile -Value $lines -Encoding ASCII
 }
+# A .env from the first version of this script said http://localhost:80, which the
+# server refuses: a bare origin never names the default port.
+if (Select-String -Path $EnvFile -Pattern '^CLIENT_ORIGIN=http://localhost:80$' -Quiet) { Set-EnvLine 'CLIENT_ORIGIN' 'http://localhost' }
 Ensure-EnvLine 'UPDATE_AUTO' 'on'
 Ensure-EnvLine 'UPDATE_WINDOW' '04:00-05:00'
 Ensure-EnvLine 'UPDATE_REPO' 'riship-17/Cafezza-Offline'
