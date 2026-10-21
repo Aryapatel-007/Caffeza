@@ -84,7 +84,11 @@ export function subscribe(listener) {
 
 export const snapshot = () => state;
 
+/** The address and WiFi are asked again this often, so a box that moved WiFi is followed. */
+const SETUP_REFRESH_MS = 5 * 60_000;
+
 async function pingOnce() {
+  const wasConnected = state.status === 'CONNECTED' && state.samples.length > 0;
   const ms = await pingServer();
   const samples = [...state.samples, ms].slice(-12);
   const misses = ms === null ? state.misses + 1 : 0;
@@ -93,8 +97,10 @@ async function pingOnce() {
   else if (misses > 0) status = 'RECONNECTING';
   state = { status, quality: linkQuality(samples), samples, misses, lastAnsweredAt: ms === null ? state.lastAnsweredAt : Date.now() };
   notify();
-  // Coming back after being lost, or the first answer: learn where we are again.
-  if (ms !== null && (!rememberedSetup() || state.samples.length === 1)) {
+  // The first answer, coming back after being lost, or every few minutes: learn where we are again.
+  const saved = rememberedSetup();
+  const stale = !saved?.at || Date.now() - saved.at > SETUP_REFRESH_MS;
+  if (ms !== null && (stale || !wasConnected)) {
     getNetworkSetup().then((setup) => write(SETUP_KEY, { ...setup, at: Date.now() })).catch(() => {});
   }
 }

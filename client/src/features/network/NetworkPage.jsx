@@ -193,8 +193,9 @@ function Addresses({ data }) {
           <dd className="type-body font-semibold">{data.staffWifi?.ssid ?? data.box?.ssid ?? 'Not set yet'}</dd>
         </div>
         <div>
-          <dt className="type-caption text-muted">Address to open</dt>
+          <dt className="type-caption text-muted">Address to open{data.addressFixed ? '' : ', from the WiFi the server is on now'}</dt>
           <dd className="type-body font-mono">{data.boxUrl ?? window.location.origin}</dd>
+          {data.otherUrls?.length > 0 && <dd className="type-caption font-mono text-muted">also {data.otherUrls.join(', ')}</dd>}
         </div>
         <div>
           <dt className="type-caption text-muted">Or by name</dt>

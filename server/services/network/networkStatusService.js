@@ -12,6 +12,8 @@
  *   setup   for anyone, no sign-in: the address to open and the WiFi to join,
  *           never a password. The /connect page and a lost tablet read this.
  */
+import { hostname } from 'node:os';
+
 import { config } from '../../config/env.js';
 import { currentRole, ROLES } from '../../config/deployment.js';
 import { ROLES as STAFF_ROLES } from '../../config/roles.js';
@@ -23,7 +25,7 @@ import { shippingLag } from '../replication/shipper.js';
 import { writerSnapshot } from '../replication/writerState.js';
 import { listDevices } from './devicePresence.js';
 import { readNetworkNotes } from './networkStore.js';
-import { wifiStatus } from './wifiService.js';
+import { lanAddresses, wifiStatus } from './wifiService.js';
 
 /** Past this, "not synced" is a backup problem the owner must see. P62 section 7. */
 export const NOT_SYNCED_ALERT_AFTER_SECONDS = 3 * 60 * 60;
@@ -90,8 +92,40 @@ export async function selfStatus(req) {
   return view;
 }
 
+/** 10.x, 172.16-31.x and 192.168.x: the addresses a cafe router hands out. */
+export function isPrivateLan(address) {
+  const [a, b] = address.split('.').map(Number);
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+
+/** WiFi and wired adapters first, then anything else; never VPNs, Docker or link-local. */
+const ADAPTER_RANK = [/^(en|eth|wlan|wlp|wl|enp|eno)/i, /^(Wi-?Fi|Ethernet)/i];
+const rankOf = (name) => {
+  const found = ADAPTER_RANK.findIndex((pattern) => pattern.test(name));
+  return found === -1 ? ADAPTER_RANK.length : found;
+};
+
+/**
+ * The addresses staff open, worked out from the network the box is on right
+ * now. P62. When the box joins another WiFi its address changes with it, so
+ * nothing has to be edited: the setup card, its QR code and the "Cannot reach
+ * server" banner follow by themselves. BOX_PUBLIC_URL and BOX_LOCAL_NAME_URL
+ * still win when set, for a box whose router reserves it a fixed address.
+ */
+export function lanUrls({ port = config.PORT, addresses = lanAddresses(), host = hostname(), fixedUrl = config.BOX_PUBLIC_URL, fixedName = config.BOX_LOCAL_NAME_URL } = {}) {
+  const portPart = Number(port) === 80 ? '' : `:${port}`;
+  const candidates = addresses
+    .filter((entry) => isPrivateLan(entry.address))
+    .sort((a, b) => rankOf(a.interface) - rankOf(b.interface) || a.interface.localeCompare(b.interface));
+  const found = candidates.map((entry) => `http://${entry.address}${portPart}`);
+  const boxUrl = fixedUrl ?? found[0] ?? null;
+  const name = String(host ?? '').replace(/\.local$/i, '');
+  const localNameUrl = fixedName ?? (name ? `http://${name}.local${portPart}` : null);
+  return { boxUrl, localNameUrl, otherUrls: found.filter((url) => url !== boxUrl), addressFixed: Boolean(fixedUrl) };
+}
+
 function urls() {
-  return { boxUrl: config.BOX_PUBLIC_URL, localNameUrl: config.BOX_LOCAL_NAME_URL };
+  return lanUrls();
 }
 
 /** For OWNER and MANAGER: everything the network card shows. */
@@ -109,7 +143,7 @@ export async function fullStatus(req) {
 /** For anyone. No password, ever. */
 export async function publicSetup() {
   const notes = await readNetworkNotes();
-  let wifiName = notes.staffWifi?.ssid ?? null;
-  if (!wifiName && currentRole() === ROLES.BOX) wifiName = (await wifiStatus()).ssid;
-  return { role: currentRole(), ...urls(), wifiName };
+  // The WiFi the box is on now wins over the saved note, which may be from before a move.
+  const live = currentRole() === ROLES.BOX ? (await wifiStatus()).ssid : null;
+  return { role: currentRole(), ...urls(), wifiName: live ?? notes.staffWifi?.ssid ?? null };
 }

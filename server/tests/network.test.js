@@ -106,6 +106,26 @@ describe("reading the box's WiFi from the operating system's own tools", () => {
   });
 });
 
+describe('the address staff open follows the box to another WiFi', () => {
+  it('is the private LAN address of the WiFi or wired adapter, with the port', async () => {
+    const { lanUrls } = await import('../services/network/networkStatusService.js');
+    const addresses = [
+      { interface: 'utun3', address: '100.64.0.2' },
+      { interface: 'bridge100', address: '192.168.64.1' },
+      { interface: 'en0', address: '10.98.97.69' },
+    ];
+    const urls = lanUrls({ port: 5050, addresses, host: 'Cafe-Mac.local', fixedUrl: null, fixedName: null });
+    assert.equal(urls.boxUrl, 'http://10.98.97.69:5050');
+    assert.equal(urls.localNameUrl, 'http://Cafe-Mac.local:5050');
+    assert.deepEqual(urls.otherUrls, ['http://192.168.64.1:5050']);
+    assert.equal(urls.addressFixed, false);
+    const moved = lanUrls({ port: 80, addresses: [{ interface: 'wlan0', address: '192.168.0.23' }], host: 'cafe-server', fixedUrl: null, fixedName: null });
+    assert.equal(moved.boxUrl, 'http://192.168.0.23');
+    assert.equal(moved.localNameUrl, 'http://cafe-server.local');
+    assert.equal(lanUrls({ addresses, fixedUrl: 'http://192.168.1.10', fixedName: null }).boxUrl, 'http://192.168.1.10');
+  });
+});
+
 describe('the network routes', () => {
   const report = (token, body) => request('POST', '/api/v1/network/report', { token, body });
 

@@ -133,9 +133,11 @@ Do this outside service. Every device has to move with the server.
    device", and press the button. If the password is wrong the server stays on
    the old WiFi.
 3. On **every** tablet, till and kitchen screen: join the new WiFi (section 3).
-   The address stays the same: the router keeps the server's address.
-4. **Edit staff WiFi** on the same page, so the card has the new name and
-   password, then print a new card from `/connect`.
+   On a new router the server usually gets a **new address**. The server works
+   it out by itself: open `/connect` on the server (or Network and devices)
+   to see the new address and QR code. Nothing needs to be edited.
+4. **Edit staff WiFi** on the same page, so the card has the new password,
+   then **print a new card** from `/connect`: the address on it may have changed.
 5. Check the device list: every device should come back with bars within a
    minute.
 

@@ -97,8 +97,10 @@ INTEGRATION_SECRETS_KEY=$(openssl rand -base64 32)
 CLIENT_ORIGIN=http://${LAN_IP}
 TRUST_PROXY=false
 BOX_DATA_DIR=${DATA_DIR}
-BOX_PUBLIC_URL=http://${LAN_IP}
-BOX_LOCAL_NAME_URL=http://${HOSTNAME_WANTED}.local
+# Empty: the address staff open is worked out from the network the box is on,
+# so it follows the box to another WiFi. Set them only to pin a fixed address.
+BOX_PUBLIC_URL=
+BOX_LOCAL_NAME_URL=
 BOX_WIFI_CONTROL=off
 # Fill these two to ship to the cloud mirror (docs/DEPLOYMENT.md section 18):
 MIRROR_URL=

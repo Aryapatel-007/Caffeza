@@ -771,8 +771,10 @@ the live data across (section 17.5).
   answer `cafe-server` itself.
 - **Nothing inbound.** The box makes outbound connections only; no port is
   forwarded on the router, ever. MongoDB is never reachable from the internet.
-- `BOX_PUBLIC_URL` and `BOX_LOCAL_NAME_URL` in `/opt/cafe-pos/.env` are what
-  the setup card and the "Cannot reach server" banner tell staff to open.
+- The address on the setup card and in the "Cannot reach server" banner is
+  worked out from the network the box is on now, so it follows the box to
+  another WiFi with nothing to edit. `BOX_PUBLIC_URL` and `BOX_LOCAL_NAME_URL`
+  in `/opt/cafe-pos/.env` pin it instead, for a box with a reserved address.
 - To let the owner change the box's WiFi from the dashboard: copy
   `box/polkit/50-cafe-wifi.rules` to `/etc/polkit-1/rules.d/` and set
   `BOX_WIFI_CONTROL=on` (`docs/STAFF-SETUP.md` section 5).
