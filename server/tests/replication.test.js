@@ -156,6 +156,31 @@ describe('the changelog', () => {
     await drain(writer);
     assert.equal(await ChangelogEntry.countDocuments({ restaurantId: restaurantId() }), before);
   });
+
+  it('takes pumps called at once in turn, so the stream stays open and nothing is missed (P63)', async () => {
+    // The timer and a sync request both pump; two reads on one change stream at once close it.
+    const tables = mongoose.connection.db.collection('tables');
+    const table = await tables.findOne({ restaurantId: restaurantId() });
+    const before = await ChangelogEntry.countDocuments({ restaurantId: restaurantId(), coll: 'tables', documentId: table._id });
+    for (let round = 0; round < 3; round += 1) {
+      await tables.updateOne({ _id: table._id }, { $set: { seats: 2 + round } });
+      await Promise.all(Array.from({ length: 4 }, () => writer.pump()));
+    }
+    await drain(writer);
+    assert.equal(writer.stream.closed, false);
+    assert.equal(await ChangelogEntry.countDocuments({ restaurantId: restaurantId(), coll: 'tables', documentId: table._id }), before + 3);
+  });
+
+  it('opens a stream the driver closed again from its saved place (P63)', async () => {
+    await drain(writer);
+    await writer.stream.close();
+    const tables = mongoose.connection.db.collection('tables');
+    const table = await tables.findOne({ restaurantId: restaurantId() });
+    await tables.updateOne({ _id: table._id }, { $set: { seats: 9 } });
+    await drain(writer);
+    const newest = await ChangelogEntry.findOne({ restaurantId: restaurantId(), coll: 'tables', documentId: table._id }).sort({ seq: -1 }).lean();
+    assert.equal(newest.doc.seats, 9);
+  });
 });
 
 describe('shipping to the mirror', () => {

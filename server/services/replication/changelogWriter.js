@@ -83,6 +83,9 @@ export class ChangelogWriter {
     this.stream = null;
     this.captured = 0;
     this.lastTokenSavedAt = 0;
+    // One pump at a time: the timer and a request (a pull or a push) both pump, and
+    // two tryNext calls on one change stream at once make the driver close it.
+    this.pumping = Promise.resolve();
   }
 
   #pipeline() {
@@ -139,9 +142,19 @@ export class ChangelogWriter {
     return count;
   }
 
-  /** Records every change available now, then saves the place. Gives back how many it read. */
-  async pump() {
+  /**
+   * Records every change available now, then saves the place. Gives back how many it read.
+   * A call made while another is running waits for it, then reads what came since.
+   */
+  pump() {
+    const run = this.pumping.then(() => this.#pumpNow());
+    this.pumping = run.catch(() => {});
+    return run;
+  }
+
+  async #pumpNow() {
     if (!this.stream) return 0;
+    if (this.stream.closed) await this.#reopen();
     let read = 0;
     for (;;) {
       const event = await this.stream.tryNext();
@@ -187,7 +200,16 @@ export class ChangelogWriter {
     this.lastTokenSavedAt = at;
   }
 
+  /** A stream the driver closed after an error opens again from the last saved place; a replayed event is one entry. */
+  async #reopen() {
+    const state = await ReplicationState.findById(REPLICATION_STATE_IDS.CHANGE_STREAM).lean();
+    if (!state?.resumeToken) throw new Error('The change stream closed and there is no saved place to resume from.');
+    logger.warn('The change stream had closed. Opening it again from its saved place.');
+    this.#open({ resumeAfter: state.resumeToken });
+  }
+
   async close() {
+    await this.pumping;
     const stream = this.stream;
     this.stream = null;
     if (stream) await stream.close().catch(() => {});

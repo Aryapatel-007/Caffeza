@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-21 by Rishi with Claude Code (P63 two-way sync, IN PROGRESS: paused for another session to continue). Before that, 2026-10-21 by Rishi with Claude Code (the Windows cafe PC updates itself at night, P62). Before that, 2026-10-21 by Rishi with Claude Code (P62 the cafe box, the cloud mirror and the network, in the Cafezza-Offline repository). Before that, 2026-10-21 by Rishi (P61 a simple Day Close). Before that, 2026-10-21 by Rishi (P60 bill without KOT). Before that, 2026-10-21 by Rishi (P59 a captain's bill printed once, the guest count at the first Send; the kitchen board without gaps). Before that, 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-21 by Rishi with Claude Code (P63 two-way sync, IN PROGRESS: the end-to-end test and the full suite now pass; the test site is next). Before that, 2026-10-21 by Rishi with Claude Code (the Windows cafe PC updates itself at night, P62). Before that, 2026-10-21 by Rishi with Claude Code (P62 the cafe box, the cloud mirror and the network, in the Cafezza-Offline repository). Before that, 2026-10-21 by Rishi (P61 a simple Day Close). Before that, 2026-10-21 by Rishi (P60 bill without KOT). Before that, 2026-10-21 by Rishi (P59 a captain's bill printed once, the guest count at the first Send; the kitchen board without gaps). Before that, 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -626,7 +626,7 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
-### 2026-10-21 Rishi with Claude Code, P63 two-way sync: IN PROGRESS, paused for handover (Cafezza-Offline)
+### 2026-10-21 Rishi with Claude Code, P63 two-way sync: IN PROGRESS (Cafezza-Offline)
 
 Paused at Rishi's word, for another account to continue. Prompt and spec:
 `docs/prompts/P63-two-way-sync.md` (spec commit `7360191`), `docs/REPLICATION.md`
@@ -645,9 +645,10 @@ P63 progress
 - [x] Screens: Sync page (/sync), the "N to check" badge in the top bar, Sync in the menu while two-way
 - [x] .env.example, server/.env.test.example, installer .env, render.test.yaml, WINDOWS-INSTALL 5c, DEPLOYMENT 19
 - [x] tests/twoWaySync.test.js: 17 passing (merge, apply, clashes, echo, numbers, routes)
-- [ ] tests/twoWaySyncE2e.test.js: written, NOT YET RUN. It starts the website server as a child process (tests/helpers/twoWayCloudProcess.js) on a second database and exchanges over HTTP. Run: cd server && node --env-file=.env.test --test tests/twoWaySyncE2e.test.js. Needs server/.env.test to have SYNC_MODE=ONE_WAY (added to the example)
-- [ ] Full suite (npm test): not run since P63 began. Watch writerGate's allowlist test (a new POST /replication/pull route exists) and replicationClassification (two new models)
-- [ ] npm run e2e (browser) not run
+- [x] tests/twoWaySyncE2e.test.js: 6 passing (2026-10-21, second session). It runs the website server as a child process on a second database (tests/helpers/twoWayCloudProcess.js). `TWO_WAY_CLOUD_LOG=error` shows that server's log. Its first run found that every push got a 500, fixed below
+- [x] Fixed: two `tryNext` calls at once on one change stream (the timer's pump and a sync request's pump) made the driver close it for good, on the box as on the cloud, so the changelog stopped silently. `ChangelogWriter.pump` now runs one at a time, and a closed stream reopens from its saved token. Two tests in replication.test.js, both failing with the fix removed ("cursor id is already in use")
+- [x] Full suite (npm test): 1,513 tests, 1,505 passing, 4 failing, all fixed: `/auth/me` keys gain `sync` (test changed on purpose); `new Date()` in services/sync replaced by `nowUtc()`; `SyncConflict` and `SyncDoc` put in alphabetical order in models/index.js; billWithoutKot.test.js's in-memory database failed to start under load and passes alone. The eight affected files then pass, 91 of 91
+- [x] npm run e2e (browser): 40 of 41 passed; the golden day failed because its `getByRole('button', { name: 'Excel' })` also matched P62's connection button ("...: Excellent, 1 milliseconds"). Made the name exact; the golden day then passes alone (1.4 minutes). A test fix, not a product one, and owed since P62
 - [ ] Test site: create the Render service from render.test.yaml with REPLICATION_SECRET, load the exact copy onto a PC, set SYNC_MODE=TWO_WAY on both, try the done-when list in the prompt section 8
 - [ ] CA to confirm the website (W) invoice series before real use
 - [ ] Then: merge into the live Caffeza repository, on a day Rishi chooses

@@ -50,8 +50,6 @@ import { Refund } from './Refund.js';
 import { ReplicaCursor } from './ReplicaCursor.js';
 import { ReplicationQuarantine } from './ReplicationQuarantine.js';
 import { ReplicationState } from './ReplicationState.js';
-import { SyncConflict } from './SyncConflict.js';
-import { SyncDoc } from './SyncDoc.js';
 import { Reservation } from './Reservation.js';
 import { Restaurant } from './Restaurant.js';
 import { ServerStart } from './ServerStart.js';
@@ -59,6 +57,8 @@ import { BackupRun } from './BackupRun.js';
 import { BackupState } from './BackupState.js';
 import { Station } from './Station.js';
 import { StockMovement } from './StockMovement.js';
+import { SyncConflict } from './SyncConflict.js';
+import { SyncDoc } from './SyncDoc.js';
 import { Table } from './Table.js';
 import { TallyBridge } from './TallyBridge.js';
 import { TallyExport } from './TallyExport.js';
@@ -105,13 +105,13 @@ export const ALL_MODELS = Object.freeze([
   ReplicaCursor,
   ReplicationQuarantine,
   ReplicationState,
-  SyncConflict,
-  SyncDoc,
   Reservation,
   Restaurant,
   ServerStart,
   Station,
   StockMovement,
+  SyncConflict,
+  SyncDoc,
   Table,
   TallyBridge,
   TallyExport,

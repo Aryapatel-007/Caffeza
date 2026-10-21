@@ -19,6 +19,7 @@ import mongoose from 'mongoose';
 
 import { setRoleForTest } from '../config/deployment.js';
 import { ALL_MODELS } from '../models/index.js';
+import { REPLICATION_STATE_IDS, ReplicationState } from '../models/ReplicationState.js';
 import { ChangelogWriter } from '../services/replication/changelogWriter.js';
 import { mirrorCollectionNames } from '../services/replication/collections.js';
 import { shipOnce } from '../services/replication/shipper.js';
@@ -64,7 +65,10 @@ async function exchange(rounds = 3) {
     await drain();
     for (let pushes = 0; pushes < 50; pushes += 1) {
       const outcome = await shipOnce(restaurantId, network);
-      assert.notEqual(outcome, 'FAILED', 'the push reached the website');
+      if (outcome === 'FAILED') {
+        const state = await ReplicationState.findById(REPLICATION_STATE_IDS.shipper(restaurantId)).lean();
+        assert.fail(`the push did not reach the website: ${state?.lastError}`);
+      }
       if (outcome !== 'SHIPPED' && outcome !== 'REWOUND') break;
     }
   }
@@ -122,6 +126,8 @@ before(async () => {
   cloudUrl = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('The website server did not start in time.')), 60_000);
     cloud.stdout.on('data', (chunk) => {
+      // TWO_WAY_CLOUD_LOG=error shows the website's own log while this runs.
+      if (process.env.TWO_WAY_CLOUD_LOG) process.stderr.write(chunk);
       const match = /READY (\d+)/.exec(String(chunk));
       if (match) {
         clearTimeout(timer);

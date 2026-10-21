@@ -14,6 +14,7 @@
  * A clash with no rule here is not applied, and recorded for a person.
  */
 import { SYNC_CONFLICT_KINDS, SYNC_NODES } from '../../models/SyncConflict.js';
+import { nowUtc } from '../../utils/time.js';
 import { recordConflict } from './conflicts.js';
 import { syncNode } from './mode.js';
 
@@ -27,9 +28,9 @@ const renamed = (doc) => {
 const voided = (doc) => ({
   ...doc,
   isVoided: true,
-  voidedAt: doc.voidedAt ?? new Date(),
+  voidedAt: doc.voidedAt ?? nowUtc(),
   voidReason: VOID_NOTE,
-  updatedAt: new Date(),
+  updatedAt: nowUtc(),
 });
 
 /**
@@ -39,7 +40,7 @@ const voided = (doc) => ({
 export const CLASH_RULES = Object.freeze({
   orders: {
     partial: { occupiesTable: true },
-    giveUp: (doc) => ({ ...doc, occupiesTable: false, updatedAt: new Date() }),
+    giveUp: (doc) => ({ ...doc, occupiesTable: false, updatedAt: nowUtc() }),
     detail: 'The same table was opened on the cafe PC and on the website. The PC\'s order keeps the table; the website\'s order is still open, without a table on the floor. Move it to a free table or join the two.',
   },
   bills: {
@@ -65,7 +66,7 @@ export const CLASH_RULES = Object.freeze({
   ingredients: { partial: {}, giveUp: renamed, detail: 'An ingredient with this name was added on both. The website\'s was renamed "(website)".' },
   customers: {
     partial: {},
-    giveUp: (doc) => ({ ...doc, phone: `${doc.phone}-website`, updatedAt: new Date() }),
+    giveUp: (doc) => ({ ...doc, phone: `${doc.phone}-website`, updatedAt: nowUtc() }),
     detail: 'The same guest was added on both. The PC\'s record keeps the mobile number; the website\'s is kept with "-website" after it.',
   },
   users: {
@@ -75,7 +76,7 @@ export const CLASH_RULES = Object.freeze({
       isActive: false,
       phone: `${doc.phone}-website`,
       email: doc.email ? `${doc.email}.website` : doc.email ?? null,
-      updatedAt: new Date(),
+      updatedAt: nowUtc(),
     }),
     detail: 'The same phone or email was given to two staff logins. The PC\'s login stands; the website\'s was switched off.',
   },

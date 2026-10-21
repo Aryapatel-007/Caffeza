@@ -9,6 +9,7 @@ import mongoose from 'mongoose';
 
 import { logger } from '../../config/logger.js';
 import { SYNC_NODES } from '../../models/SyncConflict.js';
+import { nowUtc } from '../../utils/time.js';
 import { syncNode } from './mode.js';
 
 const NAMED = {
@@ -48,7 +49,7 @@ async function branchFor(db, restaurantId, docs) {
 
 export async function recordConflict(db, { restaurantId, coll, documentId, kind, detail = null, fields = [], keptFrom, localDoc = null, incomingDoc = null, resultDoc = null }) {
   try {
-    const now = new Date();
+    const now = nowUtc();
     const titleDoc = resultDoc ?? localDoc ?? incomingDoc;
     const branchId = await branchFor(db, restaurantId, [resultDoc, localDoc, incomingDoc]);
     await db.collection('syncconflicts').insertOne({

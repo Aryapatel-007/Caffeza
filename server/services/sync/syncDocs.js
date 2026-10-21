@@ -6,6 +6,8 @@
  * Through the driver, by `<coll>:<id>`: this runs inside the change-stream
  * writer and the appliers, never in a request.
  */
+import { nowUtc } from '../../utils/time.js';
+
 import { canonicalText, docHash } from './hash.js';
 
 const COLLECTION = 'syncdocs';
@@ -21,7 +23,7 @@ export function getSyncDoc(db, coll, documentId) {
 function upsert(db, { restaurantId, coll, documentId }, update) {
   return db.collection(COLLECTION).updateOne(
     { _id: syncDocKey(coll, documentId) },
-    { ...update, $setOnInsert: { restaurantId, coll, documentId, createdAt: new Date() }, $currentDate: { updatedAt: true } },
+    { ...update, $setOnInsert: { restaurantId, coll, documentId, createdAt: nowUtc() }, $currentDate: { updatedAt: true } },
     { upsert: true },
   );
 }
