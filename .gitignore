@@ -62,3 +62,6 @@ backups/
 
 # P62. The cafe box's own data: local snapshots and its network notes. Never commit.
 /box-data/
+
+# P62. Built Windows packages (bash box/windows/make-package.sh).
+/release/
