@@ -183,9 +183,15 @@ export default function BillScreenPage() {
 
   const voidMutation = useMutation({
     mutationFn: (reason) => voidBill(billId, reason),
-    onSuccess: (updated) => {
+    onSuccess: (updated, reason) => {
       invalidate(updated);
       setPanel(null);
+      // P59. Guest left: the order is closed and the table free, so back to the floor.
+      if (reason?.reasonCode === 'GUEST_LEFT') {
+        queryClient.invalidateQueries({ queryKey: ['tables'] });
+        navigate('/floor', { replace: true });
+        return;
+      }
       setToast({ tone: 'success', message: 'Bill voided.' });
     },
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
