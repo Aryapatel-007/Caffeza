@@ -371,12 +371,12 @@ export default function App() {
       />
       <Route path="/cash" element={<Navigate to="/cash-book" replace />} />
 
-      {/* P44. Day End: the day in three steps, and the day-end message. */}
+      {/* P44, P61. Day End: close the day on one screen; the cashier too. */}
       <Route
         path="/day-end"
         element={
           <ProtectedRoute>
-            <RequireRole roles={REPORT_ROLES}>
+            <RequireRole roles={[ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER]}>
               <DayEndPage />
             </RequireRole>
           </ProtectedRoute>

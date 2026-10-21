@@ -9378,7 +9378,10 @@ never shown to one. `GET /day-close` (the history) and reopening are unchanged.
 
 One screen, in this order: the day's bill total and bills, with money by
 payment method; **Before you close**, listing only what stops the close, each
-with Open, and the not-sent orders that will close themselves; **Cash in the
+with Open (an open order also with **Cancel order**, which opens the order
+screen with the manager's whole-order cancel, 12.7, and comes back to Day End;
+it stays in the cancellations report), and the not-sent orders that will close
+themselves; **Cash in the
 drawer**, one amount (or Count by notes); **Close the day**. Keeping cash for
 tomorrow and taking the rest out are optional, behind "Taking cash out of the
 drawer?"; without them the whole count stays in the drawer as tomorrow's float.

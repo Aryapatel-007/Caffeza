@@ -53,12 +53,13 @@ router.post('/cash-movements', ...till, validate(recordCashSchema), postCash);
 router.post('/cash-movements/:movementId/void', ...till, validate(voidCashSchema), postVoidCash);
 
 router.get('/day-close', ...managers, validate(listDaysSchema), getDays);
-router.post('/day-close', ...managers, validate(closeDaySchema), postCloseDay);
-router.get('/day-close/:businessDate', ...managers, validate(readDaySchema), getDay);
+// P61. The cashier closes the day too, always blind.
+router.post('/day-close', ...till, validate(closeDaySchema), postCloseDay);
+router.get('/day-close/:businessDate', ...till, validate(readDaySchema), getDay);
 // P44. The day-end message, and emailing it to the addresses in Settings.
-router.get('/day-close/:businessDate/message', ...managers, validate(readDaySchema), getDayMessage);
-router.post('/day-close/:businessDate/email', ...managers, validate(readDaySchema), postDayEmail);
-router.get('/day-close/:businessDate/print', ...managers, validate(printDaySchema), getDayPrint);
+router.get('/day-close/:businessDate/message', ...till, validate(readDaySchema), getDayMessage);
+router.post('/day-close/:businessDate/email', ...till, validate(readDaySchema), postDayEmail);
+router.get('/day-close/:businessDate/print', ...till, validate(printDaySchema), getDayPrint);
 router.post('/day-close/:businessDate/reopen', ...owner, validate(reopenDaySchema), postReopenDay);
 
 export default router;

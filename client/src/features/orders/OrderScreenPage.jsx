@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -105,13 +105,18 @@ export default function OrderScreenPage() {
   const [toast, setToast] = useState(null);
   const [search, setSearch] = useState('');
   const [pickingItem, setPickingItem] = useState(null);
-  const [cancelling, setCancelling] = useState(null);
+  // P61. Day End's Cancel order opens this screen with the cancel panel up, and goes back after.
+  const [cancelling, setCancelling] = useState(() =>
+    new URLSearchParams(window.location.search).get('cancel') === '1' ? { kind: 'order', fromDayEnd: true } : null,
+  );
   const navigate = useNavigate();
   const [isReviewing, setIsReviewing] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   // P26. Opened from a bill's Add items, the menu shows at once.
   const [searchParams] = useSearchParams();
   const [addingMore, setAddingMore] = useState(() => searchParams.get('add') === '1');
+  // P60. The counter is making the bill without a KOT: the Bill box in place of the menu.
+  const [billingWithoutKot, setBillingWithoutKot] = useState(false);
   // P42. The sent dish being changed, and the dish a swap is replacing, for the menu's banner.
   const [changingLine, setChangingLine] = useState(null);
   const [swapFor, setSwapFor] = useState(null);
@@ -150,6 +155,26 @@ export default function OrderScreenPage() {
     queryKey: ['order', orderId],
     queryFn: () => getOrder(orderId),
   });
+
+  /**
+   * P61. A table opened by a stray tap and left with nothing on it closes as
+   * the person leaves this screen, so it never sits open on the floor or stops
+   * Day Close. Only an order with no dishes at all; anything added stays.
+   */
+  const latestOrder = useRef(null);
+  latestOrder.current = orderQuery.data ?? null;
+  useEffect(() => {
+    // React's development mode unmounts and mounts again at once; a real leave comes later.
+    const openedAt = Date.now();
+    return () => {
+      if (Date.now() - openedAt < 1000) return;
+      const left = latestOrder.current;
+      if (!left || left.status !== 'OPEN' || left.billId || left.orderType !== 'DINE_IN' || left.lines.length > 0) return;
+      closeOrder(left.id, left.version)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['tables'] }))
+        .catch(() => {});
+    };
+  }, [orderId, queryClient]);
 
   const menuQuery = useQuery({
     queryKey: ['menu', { includeUnavailable: false }],
@@ -243,7 +268,7 @@ export default function OrderScreenPage() {
   // P39. A captain changes nothing on an order whose bill has printed: the counter does.
   const captainLockedOut = user?.role === 'WAITER' && hasBill && (billQuery.data?.printCount ?? 0) > 0;
   const canAddMore = order.status === 'READY_TO_BILL' && (!hasBill || Boolean(billQuery.data?.revisable)) && !captainLockedOut;
-  const showMenu = (isOpen || (canAddMore && addingMore)) && !captainLockedOut;
+  const showMenu = (isOpen || (canAddMore && addingMore)) && !captainLockedOut && !billingWithoutKot;
   // P40. A dish going onto a printed bill needs a manager, unless one already approved this visit.
   const addsToPrintedBill =
     !approvesOwn && hasBill && !billQuery.data?.isVoided && (approvals.revisePrintedBill ?? true) && (billQuery.data?.printCount ?? 0) > 0;
@@ -261,6 +286,19 @@ export default function OrderScreenPage() {
   const isCounter = order.orderType !== 'DINE_IN' || isTill;
   // P57. Everything served and no bill yet: the Bill box under the dishes, PetPooja's way.
   const composing = order.status === 'READY_TO_BILL' && !hasBill && !addingMore && mayBill(user, features, order);
+  /**
+   * P60. The counter bills dishes not yet sent, without a KOT: a table or a
+   * takeaway, nothing with the kitchen, no bill yet. The server checks it all.
+   */
+  const canBillWithoutKot =
+    isTill &&
+    isOpen &&
+    !hasBill &&
+    ['DINE_IN', 'TAKEAWAY'].includes(order.orderType) &&
+    !order.platform?.code &&
+    pendingCount > 0 &&
+    order.lines.every((line) => !['FIRED', 'READY'].includes(line.status));
+  const withoutKotOpen = billingWithoutKot && isOpen && !hasBill;
 
   const changeQuantity = (line, quantity) =>
     run({
@@ -286,7 +324,7 @@ export default function OrderScreenPage() {
   const missingGuest = !order.customerName && !order.customerPhone;
   const needsGuestDetails =
     firstTableSend && ((missingCount && requireGuestCount) || (!guestSkipped && (missingCount || missingGuest)));
-  const askGuestThen = (send) => (needsGuestDetails ? setAskingGuest({ send }) : send(null));
+  const askGuestThen = (send, { forBill = false } = {}) => (needsGuestDetails ? setAskingGuest({ send, forBill }) : send(null));
 
   /** P56. The guest's details first, when given, then the Send on the version they leave. */
   const sendToKitchen = async (guest) => {
@@ -297,6 +335,20 @@ export default function OrderScreenPage() {
   const afterGuestFailed = () => {
     setAskingGuest(null);
     orderQuery.refetch();
+  };
+
+  /** P60. The guest's details first, when given, then the Bill box without a KOT. */
+  const startBillWithoutKot = (guest = null) => {
+    const openBill = () => {
+      setAskingGuest(null);
+      setIsReviewing(false);
+      setBillingWithoutKot(true);
+    };
+    if (!guest) {
+      openBill();
+      return;
+    }
+    run({ run: () => setOrderCustomer(order.id, { version: order.version, ...guest }), onDone: openBill, onFailed: afterGuestFailed });
   };
 
   const fire = (guest = null) =>
@@ -357,8 +409,8 @@ export default function OrderScreenPage() {
   const details = (
     <OrderDetails
       order={order}
-      isOpen={isOpen}
-      locked={hasBill}
+      isOpen={isOpen && !withoutKotOpen}
+      locked={hasBill || withoutKotOpen}
       readyMeansServed={features.kitchen?.readyMeansServed ?? true}
       isBusy={write.isPending}
       pendingCount={pendingCount}
@@ -375,8 +427,9 @@ export default function OrderScreenPage() {
       onChangeSentLine={(line) => setChangingLine(line)}
       onFire={() => askGuestThen(fire)}
       onFireAndPrint={isTill ? () => askGuestThen(fireAndPrint) : null}
+      onBillWithoutKot={canBillWithoutKot ? () => askGuestThen(startBillWithoutKot, { forBill: true }) : null}
       onCancelOrder={() => setCancelling({ kind: 'order' })}
-      onCloseOrder={canClose ? () => setCancelling({ kind: 'close' }) : null}
+      onCloseOrder={canClose && !withoutKotOpen ? () => setCancelling({ kind: 'close' }) : null}
       closeLabel={order.orderType === 'DINE_IN' ? 'Close table' : 'Close order'}
       onNoCharge={() => setCancelling({ kind: 'noCharge' })}
     />
@@ -560,7 +613,10 @@ export default function OrderScreenPage() {
       ) : (
         <section aria-label="This order" className="mx-auto w-full max-w-3xl rounded-[10px] bg-surface border border-line">
           {details}
-          {composing && <BillComposer order={order} onStale={() => orderQuery.refetch()} />}
+          {composing && !withoutKotOpen && <BillComposer order={order} onStale={() => orderQuery.refetch()} />}
+          {withoutKotOpen && (
+            <BillComposer order={order} withoutKot onBack={() => setBillingWithoutKot(false)} onStale={() => orderQuery.refetch()} />
+          )}
         </section>
       )}
 
@@ -688,8 +744,10 @@ export default function OrderScreenPage() {
               run: () => cancelOrder(order.id, { version: order.version, ...answers }),
               successMessage: 'Order cancelled.',
               onDone: () => {
+                const backToDayEnd = cancelling?.fromDayEnd;
                 setCancelling(null);
                 setIsReviewing(false);
+                if (backToDayEnd) navigate('/day-end');
               },
             })
           }
@@ -753,6 +811,7 @@ export default function OrderScreenPage() {
           placeName={placeLabel(order)}
           isBusy={write.isPending}
           initialGuestCount={order.guestCount ?? null}
+          forBill={askingGuest.forBill}
           requireCount={requireGuestCount}
           onCancel={() => setAskingGuest(null)}
           onSave={(guest) => askingGuest.send(guest)}
@@ -814,6 +873,8 @@ function OrderDetails({
   onFire,
   // P48. The till's KOT & Print.
   onFireAndPrint = null,
+  // P60. The counter's Bill without KOT; null when it does not apply.
+  onBillWithoutKot = null,
   onCancelOrder,
   onNoCharge,
   // P50. Close an order nothing was sent from; null when something was.
@@ -823,7 +884,7 @@ function OrderDetails({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {locked && (
+        {locked && order.billId && (
           <p className="type-caption px-4 pt-3 text-muted">This table has a bill. Remove items from the bill.</p>
         )}
         <OrderLineList
@@ -863,6 +924,16 @@ function OrderDetails({
             className="type-button min-h-12 w-full rounded-lg border border-ink bg-surface hover:bg-sunken disabled:opacity-50"
           >
             KOT & Print
+          </button>
+        )}
+        {isOpen && onBillWithoutKot && (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={onBillWithoutKot}
+            className="type-button min-h-12 w-full rounded-lg border border-ink bg-surface hover:bg-sunken disabled:opacity-50"
+          >
+            Bill without KOT
           </button>
         )}
 

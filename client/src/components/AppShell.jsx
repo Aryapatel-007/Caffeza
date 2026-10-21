@@ -107,7 +107,8 @@ function useMoreGroups() {
       items: [
         { to: '/accounts', label: 'On Hold', show: till },
         { to: '/cash-book', label: 'Cash book', show: till },
-        { to: '/day-end', label: 'Day End', show: manager },
+        // P61. The cashier closes the day too.
+        { to: '/day-end', label: 'Day End', show: till },
         { to: '/day-close', label: 'Day Close history', show: manager },
         { to: '/payouts', label: 'Payouts', show: manager },
         { to: '/reports', label: 'Reports', show: manager },
