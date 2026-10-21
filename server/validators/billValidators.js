@@ -92,6 +92,8 @@ export const createBillSchema = z.object({
       // P57. The discount chosen before the bill is made, and the totals shown before Save.
       discount: z.lazy(() => discountBody).optional(),
       preview: z.boolean({ error: 'Must be true or false.' }).optional(),
+      // P60. The counter bills dishes not yet sent, without a KOT.
+      withoutKot: z.boolean({ error: 'Must be true or false.' }).optional(),
     })
     .strict('Is not a field you can set here. The server bills from the order.'),
 });

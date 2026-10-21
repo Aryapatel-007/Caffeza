@@ -27,7 +27,7 @@ const MANAGERS = [ROLES.OWNER, ROLES.MANAGER];
  * whenever the order or the discount changes. The discount travels with the
  * bill in the same request, so a bill is never printed without it.
  */
-export default function BillComposer({ order, onStale }) {
+export default function BillComposer({ order, onStale, withoutKot = false, onBack = null }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, features } = useAuth();
@@ -42,8 +42,9 @@ export default function BillComposer({ order, onStale }) {
   const canDiscount = (isManager || cashierPlatformOnly) && !order.reopenedFromBillId;
 
   const previewQuery = useQuery({
-    queryKey: ['bill-preview', order.id, order.version, discount],
-    queryFn: () => createBill({ orderId: order.id, version: order.version, discount, preview: true }),
+    queryKey: ['bill-preview', order.id, order.version, discount, withoutKot],
+    // P60. Without a KOT, the preview serves the dishes not sent and rolls it all back, as the bill would.
+    queryFn: () => createBill({ orderId: order.id, version: order.version, discount, preview: true, ...(withoutKot ? { withoutKot } : {}) }),
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -52,7 +53,7 @@ export default function BillComposer({ order, onStale }) {
 
   const save = useMutation({
     mutationFn: async ({ andPrint }) => {
-      const bill = await createBill({ orderId: order.id, version: order.version, discount });
+      const bill = await createBill({ orderId: order.id, version: order.version, discount, ...(withoutKot ? { withoutKot } : {}) });
       // P25 Part D. A captain's print goes to the counter's printer. A failed request leaves Print at counter on the bill.
       if (andPrint && isCaptain) await requestBillPrint(bill.id).catch(() => null);
       return bill;
@@ -79,7 +80,10 @@ export default function BillComposer({ order, onStale }) {
   return (
     <section aria-label="Bill" className="flex flex-col gap-3 border-t-2 border-ink px-4 py-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="type-heading">Bill</h2>
+        <div>
+          <h2 className="type-heading">{withoutKot ? 'Bill without KOT' : 'Bill'}</h2>
+          {withoutKot && <p className="type-caption text-muted">Nothing goes to the kitchen. The dishes count as served.</p>}
+        </div>
         {canDiscount && !discount && (
           <button
             type="button"
@@ -151,6 +155,17 @@ export default function BillComposer({ order, onStale }) {
           {busy ? 'Saving…' : isCaptain ? 'Save & Print at counter' : 'Save & Print'}
         </button>
       </div>
+
+      {onBack && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onBack}
+          className="type-label min-h-12 w-full rounded-lg text-ink hover:bg-sunken disabled:opacity-50"
+        >
+          Back to the order
+        </button>
+      )}
 
       {choosing && (
         <DiscountPanel

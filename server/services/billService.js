@@ -20,6 +20,7 @@
  * 3. Creating a bill runs in a real transaction or not at all. The bill number
  *    is reserved inside it, so a failed insert burns no number.
  */
+import { serveWithoutKotInSession } from './billWithoutKotService.js';
 import mongoose from 'mongoose';
 
 import { BILL_VOID_REASONS, reasonText } from '../config/cancelReasons.js';
@@ -107,6 +108,8 @@ export function toBillLine(line) {
     categoryName: line.categoryName ?? null,
     // P46.
     isOpenItem: line.isOpenItem === true,
+    // P60.
+    billedWithoutKot: line.billedWithoutKot === true,
   };
 }
 
@@ -161,7 +164,7 @@ function scopedToRestaurant(req) {
  * degraded version of it worth shipping. See utils/errors.js
  * TransactionRequiredError.
  */
-export async function createBill(req, { orderId, version, discount = null, preview = false }) {
+export async function createBill(req, { orderId, version, discount = null, preview = false, withoutKot = false }) {
   const session = await mongoose.startSession();
   let previewed = null;
 
@@ -182,7 +185,9 @@ export async function createBill(req, { orderId, version, discount = null, previ
         throw new BusinessRuleError("This order carries its last bill's discount. Change it on the new bill.");
       }
       const voided = order?.reopenedFromBillId ? await Bill.findOne({ ...scoped(req), _id: order.reopenedFromBillId }).session(session) : null;
-      created = await createBillInSession(req, { orderId, version, discount: voided?.discount ?? null, requested: discount }, session);
+      // P60. The counter's dishes not sent become served without a KOT, in this same transaction.
+      const billVersion = withoutKot ? await serveWithoutKotInSession(req, { orderId, version }, session) : version;
+      created = await createBillInSession(req, { orderId, version: billVersion, discount: voided?.discount ?? null, requested: discount }, session);
       /**
        * P57. A preview is the bill exactly as it would be, then rolled back:
        * no number used, no order change, no audit line, nothing announced.

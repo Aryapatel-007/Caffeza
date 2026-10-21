@@ -28,8 +28,15 @@ function toQuery(params = {}) {
  * Creates the bill for an order. The order's current version, from the order screen.
  * P57: with the discount chosen before Save, and `preview` for the totals shown before it.
  */
-export function createBill({ orderId, version, discount, preview }) {
-  return api.post('/bills', { orderId, version, ...(discount ? { discount } : {}), ...(preview ? { preview: true } : {}) });
+export function createBill({ orderId, version, discount, preview, withoutKot }) {
+  return api.post('/bills', {
+    orderId,
+    version,
+    ...(discount ? { discount } : {}),
+    ...(preview ? { preview: true } : {}),
+    // P60. The counter bills dishes not yet sent, without a KOT.
+    ...(withoutKot ? { withoutKot: true } : {}),
+  });
 }
 
 export function getBill(billId) {

@@ -9,6 +9,7 @@
  * Nothing here computes money. If you find yourself adding a `+` to a paise
  * figure in this file, it belongs in utils/tax.js.
  */
+import { assertMayBillWithoutKot } from '../services/billWithoutKotService.js';
 import { ROLES } from '../config/roles.js';
 import { Bill } from '../models/Bill.js';
 import { Order } from '../models/Order.js';
@@ -63,6 +64,8 @@ async function resolveRange(req, { from, to }) {
 
 /** POST /bills */
 export async function postBill(req, res) {
+  // P60. Only the counter skips the kitchen.
+  if (req.body.withoutKot) assertMayBillWithoutKot(req.user);
   // P25 Part D. A captain may bill by the owner's setting; the till always may.
   if (req.user.role === ROLES.WAITER) {
     const order = await Order.findOne({ ...scoped(req), _id: req.body.orderId }).select('orderType').lean();

@@ -232,6 +232,8 @@ const orderLineSchema = new mongoose.Schema(
     priceSource: { type: String, enum: ['MENU', 'PLATFORM'], default: 'MENU' },
     // P46. An open item: `itemName` and `unitPriceInPaise` are what staff typed.
     isOpenItem: { type: Boolean, default: false },
+    // P60. Billed by the counter without a KOT: not sent, then served, never with the kitchen.
+    billedWithoutKot: { type: Boolean, default: false },
 
     status: {
       type: String,

@@ -20,7 +20,7 @@ const QUICK_COUNTS = [1, 2, 3, 4, 5, 6, 7];
  * A mobile is ten digits, with a leading 91 or 0 dropped; the offers tick needs
  * one, and is ticked only when the guest says yes.
  */
-export default function GuestDetailsSheet({ placeName, isBusy, initialGuestCount = null, requireCount = false, onCancel, onSave, onSkip }) {
+export default function GuestDetailsSheet({ placeName, isBusy, initialGuestCount = null, requireCount = false, forBill = false, onCancel, onSave, onSkip }) {
   const [guestCount, setGuestCount] = useState(initialGuestCount);
   const [isMore, setIsMore] = useState(initialGuestCount != null && initialGuestCount > QUICK_COUNTS.length);
   const [guestName, setGuestName] = useState('');
@@ -51,7 +51,7 @@ export default function GuestDetailsSheet({ placeName, isBusy, initialGuestCount
             onClick={() => onSave(hasAnything ? guest : null)}
             className="type-button flex min-h-14 w-full items-center justify-center rounded-lg bg-accent text-on-accent hover:brightness-110 disabled:opacity-50"
           >
-            {isBusy ? 'Sending…' : countMissing ? 'Choose the number of guests' : 'Save and send'}
+            {isBusy ? (forBill ? 'Saving…' : 'Sending…') : countMissing ? 'Choose the number of guests' : forBill ? 'Save and bill' : 'Save and send'}
           </button>
           {/* Skip once the count the restaurant requires is on the order already, as on a seated booking. */}
           {(!requireCount || initialGuestCount != null) && (
@@ -61,14 +61,14 @@ export default function GuestDetailsSheet({ placeName, isBusy, initialGuestCount
               onClick={onSkip}
               className="type-label min-h-12 w-full rounded-lg text-ink hover:bg-sunken disabled:opacity-50"
             >
-              Skip, send without details
+              {forBill ? 'Skip, bill without details' : 'Skip, send without details'}
             </button>
           )}
         </div>
       }
     >
       <p className="type-caption text-muted">
-        Before the first KOT for {placeName}.{' '}
+        {forBill ? `Before the bill for ${placeName}.` : `Before the first KOT for ${placeName}.`}{' '}
         {requireCount ? 'The number of guests is needed; the rest is optional.' : 'Optional. Builds your customer list, and brings back their visits next time.'}
       </p>
 
