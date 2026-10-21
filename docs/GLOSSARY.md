@@ -815,3 +815,13 @@ Added by P59.
 | **Sent to the counter** | On a captain's bill: the request is waiting for the counter's printer. Tapping again sends nothing more |
 | **How many guests?** | On the Guest details sheet, at a table's first Send. The count becomes the order's covers |
 | **Small tiles, Big tiles** | On the kitchen screen: small, narrower tickets so more fit in a rush, or the full size. Kept on each device |
+
+---
+
+## 44. Bill without KOT
+
+Added by P60.
+
+| Term | Meaning |
+|---|---|
+| **Bill without KOT** | On the order screen, for the counter: make the bill for dishes not yet sent, without a KOT. The dishes count as served; nothing goes to the kitchen |

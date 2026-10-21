@@ -9287,3 +9287,57 @@ is optional and Skip sends without anything.
 ## Error codes
 
 None new.
+
+# P60 Bill without KOT
+
+Asked for by Rishi on 2026-10-21. `docs/prompts/P60-bill-without-kot.md`.
+DB-SCHEMA section 59. One endpoint takes one more optional field.
+
+## 1. `POST /bills` with `withoutKot`
+
+```json
+{ "orderId": "652f...", "version": 4, "withoutKot": true }
+```
+
+`withoutKot: true` may sit beside `discount` and `preview` (P57). Roles:
+OWNER, MANAGER, CASHIER; a WAITER sending it is 403 FORBIDDEN, "Only the counter
+can bill without sending to the kitchen."
+
+Inside the bill's own transaction, before the bill is made:
+
+1. The order must be `DINE_IN` or `TAKEAWAY` with no platform; otherwise 422
+   `BUSINESS_RULE_VIOLATED`, "Only a table or a takeaway can be billed without
+   a KOT."
+2. An order already `READY_TO_BILL` is billed as without the field.
+3. Otherwise the order must be `OPEN`, every live line not sent (`PENDING`) or
+   served, and at least one not sent. A line with the kitchen (`FIRED` or
+   `READY`) is 422, "Some dishes are with the kitchen. Bill once they are
+   served."
+4. With `settings.floor.requireGuestCount` on, a dine-in order without
+   `guestCount` is 400 `VALIDATION_FAILED`, as the first Send is (P59).
+5. Every not-sent line becomes `SERVED`, with `servedAt` now and
+   `billedWithoutKot: true`; `firedAt` and `kotId` stay null. The order becomes
+   `READY_TO_BILL` in the same versioned write, so `version` must be current;
+   a stale one is 409 `VERSION_CONFLICT`.
+6. With inventory on, stock is deducted for those lines exactly as a Send
+   deducts it (M4), keyed on the line, so it is never deducted twice.
+
+No KOT is made, nothing reaches the kitchen screen or a kitchen printer, and
+R13 counts none of these dishes. The bill is then made exactly as P57 makes it,
+and each bill line carries `billedWithoutKot`. A preview rolls all of it back.
+
+After this, the order is an ordinary billed order: removing a dish, cancelling
+after billing, reopening and paying all work as before, and a dish billed
+without a KOT counts as served (made) for those rules.
+
+## 2. The order screen
+
+For OWNER, MANAGER and CASHIER, an open table or takeaway order with dishes not
+yet sent, and none with the kitchen, shows **Bill without KOT** beside Send.
+It opens the Bill box (P57) for the order, with the discount, the totals from a
+preview, Save and Save & Print. A table's first time asks the Guest details
+sheet first, as the first Send does.
+
+## Error codes
+
+None new.

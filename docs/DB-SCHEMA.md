@@ -3106,3 +3106,13 @@ value changes, and no migration.
 | Collection | Field | Type | Default | Notes |
 |---|---|---|---|---|
 | `restaurants` | `settings.kitchen.splitTicketsByStation` | Boolean | true | Off: a Send's dishes go on one ticket with no station of its own, instead of one ticket per station. Each ticket line still keeps its station |
+
+## 59. Bill without KOT (P60)
+
+`docs/prompts/P60-bill-without-kot.md`. Additive: a default, no existing value
+changes, and no migration.
+
+| Collection | Field | Type | Default | Notes |
+|---|---|---|---|---|
+| `orders` | `lines[].billedWithoutKot` | Boolean | false | True on a dish the counter billed without sending to the kitchen: it went from not sent straight to served, with `servedAt` set and `firedAt` and `kotId` left null |
+| `bills` | `lines[].billedWithoutKot` | Boolean | false | Copied from the order line when the bill is made |

@@ -68,5 +68,6 @@ The full table, with dependencies and owners, is in
 | P57 | The bill in one place: review, discount, then Save or Save & Print | Built 2026-10-17. Arya's read outstanding. |
 | P58 | One kitchen ticket per Send, not per station | Built and deployed 2026-10-17. Z Chaat's owner switches it off in Settings, Kitchen, after the deploy. Rishi's read outstanding. |
 | P59 | A captain's bill prints once, and the guest count moves to the first Send | Built 2026-10-21. Arya's read outstanding. |
+| P60 | Bill without KOT | Being built 2026-10-21. |
 
 Prompt files that do not exist yet are added as they are written.
