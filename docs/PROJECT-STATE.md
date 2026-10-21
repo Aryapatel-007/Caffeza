@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-21 by Rishi with Claude Code (P62 the cafe box, the cloud mirror and the network, in the Cafezza-Offline repository). Before that, 2026-10-21 by Rishi (P61 a simple Day Close). Before that, 2026-10-21 by Rishi (P60 bill without KOT). Before that, 2026-10-21 by Rishi (P59 a captain's bill printed once, the guest count at the first Send; the kitchen board without gaps). Before that, 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-21 by Rishi with Claude Code (the Windows cafe PC updates itself at night, P62). Before that, 2026-10-21 by Rishi with Claude Code (P62 the cafe box, the cloud mirror and the network, in the Cafezza-Offline repository). Before that, 2026-10-21 by Rishi (P61 a simple Day Close). Before that, 2026-10-21 by Rishi (P60 bill without KOT). Before that, 2026-10-21 by Rishi (P59 a captain's bill printed once, the guest count at the first Send; the kitchen board without gaps). Before that, 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -599,6 +599,8 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-21 | The box's own WiFi (name, signal, wired or not, addresses) is read from the operating system's tools (`nmcli`, `netsh`, `ipconfig`) with `execFile`, no shell. Changing it is OWNER only, off unless `BOX_WIFI_CONTROL=on` with the polkit rule installed, audited `BOX_WIFI_CHANGED` without the password; a failed join leaves the box where it was. The staff WiFi for the setup card is kept in a file on the box, never in the database. | Moving the server to another WiFi strands every device left behind, so it is deliberate, warned about, and recommended against (put the box on a cable). The WiFi password must not ship to the cloud. |
 | 2026-10-21 | `/connect` is a page with no sign-in: the WiFi to join and the address to open, each with a QR code (the WiFi code joins by itself when an owner or manager prints it with the password), steps per device, printable. A device that cannot reach the server shows a banner from what it remembered: the WiFi name and the address. | The one mistake that stops service on the LAN is a device on the wrong WiFi. |
 | 2026-10-21 | The keep-awake workflow runs by hand only in this repository. | A box never sleeps; the scheduled pinger would fail every ten minutes without its variable. |
+| 2026-10-21 | The Windows cafe PC updates itself: signed GitHub releases of `riship-17/Cafezza-Offline`, installed by `box/windows/update.mjs` between 4 and 5 AM by the PC's clock, with a database snapshot first and the previous version put back if the new one does not answer `/health` as itself within 2 minutes. Asked for by Rishi; P62 box operations, not a new module. | Copying a zip to every cafe by hand does not scale, and an update mid-service stops billing. A PC that runs code as SYSTEM trusts only a manifest signed by the release key it already has (ed25519, private half only on the developer's computer), so a GitHub account alone cannot push code onto it, and a release built earlier than the running one is refused so an old version cannot be re-marked latest. Code only: the database is never restored by an update, because schema changes are additive. |
+| 2026-10-21 | A release whose `install.ps1` changed, or one marked `--manual`, is never installed by the PCs themselves. | New scheduled tasks, settings or a data migration need the installer or a person; the updater only swaps code. |
 
 ---
 
@@ -622,6 +624,23 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-21 Rishi with Claude Code, the Windows cafe PC updates itself (Cafezza-Offline)
+
+What was built or decided:
+Asked for by Rishi after the Windows installer: changes reach the cafe PC without anyone copying a zip. `docs/WINDOWS-INSTALL.md` section 6.
+1. `box/windows/release.mjs`: `keygen` (ed25519; private half `~/.cafepos/release-signing-key.pem`, never committed; public half `box/windows/release-public-key.pem`, committed, a `.gitignore` exception) and `sign` (the manifest: commit, build time, the zip's size and SHA-256, signed as the exact text).
+2. `box/windows/make-package.sh --publish [--manual "why"]`: also writes `VERSION.json`; refuses a commit not on origin main; marks the release manual when `install.ps1` changed since the last one; creates the GitHub release with the zip and the manifest.
+3. `box/windows/update.mjs` (built-in modules only): `check`, `run` (the task; only inside `UPDATE_WINDOW`, only with `UPDATE_AUTO=on`), `now`, `rollback`. Signature, then age, then checksum, then the unpacked folder's version; snapshot; stop; move the running version to `data\updates\previous` all or nothing; npm ci; indexes; start; `/health` must report the new `RELEASE_VERSION` with the database connected, or the previous version and its packages go back. Logs `data\logs\update.log`, last result `data\updates\status.json`.
+4. `install.ps1`: the four `UPDATE_*` settings added to new and old `.env` files, the token asked once, `RELEASE_VERSION` from `VERSION.txt`, the "CafePOS Update" task every 15 minutes as SYSTEM.
+5. The release key was made on Rishi's Mac on 2026-10-21. No release has been published yet.
+
+Tests: new `boxUpdater.test.js` (15): the window, `.env` edits, a manifest refused with another key or changed after signing, no downgrade, a full update keeping `data` and `.env`, a rollback with the old packages when the new version does not answer, a bad checksum touching nothing, nothing outside the window, manual and older releases left alone, rollback by hand twice, all-or-nothing moves. Removing the signature check fails 5; skipping the health wait fails 2, both tried on purpose. Lint passes. The full suite was not run (no server code changed).
+
+Not done: a real run on Windows (stopping the task, `npm ci` as SYSTEM, `tar` on the zip, renaming folders while Windows holds files). The Ubuntu box still updates by `git pull` and its installer (DEPLOYMENT.md 17.7).
+
+Anything the other developer needs to know:
+Arya: publishing needs the private release key; ask Rishi for a copy over a private channel, kept as `~/.cafepos/release-signing-key.pem`, or `CAFEPOS_RELEASE_KEY`.
 
 ### 2026-10-21 Rishi with Claude Code, P62 the cafe box, the cloud mirror and the network (Cafezza-Offline)
 

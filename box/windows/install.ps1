@@ -10,9 +10,11 @@
 #      it if it stops; takes a snapshot of the database every hour
 #   6. lets tablets on the WiFi reach it (Windows Firewall)
 #   7. puts "Cafe POS" and "Cafe POS - Connect a device" on the desktop
+#   8. installs new versions by itself at night (box\windows\update.mjs)
 #
 # Safe to run again: every step checks first. Running it again after copying a
-# newer CafePOS folder over this one is how the app is updated.
+# newer CafePOS folder over this one updates the app by hand; step 8 does it
+# without anyone, from signed GitHub releases.
 # Written in plain ASCII for Windows PowerShell 5.1.
 
 $ErrorActionPreference = 'Stop'
@@ -29,6 +31,7 @@ $LogDir = Join-Path $DataDir 'logs'
 $EnvFile = Join-Path $Root '.env'
 $TaskName = 'CafePOS Server'
 $SnapshotTask = 'CafePOS Snapshot'
+$UpdateTask = 'CafePOS Update'
 
 function Say($text) { Write-Host ''; Write-Host "== $text" -ForegroundColor Cyan }
 function Fail($text) {
@@ -142,9 +145,37 @@ if (-not (Test-Path $EnvFile)) {
     'MIRROR_URL=',
     'REPLICATION_SECRET='
   )
+  # The updater's settings are added below, for new and old .env files alike.
   Set-Content -Path $EnvFile -Value $lines -Encoding ASCII
   Write-Host "Settings written to $EnvFile (keep this file private)."
 }
+
+# The updater's settings (docs/WINDOWS-INSTALL.md section 6). Added when missing,
+# so a PC set up before the updater gets them on its next run of this script.
+function Ensure-EnvLine($key, $value) {
+  $text = Get-Content -Path $EnvFile -Raw
+  if ($text -notmatch "(?m)^$key=") {
+    Add-Content -Path $EnvFile -Value "$key=$value" -Encoding ASCII
+  }
+}
+function Set-EnvLine($key, $value) {
+  $lines = @(Get-Content -Path $EnvFile | Where-Object { $_ -notmatch "^$key=" })
+  $lines += "$key=$value"
+  Set-Content -Path $EnvFile -Value $lines -Encoding ASCII
+}
+Ensure-EnvLine 'UPDATE_AUTO' 'on'
+Ensure-EnvLine 'UPDATE_WINDOW' '04:00-05:00'
+Ensure-EnvLine 'UPDATE_REPO' 'riship-17/Cafezza-Offline'
+Ensure-EnvLine 'UPDATE_TOKEN' ''
+$tokenLine = Select-String -Path $EnvFile -Pattern '^UPDATE_TOKEN=(.+)$' | Select-Object -First 1
+if (-not $tokenLine) {
+  Write-Host 'Automatic updates need the read-only update token (from the people who set this up).'
+  $token = Read-Host 'Paste the update token, or press Enter to skip for now'
+  if ($token.Trim()) { Set-EnvLine 'UPDATE_TOKEN' $token.Trim() }
+}
+# The version this folder holds, so the server and the updater both know it.
+$versionFile = Join-Path $Root 'VERSION.txt'
+if (Test-Path $versionFile) { Set-EnvLine 'RELEASE_VERSION' ((Get-Content -Path $versionFile -Raw).Trim()) }
 
 Push-Location $Root
 try {
@@ -177,7 +208,7 @@ if (Test-Path $marker) {
 }
 
 # ---------------------------------------------------------------------------
-Say '5. Start with Windows, restart if it stops, snapshot every hour'
+Say '5. Start with Windows, restart if it stops, snapshot every hour, update at night'
 $node = (Get-Command node).Source
 $serverCmd = "/c cd /d `"$Root`" && `"$node`" server\server.js >> `"$LogDir\server.log`" 2>&1"
 $action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument $serverCmd -WorkingDirectory $Root
@@ -191,6 +222,15 @@ $snapCmd = "/c cd /d `"$Root`" && set `"MONGO_URI=mongodb://127.0.0.1:27017/?rep
 $snapAction = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument $snapCmd -WorkingDirectory $Root
 $snapTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).Date.AddHours(1) -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration (New-TimeSpan -Days 3650)
 Register-ScheduledTask -TaskName $SnapshotTask -Action $snapAction -Trigger $snapTrigger -Settings $settings -Principal $system -Force | Out-Null
+
+# Every 15 minutes; it does something only inside UPDATE_WINDOW (4 to 5 AM by
+# default) and only when a newer signed version is on GitHub. Never retried on
+# its own, and never started late after the PC was off.
+$updateCmd = "/c cd /d `"$Root`" && `"$node`" box\windows\update.mjs run >NUL 2>> `"$LogDir\update-task.log`""
+$updateAction = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument $updateCmd -WorkingDirectory $Root
+$updateTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).Date.AddMinutes(5) -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Days 3650)
+$updateSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 2) -MultipleInstances IgnoreNew
+Register-ScheduledTask -TaskName $UpdateTask -Action $updateAction -Trigger $updateTrigger -Settings $updateSettings -Principal $system -Force | Out-Null
 
 Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like '*server\server.js*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
@@ -243,5 +283,10 @@ Write-Host 'On this PC: double-click "Cafe POS" on the desktop.'
 foreach ($address in $addresses) { Write-Host "On tablets and phones on the same WiFi: http://$address$portPart" -ForegroundColor Green }
 Write-Host 'Print the card with QR codes: "Cafe POS - Connect a device" on the desktop.'
 Write-Host 'The server starts by itself whenever this PC is switched on.'
+if (Select-String -Path $EnvFile -Pattern '^UPDATE_TOKEN=.+' -Quiet) {
+  Write-Host 'New versions install by themselves between 4 and 5 AM (UPDATE_WINDOW in .env).'
+} else {
+  Write-Host 'Automatic updates are off until UPDATE_TOKEN is set in .env (docs\WINDOWS-INSTALL.md section 6).' -ForegroundColor Yellow
+}
 Read-Host 'Press Enter to close'
 Start-Process $url

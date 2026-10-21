@@ -3,6 +3,8 @@
 .env.local
 .env.*.local
 *.pem
+# The cafe PC updater's public release key is meant to be shipped.
+!box/windows/release-public-key.pem
 *.key
 
 # Dependencies
