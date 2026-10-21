@@ -30,6 +30,8 @@ import { ChangelogCounter } from '../../models/ChangelogCounter.js';
 import { REPLICATION_STATE_IDS, ReplicationState } from '../../models/ReplicationState.js';
 import { nowUtc } from '../../utils/time.js';
 import { clusterTimeNow } from '../backup/snapshotService.js';
+import { isTwoWay } from '../sync/mode.js';
+import { getSyncDoc, isEcho, noteLocalVersion } from '../sync/syncDocs.js';
 import { mirrorCollectionNames, TENANT_COLLECTION } from './collections.js';
 import { writerSnapshot } from './writerState.js';
 
@@ -162,6 +164,11 @@ export class ChangelogWriter {
     if (!restaurantId) {
       logger.warn({ coll, documentId: String(documentId), op }, 'A change with no restaurant was left out of the changelog.');
       return;
+    }
+    if (isTwoWay()) {
+      // P63. A write made here from the other side is not sent back to it.
+      if (isEcho(await getSyncDoc(this.db, coll, documentId), doc)) return;
+      await noteLocalVersion(this.db, { restaurantId, coll, documentId }, doc);
     }
     const entry = await appendEntry({ restaurantId, coll, documentId, op, doc, eventId: event._id?._data ?? JSON.stringify(event._id), capturedAt: this.now() });
     if (entry) this.captured += 1;

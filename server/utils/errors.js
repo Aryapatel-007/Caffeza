@@ -109,6 +109,8 @@ export const ERROR_CODES = Object.freeze({
   /** Added by P10. Day Close blocked, and a write into a closed day. */
   DAY_NOT_READY: 'DAY_NOT_READY',
   DAY_CLOSED: 'DAY_CLOSED',
+  // P63. Day Close on the cloud while the cafe PC and the website both write.
+  CLOSE_ON_CAFE_PC: 'CLOSE_ON_CAFE_PC',
 
   /** Added by P13, built in P15. The Tally export refuses while an ERROR check fails. */
   CHECK_FAILED: 'CHECK_FAILED',
@@ -606,6 +608,16 @@ export class DayNotReadyError extends AppError {
 }
 
 /** P10. A write would change a business date that has been closed. */
+/** P63. Only the cafe PC closes the day while two-way sync is on. */
+export class CloseOnCafePcError extends AppError {
+  constructor() {
+    super('Close the day on the cafe PC. The website and the PC share the day, and only the PC closes it.', {
+      statusCode: 422,
+      code: ERROR_CODES.CLOSE_ON_CAFE_PC,
+    });
+  }
+}
+
 export class DayClosedError extends AppError {
   constructor(businessDate) {
     super(`${businessDate} is closed. An owner can reopen it.`, {

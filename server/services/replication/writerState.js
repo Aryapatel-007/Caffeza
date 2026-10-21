@@ -11,9 +11,10 @@
  * never waits on a database read to learn whether it may write.
  */
 import { logger } from '../../config/logger.js';
-import { currentRole, ROLES } from '../../config/deployment.js';
+import { currentRole, isBox, ROLES } from '../../config/deployment.js';
 import { REPLICATION_STATE_IDS, ReplicationState } from '../../models/ReplicationState.js';
 import { nowUtc } from '../../utils/time.js';
+import { isTwoWay } from '../sync/mode.js';
 
 const REFRESH_MS = 10_000;
 
@@ -68,6 +69,9 @@ export function boxIsFenced() {
  * a fenced box, or two machines would send the same refund.
  */
 export function mayRunWriterLoops() {
+  // P63. Two writers, one job runner: the cloud, which has the internet and the
+  // partners. Jobs made on the box reach it through the sync and are sent there once.
+  if (isBox() && isTwoWay()) return false;
   return !mirrorIsReadOnly() && !boxIsFenced();
 }
 

@@ -50,6 +50,8 @@ import { Refund } from './Refund.js';
 import { ReplicaCursor } from './ReplicaCursor.js';
 import { ReplicationQuarantine } from './ReplicationQuarantine.js';
 import { ReplicationState } from './ReplicationState.js';
+import { SyncConflict } from './SyncConflict.js';
+import { SyncDoc } from './SyncDoc.js';
 import { Reservation } from './Reservation.js';
 import { Restaurant } from './Restaurant.js';
 import { ServerStart } from './ServerStart.js';
@@ -103,6 +105,8 @@ export const ALL_MODELS = Object.freeze([
   ReplicaCursor,
   ReplicationQuarantine,
   ReplicationState,
+  SyncConflict,
+  SyncDoc,
   Reservation,
   Restaurant,
   ServerStart,

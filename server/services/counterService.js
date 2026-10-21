@@ -15,6 +15,7 @@
  * orders for a reason neither of them can act on. $inc does the read, the add
  * and the write inside the database, where nothing can interleave.
  */
+import { isTwoWayCloud } from './sync/mode.js';
 import { Counter } from '../models/Counter.js';
 
 /**
@@ -55,12 +56,30 @@ export async function nextNumber({ restaurantId, branchId, name }) {
    * M3 added `scope` to carry a bill sequence's financial year. ORDER and KOT
    * do not reset, so their scope is null, but it still has to be named here.
    */
+  if (isTwoWayCloud()) return nextWebsiteNumber({ restaurantId, branchId, name });
+
   const counter = await Counter.findOneAndUpdate(
     { restaurantId, branchId, name, scope: null },
     { $inc: { value: 1 } },
     { new: true, upsert: true, setDefaultsOnInsert: true },
   );
 
+  return counter.value;
+}
+
+/**
+ * P63. While the cafe PC and the website both write, the website draws from
+ * its own run, 900001 on, so an order or ticket number made on each side can
+ * never be the same one. Created at 900000 by $setOnInsert, then the same
+ * atomic $inc, both filters naming every field of the unique index (see above).
+ */
+export const WEBSITE_NUMBER_SCOPE = 'W';
+export const WEBSITE_NUMBER_START = 900_000;
+
+async function nextWebsiteNumber({ restaurantId, branchId, name }) {
+  const filter = { restaurantId, branchId, name, scope: WEBSITE_NUMBER_SCOPE };
+  await Counter.updateOne(filter, { $setOnInsert: { value: WEBSITE_NUMBER_START } }, { upsert: true });
+  const counter = await Counter.findOneAndUpdate(filter, { $inc: { value: 1 } }, { new: true });
   return counter.value;
 }
 

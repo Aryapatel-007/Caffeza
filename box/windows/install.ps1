@@ -149,6 +149,9 @@ if (-not (Test-Path $EnvFile)) {
     'BOX_PUBLIC_URL=',
     'BOX_LOCAL_NAME_URL=',
     'BOX_WIFI_CONTROL=off',
+    '# Two-way sync with the website (docs/WINDOWS-INSTALL.md section 5c): SYNC_MODE=TWO_WAY,',
+    '# MIRROR_URL = the website server address, REPLICATION_SECRET = the same as on the website.',
+    'SYNC_MODE=ONE_WAY',
     '# Fill both to send a copy to the cloud mirror (docs/DEPLOYMENT.md section 18):',
     'MIRROR_URL=',
     'REPLICATION_SECRET='
@@ -174,6 +177,7 @@ function Set-EnvLine($key, $value) {
 # A .env from the first version of this script said http://localhost:80, which the
 # server refuses: a bare origin never names the default port.
 if (Select-String -Path $EnvFile -Pattern '^CLIENT_ORIGIN=http://localhost:80$' -Quiet) { Set-EnvLine 'CLIENT_ORIGIN' 'http://localhost' }
+Ensure-EnvLine 'SYNC_MODE' 'ONE_WAY'
 Ensure-EnvLine 'UPDATE_AUTO' 'on'
 Ensure-EnvLine 'UPDATE_WINDOW' '04:00-05:00'
 Ensure-EnvLine 'UPDATE_REPO' 'riship-17/Cafezza-Offline'

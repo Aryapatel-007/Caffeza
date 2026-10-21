@@ -862,3 +862,33 @@ for the box. It is read-only, enforced, until a person promotes it.
 The keep-awake pingers of section 14 are not needed for a mirror on a host that
 does not sleep. On Render's free plan they are: a sleeping mirror takes no
 online orders.
+
+## 19. Two-way sync on the cloud (P63)
+
+The Render server the website uses becomes one of two writers; the cafe PC is
+the other and keeps them in step (`docs/REPLICATION.md` section 13,
+`docs/WINDOWS-INSTALL.md` section 5c).
+
+| Variable | Value |
+|---|---|
+| `DEPLOYMENT_ROLE` | `CLOUD` (the default) |
+| `SYNC_MODE` | `TWO_WAY` |
+| `REPLICATION_SECRET` | the same value as the cafe PC's |
+
+1. Both sides start from the same data: the PC loads the exact copy of the cloud
+   (`box/export-cloud.sh`, then **Load cafe data**) before either is switched on.
+2. `npm run db:indexes` against the cloud database (two new collections,
+   `syncdocs` and `syncconflicts`).
+3. Set the variables and deploy. On start the server takes a changelog baseline
+   of every document once (about 1,500 for Z Chaat today); the PC's first pull
+   reads it and finds every document already the same.
+4. Set the PC's `.env` and restart it. The PC pulls every second, which also
+   keeps Render's free server awake while the PC is on.
+
+The changelog on Atlas keeps every change, like the box's; on the free M0
+cluster (512 MB) watch its size in Atlas once a month.
+
+Rollback: `SYNC_MODE=ONE_WAY` on both and deploy. The website then bills in the
+main series again, so the PC must stop billing first (section 17.5 decides who
+writes).
+

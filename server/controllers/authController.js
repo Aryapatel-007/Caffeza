@@ -6,6 +6,9 @@
  * authService.js owns it, so a grep of this folder for the field name comes
  * back empty and stays that way.
  */
+import { ROLES } from '../config/roles.js';
+import { syncMode } from '../services/sync/mode.js';
+import { conflictsUnseen } from '../services/sync/statusService.js';
 import { config } from '../config/env.js';
 import { logger } from '../config/logger.js';
 import { Branch } from '../models/Branch.js';
@@ -286,6 +289,11 @@ export async function me(req, res) {
     // P33. Whether the live channel is on, and where to open it: a page on
     // Vercel reaches the API through a rewrite that does not carry a WebSocket.
     live: { enabled: config.LIVE_CHANNEL === 'on', origin: config.LIVE_ORIGIN },
+    // P63. Owners and managers see how many sync conflicts wait to be read.
+    sync: {
+      mode: syncMode(),
+      conflictsUnseen: [ROLES.OWNER, ROLES.MANAGER].includes(req.user.role) ? await conflictsUnseen(req.restaurantId) : null,
+    },
     // P22. Each logo slot's hash and size, never its bytes: a device fetches a
     // logo only when the hash differs from the one it saved.
     appearance: { ...presentAppearance(appearance, req.currentRestaurant?.name), logos: presentLogos(req.currentRestaurant) },

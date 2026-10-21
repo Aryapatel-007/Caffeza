@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-21 by Rishi with Claude Code (the Windows cafe PC updates itself at night, P62). Before that, 2026-10-21 by Rishi with Claude Code (P62 the cafe box, the cloud mirror and the network, in the Cafezza-Offline repository). Before that, 2026-10-21 by Rishi (P61 a simple Day Close). Before that, 2026-10-21 by Rishi (P60 bill without KOT). Before that, 2026-10-21 by Rishi (P59 a captain's bill printed once, the guest count at the first Send; the kitchen board without gaps). Before that, 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-21 by Rishi with Claude Code (P63 two-way sync, IN PROGRESS: paused for another session to continue). Before that, 2026-10-21 by Rishi with Claude Code (the Windows cafe PC updates itself at night, P62). Before that, 2026-10-21 by Rishi with Claude Code (P62 the cafe box, the cloud mirror and the network, in the Cafezza-Offline repository). Before that, 2026-10-21 by Rishi (P61 a simple Day Close). Before that, 2026-10-21 by Rishi (P60 bill without KOT). Before that, 2026-10-21 by Rishi (P59 a captain's bill printed once, the guest count at the first Send; the kitchen board without gaps). Before that, 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -625,6 +625,43 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-21 Rishi with Claude Code, P63 two-way sync: IN PROGRESS, paused for handover (Cafezza-Offline)
+
+Paused at Rishi's word, for another account to continue. Prompt and spec:
+`docs/prompts/P63-two-way-sync.md` (spec commit `7360191`), `docs/REPLICATION.md`
+section 13, API-CONTRACT "P63", DB-SCHEMA "P63", GLOSSARY section 46,
+CONVENTIONS `CLOSE_ON_CAFE_PC`. Rishi chose **both keep billing** while the
+cafe's internet is down (website series `2026-27/W00001`, conflicts flagged for
+staff), and **build here, then the test site** before the live Caffeza repo.
+
+```
+P63 progress
+- [x] Spec committed
+- [x] Server: SYNC_MODE, syncdocs and syncconflicts models (classified), sync/ (mode, hash, merge, syncDocs, conflicts, clashes, applyPeer, exchange, statusService)
+- [x] Changelog writer skips echoes; shipper sends seenPeerSeq and marks acked versions as base; /replication/pull and two-way /batches on the cloud; runtime pull-then-push on the box, changelog writer on the cloud
+- [x] Job loop only on the cloud; W series for bills, 900001+ for order/KOT/online/booking numbers; Day Close refused on the cloud (422 CLOSE_ON_CAFE_PC)
+- [x] /sync/status, /sync/conflicts, /sync/conflicts/:id/seen; /auth/me sync
+- [x] Screens: Sync page (/sync), the "N to check" badge in the top bar, Sync in the menu while two-way
+- [x] .env.example, server/.env.test.example, installer .env, render.test.yaml, WINDOWS-INSTALL 5c, DEPLOYMENT 19
+- [x] tests/twoWaySync.test.js: 17 passing (merge, apply, clashes, echo, numbers, routes)
+- [ ] tests/twoWaySyncE2e.test.js: written, NOT YET RUN. It starts the website server as a child process (tests/helpers/twoWayCloudProcess.js) on a second database and exchanges over HTTP. Run: cd server && node --env-file=.env.test --test tests/twoWaySyncE2e.test.js. Needs server/.env.test to have SYNC_MODE=ONE_WAY (added to the example)
+- [ ] Full suite (npm test): not run since P63 began. Watch writerGate's allowlist test (a new POST /replication/pull route exists) and replicationClassification (two new models)
+- [ ] npm run e2e (browser) not run
+- [ ] Test site: create the Render service from render.test.yaml with REPLICATION_SECRET, load the exact copy onto a PC, set SYNC_MODE=TWO_WAY on both, try the done-when list in the prompt section 8
+- [ ] CA to confirm the website (W) invoice series before real use
+- [ ] Then: merge into the live Caffeza repository, on a day Rishi chooses
+```
+
+Known gaps to decide or finish: the clash rules cover the collections in the prompt
+section 4; any other unique clash is recorded and not applied (the two sides then
+differ on that one document until a person acts). Atlas's changelog grows forever
+(DEPLOYMENT 19). A delete is a conflict only when the other side changed the
+document since the base.
+
+Also running on this Mac when paused: the local box server on port 5050 (an exact
+copy of live Z Chaat, ONE_WAY), started from this session; it runs the code from
+before P63.
 
 ### 2026-10-21 Rishi with Claude Code, an exact copy of the cloud for the offline PC (Cafezza-Offline)
 

@@ -63,6 +63,8 @@ export const REPLICATION = Object.freeze({
   ReplicaCursor: local(OWNER.CLOUD, "The mirror's own record of what it applied."),
   ReplicationQuarantine: local(OWNER.CLOUD, 'Batches the mirror refused for a stale epoch, kept for a person to read.'),
   ReplicationState: local(OWNER.EACH, "Each machine's epoch, resume token and shipper position."),
+  SyncConflict: mirror('P63. Changes both sides made before they could tell each other: both sides list them.'),
+  SyncDoc: local(OWNER.EACH, "P63. Each side's own record of the version both last agreed on; it describes this machine's copy, not the cafe's data."),
   Reservation: mirror('Table bookings.'),
   // Logo bytes are `select: false` so the ordering screen never carries them,
   // not because they are secret. They ship: the public page and the owner's

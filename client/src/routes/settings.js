@@ -10,3 +10,4 @@ export { default as AppearancePage } from '../features/settings/AppearancePage.j
 export { default as SettingsPage } from '../features/settings/SettingsPage.jsx';
 export { default as StationsPage } from '../features/stations/StationsPage.jsx';
 export { default as NetworkPage } from '../features/network/NetworkPage.jsx';
+export { default as SyncPage } from '../features/sync/SyncPage.jsx';

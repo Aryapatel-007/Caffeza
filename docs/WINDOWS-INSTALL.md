@@ -144,6 +144,41 @@ just before handing over, and stop using the cloud's address after it.
 To load a newer copy later (a re-take just before handover), run steps 1 and 2
 again: the newest `.archive.gz` in `C:\CafePOS` is the one loaded.
 
+## 5c. Two-way sync: the PC and the website both take bills (P63)
+
+The website keeps working as it does, the PC works on the cafe WiFi, and each
+gets the other's orders and bills within a second or two while the internet is
+up. Without internet the PC carries on alone and catches up when the line comes
+back; the website carries on too. Design: `docs/REPLICATION.md` section 13.
+
+While it is on:
+
+- **Bills on the website use their own series**, `2026-27/W00001`, so a bill
+  made on each side can never get the same number. The PC carries on the
+  existing series. Orders and KOTs made on the website are numbered from
+  900001. Ask the CA to confirm the W series before it is used for real.
+- **Day Close is done on the PC only.** The website refuses it.
+- **Sync conflicts.** When both change the same thing before they can tell
+  each other (dishes added to one table on both, the same table opened on both,
+  one order billed on both), both versions are kept where they can be and the
+  owner and manager see a count in the top bar and a list under **Sync**, each
+  saying what was kept and linking to the order or bill to fix.
+
+To switch it on (both sides start from the same data: load the exact copy of
+section 5b first):
+
+1. Pick a secret, the same on both: `openssl rand -base64 48`.
+2. **Website server** (Render): set `SYNC_MODE=TWO_WAY` and
+   `REPLICATION_SECRET=<the secret>`, then deploy. `docs/DEPLOYMENT.md` section 19.
+3. **Cafe PC**: in `C:\CafePOS\.env` (Notepad as Administrator) set
+   `SYNC_MODE=TWO_WAY`, `MIRROR_URL=https://<the website server's address>` (no
+   slash at the end) and `REPLICATION_SECRET=<the secret>`. Restart the server:
+   double-click **Install Cafe POS** again, or restart the PC.
+4. Owner on the PC: **Sync** in the menu says "In step" within a minute.
+
+To switch it off: `SYNC_MODE=ONE_WAY` on both. Website bills keep their W
+numbers, which stay valid in their own series.
+
 ### Later: the PC becomes the real till
 
 Sending the PC's data to the same Atlas is only safe once the PC is the **only**

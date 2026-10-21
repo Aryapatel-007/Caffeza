@@ -23,6 +23,10 @@ export const REPLICATION_STATE_IDS = Object.freeze({
   shipper: (restaurantId) => `shipper:${restaurantId}`,
   boxSeen: (restaurantId) => `boxseen:${restaurantId}`,
   reconcile: (restaurantId) => `reconcile:${restaurantId}`,
+  // P63, on the box: how far it has pulled the cloud's changelog.
+  peerPull: (restaurantId) => `peerpull:${restaurantId}`,
+  // P63, on the cloud: how far the box says it has pulled.
+  peerSeen: (restaurantId) => `peerseen:${restaurantId}`,
 });
 
 const replicationStateSchema = new mongoose.Schema(
@@ -49,6 +53,11 @@ const replicationStateSchema = new mongoose.Schema(
     status: { type: String, default: null },
     checkedAt: { type: Date, default: null },
     mismatches: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    // peerpull:<rid> (P63, box)
+    pulledSeq: { type: Number, default: 0, min: 0 },
+    pulledAt: { type: Date, default: null },
+    // peerseen:<rid> (P63, cloud)
+    seenPeerSeq: { type: Number, default: 0, min: 0 },
     // clock
     refusing: { type: Boolean, default: false },
     newestKnownAt: { type: Date, default: null },

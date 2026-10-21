@@ -22,6 +22,7 @@ import { REPLICATION_STATE_IDS, ReplicationState } from '../../models/Replicatio
 import { nowUtc } from '../../utils/time.js';
 import { EJSON_CONTENT_TYPE, SIGNATURE_HEADER, sign, toWire } from './signing.js';
 import { fenceThisBox, writerSnapshot } from './writerState.js';
+import { isTwoWay } from '../sync/mode.js';
 
 export const BATCH_SIZE = 200;
 export const RETRY_DELAYS_MS = Object.freeze([1_000, 2_000, 5_000, 15_000, 30_000, 60_000, 120_000]);
@@ -99,9 +100,16 @@ export async function shipOnce(restaurantId, options = {}) {
     .lean();
   if (entries.length === 0) return 'IDLE';
 
+  // P63. Two-way: say how far this box has pulled, so the cloud knows its own versions arrived.
+  const twoWay = isTwoWay();
+  const payload = { restaurantId, epoch: writerSnapshot().epoch, entries: entries.map(wireEntry) };
+  if (twoWay) {
+    const { seenPeerSeqFor } = await import('../sync/exchange.js');
+    payload.seenPeerSeq = await seenPeerSeqFor(restaurantId);
+  }
   let answer;
   try {
-    answer = await postToMirror('/batches', { restaurantId, epoch: writerSnapshot().epoch, entries: entries.map(wireEntry) }, options);
+    answer = await postToMirror('/batches', payload, options);
   } catch (error) {
     await noteError(restaurantId, `The mirror could not be reached: ${error.message}`);
     return 'FAILED';
@@ -109,6 +117,12 @@ export async function shipOnce(restaurantId, options = {}) {
 
   const { status, body } = answer;
   if (status === 200 && Number.isInteger(body?.data?.appliedThrough)) {
+    if (twoWay) {
+      // The cloud now has these versions: they are the base for the next merge here.
+      const { markSeenByPeer } = await import('../sync/exchange.js');
+      const { default: mongoose } = await import('mongoose');
+      await markSeenByPeer(mongoose.connection.db, restaurantId, entries.filter((entry) => entry.seq <= body.data.appliedThrough));
+    }
     await setShipped(restaurantId, body.data.appliedThrough);
     return 'SHIPPED';
   }

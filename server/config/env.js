@@ -304,6 +304,8 @@ const envSchema = z
      *           until a person promotes it (docs/RUNBOOK.md).
      */
     DEPLOYMENT_ROLE: enumVar('DEPLOYMENT_ROLE', ['CLOUD', 'BOX', 'MIRROR'], 'CLOUD'),
+    // P63. TWO_WAY on a BOX and a CLOUD: both write, and the box keeps them in step.
+    SYNC_MODE: enumVar('SYNC_MODE', ['ONE_WAY', 'TWO_WAY'], 'ONE_WAY'),
     /** P62. The mirror's replication address, as the box reaches it, e.g. https://cafe-mirror.example.com. BOX only. */
     MIRROR_URL: nullableText.refine((value) => value === null || /^https?:[/][/][^/]+$/.test(value), 'MIRROR_URL must be a bare origin with no trailing slash.'),
     /** P62. The secret the box and the mirror sign every replication request with. Both sides hold the same value. */
@@ -367,6 +369,12 @@ const envSchema = z
     if (values.NODE_ENV === 'test') return;
     if (values.DEPLOYMENT_ROLE === 'MIRROR' && !values.REPLICATION_SECRET) {
       ctx.addIssue({ code: 'custom', path: ['REPLICATION_SECRET'], message: 'REPLICATION_SECRET must be set on the mirror. See docs/REPLICATION.md section 5.' });
+    }
+    if (values.SYNC_MODE === 'TWO_WAY' && values.DEPLOYMENT_ROLE === 'MIRROR') {
+      ctx.addIssue({ code: 'custom', path: ['SYNC_MODE'], message: 'SYNC_MODE=TWO_WAY is for a BOX and a CLOUD, never a MIRROR. See docs/REPLICATION.md section 13.' });
+    }
+    if (values.SYNC_MODE === 'TWO_WAY' && !values.REPLICATION_SECRET) {
+      ctx.addIssue({ code: 'custom', path: ['REPLICATION_SECRET'], message: 'REPLICATION_SECRET must be set for SYNC_MODE=TWO_WAY, the same on the box and the cloud.' });
     }
     if (values.DEPLOYMENT_ROLE === 'BOX' && values.MIRROR_URL && !values.REPLICATION_SECRET) {
       ctx.addIssue({ code: 'custom', path: ['REPLICATION_SECRET'], message: 'REPLICATION_SECRET must be set when MIRROR_URL is. See docs/REPLICATION.md section 5.' });

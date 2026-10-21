@@ -61,6 +61,7 @@ const SettingsPage = lazyScreen(settingsGroup, 'SettingsPage');
 const StationsPage = lazyScreen(settingsGroup, 'StationsPage');
 const IntegrationsPage = lazyScreen(integrationsGroup, 'IntegrationsPage');
 const NetworkPage = lazyScreen(settingsGroup, 'NetworkPage');
+const SyncPage = lazyScreen(settingsGroup, 'SyncPage');
 const ItemMappingPage = lazyScreen(integrationsGroup, 'ItemMappingPage');
 const TallyPage = lazyScreen(integrationsGroup, 'TallyPage');
 const AvailabilityBoardPage = lazyScreen(menuGroup, 'AvailabilityBoardPage');
@@ -704,6 +705,18 @@ export default function App() {
           <ProtectedRoute>
             <RequireRole roles={['OWNER', 'MANAGER']}>
               <NetworkPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P63. Two-way sync: how far in step, and the conflicts to check. */}
+      <Route
+        path="/sync"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={['OWNER', 'MANAGER']}>
+              <SyncPage />
             </RequireRole>
           </ProtectedRoute>
         }

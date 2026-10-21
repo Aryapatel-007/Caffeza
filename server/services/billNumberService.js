@@ -21,6 +21,7 @@ import { INVOICE_MODES } from '../models/Restaurant.js';
 import { TransactionRequiredError } from '../utils/errors.js';
 import { financialYearFor } from '../utils/time.js';
 import { prefixCounterScope } from './settingsService.js';
+import { isTwoWayCloud } from './sync/mode.js';
 
 /** 2026-27/000148. Zero-padded so numbers sort as strings and read as a series. */
 const SEQUENCE_PAD = 6;
@@ -57,6 +58,8 @@ export async function reserveBillNumber({ restaurantId, branchId, at, invoice = 
   }
 
   const financialYear = financialYearFor(at);
+
+  if (isTwoWayCloud()) return reserveWebsiteNumber({ restaurantId, branchId, financialYear, invoice }, session);
 
   if (invoice?.mode === INVOICE_MODES.PREFIX) {
     return reservePrefixNumber({ restaurantId, branchId, financialYear, invoice }, session);
@@ -123,4 +126,42 @@ async function reservePrefixNumber({ restaurantId, branchId, financialYear, invo
   };
 }
 
-export default { formatBillNumber, formatPrefixBillNumber, reserveBillNumber };
+/**
+ * P63. The website's own series while the cafe PC and the website both bill:
+ * `2026-27/W00001`, or the prefix plus W (`ZC/W1`). Gap-free in the same
+ * transaction as every bill. Its `billSequence` is WEBSITE_SEQUENCE_BASE plus
+ * the number, so the unique index on { financialYear, billSequence } holds with
+ * the PC's series beside it and no index changes.
+ */
+export const WEBSITE_SEQUENCE_BASE = 900_000_000;
+const WEBSITE_PAD = 5;
+const FINANCIAL_YEAR_WEBSITE_SERIES = /^\d{4}-\d{2}\/W$/;
+
+export function websiteSeriesFor(financialYear, invoice) {
+  return invoice?.mode === INVOICE_MODES.PREFIX && invoice.prefix ? `${invoice.prefix}W` : `${financialYear}/W`;
+}
+
+/** A website series and a sequence as the printed number. */
+export function formatWebsiteBillNumber(series, sequence) {
+  const number = sequence - WEBSITE_SEQUENCE_BASE;
+  return FINANCIAL_YEAR_WEBSITE_SERIES.test(series)
+    ? `${series}${String(number).padStart(WEBSITE_PAD, '0')}`
+    : `${series}${number}`;
+}
+
+async function reserveWebsiteNumber({ restaurantId, branchId, financialYear, invoice }, session) {
+  const series = websiteSeriesFor(financialYear, invoice);
+  const counter = await Counter.findOneAndUpdate(
+    { restaurantId, branchId, name: COUNTER_NAMES.BILL, scope: series },
+    { $inc: { value: 1 } },
+    { new: true, upsert: true, setDefaultsOnInsert: true, session },
+  );
+  const billSequence = WEBSITE_SEQUENCE_BASE + counter.value;
+  const billNumber = formatWebsiteBillNumber(series, billSequence);
+  if (billNumber.length > 16) {
+    throw new Error(`The website bill number ${billNumber} is over the GST limit of 16 characters. Shorten the invoice prefix.`);
+  }
+  return { billNumber, financialYear, billSequence, invoiceSeries: series };
+}
+
+export default { formatBillNumber, formatPrefixBillNumber, formatWebsiteBillNumber, reserveBillNumber };

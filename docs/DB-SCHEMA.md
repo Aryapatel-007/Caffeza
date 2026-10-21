@@ -3150,7 +3150,7 @@ collections, no field renamed or removed, no index changed.
 
 | Collection | Model | Where | Fields | Indexes |
 |---|---|---|---|---|
-| `syncdocs` | SyncDoc | each side, LOCAL_ONLY | `_id` string `<coll>:<documentId as EJSON>`, `restaurantId`, `coll`, `documentId` (Mixed), `baseHash` (sha256 of the canonical EJSON of the agreed version, or `DELETED`), `baseDoc` (Mixed or null), `appliedHashes` (last 8 hashes written from the other side), `updatedAt` | `{ restaurantId, coll }` |
+| `syncdocs` | SyncDoc | each side, LOCAL_ONLY | `_id` string `<coll>:<documentId as EJSON>`, `restaurantId`, `coll`, `documentId` (Mixed), `baseHash` (sha256 of the canonical EJSON of the agreed version, or `DELETED`), `baseDoc` (Mixed or null), `appliedHashes` (last 8 hashes written from the other side), `knownHashes` (last 16 versions this side held), `createdAt`, `updatedAt` | `{ restaurantId, coll }` |
 | `syncconflicts` | SyncConflict | both, MIRROR | base schema, `coll`, `documentId` (Mixed), `kind` (EDITED_BOTH, SAME_SLOT, DELETED_HERE), `title`, `detail`, `fields` [string], `keptFrom` (BOX, CLOUD), `detectedOn` (BOX, CLOUD), `detectedAt`, `localDoc`, `incomingDoc`, `resultDoc` (Mixed), `seenAt`, `seenBy` | `{ restaurantId, seenAt, detectedAt: -1 }` |
 
 `replicationstate` gains `_id` `peerpull:<rid>` (`pulledSeq`, `pulledAt`,

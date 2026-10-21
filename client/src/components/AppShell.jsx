@@ -26,6 +26,7 @@ import {
 import AccountMenu, { SignOutButton } from './AccountMenu.jsx';
 import LiveConnection from './LiveConnection.jsx';
 import ConnectionStatus, { LostConnectionBanner } from '../features/network/ConnectionStatus.jsx';
+import SyncBadge from '../features/sync/SyncBadge.jsx';
 import Sheet from './ui/Sheet.jsx';
 import Spinner from './ui/Spinner.jsx';
 
@@ -130,6 +131,8 @@ function useMoreGroups() {
         { to: '/settings/integrations', label: 'Integrations', show: manager },
         // P62. The cafe server's WiFi, the devices on it and the cloud copy.
         { to: '/network', label: 'Network and devices', show: manager },
+        // P63. Two-way sync with the website, and its conflicts.
+        { to: '/sync', label: 'Sync', show: manager && features?.sync?.mode === 'TWO_WAY' },
         { to: '/connect', label: 'Connect a device', show: true },
         { to: '/device', label: 'This device', show: true },
       ],
@@ -346,6 +349,8 @@ export default function AppShell({ children }) {
           <span className="flex items-center gap-3">
             {/* P62. This device's connection to the cafe server, and the cloud copy's state. */}
             <ConnectionStatus />
+            {/* P63. Sync conflicts waiting for an owner or manager. */}
+            <SyncBadge />
             {/* P48. Recall Bill, as on PetPooja: the till finds a bill by its number. */}
             {['OWNER', 'MANAGER', 'CASHIER'].includes(user?.role) && <BillNoSearch />}
             <AccountMenu />

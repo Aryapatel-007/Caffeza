@@ -9,6 +9,13 @@
  *               and reconciliation (every 30 minutes)
  *   MIRROR      nothing more: it answers the box
  *
+ * P63, SYNC_MODE=TWO_WAY:
+ *   BOX         the clock check and the changelog writer as above, then every
+ *               second, per restaurant: pull the cloud's changes, then push its
+ *               own. No intake puller (the cloud takes online orders itself)
+ *               and no reconciliation (two writers differ for seconds by design)
+ *   CLOUD       the changelog writer; it answers the box's pulls and pushes
+ *
  * None of it is in a request's path. A failed round is logged and the next
  * one tries again; nothing here can stop the till.
  */
@@ -19,10 +26,12 @@ import { config } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import { businessDateFor, nowUtc } from '../../utils/time.js';
 import { pullIntakeOnce } from '../intake/boxIntake.js';
+import { pullOnce } from '../sync/exchange.js';
+import { isTwoWay } from '../sync/mode.js';
 import { ChangelogWriter } from './changelogWriter.js';
 import { CLOCK_CHECK_EVERY_MS, checkClock } from './clockGuard.js';
 import { reconcileOnce } from './reconcile.js';
-import { Shipper } from './shipper.js';
+import { RETRY_DELAYS_MS, Shipper } from './shipper.js';
 import { loadWriterState, startWriterStateRefresh, stopWriterStateRefresh } from './writerState.js';
 
 export const WRITER_PUMP_MS = 500;
@@ -56,20 +65,63 @@ async function localRestaurantIds() {
   return docs.map((doc) => doc._id);
 }
 
+/** Records what the change stream has waiting now. The appliers call it first. */
+export async function pumpChangelog() {
+  if (writer) await writer.pump();
+}
+
+async function startChangelogWriter() {
+  writer = new ChangelogWriter();
+  logger.info({ start: await writer.start() }, 'Changelog writer started.');
+  every(WRITER_PUMP_MS, 'The changelog writer', () => writer.pump());
+}
+
+/** P63. The box's round: pull then push, for every restaurant, backing off when the cloud is away. */
+function startTwoWayExchange() {
+  const shipper = new Shipper();
+  let failures = 0;
+  let nextAt = 0;
+  every(SHIP_EVERY_MS, 'The two-way sync', async () => {
+    if (Date.now() < nextAt) return;
+    let failed = false;
+    for (const restaurantId of await localRestaurantIds()) {
+      for (let round = 0; round < 50; round += 1) {
+        const outcome = await pullOnce(restaurantId, { pump: pumpChangelog });
+        if (outcome === 'FAILED') failed = true;
+        if (outcome !== 'PULLED') break;
+      }
+    }
+    await writer?.pump();
+    const shipped = await shipper.tick();
+    if (shipped?.some((outcome) => outcome === 'FAILED')) failed = true;
+    failures = failed ? failures + 1 : 0;
+    nextAt = failed ? Date.now() + RETRY_DELAYS_MS[Math.min(failures - 1, RETRY_DELAYS_MS.length - 1)] : 0;
+  });
+}
+
 export async function startReplication() {
   await loadWriterState();
   startWriterStateRefresh();
+  if (isTwoWay() && currentRole() === ROLES.CLOUD) {
+    await startChangelogWriter();
+    logger.info('Two-way sync: this cloud writes and keeps a changelog for the cafe PC to pull.');
+    return;
+  }
   if (currentRole() !== ROLES.BOX) return;
 
   await checkClock();
   every(CLOCK_CHECK_EVERY_MS, 'The clock check', () => checkClock());
 
-  writer = new ChangelogWriter();
-  logger.info({ start: await writer.start() }, 'Changelog writer started.');
-  every(WRITER_PUMP_MS, 'The changelog writer', () => writer.pump());
+  await startChangelogWriter();
 
   if (!config.MIRROR_URL || !config.REPLICATION_SECRET) {
     logger.warn('MIRROR_URL is not set: the changelog is kept on this box and nothing is shipped. docs/REPLICATION.md section 5.');
+    return;
+  }
+
+  if (isTwoWay()) {
+    startTwoWayExchange();
+    logger.info({ cloud: config.MIRROR_URL }, 'Two-way sync with the cloud started.');
     return;
   }
 
