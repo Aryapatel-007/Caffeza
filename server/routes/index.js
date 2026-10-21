@@ -21,6 +21,7 @@ import branchRoutes from './branchRoutes.js';
 import healthRoutes from './healthRoutes.js';
 import inventoryRoutes from './inventoryRoutes.js';
 import menuRoutes from './menuRoutes.js';
+import networkRoutes from './networkRoutes.js';
 import onlineRoutes from './onlineRoutes.js';
 import orderRoutes from './orderRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
@@ -40,6 +41,8 @@ import userRoutes from './userRoutes.js';
 const router = Router();
 
 router.use(healthRoutes);
+// P62. The cafe network: ping and setup need no sign-in, so they sit with health.
+router.use(networkRoutes);
 // P23. The public page, before anything that signs a person in.
 router.use(publicRoutes);
 router.use(authRoutes);

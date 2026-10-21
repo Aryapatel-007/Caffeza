@@ -3,8 +3,14 @@
  * Each is named here once, with why, so a change is one line in one place.
  */
 
-/** Never copied, never in the diary: sessions must not come back after a restore, and the backups' own records would record themselves. */
-export const EXCLUDED_COLLECTIONS = Object.freeze(['refreshtokens', 'backupruns', 'backupstate']);
+/**
+ * Never copied, never in the diary: sessions must not come back after a restore, and the backups' own records would record themselves.
+ * P62: nor replication's own state, which belongs to one machine. The changelog itself stays in the copy (it is the box's history)
+ * but out of the diary, where every entry would only repeat a change the diary already holds.
+ */
+export const EXCLUDED_COLLECTIONS = Object.freeze(['refreshtokens', 'backupruns', 'backupstate', 'replicationstate']);
+/** P62. Left out of the change diary only. */
+export const DIARY_ONLY_EXCLUDED = Object.freeze(['changelog', 'changelogcounters']);
 
 /** The file format, written in every snapshot's manifest and every file's header. */
 export const FORMAT_VERSION = 1;

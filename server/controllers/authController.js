@@ -37,6 +37,7 @@ import { resetPasswordFromSignIn } from '../services/passwordResetService.js';
 import { sendSuccess } from '../utils/response.js';
 import { nowUtc } from '../utils/time.js';
 import { activeOrderChannels, activeTerminals, whatsappOn } from '../services/integrations/channelStatus.js';
+import { writeRefusal } from '../models/plugins/writerGuard.js';
 
 function presentUser(user, { includeLastLoginAt = false, includeStation = false } = {}) {
   const shape = {
@@ -112,8 +113,13 @@ export async function login(req, res) {
   const accessToken = issueAccessToken(user);
   const refreshToken = await issueRefreshToken(user, requestContext(req));
 
-  user.lastLoginAt = nowUtc();
-  await user.save();
+  // P62. Signing in works wherever writing does not: the read-only cloud copy,
+  // a box that stood down, a box whose clock is wrong. There the last sign-in
+  // time is simply not written; the user record belongs to the writer.
+  if (!writeRefusal('User')) {
+    user.lastLoginAt = nowUtc();
+    await user.save();
+  }
 
   // The refresh token leaves the server once, in an httpOnly cookie the browser
   // stores and JavaScript cannot read. It is never in the response body.

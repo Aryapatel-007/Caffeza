@@ -21,11 +21,15 @@ import { Bill } from './Bill.js';
 import { Branch } from './Branch.js';
 import { CashMovement } from './CashMovement.js';
 import { Category } from './Category.js';
+import { ChangelogCounter } from './ChangelogCounter.js';
+import { ChangelogEntry } from './ChangelogEntry.js';
 import { Conversation } from './Conversation.js';
 import { Counter } from './Counter.js';
 import { Customer } from './Customer.js';
 import { DayClosure } from './DayClosure.js';
 import { Ingredient } from './Ingredient.js';
+import { IntakeApplication } from './IntakeApplication.js';
+import { IntakeItem } from './IntakeItem.js';
 import { IntegrationConnection } from './IntegrationConnection.js';
 import { IntegrationEvent } from './IntegrationEvent.js';
 import { IntegrationJob } from './IntegrationJob.js';
@@ -43,6 +47,9 @@ import { PlatformPayout } from './PlatformPayout.js';
 import { Recipe } from './Recipe.js';
 import { RefreshToken } from './RefreshToken.js';
 import { Refund } from './Refund.js';
+import { ReplicaCursor } from './ReplicaCursor.js';
+import { ReplicationQuarantine } from './ReplicationQuarantine.js';
+import { ReplicationState } from './ReplicationState.js';
 import { Reservation } from './Reservation.js';
 import { Restaurant } from './Restaurant.js';
 import { ServerStart } from './ServerStart.js';
@@ -67,11 +74,15 @@ export const ALL_MODELS = Object.freeze([
   Branch,
   CashMovement,
   Category,
+  ChangelogCounter,
+  ChangelogEntry,
   Conversation,
   Counter,
   Customer,
   DayClosure,
   Ingredient,
+  IntakeApplication,
+  IntakeItem,
   IntegrationConnection,
   IntegrationEvent,
   IntegrationJob,
@@ -89,6 +100,9 @@ export const ALL_MODELS = Object.freeze([
   Recipe,
   RefreshToken,
   Refund,
+  ReplicaCursor,
+  ReplicationQuarantine,
+  ReplicationState,
   Reservation,
   Restaurant,
   ServerStart,
@@ -109,5 +123,6 @@ export const ALL_MODELS = Object.freeze([
  * own as the tenant. A new model joins this list only for the same reason.
  * P54: the backups' runs and state join it: like a server start, a backup is
  * the server's, and holds no restaurant's data.
+ * P62: replication's own state joins it for the same reason.
  */
-export const SERVER_MODELS = Object.freeze([ServerStart, BackupRun, BackupState]);
+export const SERVER_MODELS = Object.freeze([ServerStart, BackupRun, BackupState, ReplicationState]);

@@ -93,6 +93,8 @@ export const AUDIT_ACTIONS = Object.freeze({
   OPENING_FLOAT_DIFFERED: 'OPENING_FLOAT_DIFFERED',
   // P41. A Send to kitchen taken back within the minute.
   KOT_SEND_UNDONE: 'KOT_SEND_UNDONE',
+  // P62. The cafe box moved to another WiFi from the dashboard. Details name the networks, never a password.
+  BOX_WIFI_CHANGED: 'BOX_WIFI_CHANGED',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 

@@ -59,3 +59,6 @@ backups/
 
 # Vercel CLI link and build output at the repo root
 .vercel
+
+# P62. The cafe box's own data: local snapshots and its network notes. Never commit.
+/box-data/

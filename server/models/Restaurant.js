@@ -21,6 +21,8 @@
  */
 import mongoose from 'mongoose';
 
+import { writerGuardPlugin } from './plugins/writerGuard.js';
+
 const addressSchema = new mongoose.Schema(
   {
     line1: { type: String, trim: true },
@@ -702,6 +704,9 @@ const restaurantSchema = new mongoose.Schema(
  * collection holds tens of documents, not millions. An index added "just in
  * case" here costs writes and buys nothing.
  */
+
+// P62. The tenant has no tenant guard, so it takes the writer guard on its own.
+restaurantSchema.plugin(writerGuardPlugin);
 
 export const Restaurant = mongoose.model('Restaurant', restaurantSchema);
 
