@@ -1,17 +1,31 @@
 /**
- * Copies one restaurant's menu and floor from another database into this one.
- * P62, for bringing a cafe's real setup onto a box.
+ * Copies one restaurant's menu, floor and setup from another database into this
+ * one. P62, for bringing a cafe's real setup onto a box for a trial.
  *
- *   SOURCE_MONGO_URI="mongodb+srv://..." npm run copy:menu -- --source "Z Chaat" --target-phone 9000000001
- *   SOURCE_MONGO_URI="mongodb+srv://..." npm run copy:menu -- --source "Z Chaat" --target-phone 9000000001 --apply
+ * Straight from the live database (needs its address on the box):
+ *   SOURCE_MONGO_URI="mongodb+srv://..." npm run copy:menu -- --source "Z Chaat" --target-phone 9000000001 [--apply]
+ *
+ * Or in two steps, so the box never holds the live database's password:
+ *   on a developer's computer:
+ *   SOURCE_MONGO_URI="mongodb+srv://..." npm run copy:menu -- --source "Z Chaat" --export zchaat-setup.json [--with-staff]
+ *   on the box:
+ *   npm run copy:menu -- --from-file zchaat-setup.json --target-phone 9000000001 [--apply]
  *
  * READS ONLY from the source: it runs `find` and nothing else there. The source
  * address comes from the environment, never the command line, so it does not
  * land in the shell history.
  *
  * Copies: stations, categories (with their station), dishes, dish photos, and
- * tables with their sections and floor plan positions, plus the floor's section
- * order. Nothing about money, orders, bills, staff or guests.
+ * tables with their sections and floor plan positions; the restaurant's settings,
+ * logo, address and phone; the payment methods; and, with --with-staff, the staff
+ * other than the owner, with their passwords and PINs. Never: orders, bills,
+ * guests, money, sessions.
+ *
+ * Left out of the settings on purpose, because a trial must not pass for the real
+ * restaurant: the invoice series and the GSTIN (a trial bill must never look like
+ * a tax invoice of the live series), the day-end email addresses (the owner must
+ * not get trial figures), the online page (the box serves no public page) and the
+ * payment gateway. A payment method linked to a card machine comes unlinked.
  *
  * Writes into the restaurant whose owner signs in with --target-phone, in the
  * database MONGO_URI names, keeping the source's document ids and moving each
@@ -21,9 +35,11 @@
  *
  * Written through the driver, as a restore is: the documents are already
  * valid, made by the same code on the source. On a box the change stream sees
- * them, so they reach the cloud copy like any other change.
+ * them, so they reach the cloud copy like any other change, once a mirror is set.
  */
 import { pathToFileURL } from 'node:url';
+
+import fs from 'node:fs/promises';
 
 import mongoose from 'mongoose';
 
@@ -34,15 +50,19 @@ const COPIED = Object.freeze(['stations', 'categories', 'menuitems', 'menuphotos
 const MUST_BE_EMPTY = Object.freeze(['categories', 'menuitems', 'tables']);
 
 export function parseArgs(argv) {
-  const args = { source: null, targetPhone: null, apply: false };
+  const args = { source: null, targetPhone: null, apply: false, exportFile: null, fromFile: null, withStaff: false };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--source') args.source = argv[++i] ?? null;
     else if (argv[i] === '--target-phone') args.targetPhone = argv[++i] ?? null;
     else if (argv[i] === '--apply') args.apply = true;
+    else if (argv[i] === '--export') args.exportFile = argv[++i] ?? null;
+    else if (argv[i] === '--from-file') args.fromFile = argv[++i] ?? null;
+    else if (argv[i] === '--with-staff') args.withStaff = true;
     else throw new Error(`Unknown argument ${argv[i]}.`);
   }
-  if (!args.source) throw new Error('Give the source restaurant\'s name with --source "Z Chaat".');
-  if (!args.targetPhone) throw new Error("Give this database's owner phone with --target-phone.");
+  if (args.exportFile && args.fromFile) throw new Error('Use --export on the computer that reads the live database, and --from-file on the box: not both.');
+  if (!args.fromFile && !args.source) throw new Error('Give the source restaurant\'s name with --source "Z Chaat".');
+  if (!args.exportFile && !args.targetPhone) throw new Error("Give this database's owner phone with --target-phone.");
   return args;
 }
 
@@ -61,14 +81,54 @@ async function findSource(db, name) {
   return { restaurant, branch };
 }
 
-export async function copyMenu({ sourceDb, targetDb, source, targetPhone, apply, log = console.log }) {
+/** Settings a trial copy keeps from the source; see the header for what is left out and why. */
+export function trialSettings(settings = {}) {
+  const { invoice, reports, features, ...rest } = settings;
+  void invoice;
+  return {
+    ...rest,
+    ...(reports ? { reports: { ...reports, dayEndEmails: [] } } : {}),
+    ...(features ? { features: { ...features, online: false } } : {}),
+  };
+}
+
+/** Everything the copy needs, read from the source. Plain data, so it can go through a file. */
+export async function readBundle({ sourceDb, source, withStaff = false }) {
   const from = await findSource(sourceDb, source);
+  const scope = { restaurantId: from.restaurant._id, branchId: from.branch._id };
+  const docs = {};
+  for (const coll of COPIED) docs[coll] = await sourceDb.collection(coll).find(scope).toArray();
+  const paymentMethods = await sourceDb.collection('paymentmethods').find({ restaurantId: from.restaurant._id }).toArray();
+  const staff = withStaff
+    ? await sourceDb.collection('users').find({ restaurantId: from.restaurant._id, role: { $ne: 'OWNER' }, isSystem: { $ne: true } }).toArray()
+    : [];
+  return {
+    kind: 'cafe-pos-setup',
+    version: 1,
+    exportedAt: new Date(),
+    source: { name: from.restaurant.name, restaurantId: from.restaurant._id, branchName: from.branch.name ?? null },
+    docs,
+    setup: {
+      settings: trialSettings(from.restaurant.settings),
+      brandLogos: from.restaurant.brandLogos ?? null,
+      address: from.restaurant.address ?? null,
+      contactPhone: from.restaurant.contactPhone ?? null,
+    },
+    paymentMethods,
+    staff,
+  };
+}
+
+export async function writeBundle({ targetDb, bundle, targetPhone, apply, log = console.log }) {
+  if (bundle?.kind !== 'cafe-pos-setup') throw new Error('That file is not a Cafe POS setup export.');
   const owner = await targetDb.collection('users').findOne({ phone: targetPhone, role: 'OWNER' });
   if (!owner) throw new Error(`No owner with phone ${targetPhone} in this database.`);
   const to = { restaurantId: owner.restaurantId, branchId: owner.branchId, ownerId: owner._id };
   const target = await targetDb.collection('restaurants').findOne({ _id: to.restaurantId });
+  const { docs, setup, paymentMethods } = bundle;
+  const staff = bundle.staff ?? [];
 
-  log(`From: ${from.restaurant.name} (${from.restaurant._id}), branch ${from.branch.name ?? from.branch._id}`);
+  log(`From: ${bundle.source.name} (${bundle.source.restaurantId}), branch ${bundle.source.branchName ?? 'first'}`);
   log(`To:   ${target.name} (${to.restaurantId})`);
 
   for (const coll of MUST_BE_EMPTY) {
@@ -76,10 +136,16 @@ export async function copyMenu({ sourceDb, targetDb, source, targetPhone, apply,
     if (already > 0) throw new Error(`"${target.name}" already has ${already} ${coll}. This copies into an empty restaurant only. Nothing was changed.`);
   }
 
-  const scope = { restaurantId: from.restaurant._id, branchId: from.branch._id };
-  const docs = {};
-  for (const coll of COPIED) docs[coll] = await sourceDb.collection(coll).find(scope).toArray();
-  const sectionOrder = from.restaurant.settings?.floor?.sectionOrder ?? [];
+  // A person can sign in at one restaurant per database, by phone or email.
+  const staffToAdd = [];
+  const staffSkipped = [];
+  for (const person of staff) {
+    const clash = await targetDb.collection('users').findOne({
+      $or: [{ phone: person.phone }, ...(person.email ? [{ email: person.email }] : [])],
+    });
+    if (clash) staffSkipped.push(person);
+    else staffToAdd.push(person);
+  }
 
   const activeItems = docs.menuitems.filter((item) => item.isActive !== false).length;
   log(`  stations   ${docs.stations.length}`);
@@ -87,6 +153,9 @@ export async function copyMenu({ sourceDb, targetDb, source, targetPhone, apply,
   log(`  dishes     ${docs.menuitems.length} (${activeItems} on the menu)`);
   log(`  photos     ${docs.menuphotos.length}`);
   log(`  tables     ${docs.tables.length}, sections: ${[...new Set(docs.tables.map((table) => table.section ?? 'none'))].join(', ')}`);
+  log(`  settings   ${Object.keys(setup.settings).length} groups, logo ${setup.brandLogos ? 'yes' : 'none'} (not the invoice series, GSTIN, day-end emails or online page)`);
+  log(`  payment    ${paymentMethods.map((method) => method.code).join(', ') || 'none'}`);
+  log(`  staff      ${staff.length ? `${staffToAdd.length}${staffSkipped.length ? `, ${staffSkipped.length} skipped (their phone or email is already used here)` : ''}` : 'none (add --with-staff when exporting)'}`);
 
   if (!apply) {
     log('Dry run. Nothing was changed. Add --apply to copy.');
@@ -115,30 +184,83 @@ export async function copyMenu({ sourceDb, targetDb, source, targetPhone, apply,
   await insert('menuitems', docs.menuitems.map((item) => ({ ...move(item), ...(item.stationId !== undefined ? { stationId: mapStation(item.stationId) } : {}) })));
   await insert('menuphotos', docs.menuphotos.map((photo) => ({ ...move(photo), setBy: to.ownerId })));
   await insert('tables', docs.tables.map(move));
-  if (sectionOrder.length) {
-    await targetDb.collection('restaurants').updateOne({ _id: to.restaurantId }, { $set: { 'settings.floor.sectionOrder': sectionOrder } });
+
+  // Settings group by group, so the target keeps its own invoice series and anything the source lacks.
+  const settingsSet = Object.fromEntries(Object.entries(setup.settings).map(([key, value]) => [`settings.${key}`, value]));
+  const restaurantSet = { ...settingsSet };
+  if (setup.brandLogos) restaurantSet.brandLogos = setup.brandLogos;
+  if (setup.address) restaurantSet.address = setup.address;
+  if (setup.contactPhone) restaurantSet.contactPhone = setup.contactPhone;
+  if (Object.keys(restaurantSet).length) {
+    await targetDb.collection('restaurants').updateOne({ _id: to.restaurantId }, { $set: restaurantSet });
   }
-  log(`Copied: ${Object.entries(copied).map(([coll, count]) => `${count} ${coll}`).join(', ')}${sectionOrder.length ? ', and the floor\'s section order' : ''}.`);
-  return { copied };
+
+  let methodsAdded = 0;
+  let methodsUpdated = 0;
+  for (const method of paymentMethods) {
+    const { _id, restaurantId, branchId, createdAt, __v, ...fields } = method;
+    void restaurantId; void branchId; void createdAt; void __v;
+    const unlinked = { ...fields, terminalProvider: null, terminalPaymentMode: null };
+    const mine = await targetDb.collection('paymentmethods').findOne({ restaurantId: to.restaurantId, code: method.code });
+    if (mine) {
+      await targetDb.collection('paymentmethods').updateOne({ _id: mine._id }, { $set: unlinked });
+      methodsUpdated += 1;
+    } else {
+      await targetDb.collection('paymentmethods').insertOne({ _id, ...unlinked, restaurantId: to.restaurantId, ...(method.branchId !== undefined ? { branchId: to.branchId } : {}), createdAt });
+      methodsAdded += 1;
+    }
+  }
+
+  await insert('users', staffToAdd.map((person) => ({ ...move(person), lastLoginAt: null })));
+
+  log(`Copied: ${Object.entries(copied).map(([coll, count]) => `${count} ${coll}`).join(', ')}; settings and logo; payment methods ${methodsUpdated} updated, ${methodsAdded} added.`);
+  if (staffSkipped.length) log(`Not copied, their phone or email is already used here: ${staffSkipped.map((person) => person.name).join(', ')}.`);
+  return { copied, methodsAdded, methodsUpdated, staffSkipped: staffSkipped.length };
 }
+
+/** From one database straight into another. */
+export async function copyMenu({ sourceDb, targetDb, source, targetPhone, apply, withStaff = false, log = console.log }) {
+  const bundle = await readBundle({ sourceDb, source, withStaff });
+  return writeBundle({ targetDb, bundle, targetPhone, apply, log });
+}
+
+const { EJSON } = mongoose.mongo.BSON;
+/** Extended JSON keeps ids, dates and the logo's bytes exactly. */
+export const bundleToText = (bundle) => EJSON.stringify(bundle, null, 1, { relaxed: false });
+export const bundleFromText = (text) => EJSON.parse(text, { relaxed: false });
 
 const isDirectRun = process.argv[1] !== undefined && pathToFileURL(process.argv[1]).href === import.meta.url;
 if (isDirectRun) {
   let sourceConnection = null;
+  let targetConnected = false;
   try {
     const args = parseArgs(process.argv.slice(2));
-    const sourceUri = process.env.SOURCE_MONGO_URI;
-    if (!sourceUri) throw new Error('Set SOURCE_MONGO_URI to the live database address first (it is never taken from the command line).');
-    sourceConnection = await mongoose.createConnection(sourceUri, { serverSelectionTimeoutMS: 15_000 }).asPromise();
-    console.log(`Reading from ${databaseHost(sourceUri)} / ${sourceConnection.db.databaseName} (read only)`);
-    await connectDatabase();
-    console.log(`Writing into ${databaseHost()} / ${mongoose.connection.db.databaseName}`);
-    await copyMenu({ sourceDb: sourceConnection.db, targetDb: mongoose.connection.db, ...args });
+    let bundle;
+    if (args.fromFile) {
+      bundle = bundleFromText(await fs.readFile(args.fromFile, 'utf8'));
+      console.log(`Reading ${args.fromFile}, exported ${bundle.exportedAt?.toISOString?.() ?? 'at an unknown time'}`);
+    } else {
+      const sourceUri = process.env.SOURCE_MONGO_URI;
+      if (!sourceUri) throw new Error('Set SOURCE_MONGO_URI to the live database address first (it is never taken from the command line).');
+      sourceConnection = await mongoose.createConnection(sourceUri, { serverSelectionTimeoutMS: 15_000 }).asPromise();
+      console.log(`Reading from ${databaseHost(sourceUri)} / ${sourceConnection.db.databaseName} (read only)`);
+      bundle = await readBundle({ sourceDb: sourceConnection.db, source: args.source, withStaff: args.withStaff });
+    }
+    if (args.exportFile) {
+      await fs.writeFile(args.exportFile, bundleToText(bundle), { mode: 0o600 });
+      console.log(`Wrote ${args.exportFile}: ${bundle.docs.menuitems.length} dishes, ${bundle.docs.tables.length} tables, ${bundle.staff.length} staff.`);
+      if (bundle.staff.length) console.log('It holds the staff\'s password and PIN hashes: move it by pen drive, and delete it once copied.');
+    } else {
+      await connectDatabase();
+      targetConnected = true;
+      console.log(`Writing into ${databaseHost()} / ${mongoose.connection.db.databaseName}`);
+      await writeBundle({ targetDb: mongoose.connection.db, bundle, targetPhone: args.targetPhone, apply: args.apply });
+    }
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
   } finally {
     await sourceConnection?.close().catch(() => {});
-    await disconnectDatabase().catch(() => {});
+    if (targetConnected) await disconnectDatabase().catch(() => {});
   }
 }

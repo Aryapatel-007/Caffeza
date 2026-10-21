@@ -601,6 +601,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-21 | The keep-awake workflow runs by hand only in this repository. | A box never sleeps; the scheduled pinger would fail every ten minutes without its variable. |
 | 2026-10-21 | The Windows cafe PC updates itself: signed GitHub releases of `riship-17/Cafezza-Offline`, installed by `box/windows/update.mjs` between 4 and 5 AM by the PC's clock, with a database snapshot first and the previous version put back if the new one does not answer `/health` as itself within 2 minutes. Asked for by Rishi; P62 box operations, not a new module. | Copying a zip to every cafe by hand does not scale, and an update mid-service stops billing. A PC that runs code as SYSTEM trusts only a manifest signed by the release key it already has (ed25519, private half only on the developer's computer), so a GitHub account alone cannot push code onto it, and a release built earlier than the running one is refused so an old version cannot be re-marked latest. Code only: the database is never restored by an update, because schema changes are additive. |
 | 2026-10-21 | A release whose `install.ps1` changed, or one marked `--manual`, is never installed by the PCs themselves. | New scheduled tasks, settings or a data migration need the installer or a person; the updater only swaps code. |
+| 2026-10-21 | The Windows PC is a trial beside the live cloud for now: it takes Z Chaat's setup from a file and sends nothing to the live Atlas. Rishi's choice, from three offered. | Two machines writing to one Atlas would issue the same GST invoice numbers. The PC sends to Atlas only after the switch in DEPLOYMENT.md 17.5, when it is the only writer and the Render server is the mirror. |
 
 ---
 
@@ -624,6 +625,17 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-21 Rishi with Claude Code, the live cafe's setup onto the trial PC (Cafezza-Offline)
+
+What was built or decided:
+Rishi asked for the offline PC to have the live system's look and data, and to send its data to the same Atlas. Asked which: a trial beside the live cloud, nothing written to the live Atlas (decision log). `docs/WINDOWS-INSTALL.md` section 5a.
+1. `npm run copy:menu` (`server/scripts/copyMenuFromLive.js`) now also copies the settings (`trialSettings`: never the invoice series, the GSTIN, the day-end emails or the online page), the logo, address and phone, and the payment methods (card machine links removed); with `--with-staff`, the staff other than the owner with their password and PIN hashes, skipping any phone or email already used.
+2. `--export <file>` reads the live database into an Extended JSON file (ids, dates and logo bytes exact); `--from-file <file>` writes it on the PC, so the PC never holds the live database's address.
+3. Read live Atlas (read only, 2026-10-21): Z Chaat, 8 users, 192 orders, 175 bills, 5 day closures, 103 dishes, 14 categories, 14 tables, 4 stations, 4 payment methods. This Mac's `.env` now points at a local box database ("Test Cafe"), not Atlas.
+4. Running the export from this session was refused by the session's permission check (it reads staff password hashes from production); Rishi runs it himself.
+
+Tests: `copyMenu.test.js` 6 (4 new). Letting the invoice series through fails 2, tried on purpose.
 
 ### 2026-10-21 Rishi with Claude Code, the Windows cafe PC updates itself (Cafezza-Offline)
 

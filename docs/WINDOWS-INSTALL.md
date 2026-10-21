@@ -72,6 +72,53 @@ Takes about 10 minutes. It is safe to run again if anything stops halfway.
   the address is worked out again by itself; reprint the card from
   "Connect a device".
 
+## 5a. Bringing the live cafe's setup onto the PC (a trial)
+
+For a trial beside the live cloud system: the PC gets the cafe's menu, dish
+photos, tables and floor plan, stations, settings, logo and colours, payment
+methods and, if you choose, the staff with the passwords and PINs they know.
+It gets no orders, bills, guests or money, and it writes **nothing** back to the
+live database: the cloud keeps billing as before, and the PC's trial bills stay
+on the PC.
+
+Left out on purpose, so a trial bill can never pass for a real one: the invoice
+series (the PC numbers its own, `2026-27/000001` on), the GSTIN, the day-end
+email addresses, the online page and the payment gateway. A card machine link
+comes off. Put a GSTIN in only when the PC goes live for real.
+
+1. **Install** (section 2) and answer **N** to the sample menu: the copy goes
+   into an empty restaurant only. Name the cafe, say, `Z Chaat (trial)`.
+2. **On your own computer**, which can reach the live database:
+
+   ```
+   SOURCE_MONGO_URI="mongodb+srv://..." npm run copy:menu -- --source "Z Chaat" --export zchaat-setup.json --with-staff
+   ```
+
+   Leave out `--with-staff` to bring no staff (add them on the PC's Staff
+   screen). With it, the file holds password and PIN hashes: move it by pen
+   drive, not chat, and delete it from both computers once copied. The live
+   database's address never goes onto the PC.
+3. **On the cafe PC**, copy the file to `C:\CafePOS`, then in an Administrator
+   PowerShell inside `C:\CafePOS`, with the owner phone you gave the installer:
+
+   ```
+   npm run copy:menu -- --from-file zchaat-setup.json --target-phone 9XXXXXXXXX
+   npm run copy:menu -- --from-file zchaat-setup.json --target-phone 9XXXXXXXXX --apply
+   ```
+
+   The first only shows what it would copy. Staff whose phone is already used on
+   the PC (the owner you typed) are skipped and named.
+4. Reload the screens. The menu, floor, logo and colours are the live cafe's.
+
+### Later: the PC becomes the real till
+
+Sending the PC's data to the same Atlas is only safe once the PC is the **only**
+machine that bills, or two machines would issue the same invoice numbers. That
+switch is `docs/DEPLOYMENT.md` sections 17.5 and 18: billing stops on the cloud
+at a quiet hour, the PC takes all the data, the Render server becomes the
+read-only mirror on the same Atlas, and the PC sends it every change within
+seconds whenever the internet is up.
+
 ## 6. Updating to a new version
 
 New versions install themselves at night. Nobody at the cafe does anything.
