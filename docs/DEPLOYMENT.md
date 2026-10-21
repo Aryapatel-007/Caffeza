@@ -4,6 +4,14 @@ How the system runs for Caffeza, and how to keep it running.
 Decision: the Node server runs in the cloud, next to a separate Atlas cluster for Caffeza.
 Prompt P12 does the code side of this. Everything else here is done by hand, once, and then kept up.
 
+> **P62 (2026-10-21), in this repository (Cafezza-Offline):** the server can
+> also run on a box inside the cafe, the only writer, with Atlas as a
+> read-only mirror. Sections 1 to 16 describe the cloud deployment, which
+> stays the default (`DEPLOYMENT_ROLE=CLOUD`) and the tested fallback.
+> **Section 17 is the box, section 18 is the mirror.** The design is
+> `docs/REPLICATION.md`; operations are `docs/RUNBOOK.md`; the staff guide is
+> `docs/STAFF-SETUP.md`.
+
 ---
 
 ## 1. The shape
@@ -700,3 +708,155 @@ the free plan: the first screen after a sleep waits about a minute.
 tickets, customers, audit lines and counters (scoped to the TEST restaurant),
 never the live one's.
 
+
+
+---
+
+## 17. The cafe box (P62)
+
+The server and MongoDB on a small computer in the cafe. Every till, tablet
+and kitchen screen reaches it over the cafe's WiFi in 1 to 3 ms. The internet
+going down stops nothing but online orders and the platforms.
+
+```
+ Tills · captain tablets · kitchen screens · printers ── cafe WiFi (5 GHz) ── router ── UPS
+                                                              │
+                                                    cafe box (cable, fixed IP) ── UPS
+                                                    Node + MongoDB rs0
+                                                              │ outbound only
+                                                    4G / broadband ── cloud mirror (section 18)
+```
+
+### 17.1 The hardware
+
+| Part | What | Why |
+|---|---|---|
+| Box | Mini PC, Intel N100 or better, 16 GB RAM | MongoDB and Node for one cafe use under 2 GB; the rest is headroom and disk cache |
+| Disk | 512 GB NVMe, **plus a second NVMe mirrored** (Linux software RAID 1, set at OS install) | a dead disk at 9:40pm loses nothing |
+| UPS | Line-interactive, about 1 kVA, powering **the box, the router, and the KOT and bill printers** | a box on battery behind a dead router is a box no tablet can reach. Sized for 15 minutes of service and a clean shutdown (install `apcupsd` or `nut` and let it shut the box down) |
+| Router | Dual band; tills and kitchen screens on 5 GHz | 2.4 GHz is crowded in a market street |
+| Internet | Broadband plus a 4G line for the shipper, intake and owner access, never in the till's path | the till never waits on either |
+
+The prices are not written here. P62 section 15 question 9: the budget is
+confirmed before anything is ordered.
+
+### 17.2 Installing
+
+On a fresh Ubuntu 24.04 LTS Server, with this repository cloned:
+
+```
+sudo LAN_IP=192.168.1.10 bash box/install-ubuntu.sh
+```
+
+It installs Node 22, MongoDB Community 8.0 as a **single-node replica set with
+authentication, bound to the box and the LAN only**, avahi (the name
+`cafe-server.local`), chrony (NTP), and the app as `cafe-pos.service` on
+port 80, started on every boot. It makes five database logins and prints where
+their passwords are (`/root/cafe-pos-credentials.txt`): copy them to the
+owner's password manager. It is safe to run again.
+
+Then build the restaurant as on the cloud: `npm run setup:restaurant`, or copy
+the live data across (section 17.5).
+
+### 17.3 The network
+
+- **The box on a cable** to the router, recommended. Then the router's WiFi can
+  change name or password without the box noticing.
+- **A fixed address:** a DHCP reservation for the box's MAC address on the
+  router (usually under LAN, DHCP, Address reservation). The setup card prints
+  it; it must never change.
+- **A name that needs no internet:** `cafe-server.local` by mDNS (avahi). Most
+  phones, iPads and computers resolve it; some older Android tablets do not,
+  which is why the card leads with the number. A router with local DNS can also
+  answer `cafe-server` itself.
+- **Nothing inbound.** The box makes outbound connections only; no port is
+  forwarded on the router, ever. MongoDB is never reachable from the internet.
+- `BOX_PUBLIC_URL` and `BOX_LOCAL_NAME_URL` in `/opt/cafe-pos/.env` are what
+  the setup card and the "Cannot reach server" banner tell staff to open.
+- To let the owner change the box's WiFi from the dashboard: copy
+  `box/polkit/50-cafe-wifi.rules` to `/etc/polkit-1/rules.d/` and set
+  `BOX_WIFI_CONTROL=on` (`docs/STAFF-SETUP.md` section 5).
+
+### 17.4 The clock
+
+NTP (chrony) whenever online; the hardware clock in UTC; the clock battery
+checked at install (`sudo hwclock --show` after a power-off of a minute must
+still be right). The server refuses writes while its clock is behind its newest
+record (`docs/RUNBOOK.md` section 4). Tested by `tests/writerGate.test.js`.
+
+### 17.5 Moving from the cloud to the box
+
+Only after Z Chaat is live and settled (P62 section 1b), at a quiet hour:
+
+1. Take a P54 copy, then stop billing on the cloud.
+2. `mongodump` the cloud database and `mongorestore` it into the box, as in
+   `docs/RUNBOOK.md` section 7 step 1.
+3. Start the box (`DEPLOYMENT_ROLE=BOX`). Its first start takes the changelog
+   baseline: every document, captured once.
+4. Point every device at the box's address. Sessions start again.
+5. Set up the mirror (section 18) and fill `MIRROR_URL` and `REPLICATION_SECRET`.
+   The baseline ships, and the copy matches within minutes.
+6. Keep the cloud deployment as it is, read-only by habit, for a fortnight: it
+   is the tested fallback, one address away.
+
+### 17.6 Acceptance on the real box
+
+From P62 section 11, the ones code cannot run:
+
+1. **Pull the plug** mid-service with an open order and a KOT in flight. On
+   power, the box comes back by itself; no corruption, no lost acknowledged
+   write, service resumes with nobody typing anything.
+2. **Cut the WAN for an hour** of simulated trading. The till is unaffected,
+   the top bar says "N waiting to upload", and the shipper catches up with no
+   duplicates and no gaps (`npm run replication -- status`).
+3. **Speed:** p95 under 80 ms tap to painted for add an item, fire a KOT,
+   create a bill, load the floor, load the ordering screen, on the cafe's own
+   tablets over its WiFi. Recorded in `docs/PERFORMANCE-BASELINE.md`.
+4. `bash box/check-box.sh` is all OK.
+
+### 17.7 Every update
+
+```
+cd ~/Cafezza-Offline && git pull
+sudo LAN_IP=192.168.1.10 bash box/install-ubuntu.sh   # rebuilds, keeps .env and the database
+```
+
+Outside service hours: the server restarts for about 10 seconds.
+
+---
+
+## 18. The cloud mirror (P62)
+
+The same codebase on any container host, with `DEPLOYMENT_ROLE=MIRROR`, on an
+Atlas cluster of its own. It holds a copy of the box's data for the owner's
+dashboard from outside the cafe and for off-site safety, and it is where the
+internet's requests (online orders, Razorpay, Swiggy, Zomato, Pine Labs) wait
+for the box. It is read-only, enforced, until a person promotes it.
+
+1. An Atlas cluster. M0 (512 MB, free) holds a small cafe for months but has
+   no backups of its own; **M10** has point-in-time restore and enough storage
+   for the copy. P62 section 15 question 8 is the owner's decision.
+2. Deploy as section 13 (the container), with:
+
+   | Variable | Value |
+   |---|---|
+   | `DEPLOYMENT_ROLE` | `MIRROR` |
+   | `MONGO_URI` | the mirror's Atlas cluster |
+   | `REPLICATION_SECRET` | `openssl rand -base64 48`; the **same** value goes in the box's `.env` |
+   | `PAYMENT_SECRETS_KEY`, `INTEGRATION_SECRETS_KEY` | the **same** values as the box, so it can verify webhooks with the sealed keys the copy holds |
+   | `BACKUP_ENABLED` | `off`: the box runs P54 |
+   | everything else | as section 4 |
+
+3. `npm run db:indexes` against the mirror's database.
+4. On the box, set `MIRROR_URL=https://<the mirror's address>` and the same
+   `REPLICATION_SECRET`, and restart it. Within a minute
+   `npm run replication -- status` on the box shows nothing waiting.
+5. Point the public page's address (`/r/<slug>`) and every partner webhook at
+   the mirror's address: they must reach something on the internet, and the box
+   is not.
+6. The owner's dashboard from outside the cafe is the mirror's address; it
+   shows "figures as of" with the time of the last change it has.
+
+The keep-awake pingers of section 14 are not needed for a mirror on a host that
+does not sleep. On Render's free plan they are: a sleeping mirror takes no
+online orders.

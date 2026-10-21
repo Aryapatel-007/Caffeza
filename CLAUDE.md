@@ -29,6 +29,9 @@ These are long. Read the section your task touches, not the whole file.
 | `docs/DEPLOYMENT.md` | Before touching startup, environment variables or deployment |
 | `docs/CURRENT-STATE-AUDIT.md` | When you need to know what already exists and where |
 | `docs/INTEGRATIONS.md` | Before any Swiggy, Zomato, Pine Labs or Tally work, or setting up a restaurant's integrations |
+| `docs/REPLICATION.md` | Before touching the box, the mirror, intake, the changelog, or adding a model (P62) |
+| `docs/RUNBOOK.md` | When the box, its clock or the cloud copy needs a person (P62) |
+| `docs/STAFF-SETUP.md` | Connecting devices to the box, and the network screens (P62) |
 
 API-CONTRACT.md and DB-SCHEMA.md are the specification. Do not invent their contents.
 If a task needs a field or endpoint that is not in them yet, stop and say so instead of adding it.
@@ -59,7 +62,8 @@ The golden day in `docs/TEST-DATA.md` must still produce every expected number a
 
 ## Rules for a live restaurant
 
-The server runs in the cloud, next to a separate Atlas cluster. Do not add anything that assumes a machine inside the restaurant.
+The server runs in the cloud, next to a separate Atlas cluster (`DEPLOYMENT_ROLE=CLOUD`, the default). In this repository (Cafezza-Offline) it can also run on a box inside the cafe, the only writer, with Atlas as a read-only mirror (P62, `docs/REPLICATION.md`). Anything new must work in all three roles; anything that writes must respect `writerGate` and the writer guard.
+Every new model is classified in `server/config/replication.js`, or the tripwire test fails.
 Printing happens from the browser on a device in the restaurant. The server never talks to a printer.
 Never create a bill in production to test something. Every production bill uses a real GST invoice number.
 Schema changes are additive: new fields with defaults, nothing renamed or removed. If a change cannot be additive, say so and write its rollback steps.

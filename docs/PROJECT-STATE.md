@@ -6,11 +6,17 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-21 by Rishi (P61 a simple Day Close). Before that, 2026-10-21 by Rishi (P60 bill without KOT). Before that, 2026-10-21 by Rishi (P59 a captain's bill printed once, the guest count at the first Send; the kitchen board without gaps). Before that, 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-21 by Rishi with Claude Code (P62 the cafe box, the cloud mirror and the network, in the Cafezza-Offline repository). Before that, 2026-10-21 by Rishi (P61 a simple Day Close). Before that, 2026-10-21 by Rishi (P60 bill without KOT). Before that, 2026-10-21 by Rishi (P59 a captain's bill printed once, the guest count at the first Send; the kitchen board without gaps). Before that, 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
 ## Current stage
+
+> **Cafezza-Offline (this repository), from 2026-10-21:** P62 runs the same
+> product on a box inside the cafe, the only writer, with Atlas as a read-only
+> mirror (`docs/REPLICATION.md`). It is Stage 10 work in its own repository, so
+> Z Chaat's go-live on the cloud deployment is not touched by it. The default
+> `DEPLOYMENT_ROLE=CLOUD` behaves exactly as before P62.
 
 Stage 9: **taking the product live at Z Chaat**, an Indian street food
 restaurant in Gandhinagar. Its setup is `docs/clients/zchaat/PROFILE.md`, with
@@ -569,6 +575,31 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-21 | P59: a counter device claims a captain's print request on the server (`printed` with `forRequestAt`) before printing it; the guest count is asked with the guest's details on the first Send, and `requireGuestCount` is checked there; the kitchen board packs tickets into columns sized from its width. | 37 of 88 captain bills on live Z Chaat printed twice or more: a device lock cannot see another Chrome profile or device, a conditional write on the bill can. Rishi wanted guests asked once, beside name and mobile. A grid left screens of gaps beside long tickets. |
 | 2026-10-21 | P60: the counter bills dishes not sent without a KOT; they count as served at once, never reach the kitchen, and stock is deducted as a Send would. Tables and takeaway, owner, manager and cashier only. | Rishi: the kitchen already knows the order, and the guest wants the bill first. Captains still send everything to the kitchen. |
 | 2026-10-21 | P61: orders nothing was sent from close themselves at Day Close (as P50, counting nowhere); the cashier closes the day, blind; Day End is one screen. A table whose food was sent is cancelled with the manager's Cancel order, which stays in the cancellations report. | Rishi: closing was blocked by tables never punched, and the process was too long. Hiding a sent order from every list was refused by the session's permission check as audit tampering, so the visible cancel was built instead. |
+| 2026-10-21 | **Reversed: "Hosting: a cloud server ... A box inside the cafe was considered and rejected" (2026-09-30).** In the Cafezza-Offline repository the server can run on a box in the cafe (`DEPLOYMENT_ROLE=BOX`), the only writer, with Atlas as a read-only mirror. The cloud deployment stays the default and the tested fallback, one address away. (P62) | The 2026-09-30 reason was that billing needed the internet. On a box in the room it does not: Gandhinagar to Singapore is 80 to 140 ms a round trip, the LAN 1 to 3 ms, and the internet going down stops only online orders. The old line is kept above. |
+| 2026-10-21 | **Reversed: "Web app is online only. A web app cannot work offline."** A web app served from a box in the same room does not stop when the internet does. Internet-offline and LAN-offline are different failures, and only the first has to be survived. (P62) | True of a cloud-hosted app; not of one on the LAN. If the LAN or the box is down nothing works locally, which is what the UPS, the mirrored disk and the promotion ritual are for. |
+| 2026-10-21 | **Reversed in part: the kitchen screen's 10-second poll "one less thing to debug on bad kitchen wifi" (2026-08-29, M2).** Its stated reason was distance to the server, gone on a LAN. P33 already replaced the steady poll with a live channel (Socket.IO, not SSE) and a poll that backs off and returns when the channel drops, so nothing more was changed for P62. | Recorded so the M2 line is not read as still holding. P62 asked for SSE; P33's channel already does the job, with the poll as fallback, and changing transport twice buys nothing. |
+| 2026-10-21 | The prompt that arrived as "P51 local-first" is **P62**. P51 is Arya's WhatsApp assistant; the last prompt on main is P61. The network additions asked for with it (the WiFi the system runs on, changing it, each device's connection strength, the staff setup guide) are part of P62. | Two prompts with one number broke references once before (P30). |
+| 2026-10-21 | P62 section 1b answered by where the work lives: it is built in the separate Cafezza-Offline repository, so Z Chaat goes live on the existing cloud deployment and the box is Stage 10. | Changing where the application runs during a go-live is how go-lives fail. |
+| 2026-10-21 | One codebase, three roles: `CLOUD` (default, P12 to P61 unchanged), `BOX`, `MIRROR`, in `server/config/deployment.js`. | Two codebases would drift; a default that changes nothing keeps the cloud deployment exactly as tested. |
+| 2026-10-21 | Every model is classified MIRROR or LOCAL_ONLY with an owner and a reason in `server/config/replication.js`; a test fails on a missing or unknown model. `Counter` and `IntegrationJob` ship; `RefreshToken` and replication's own state do not; logo bytes ship. | A model left out of the copy is a hole in the backup nobody sees. A promoted mirror must continue the bill series and find the refunds still owed. |
+| 2026-10-21 | The changelog is written from the local change stream (`fullDocument: updateLookup`), never by the services; per-restaurant `seq` reserved in the same transaction; the event id unique so a replayed event is one entry; append-only; never pruned. A first start takes a baseline of every document. | No service in M0 to M21 can forget an outbox write it never had to make. Ordering by `seq`, never by clock. |
+| 2026-10-21 | The mirror applies batches in one transaction with its cursor: idempotent below `appliedSeq`, refuses a gap (`REPLICATION_GAP`), and a wiped copy makes the shipper rewind and rebuild from seq 1. | The prompt's done conditions 4 to 6, each with a test that breaks the rule on purpose. |
+| 2026-10-21 | A batch below the mirror's epoch is quarantined (`replicationquarantine`), never applied, and answered `STALE_EPOCH`; the box that gets it stands down. | The prompt asked both that Atlas refuse a stale batch and that a returning box "ship whatever it still has queued". Quarantine does both: nothing stale reaches the copy, and nothing is thrown away. |
+| 2026-10-21 | The single-writer rule is enforced twice: `middleware/writerGate.js` before every route (the mirror's write allowlist is exact, checked by walking the route table) and `models/plugins/writerGuard.js`, applied through the tenant guard to every tenant model and to `Restaurant`. | The way it fails is two bills with one GST invoice number. A job or script writes without a request, so the HTTP gate alone is not enough. |
+| 2026-10-21 | The mirror's allowlist includes sign-in (`/auth/login`, `/refresh`, `/logout`) beside intake and replication. Sign-in on a non-writer does not write `users.lastLoginAt`. | The prompt allowlisted intake only, but the owner's dashboard on the mirror needs a session, and sessions are LOCAL_ONLY. |
+| 2026-10-21 | Errors with status 503 and codes `MIRROR_READ_ONLY`, `CLOCK_BEHIND`, `WRITER_FENCED` reach the client with their message; every other 5xx stays generic. | A person must read "the server clock is wrong" and act; the error handler hid every 5xx before. |
+| 2026-10-21 | Intake: the mirror verifies webhooks exactly as M21 does (Razorpay's signature with the cafe's sealed secret; a partner's adapter, via `verifyWebhookSignatureOnly`) and stores the request; `cloudIntake.js` imports no model but `IntakeItem`, with a test. The box claims, validates again with the route's own schema, applies through `onlineOrderService.place`, `handleWebhook` and `receiveWebhook`, and reports. | The single writer stays single. Each service is already idempotent on the request's own key, so a crash mid-apply makes one order. |
+| 2026-10-21 | A stale online order is rejected `ITEM_UNAVAILABLE` by the box. No refund job is queued for it, because no money moved: P24 takes the advance only after the box makes the order. | The prompt expected a refund here; the existing payment order makes one unnecessary. A payment for an order later declined is refunded by P24's path, through M21 jobs. |
+| 2026-10-21 | PROVISIONAL (P62 section 15 question 3, the owner's to confirm): the mirror's public page takes no new order or booking while the box has not checked in for 5 minutes (`ONLINE_CLOSED`). | No guest pays for a request no kitchen can see. One constant, `BOX_SILENT_CLOSES_PAGE_AFTER_MS`. |
+| 2026-10-21 | PROVISIONAL (question 2): continuous shipping, seconds behind with the internet up; hourly local `mongodump --oplog` (24 hourly, 31 daily, 12 monthly); P54's 5-minute encrypted diary to Backblaze kept. | The owner sets the loss window; this is the smallest the design gives without a second box. |
+| 2026-10-21 | PROVISIONAL (question 4): Swiggy and Zomato orders past their acceptance deadline while the box is unreachable are left for the platform to auto-reject. Questions 5 to 9 stay open (one cafe assumed; who restarts the box is TO FILL in the runbook; mirror enough for the owner; Atlas tier; budget). | The kitchen cannot cook an order it never saw. |
+| 2026-10-21 | The box's clock: at boot and every minute it compares with its newest changelog capture and newest bill; more than two minutes behind refuses every write (`CLOCK_BEHIND`) until it is right, then lifts by itself. | Section 2.6. Never bill silently on the wrong day. |
+| 2026-10-21 | On a BOX over plain `http://` the refresh cookie is not `Secure`, and helmet drops `upgrade-insecure-requests`. Everywhere else, and on the box over https, both are as before. | A browser drops a Secure cookie from an http LAN page, which would sign every tablet out on reload; the CSP directive would send every script to an https that does not exist. Logged as the one exception to the M0-D cookie decision. |
+| 2026-10-21 | Each device measures its own link to the box (a no-database `GET /network/ping` every 5 seconds, the last 12 kept) and reports it every 15 seconds; strength is four bars from the median, wobble and loss, on the same scale on server and client (a test reads both). Device presence is in memory only. | A web page cannot read a WiFi signal in dBm; the round trip is what decides whether a tap reaches the till. A row every 15 seconds per tablet would be most of the changelog. |
+| 2026-10-21 | The box's own WiFi (name, signal, wired or not, addresses) is read from the operating system's tools (`nmcli`, `netsh`, `ipconfig`) with `execFile`, no shell. Changing it is OWNER only, off unless `BOX_WIFI_CONTROL=on` with the polkit rule installed, audited `BOX_WIFI_CHANGED` without the password; a failed join leaves the box where it was. The staff WiFi for the setup card is kept in a file on the box, never in the database. | Moving the server to another WiFi strands every device left behind, so it is deliberate, warned about, and recommended against (put the box on a cable). The WiFi password must not ship to the cloud. |
+| 2026-10-21 | `/connect` is a page with no sign-in: the WiFi to join and the address to open, each with a QR code (the WiFi code joins by itself when an owner or manager prints it with the password), steps per device, printable. A device that cannot reach the server shows a banner from what it remembered: the WiFi name and the address. | The one mistake that stops service on the LAN is a device on the wrong WiFi. |
+| 2026-10-21 | The keep-awake workflow runs by hand only in this repository. | A box never sleeps; the scheduled pinger would fail every ten minutes without its variable. |
+
 ---
 
 ## Open questions
@@ -584,12 +615,44 @@ Things not yet decided. Move them to the decision log once settled.
 - Should kitchen station logins be able to cancel items? Caffeza's stations do it today. Our rule allows OWNER, MANAGER, CASHIER and WAITER only.
 - May a cashier charge a bill to an On Hold account?
 - May a cashier apply platform discounts? A setting exists, default off.
+- P62 section 15, for the owner: the data-loss window (question 2, provisional above); what an online guest sees while the box is unreachable and after how long the page closes (question 3, provisional 5 minutes); auto-reject or a narrow auto-accept for platform deadlines (question 4, provisional: let it reject); one cafe or several (question 5); who restarts the box at 9pm and their number (question 6, TO FILL in `docs/RUNBOOK.md`); live access to the box from outside or the mirror only (question 7); the Atlas tier for the mirror (question 8); the budget for the box, second NVMe, UPS and Atlas (question 9).
 
 ---
 
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-21 Rishi with Claude Code, P62 the cafe box, the cloud mirror and the network (Cafezza-Offline)
+
+Read first, as P62 section 0 asks. What contradicted the prompt:
+1. "P51" is taken (Arya's WhatsApp assistant); the prompt is P62.
+2. "WhatsApp is not in this codebase" (prompt 5.4): it is, P37 and P51 merged on 2026-10-15. Nothing of it was touched.
+3. The kitchen screen does not poll every 10 seconds any more: P33's live channel (Socket.IO) with a backing-off poll replaced it. P62's SSE ask is already met in another form.
+4. P54 already ships constant encrypted backups to Backblaze (full copies and a 5-minute change diary from a change stream). The local `mongodump --oplog` was added beside it, not instead.
+5. CLAUDE.md said "Do not add anything that assumes a machine inside the restaurant". Updated for this repository.
+6. `models/Counter.js` is `server/models/Counter.js`; `DESIGN-SYSTEM-V2.md` is under `docs/prompts/`; `docs/RUNBOOK.md` did not exist.
+7. The M0-D refresh cookie is always `Secure`, which a browser drops on `http://192.168.x.x`; and helmet's CSP upgrades every request to https. Both would have broken the box on the LAN.
+8. The prompt asked Atlas both to refuse a stale-epoch batch and to receive what a returning box still has queued: quarantine does both.
+9. A stale online order cannot have taken money (P24 starts payment after the order exists), so no refund job is needed on `ITEM_UNAVAILABLE`.
+10. `GET` of a guest's order status writes on a box (expiry, Razorpay read-back): on the mirror those are skipped.
+
+What was built:
+1. Roles (`config/deployment.js`), the replica-set refusal at boot (`assertReplicaSet`), the clock refusal (`replication/clockGuard.js`), the classification and its tripwire (`config/replication.js`).
+2. The changelog writer, shipper, receiver, reconciliation, quarantine, epoch with promote, demote, adopt-epoch, reset-cursor and baseline (`npm run replication`), the local snapshot (`npm run snapshot:local`, systemd timer hourly).
+3. The writer gate and the writer guard; the job loop runs only on the writer.
+4. Intake: the mirror's public routes and webhooks into `intake`, the box's puller and appliers, the guest's `GET /public/:slug/intake/:id`, and the public page waiting for the box's answer.
+5. The network: each device's strength in every top bar, the "Cannot reach server" banner with the WiFi and address to use, Network and devices (the server's WiFi and signal, change WiFi, every device with its strength, the cloud copy), a Network card on the owner's dashboard, and `/connect`, the printable setup card with QR codes.
+6. The box: `box/install-ubuntu.sh`, `box/mongo/`, `box/systemd/`, `box/polkit/`, `box/check-box.sh`.
+7. Docs: `docs/REPLICATION.md`, `docs/RUNBOOK.md`, `docs/STAFF-SETUP.md`, DEPLOYMENT sections 17 and 18, API-CONTRACT and DB-SCHEMA P62 sections.
+
+Tests: 48 new (replication 16, classification 5, intake 8, writer gate 7, network 12), and the server-models test updated for `ReplicationState`. `mongodump --oplog` and `mongorestore --oplogReplay` round-trip a live test database. The whole suite passes.
+
+Not done, and why:
+- The device-side short request queue for WiFi blips (prompt section 12): a tap during "Cannot reach server" is not saved, and the banner says so.
+- The in-process read cache and the PWA shell (section 9): measure on the real tablets first. A service worker needs https, which the box over plain http is not.
+- The physical acceptance (pull the plug, an hour without WAN, the 80 ms budget on real tablets): needs the box in the cafe (`docs/DEPLOYMENT.md` section 17.6).
+- The owner's answers to P62 section 15.
 
 ### 2026-10-21 Rishi, P61 a simple Day Close
 

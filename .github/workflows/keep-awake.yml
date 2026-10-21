@@ -23,8 +23,8 @@
 name: Keep the server awake
 
 on:
-  schedule:
-    - cron: '*/10 3-20 * * *'
+  # P62 (Cafezza-Offline): by hand only. A box in the cafe never sleeps, and this
+  # repository has no KEEP_AWAKE_URL, so a schedule would only fail every ten minutes.
   workflow_dispatch:
 
 permissions: {}
