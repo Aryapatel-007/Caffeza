@@ -360,3 +360,44 @@ changelog writer and shipper are outside the request path by construction
   the real tablets first.
 - The physical acceptance tests (pull the plug, cut the WAN for an hour) and the
   speed budget on real hardware: they need the box in the cafe.
+
+## 13. Two-way sync (P63)
+
+`SYNC_MODE=TWO_WAY` on the box and on the cloud (`DEPLOYMENT_ROLE=CLOUD`): both
+write, both keep a changelog (section 3, the same writer), and the box exchanges
+them: every second it pulls the cloud's entries after `peerpull:<rid>.pulledSeq`
+(`POST /replication/pull`) and applies them, then ships its own (section 4) with
+`seenPeerSeq`. The cloud never calls the box. The prompt is
+`docs/prompts/P63-two-way-sync.md`; the code is `server/services/sync/`.
+
+**Applying** (`sync/applyPeer.js`) is not P62's blind replace. Per document,
+`syncdocs` holds the base, the last version both sides agreed on: set when a
+change from the other side is applied, and when this side's own entry is known
+to have reached the other side (the box: on the cloud's acknowledgement; the
+cloud: when the box's `seenPeerSeq` passes it). Then: identical is a no-op;
+unchanged here since the base takes the incoming; changed on both is a
+three-way merge (`sync/merge.js`), newer `updatedAt` winning a field changed both
+ways, arrays of sub-documents merged by `_id`; a broken unique rule is a clash,
+where the PC's document keeps its place (`sync/clashes.js`). Every merge with a
+field changed both ways, every clash, and a delete of something changed here,
+records a `syncconflicts` document.
+
+**No echo.** A document written from the other side records its hash in
+`syncdocs.appliedHashes`; the changelog writer leaves out a change whose
+document has one of those hashes. A merged result is not recorded, so it goes
+back and both sides converge.
+
+**Before applying**, the side pumps its own change stream, so a change made a
+moment before is in the changelog and in the base comparison.
+
+**Numbers.** The cloud's series are `W` (section 2 of the prompt); `counterService`
+and `billNumberService` ask `sync/numbering.js`.
+
+**What runs where while `TWO_WAY`.** Box: changelog writer, pusher, puller, no
+intake puller, no integration job loop, no reconciliation (two writers diverge
+for seconds by design). Cloud: changelog writer, the replication routes, the
+integration job loop, P54 backups. Day Close only on the box.
+
+**Rollback.** `SYNC_MODE=ONE_WAY` on both, then P62's section 17.5 decides who
+writes.
+

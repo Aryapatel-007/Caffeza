@@ -3142,3 +3142,25 @@ leaves out `changelog` and `changelogcounters`.
 
 Rollback: set `DEPLOYMENT_ROLE=CLOUD` (the default). Nothing reads the new
 collections then; they can stay.
+
+# P63. Two-way sync
+
+Spec 2026-10-21, `docs/prompts/P63-two-way-sync.md`. Additive: two new
+collections, no field renamed or removed, no index changed.
+
+| Collection | Model | Where | Fields | Indexes |
+|---|---|---|---|---|
+| `syncdocs` | SyncDoc | each side, LOCAL_ONLY | `_id` string `<coll>:<documentId as EJSON>`, `restaurantId`, `coll`, `documentId` (Mixed), `baseHash` (sha256 of the canonical EJSON of the agreed version, or `DELETED`), `baseDoc` (Mixed or null), `appliedHashes` (last 8 hashes written from the other side), `updatedAt` | `{ restaurantId, coll }` |
+| `syncconflicts` | SyncConflict | both, MIRROR | base schema, `coll`, `documentId` (Mixed), `kind` (EDITED_BOTH, SAME_SLOT, DELETED_HERE), `title`, `detail`, `fields` [string], `keptFrom` (BOX, CLOUD), `detectedOn` (BOX, CLOUD), `detectedAt`, `localDoc`, `incomingDoc`, `resultDoc` (Mixed), `seenAt`, `seenBy` | `{ restaurantId, seenAt, detectedAt: -1 }` |
+
+`replicationstate` gains `_id` `peerpull:<rid>` (`pulledSeq`, `pulledAt`,
+`lastError`, `lastErrorAt`) on the box and `peerseen:<rid>` (`seenPeerSeq`) on
+the cloud.
+
+`counters`: on the cloud while `TWO_WAY`, `scope` `W` for ORDER, KOT,
+ONLINE_ORDER and RESERVATION (first value 900001), and `<fy>/W` or the prefix
+scope plus `W` for BILL. `bills.invoiceSeries` takes `2026-27/W` or the prefix
+plus `W` for website bills; `billSequence` is 900,000,000 plus the number.
+
+Rollback: `SYNC_MODE=ONE_WAY` on both. Nothing reads `syncdocs` then; website
+bills already made keep their W numbers, which stay valid in their series.

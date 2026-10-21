@@ -839,3 +839,18 @@ Added by P61.
 | **Cash in the drawer** | On Day End: the cash counted at close (counted cash) |
 | **Taking cash out of the drawer?** | Optional at close: keep some for tomorrow and say where the rest went. Without it, everything counted stays as tomorrow's float |
 | **Day's details** | The day's full figures, the cash flow and the day-end message, under the close |
+
+---
+
+## 46. Two-way sync
+
+Added by P63.
+
+| Term | Meaning |
+|---|---|
+| **Two-way sync** | The cafe PC and the website both take orders and bills, and each gets the other's within seconds while the internet is up |
+| **Website series** | The bill numbers the website uses while two-way sync is on: `2026-27/W00001` |
+| **Sync conflict** | The same thing changed on the cafe PC and on the website before they could tell each other, or the same table, bill or name taken on both. Listed for the owner and manager |
+| **Kept from** | Which side's version a sync conflict kept: the cafe PC or the website |
+| **Mark as seen** | A person has read a sync conflict and dealt with it |
+| **Close the day on the cafe PC** | While two-way sync is on, only the PC closes the day |

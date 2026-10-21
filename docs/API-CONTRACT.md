@@ -9465,3 +9465,42 @@ token is given once, then null. Wrong secret: 404.
 Strength (`bars`, `word`) from the median of the last 12 pings and the share
 unanswered: Excellent ≤ 40 ms and none lost; Good ≤ 100 ms and ≤ 5 %; Fair
 ≤ 250 ms and ≤ 15 %; Weak otherwise; No connection when none answered.
+
+# P63. Two-way sync
+
+Spec 2026-10-21, `docs/prompts/P63-two-way-sync.md`, design `docs/REPLICATION.md`
+section 13. Everything here applies only while `SYNC_MODE=TWO_WAY`; with the
+default `ONE_WAY`, P62 is unchanged.
+
+## 1. Replication (cloud, `TWO_WAY`; signed as P62 section 2)
+
+| Route | Body | 200 `data` | Other answers |
+|---|---|---|---|
+| `POST /replication/pull` | `{ restaurantId, afterSeq (int >= 0), limit (1-500, default 200) }` | `{ entries: [{ seq, coll, documentId, op, doc, capturedAt }], newestSeq }`, oldest first, seq contiguous from `afterSeq + 1` | |
+| `POST /replication/batches` | P62's body plus `seenPeerSeq` (int >= 0, how far the box has pulled) | `{ appliedThrough, applied, skipped, conflicts, gap, position }` | `409 REPLICATION_GAP` as P62. Epochs are not compared while `TWO_WAY` |
+
+On a box or a mirror `/replication/pull` is 404.
+
+## 2. Numbers on the cloud
+
+While `TWO_WAY` the cloud issues bill numbers from its own series (`2026-27/W00001`,
+or the prefix plus `W`), with `invoiceSeries` `2026-27/W` (or prefix plus `W`) and
+`billSequence` 900,000,000 plus the number; and order, KOT, online order and
+booking numbers from 900001. The box's numbers are unchanged.
+
+## 3. Day Close
+
+`POST /day-close`, `POST /day-close/:date/reopen` on the cloud while `TWO_WAY`:
+`422 CLOSE_ON_CAFE_PC`, "Close the day on the cafe PC. The website and the PC
+share the day, and only the PC closes it." Reads are unchanged.
+
+## 4. Sync
+
+| Route | Who | Answer |
+|---|---|---|
+| `GET /sync/status` | OWNER, MANAGER | `{ mode, node (BOX or CLOUD), peerUrl (box only), pushed { shippedSeq, newestSeq, waiting }, pulled { seq, at }, lastError, lastErrorAt, conflictsUnseen }` |
+| `GET /sync/conflicts?seen=true|false&page&limit` | OWNER, MANAGER | paged list, newest first: `{ id, coll, documentId, kind (EDITED_BOTH, SAME_SLOT, DELETED_HERE), title, detail, fields, keptFrom (BOX or CLOUD), detectedOn, detectedAt, seenAt, seenByName, link }` |
+| `POST /sync/conflicts/:conflictId/seen` | OWNER, MANAGER | body `{}`; `data` the conflict with `seenAt` and `seenBy` |
+
+`GET /auth/me` gains `sync: { mode, conflictsUnseen }` for OWNER and MANAGER
+(`conflictsUnseen` null for other roles).
