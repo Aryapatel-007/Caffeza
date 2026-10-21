@@ -76,3 +76,35 @@ test('with two tabs open at the counter, a captain bill still prints once', asyn
   expect(counter.prints).toHaveLength(1);
   expect(counter.prints[0].text).toContain('Table 4');
 });
+
+test('P59: with two counter devices printing captain bills, a bill prints once', async ({ browser }) => {
+  const golden = await resetGolden();
+  await at('12:00', DAY);
+
+  // Two separate browsers at the counter, as the silent-printing profile beside an everyday Chrome window.
+  const counters = [];
+  for (const [name, phone] of [['Counter', golden.phones.Counter], ['Manager', golden.phones.Manager]]) {
+    const device = await signIn(browser, { name, phone, password: golden.password, device: 'computer' });
+    await device.page.goto('/device');
+    await device.page.getByText('Print bills sent by captains').click();
+    await device.page.goto('/bills');
+    counters.push(device);
+  }
+
+  const captain = await signIn(browser, { name: 'Khuman Singh', phone: golden.phones['Khuman Singh'], password: golden.password, device: 'phone' });
+  const station = await signIn(browser, { name: 'Station', phone: golden.phones.Manager, password: golden.password, device: 'tablet' });
+
+  await openTable(captain.page, 'Table 5', 2);
+  await addItems(captain.page, ['Caffe Latte']);
+  await sendToKitchen(captain.page);
+  await markReady(station.page, 'Beverages', 'Table 5');
+  await serveAll(captain.page);
+  await billOrder(captain.page);
+  await captain.page.getByRole('button', { name: 'Print at counter' }).click();
+  await expect(captain.page.getByText('Sent to the counter. It prints there.')).toBeVisible();
+
+  const printed = () => counters.reduce((sum, device) => sum + device.prints.length, 0);
+  await expect.poll(printed, { timeout: 20_000 }).toBe(1);
+  await counters[0].page.waitForTimeout(11_000);
+  expect(printed()).toBe(1);
+});

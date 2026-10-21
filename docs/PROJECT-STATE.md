@@ -6,7 +6,7 @@ Anyone starting any chat, any Claude Code session, or any Antigravity session re
 
 Anyone finishing any session updates this before closing.
 
-Last updated: 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
+Last updated: 2026-10-21 by Rishi (P59 a captain's bill printed once, the guest count at the first Send; the kitchen board without gaps). Before that, 2026-10-19 by Rishi (orders 110, 111 and 13 cancelled on Z Chaat). Before that, 2026-10-18 by Rishi (a screen that cannot load reloads once, never a blank page). Before that, 2026-10-17 by Arya (merged Rishi's P55 to P57 with the P54 backup fixes, nothing pushed). Before that, 2026-10-17 by Rishi (P57 the bill in one place). Before that, 2026-10-17 by Rishi (Void on the cash book fixed, a cashier's void with a PIN, the menu search on its own row). Before that, 2026-10-15 by Rishi (P56 a note for every dish, the guest before the first KOT, whole voids). Before that, 2026-10-15 by Rishi (P55 the owner's dashboard, merged onto Arya's P37, P51 and P54). Before that, 2026-10-15 by Arya (P37 and P51 pushed; P54 constant backups, paused in Part I). Before that, 2026-10-14 by Rishi (P50 closing a table opened by mistake; P49 removing a dish before it is sent)
 
 ---
 
@@ -566,6 +566,7 @@ Add a line every time a real decision is made. Never delete old lines.
 | 2026-10-17 | Z Chaat's live database is Atlas AWS Singapore (`cluster0.onbbqdp`), next to Render's Singapore server. Mumbai (`cluster0.dkcsfcz`) is kept untouched as the move's backup; the test database moved to Singapore too. The server listens on `0.0.0.0` by name. | Rishi's choice after the region check: every query crossed Singapore to Mumbai. Render's port scan missed Node's default `::` and timed a deploy out. |
 | 2026-10-17 | P57: a served order is billed from a Bill box under its dishes: the discount chosen there, the totals shown from a preview of `POST /bills` (`preview: true`, rolled back, no number used), then Save or Save & Print. `POST /bills` takes the discount in the same request. Bill this order and This device's "Print the bill as soon as it is made" are gone. | Rishi, with PetPooja's billing screen: a discount or a change after the bill printed meant a PIN and a second print. A preview keeps every figure on the server, and one request means a bill never prints without its discount. |
 | 2026-10-17 | P58: `kitchen.splitTicketsByStation` (default on). Off, each Send to the kitchen is one ticket with every dish and no station of its own, and the kitchen screen has no station chips; each ticket line still keeps its station. | Arya, for Z Chaat: "only table wise", but a later Send from the same table must still be its own KOT. A setting rather than a new default, so no restaurant changes until its owner switches it; the line stations keep R13's kitchen time by station. |
+| 2026-10-21 | P59: a counter device claims a captain's print request on the server (`printed` with `forRequestAt`) before printing it; the guest count is asked with the guest's details on the first Send, and `requireGuestCount` is checked there; the kitchen board packs tickets into columns sized from its width. | 37 of 88 captain bills on live Z Chaat printed twice or more: a device lock cannot see another Chrome profile or device, a conditional write on the bill can. Rishi wanted guests asked once, beside name and mobile. A grid left screens of gaps beside long tickets. |
 ---
 
 ## Open questions
@@ -587,6 +588,20 @@ Things not yet decided. Move them to the decision log once settled.
 ## What changed recently
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
+
+### 2026-10-21 Rishi, P59 a captain's bill printed once, the guest count at the first Send, the kitchen board without gaps
+
+What was built or decided:
+Asked for by Rishi. Spec first (`166361e`): `docs/prompts/P59-print-once-guests-before-kot.md`, API-CONTRACT "P59", GLOSSARY section 43.
+1. Why captain bills printed twice, read from live Z Chaat (read only): of 88 bills captains sent to the counter, 37 were printed two or more times, the second print recorded 1 to 4 seconds after the first. The 2026-10-19 lock only covers tabs of one Chrome profile; a second profile (the silent-printing launcher's beside everyday Chrome) or a second till device with "Print bills sent by captains" on printed the same request again, and a captain's second tap stamped a new request.
+2. Fix: `POST /bills/:billId/printed` takes `forRequestAt` and records the print only while that request is the one waiting (else 409 `DUPLICATE`); `CaptainBillPrinter` lays the bill out, claims, and prints only on 200 (`printBill` `forRequestAt`). `print-request` keeps a waiting request's time. The captain's bill screen shows "Sent to the counter", disabled, while it waits.
+3. Guests: a free table opens on one tap (a booking soon still asks first, `SeatTablePanel` now bookings only). The Guest details sheet asks "How many guests?" first; `PATCH /orders/:orderId/customer` takes `guestCount` on a dine-in order; `floor.requireGuestCount` is checked on the first Send (`kitchenService.fireOrder`), not on opening. Z Chaat has it off.
+4. Kitchen board (`features/kitchen/ticketColumns.js`): the grid made every row as tall as its tallest ticket, leaving gaps; now each column stacks on its own, each ticket onto the shortest column, and the number of columns comes from the board's width (at least 320 px a ticket, at most six), so names and "Hold for all ready" stay on one line.
+
+Tests: `captainBilling.test.js` gains two (a second tap keeps the time; two devices claim, one 200 and one 409, count 1); `floorPlan.test.js`'s guest count test rewritten on purpose for P59. Browser: `captainBilling.spec.js` gains two counter devices printing once (prints twice with the claim removed, tried on purpose); `customers.spec.js` and the e2e helpers (`openTable` gives the guests at the first Send) changed on purpose. Passing: captainBilling, customers, goldenDay, petpooja, recallUndoSend, kitchenUndo, liveChannel, oneTicketPerSend, kitchenBell, editSentDish. Lint and build pass; the build's 500 kB chunk warning is already on `main`. Kitchen board checked by eye on the test site at 1470 px: four columns, no gaps.
+
+Anything the other developer needs to know:
+Arya: an e2e step that seats a table no longer picks guests on the floor; `openTable` passes them to the Guest details sheet. Not pushed at the time of writing.
 
 ### 2026-10-19 Rishi, a livelier sign-in screen, and Sign out held in an account menu
 

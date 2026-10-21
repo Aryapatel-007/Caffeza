@@ -272,7 +272,7 @@ export async function getPrintQueue(req, res) {
 
 /** POST /bills/:billId/printed. P25 Part D. */
 export async function postPrinted(req, res) {
-  return sendSuccess(res, await markPrinted(req, req.params.billId));
+  return sendSuccess(res, await markPrinted(req, req.params.billId, req.body ?? {}));
 }
 
 /** POST /bills/:billId/cancel-lines. P25 Part E. The service decides who may, and checks the PIN. */

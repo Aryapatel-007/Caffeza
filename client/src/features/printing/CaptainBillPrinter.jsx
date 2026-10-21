@@ -17,12 +17,13 @@ const PRINT_LOCK = 'captain-bill-printer';
 
 /**
  * Prints the bills captains send to the counter. P25 Part D, API-CONTRACT M3
- * section 16.3. Draws nothing.
+ * section 16.3 and P59. Draws nothing.
  *
  * On a counter computer with "Print bills sent by captains" on, it reads the
  * queue every 5 seconds and prints each bill once on this device's printer.
- * Each print records itself on the server, which takes the bill out of the
- * queue, and the device also remembers the request it printed, so a reload in
+ * Each print first claims its request on the server (P59), so of every device
+ * and browser profile reading the queue exactly one prints it; the claim takes
+ * the bill out of the queue, and the device also remembers the request it printed, so a reload in
  * the moment between printing and recording never prints it twice. A bill
  * asked for again later is a new request and prints again, as a Duplicate.
  */
@@ -56,7 +57,12 @@ export default function CaptainBillPrinter() {
         // Read again from storage: another tab of this device may have printed it while this one waited.
         if (readDeviceSettings().printedBillRequests.includes(key)) continue;
         try {
-          await printBill(bill.id, { printer: device.printer, logoDataUrl: brand.logos?.LIGHT_GROUND?.dataUrl ?? null });
+          // P59. Claimed on the server first, so another device or Chrome profile never prints it too.
+          await printBill(bill.id, {
+            printer: device.printer,
+            logoDataUrl: brand.logos?.LIGHT_GROUND?.dataUrl ?? null,
+            forRequestAt: bill.printRequestedAt,
+          });
         } catch {
           // Left in the queue: the next poll tries again.
           continue;

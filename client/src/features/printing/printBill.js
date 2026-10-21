@@ -66,17 +66,34 @@ export async function thermalLogoDataUrl(dataUrl) {
 /**
  * Prints the bill, then records the print (P25 Part D), so the next print of
  * it, from any device, says Duplicate at the top.
+ *
+ * P59. With `forRequestAt`, a captain's request from the print queue: the
+ * request is claimed on the server after the bill is laid out and before it
+ * prints, and only the device whose claim succeeds prints it. Resolves to
+ * null when another device took it.
  */
-export async function printBill(billId, { printer, logoDataUrl = null }) {
+export async function printBill(billId, { printer, logoDataUrl = null, forRequestAt = null }) {
+  const data = await getInvoice(billId);
+  let document;
   if (PRINTERS[printer]?.thermal === false) {
-    const data = await getInvoice(billId);
     const qrSvg = await reviewQrSvg(data.reviewLinkUrl);
-    await printDocument({ printer, bodyHtml: invoiceHtml(data, { qrSvg, logoDataUrl }), styles: INVOICE_STYLES });
+    document = { printer, bodyHtml: invoiceHtml(data, { qrSvg, logoDataUrl }), styles: INVOICE_STYLES };
   } else {
     // 2026-10-09: a thermal bill is laid out from the invoice data too, in the layout guests know.
-    const data = await getInvoice(billId);
     const [qrSvg, logo] = await Promise.all([reviewQrSvg(data.reviewLinkUrl), thermalLogoDataUrl(logoDataUrl)]);
-    await printDocument({ printer, bodyHtml: thermalBillHtml(data, { printer, logoDataUrl: logo, qrSvg, textSize: readDeviceSettings().billTextSize }), styles: THERMAL_BILL_STYLES });
+    document = { printer, bodyHtml: thermalBillHtml(data, { printer, logoDataUrl: logo, qrSvg, textSize: readDeviceSettings().billTextSize }), styles: THERMAL_BILL_STYLES };
   }
-  return markBillPrinted(billId);
+  if (!forRequestAt) {
+    await printDocument(document);
+    return markBillPrinted(billId);
+  }
+  let recorded;
+  try {
+    recorded = await markBillPrinted(billId, { forRequestAt });
+  } catch (error) {
+    if (error?.code === 'DUPLICATE') return null;
+    throw error;
+  }
+  await printDocument(document);
+  return recorded;
 }

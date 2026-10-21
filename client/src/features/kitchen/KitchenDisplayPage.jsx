@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import Sheet from '../../components/ui/Sheet.jsx';
 import StateChip from '../../components/ui/StateChip.jsx';
 import TicketCard from '../../components/ui/TicketCard.jsx';
+import { packColumns, useColumnCount } from './ticketColumns.js';
 import { useMinuteClock } from '../../components/ui/TimeEdge.jsx';
 import { formatTimeIst } from '../../utils/formatDate.js';
 import { errorMessage } from '../orders/errorCopy.js';
@@ -67,6 +68,8 @@ export default function KitchenDisplayPage() {
   const queryClient = useQueryClient();
   const { user, features } = useAuth();
   const [device, updateDevice] = useDeviceSettings();
+  const board = useRef(null);
+  const columnCount = useColumnCount(board);
   const [error, setError] = useState(null);
   // KOT ids whose print failed on this screen. Shown as "Not printed".
   const [notPrinted, setNotPrinted] = useState(() => new Set());
@@ -358,30 +361,35 @@ export default function KitchenDisplayPage() {
           <EmptyState title="All caught up" description="Nothing is waiting. New tickets appear here on their own." />
         )}
 
-        {/* P48. Dense, as PetPooja's: four across from 1024 px, five from 1280, six from 1536, so a service fits one screen. */}
-        <ul className="grid items-start gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-          {kots.map((kot) => (
-            <li key={kot.id}>
-              <TicketCard
-                kotNumber={kot.kotNumber}
-                place={kot.tableName ?? `Order ${kot.orderNumber}`}
-                subtitle={[ORDER_TYPE_LABELS[kot.orderType] ?? kot.orderType, `#${kot.orderNumber}`, kot.stationName, `Fired ${formatTimeIst(kot.firedAt)}`, kot.rounds > 1 ? `${kot.rounds} rounds` : null]
-                  .filter(Boolean)
-                  .join(' · ')}
-                firedAt={kot.waitingSince}
-                targetMinutes={targetFor(kot)}
-                lines={kot.lines}
-                notPrinted={notPrinted.has(kot.id)}
-                note={kot.kitchenNote}
-                onReprint={() => printKot(kot.id, { reprint: true })}
-                isBusy={markReady.isPending || undo.isPending}
-                onLineReady={(lineId) => markReady.mutate({ kotId: kot.id, lineId, label: `${nameOf(kot, lineId)} marked ready.` })}
-                onLineUndo={(lineId) => undo.mutate({ kotId: kot.id, lineId })}
-                onAllReady={() => markReady.mutate({ kotId: kot.id, label: `KOT ${kot.kotNumber} marked ready.` })}
-              />
-            </li>
+        {/* P48. Dense, as PetPooja's, up to six across. 2026-10-21: each column stacks on its own, so a
+            short ticket never leaves a gap beside a long one, and the board's width sets how many fit. */}
+        <div ref={board} className="flex items-start gap-2">
+          {packColumns(kots, columnCount).map((column, index) => (
+            <ul key={index} className="flex min-w-0 flex-1 flex-col gap-2">
+              {column.map((kot) => (
+                <li key={kot.id}>
+                  <TicketCard
+                    kotNumber={kot.kotNumber}
+                    place={kot.tableName ?? `Order ${kot.orderNumber}`}
+                    subtitle={[ORDER_TYPE_LABELS[kot.orderType] ?? kot.orderType, `#${kot.orderNumber}`, kot.stationName, `Fired ${formatTimeIst(kot.firedAt)}`, kot.rounds > 1 ? `${kot.rounds} rounds` : null]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    firedAt={kot.waitingSince}
+                    targetMinutes={targetFor(kot)}
+                    lines={kot.lines}
+                    notPrinted={notPrinted.has(kot.id)}
+                    note={kot.kitchenNote}
+                    onReprint={() => printKot(kot.id, { reprint: true })}
+                    isBusy={markReady.isPending || undo.isPending}
+                    onLineReady={(lineId) => markReady.mutate({ kotId: kot.id, lineId, label: `${nameOf(kot, lineId)} marked ready.` })}
+                    onLineUndo={(lineId) => undo.mutate({ kotId: kot.id, lineId })}
+                    onAllReady={() => markReady.mutate({ kotId: kot.id, label: `KOT ${kot.kotNumber} marked ready.` })}
+                  />
+                </li>
+              ))}
+            </ul>
           ))}
-        </ul>
+        </div>
       </div>
 
       {/* P41. Recall: the tickets finished in the last hour, newest first. */}

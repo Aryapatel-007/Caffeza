@@ -10,9 +10,9 @@ import mongoose from 'mongoose';
 
 import { COUNTER_NAMES } from '../models/Counter.js';
 import { Kot, KOT_LINE_STATUSES } from '../models/Kot.js';
-import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES } from '../models/Order.js';
+import { Order, ORDER_LINE_STATUSES, ORDER_STATUSES, ORDER_TYPES } from '../models/Order.js';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '../models/AuditLog.js';
-import { BusinessRuleError, NotFoundError, OrderAlreadyBilledError } from '../utils/errors.js';
+import { BusinessRuleError, NotFoundError, OrderAlreadyBilledError, ValidationError } from '../utils/errors.js';
 import { recordAudit } from './auditService.js';
 import { scoped } from '../utils/scopedQuery.js';
 import { nowUtc } from '../utils/time.js';
@@ -120,6 +120,22 @@ export async function fireOrder(req, { orderId, version }) {
   if (pending.length === 0) {
     // Firing an empty batch would print a blank chit in a hot kitchen.
     throw new BusinessRuleError('There is nothing new to send to the kitchen.');
+  }
+
+  /**
+   * P59. Covers feed average per cover, so a restaurant can require them. P19
+   * asked at opening; the count is now asked with the guest's details on the
+   * first Send, so that is where it is required. A later Send never is.
+   */
+  if (
+    order.orderType === ORDER_TYPES.DINE_IN &&
+    order.guestCount == null &&
+    order.lines.every((line) => !line.firedAt) &&
+    (await getSetting(req.restaurantId, 'floor.requireGuestCount', { req }))
+  ) {
+    throw new ValidationError('How many guests? Enter the number before sending to the kitchen.', {
+      guestCount: 'How many guests?',
+    });
   }
 
   /**

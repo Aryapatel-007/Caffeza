@@ -122,8 +122,8 @@ export function requestBillPrint(billId) {
 }
 
 /** P25 Part D. Every print, from any device, records itself, so the next one says Duplicate. */
-export function markBillPrinted(billId) {
-  return api.post(`/bills/${billId}/printed`, {});
+export function markBillPrinted(billId, { forRequestAt } = {}) {
+  return api.post(`/bills/${billId}/printed`, forRequestAt ? { forRequestAt } : {});
 }
 
 /** P25 Part D. The bills captains asked the counter to print, oldest first. */

@@ -277,14 +277,15 @@ export default function OrderScreenPage() {
   /**
    * P56. A table's first Send asks for the guest's details, unless the order
    * has them (a seated booking does) or this screen skipped them already.
+   * P59. The number of guests is asked there too; when the restaurant requires
+   * it, the sheet comes up until the order has one, Skip or not.
    */
+  const requireGuestCount = Boolean(features.floor?.requireGuestCount);
+  const firstTableSend = order.orderType === 'DINE_IN' && !hasBill && order.lines.every((line) => !line.firedAt);
+  const missingCount = order.guestCount == null;
+  const missingGuest = !order.customerName && !order.customerPhone;
   const needsGuestDetails =
-    order.orderType === 'DINE_IN' &&
-    !hasBill &&
-    !order.customerName &&
-    !order.customerPhone &&
-    !guestSkipped &&
-    order.lines.every((line) => !line.firedAt);
+    firstTableSend && ((missingCount && requireGuestCount) || (!guestSkipped && (missingCount || missingGuest)));
   const askGuestThen = (send) => (needsGuestDetails ? setAskingGuest({ send }) : send(null));
 
   /** P56. The guest's details first, when given, then the Send on the version they leave. */
@@ -751,6 +752,8 @@ export default function OrderScreenPage() {
         <GuestDetailsSheet
           placeName={placeLabel(order)}
           isBusy={write.isPending}
+          initialGuestCount={order.guestCount ?? null}
+          requireCount={requireGuestCount}
           onCancel={() => setAskingGuest(null)}
           onSave={(guest) => askingGuest.send(guest)}
           onSkip={() => {

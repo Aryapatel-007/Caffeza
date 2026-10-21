@@ -1,5 +1,7 @@
 import { expect } from '@playwright/test';
 
+import { takePendingGuests } from './floor.js';
+
 /** A dish card on the order screen. */
 const card = (page, item) => page.locator('li').filter({ has: page.getByRole('heading', { name: item, exact: true, level: 3 }) });
 
@@ -41,7 +43,7 @@ export async function addFromPanel(page, note = null) {
 export async function sendToKitchen(page) {
   await page.getByRole('button', { name: /^Send \d+ to (the )?kitchen/ }).filter({ visible: true }).first().click();
   const sent = page.getByText('Sent to the kitchen.');
-  // P56. A table's first Send asks for the guest's details; these tests skip them.
+  // P56. A table's first Send asks for the guest's details; P59: with the guests given to openTable.
   const guest = page.getByRole('dialog', { name: 'Guest details' });
   await expect(sent.or(guest).first()).toBeVisible();
   if (await guest.isVisible()) await skipGuestDetails(page);
@@ -49,10 +51,20 @@ export async function sendToKitchen(page) {
   await page.getByRole('button', { name: 'Dismiss' }).click().catch(() => {});
 }
 
-/** P56. Skips the Guest details sheet a table's first Send opens. */
+/**
+ * P56. Answers the Guest details sheet a table's first Send opens: P59, with the
+ * number of guests given to `openTable` when there is one, else Skip.
+ */
 export async function skipGuestDetails(page) {
   const guest = page.getByRole('dialog', { name: 'Guest details' });
-  await guest.getByRole('button', { name: 'Skip, send without details' }).click();
+  const guests = takePendingGuests(page);
+  if (guests != null) {
+    await guest.getByRole('button', { name: guests > 7 ? 'More' : String(guests), exact: true }).click();
+    for (let more = 8; more < guests; more += 1) await guest.getByRole('button', { name: 'One more' }).click();
+    await guest.getByRole('button', { name: 'Save and send' }).click();
+  } else {
+    await guest.getByRole('button', { name: 'Skip, send without details' }).click();
+  }
   await expect(guest).toHaveCount(0);
 }
 

@@ -285,6 +285,15 @@ export const refundDoneSchema = z.object({
 /** POST /bills/:billId/print-request and /printed. P25 Part D. No body. */
 export const billOnlySchema = z.object({ params: billIdParam, body: z.object({}).strict().optional() });
 
+/** POST /bills/:billId/printed. P59: a counter device claims a captain's request with its time. */
+export const markPrintedSchema = z.object({
+  params: billIdParam,
+  body: z
+    .object({ forRequestAt: z.coerce.date({ error: 'Must be the request time from the print queue.' }).optional() })
+    .strict('Is not a field you can set here.')
+    .optional(),
+});
+
 /** GET /bills/print-queue. P25 Part D. */
 export const printQueueSchema = z.object({ query: z.object({}).strict() });
 
