@@ -637,6 +637,8 @@ Asked for by Rishi after the Windows installer: changes reach the cafe PC withou
 
 Tests: new `boxUpdater.test.js` (15): the window, `.env` edits, a manifest refused with another key or changed after signing, no downgrade, a full update keeping `data` and `.env`, a rollback with the old packages when the new version does not answer, a bad checksum touching nothing, nothing outside the window, manual and older releases left alone, rollback by hand twice, all-or-nothing moves. Removing the signature check fails 5; skipping the health wait fails 2, both tried on purpose. Lint passes. The full suite was not run (no server code changed).
 
+First real install, 2026-10-21, on the cafe PC: Node.js, MongoDB and its replica set came up, then the indexes step stopped because the installer wrote `CLIENT_ORIGIN=http://localhost:80` and the server only accepts a bare origin (`http://localhost`). Fixed in the installer, which also mends an old `.env`; it now refuses to run from a WhatsApp, Downloads, Temp or OneDrive folder, where the first run was.
+
 Not done: a real run on Windows (stopping the task, `npm ci` as SYSTEM, `tar` on the zip, renaming folders while Windows holds files). The Ubuntu box still updates by `git pull` and its installer (DEPLOYMENT.md 17.7).
 
 Anything the other developer needs to know:
