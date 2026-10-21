@@ -25,6 +25,7 @@ import {
 } from './ui/icons/index.jsx';
 import AccountMenu, { SignOutButton } from './AccountMenu.jsx';
 import LiveConnection from './LiveConnection.jsx';
+import ConnectionStatus, { LostConnectionBanner } from '../features/network/ConnectionStatus.jsx';
 import Sheet from './ui/Sheet.jsx';
 import Spinner from './ui/Spinner.jsx';
 
@@ -127,6 +128,9 @@ function useMoreGroups() {
         { to: '/attendance/me', label: 'My hours', show: attendanceOn },
         { to: '/settings', label: 'Settings', show: role === 'OWNER' },
         { to: '/settings/integrations', label: 'Integrations', show: manager },
+        // P62. The cafe server's WiFi, the devices on it and the cloud copy.
+        { to: '/network', label: 'Network and devices', show: manager },
+        { to: '/connect', label: 'Connect a device', show: true },
         { to: '/device', label: 'This device', show: true },
       ],
     },
@@ -298,8 +302,13 @@ export default function AppShell({ children }) {
       <div className="v2 flex h-full flex-col bg-ground text-ink">
         <header className="flex min-h-12 flex-none items-center justify-between gap-3 border-b border-line bg-surface px-4 print:hidden">
           <TopBarMark isService />
-          <AccountMenu />
+          <span className="flex items-center gap-3">
+            {/* P62. This device's connection to the cafe server, on every device. */}
+            <ConnectionStatus />
+            <AccountMenu />
+          </span>
         </header>
+        <LostConnectionBanner />
         <LiveConnection />
         <div className="relative min-h-0 flex-1 overflow-y-auto print:overflow-visible">
           <Suspense fallback={<ScreenLoading />}>{children}</Suspense>
@@ -311,6 +320,7 @@ export default function AppShell({ children }) {
   if (FULL_SCREEN_PATHS.includes(pathname)) {
     return (
       <>
+        <LostConnectionBanner />
         <LiveConnection />
         <Suspense fallback={<ScreenLoading />}>{children}</Suspense>
       </>
@@ -334,12 +344,15 @@ export default function AppShell({ children }) {
         <header className="flex min-h-12 flex-none items-center justify-between gap-3 border-b border-line bg-surface px-4 print:hidden">
           <TopBarMark isService={isServicePath(pathname)} />
           <span className="flex items-center gap-3">
+            {/* P62. This device's connection to the cafe server, and the cloud copy's state. */}
+            <ConnectionStatus />
             {/* P48. Recall Bill, as on PetPooja: the till finds a bill by its number. */}
             {['OWNER', 'MANAGER', 'CASHIER'].includes(user?.role) && <BillNoSearch />}
             <AccountMenu />
           </span>
         </header>
 
+        <LostConnectionBanner />
         <LiveConnection />
         <OnlineAlerts />
         <CaptainBillPrinter />

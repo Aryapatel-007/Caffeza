@@ -18,6 +18,8 @@ import FloorViewPage from './features/orders/FloorViewPage.jsx';
 import OrderScreenPage from './features/orders/OrderScreenPage.jsx';
 import TakeawayOrderPage from './features/orders/TakeawayOrderPage.jsx';
 import RequireOnline from './features/online/RequireOnline.jsx';
+// P62. Kept in the main chunk: a device that has lost the server must still be able to open it.
+import ConnectPage from './features/network/ConnectPage.jsx';
 import { ROLES } from './features/users/roles.js';
 
 /**
@@ -58,6 +60,7 @@ const AppearancePage = lazyScreen(settingsGroup, 'AppearancePage');
 const SettingsPage = lazyScreen(settingsGroup, 'SettingsPage');
 const StationsPage = lazyScreen(settingsGroup, 'StationsPage');
 const IntegrationsPage = lazyScreen(integrationsGroup, 'IntegrationsPage');
+const NetworkPage = lazyScreen(settingsGroup, 'NetworkPage');
 const ItemMappingPage = lazyScreen(integrationsGroup, 'ItemMappingPage');
 const TallyPage = lazyScreen(integrationsGroup, 'TallyPage');
 const AvailabilityBoardPage = lazyScreen(menuGroup, 'AvailabilityBoardPage');
@@ -693,6 +696,21 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* P62. The cafe server's WiFi, the devices on it and the cloud copy. */}
+      <Route
+        path="/network"
+        element={
+          <ProtectedRoute>
+            <RequireRole roles={['OWNER', 'MANAGER']}>
+              <NetworkPage />
+            </RequireRole>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* P62. Connecting a device: no sign-in, no app frame, printable. */}
+      <Route path="/connect" element={<ConnectPage />} />
 
       {/* P23. The guest's page. No sign-in, no app frame. */}
       <Route
