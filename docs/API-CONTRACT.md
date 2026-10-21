@@ -9341,3 +9341,51 @@ sheet first, as the first Send does.
 ## Error codes
 
 None new.
+
+# P61 A simple Day Close
+
+Asked for by Rishi on 2026-10-21. `docs/prompts/P61-simple-day-close.md`.
+No new field and no new endpoint. Changes M16 section 6.
+
+## 1. Orders nothing was sent from close themselves
+
+Live Z Chaat on 2026-10-21: Day Close was refused for an order on Table 4 with
+no dishes and nothing sent, opened by a tap on the floor. Since P59 a tap opens
+a free table at once, so a stray tap or a table opened and left leaves an open
+order with nothing in the kitchen.
+
+An order of the business date that is `OPEN`, has no bill, and none of whose
+lines was ever sent (every line `PENDING` or `CANCELLED`, none with `firedAt`)
+is no longer an `OPEN_ORDER` blocker. `GET /day-close/:businessDate` lists them
+apart, as `closesOnClose: [{ orderId, orderNumber, tableName, orderType,
+dishesNotSent }]`, `dishesNotSent` the count of not-sent lines.
+
+`POST /day-close` closes each of them first, inside its own transaction,
+exactly as P50's Close table does: the not-sent lines are removed, and the order
+becomes `CANCELLED` with `cancelReasonCode: ORDER_OPENED_BY_MISTAKE`, by the
+person closing the day. No audit line, and they count nowhere (P50). An order
+with any dish sent is still a blocker.
+
+## 2. The cashier closes the day
+
+`POST /day-close`, `GET /day-close/:businessDate`, `GET
+/day-close/:businessDate/message`, `POST /day-close/:businessDate/email` and
+`GET /day-close/:businessDate/print` are open to OWNER, MANAGER and CASHIER.
+The count is blind for a cashier always: expected cash and the difference are
+never shown to one. `GET /day-close` (the history) and reopening are unchanged.
+
+## 3. The Day End screen
+
+One screen, in this order: the day's bill total and bills, with money by
+payment method; **Before you close**, listing only what stops the close, each
+with Open, and the not-sent orders that will close themselves; **Cash in the
+drawer**, one amount (or Count by notes); **Close the day**. Keeping cash for
+tomorrow and taking the rest out are optional, behind "Taking cash out of the
+drawer?"; without them the whole count stays in the drawer as tomorrow's float.
+A note is asked only when the server says the count needs one. The day's full
+figures, the cash flow and the day-end message stay below, under "Day's
+details". The cashier's menu gains Day End.
+
+## Error codes
+
+None new.

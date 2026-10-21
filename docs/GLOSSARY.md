@@ -825,3 +825,17 @@ Added by P60.
 | Term | Meaning |
 |---|---|
 | **Bill without KOT** | On the order screen, for the counter: make the bill for dishes not yet sent, without a KOT. The dishes count as served; nothing goes to the kitchen |
+
+---
+
+## 45. A simple Day Close
+
+Added by P61.
+
+| Term | Meaning |
+|---|---|
+| **Before you close** | On Day End: what stops the day closing, each with Open |
+| **Closes by itself** | An order nothing was sent from: Day Close closes it, opened by mistake, and it counts nowhere |
+| **Cash in the drawer** | On Day End: the cash counted at close (counted cash) |
+| **Taking cash out of the drawer?** | Optional at close: keep some for tomorrow and say where the rest went. Without it, everything counted stays as tomorrow's float |
+| **Day's details** | The day's full figures, the cash flow and the day-end message, under the close |
