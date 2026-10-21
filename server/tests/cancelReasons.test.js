@@ -203,7 +203,9 @@ describe('voiding a bill takes a reason code', () => {
     const floor = await seedFloor();
     let order = await readyToBillOrder(floor);
 
-    for (const code of serverReasons.BILL_VOID_REASON_CODES) {
+    // Guest left closes the order, so it goes last: the others re-bill the same order.
+    const codes = [...serverReasons.BILL_VOID_REASON_CODES].sort((a, b) => (a === 'GUEST_LEFT') - (b === 'GUEST_LEFT'));
+    for (const code of codes) {
       const bill = (
         await request('POST', '/api/v1/bills', {
           token: floor.tokens.CASHIER,
