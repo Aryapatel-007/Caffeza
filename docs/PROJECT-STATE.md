@@ -626,6 +626,19 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-10-21 Rishi with Claude Code, an exact copy of the cloud for the offline PC (Cafezza-Offline)
+
+What was built or decided:
+Rishi, after the trial copy: "all the data should be there in the offline software, exactly, all the data and UI same, but don't change or alter any data on the cloud". This supersedes the trial copy (section 5a stays for a trial). `docs/WINDOWS-INSTALL.md` section 5b.
+1. `box/export-cloud.sh`: `mongodump` of the cloud database (read only), leaving out `refreshtokens`, `backupruns` and `backupstate`, to `release/cafe-data-<date>.archive.gz`.
+2. `Load cafe data.bat` and `box/windows/load-data.ps1` on the PC: asks for LOAD, stops the server, snapshots the local database, empties it (`drop-local-database.mjs`, which refuses any address but this PC), restores, refuses anything but "0 document(s) failed" and puts the snapshot back if so, builds indexes, starts the server. Packaged at the top of `CafePOS.zip`.
+3. Done on this Mac at 7:19 PM: the live database dumped read only (39 collections, 1,445 documents: Z Chaat, 8 users, 192 orders, 175 bills, 433 KOTs, 5 day closures), the local box database (Test Cafe and the trial restaurant) backed up to the session scratchpad and replaced; 1,445 restored, 0 failed; the box took a fresh changelog baseline; GSTIN `24ACFFM2074F1ZH`, last bill `2026-27/000175`, so the next is `000176`. The copy is `release/cafe-data-20261021-1919.archive.gz` (git-ignored). Nothing was written to Atlas.
+
+Not run: `load-data.ps1` on Windows (no PowerShell here). The export script was run against the local database only.
+
+Anything the other developer needs to know:
+Z Chaat was still billing on the cloud when the copy was taken. Before the PC takes a bill, billing must stop on the cloud and a fresh copy be loaded, or both will issue `2026-27/000176`.
+
 ### 2026-10-21 Rishi with Claude Code, the live cafe's setup onto the trial PC (Cafezza-Offline)
 
 What was built or decided:

@@ -110,6 +110,40 @@ comes off. Put a GSTIN in only when the PC goes live for real.
    the PC (the owner you typed) are skipped and named.
 4. Reload the screens. The menu, floor, logo and colours are the live cafe's.
 
+## 5b. Giving the cafe all its data: an exact copy of the cloud
+
+For handing the cafe the offline system with everything it has on the cloud:
+every order, bill, guest, closed day, setting, the logo, the GSTIN and every
+login, with their own ids. The next bill on the PC continues the cloud's
+invoice series. The cloud is only read, never changed.
+
+**The one rule:** from the moment the copy is taken, the cafe must take no more
+bills on the cloud. A bill made there afterwards is not on the PC, and the next
+bill on each would get the same number. So take the copy at closing time, or
+just before handing over, and stop using the cloud's address after it.
+
+1. **On your own computer** (needs the MongoDB Database Tools):
+
+   ```
+   SOURCE_MONGO_URI='mongodb+srv://USER:PASSWORD@cluster0.onbbqdp.mongodb.net/restaurant-erp' bash box/export-cloud.sh
+   ```
+
+   It writes `release/cafe-data-<date>.archive.gz`. It leaves out only the
+   cloud's sign-in sessions and its backup bookkeeping. The file holds password
+   hashes and guests' phone numbers: move it by **pen drive**, and delete it
+   from both computers once loaded.
+2. **On the cafe PC**, after **Install Cafe POS** (any cafe name and owner: the
+   copy replaces them), put the file in `C:\CafePOS` and double-click
+   **Load cafe data**. Type `LOAD` when asked. It stops the server, keeps a
+   snapshot of what was there (`data\snapshots\before-load-*.archive.gz`),
+   loads the copy, checks every document went in, builds the indexes and starts
+   the server again. If the copy does not load completely, it puts back what was
+   there before.
+3. Everyone signs in with the **phone and password they use on the cloud**.
+
+To load a newer copy later (a re-take just before handover), run steps 1 and 2
+again: the newest `.archive.gz` in `C:\CafePOS` is the one loaded.
+
 ### Later: the PC becomes the real till
 
 Sending the PC's data to the same Atlas is only safe once the PC is the **only**

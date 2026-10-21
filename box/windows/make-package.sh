@@ -41,6 +41,7 @@ rm -rf "$STAGE/e2e" "$STAGE/docs/archive" "$STAGE/setup/archive" "$STAGE/.github
 mkdir -p "$STAGE/client/dist"
 cp -R client/dist/. "$STAGE/client/dist/"
 cp "box/windows/Install Cafe POS.bat" "$STAGE/Install Cafe POS.bat"
+cp "box/windows/Load cafe data.bat" "$STAGE/Load cafe data.bat"
 cat > "$STAGE/READ ME FIRST.txt" <<'TXT'
 CAFE POS - SETUP ON THIS PC (once)
 
