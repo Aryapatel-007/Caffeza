@@ -3116,3 +3116,29 @@ changes, and no migration.
 |---|---|---|---|---|
 | `orders` | `lines[].billedWithoutKot` | Boolean | false | True on a dish the counter billed without sending to the kitchen: it went from not sent straight to served, with `servedAt` set and `firedAt` and `kotId` left null |
 | `bills` | `lines[].billedWithoutKot` | Boolean | false | Copied from the order line when the bill is made |
+
+---
+
+# P62. Replication, intake and the box
+
+Built 2026-10-21. Additive: new collections only, one new audit action
+(`BOX_WIFI_CHANGED`), no field renamed or removed. Classification of every
+collection: `server/config/replication.js` and `docs/REPLICATION.md` section 2.
+
+| Collection | Model | Where | Fields | Indexes |
+|---|---|---|---|---|
+| `changelog` | ChangelogEntry | box | `restaurantId`, `seq` (int ≥ 1), `epoch`, `coll`, `documentId`, `op` (insert, update, replace, delete, baseline), `doc` (Mixed or null), `capturedAt`, `eventId` (string or null). No `branchId`, no timestamps. Append only | `{ restaurantId, seq }` unique; `{ eventId }` unique where a string; `{ restaurantId, capturedAt: -1 }`; `{ coll, documentId, seq: -1 }` |
+| `changelogcounters` | ChangelogCounter | box | `restaurantId`, `value` | `{ restaurantId }` unique |
+| `replicationstate` | ReplicationState | each | `_id` string: `writer` (`epoch`, `fenced`, `fencedAt`, `fencedReason`, `promoted`, `promotedAt`), `changestream` (`resumeToken`, `baselineDoneAt`), `shipper:<rid>` (`shippedSeq`, `shippedAt`, `lastError`, `lastErrorAt`), `boxseen:<rid>` (`seenAt`), `reconcile:<rid>` (`status`, `checkedAt`, `mismatches`), `clock` (`refusing`, `newestKnownAt`, `observedAt`). No `restaurantId`: in `SERVER_MODELS` | |
+| `replicacursors` | ReplicaCursor | mirror | `restaurantId`, `appliedSeq`, `appliedAt`, `lastCapturedAt`, `epoch`, `gap { expectedSeq, gotSeq, at }` | `{ restaurantId }` unique |
+| `replicationquarantine` | ReplicationQuarantine | mirror | `restaurantId`, `sentEpoch`, `currentEpoch`, `firstSeq`, `lastSeq`, `entries` (EJSON text), `receivedAt`. Append only | `{ restaurantId, firstSeq }` |
+| `intake` | IntakeItem | mirror | base schema, `source`, `externalId`, `params`, `body`, `rawBody`, `headers`, `receivedAt`, `status` (RECEIVED, CLAIMED, APPLIED, REJECTED), `claimedAt`, `claimExpiresAt`, `attempts`, `decidedAt`, `reasonCode`, `reasonMessage`, `result`, `pendingStatusToken` (select: false), `guestSecretHash` | `{ restaurantId, source, externalId }` unique; `{ restaurantId, status, receivedAt }` |
+| `intakeapplications` | IntakeApplication | box, ships | base schema, `intakeId`, `source`, `status` (STARTED, APPLIED, REJECTED), `attempts`, `reasonCode`, `result`, `reportedAt` | `{ restaurantId, intakeId }` unique |
+
+`auditlogs.action` gains `BOX_WIFI_CHANGED` (entity `SETTINGS`, OWNER only to read).
+
+P54's `EXCLUDED_COLLECTIONS` gains `replicationstate`; its change diary also
+leaves out `changelog` and `changelogcounters`.
+
+Rollback: set `DEPLOYMENT_ROLE=CLOUD` (the default). Nothing reads the new
+collections then; they can stay.

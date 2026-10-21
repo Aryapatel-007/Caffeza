@@ -9392,3 +9392,76 @@ details". The cashier's menu gains Day End.
 ## Error codes
 
 None new.
+
+---
+
+# P62. The cafe box, the cloud mirror and the network
+
+Built 2026-10-21. Design: `docs/REPLICATION.md`. Every route below exists on
+every deployment; what it does depends on `DEPLOYMENT_ROLE`.
+
+## 1. Writes refused by role
+
+Before any route, `middleware/writerGate.js`:
+
+| When | Status | `error.code` | Message (shown to the person) |
+|---|---|---|---|
+| MIRROR, not promoted, any write outside the allowlist | 503 | `MIRROR_READ_ONLY` | "This is the read-only copy in the cloud. Changes are made on the cafe's own server." |
+| BOX that stood down (a higher epoch exists) | 503 | `WRITER_FENCED` | "This server has handed over to the cloud copy. Sign in at the cloud address the manager gives you." |
+| BOX whose clock is behind its newest record | 503 | `CLOCK_BEHIND` | "The cafe server's clock is behind the last sale, so nothing can be saved until it is set right. ..." |
+
+The mirror's allowlist is exactly `MIRROR_WRITE_ALLOWLIST`: `POST /auth/login`,
+`/auth/refresh`, `/auth/logout`, `/public/:slug/quote`, the six public intake
+routes of section 3, `/public/:slug/payments/webhook`, `/hooks/:provider/:webhookKey`,
+and the four `/replication/*` routes. A box always answers sign-in and
+`/network/report`. These three 503s are the only 5xx whose message reaches the
+client.
+
+## 2. Replication (mirror only; 404 elsewhere)
+
+Body: canonical EJSON. Header `X-Replication-Signature: sha256=<hex HMAC of the
+body under REPLICATION_SECRET>`; a bad one is `401 REPLICATION_SIGNATURE`.
+
+| Route | Body | 200 `data` | Other answers |
+|---|---|---|---|
+| `POST /replication/batches` | `{ restaurantId, epoch, entries: [{ seq, epoch, coll, documentId, op, doc, capturedAt }] }` | `{ appliedThrough, applied, skipped, gap, position }` | `409 REPLICATION_GAP { expectedSeq, gotSeq }`, `409 STALE_EPOCH { currentEpoch, sentEpoch }` |
+| `POST /replication/intake/claim` | `{ restaurantIds, limit }` (1 to 100, default 20) | `{ items: [intake item] }`, oldest first, each held 2 minutes | |
+| `POST /replication/intake/result` | `{ restaurantId, intakeId, status: APPLIED or REJECTED, reasonCode, reasonMessage, result, statusToken }` | `{ recorded }` | |
+| `POST /replication/reconcile` | `{ restaurantId, businessDate }` | `{ collections: { <name>: { count, sha256 } }, bills, businessDate }` | |
+
+## 3. Intake on the public routes
+
+On a read-only mirror, these answer `202` and store an intake item instead of
+acting: `POST /public/:slug/orders`, `/reservations` (each with
+`data.intake = { id, status: 'RECEIVED', secret }`, the secret only on the
+first delivery), `/orders/:id/cancel`, `/reservations/:id/cancel`,
+`/orders/:id/payment-return`, `/reservations/:id/payment-return`. A new order or
+booking is refused with `ONLINE_CLOSED` while the box has not checked in for 5
+minutes. `POST /public/:slug/payments/webhook` and `POST /hooks/:provider/:key`
+verify the signature as before, store, and answer as before.
+
+`GET /public/:slug/intake/:id?secret=<secret>` (mirror only) gives
+`{ id, status, reasonCode, reasonMessage, result, statusToken }`. `result` is
+`{ onlineOrderId, reference }` or `{ reservationId, reference }`. The status
+token is given once, then null. Wrong secret: 404.
+
+## 4. The network
+
+| Route | Who | Answer |
+|---|---|---|
+| `GET /network/ping` | anyone, no database | `{ ok: true }`, `no-store`. Devices time it every 5 s |
+| `GET /network/setup` | anyone | `{ role, boxUrl, localNameUrl, wifiName }`. Never a password |
+| `POST /network/report` | any signed-in role | body `{ deviceId (8-64), deviceName?, page?, pingsMs: [ms or null] (max 30), effectiveType?, downlinkMbps? }`; `data { bars, word }`. Kept in memory only |
+| `GET /network/self` | any signed-in role | `{ role, serverTime, writer { epoch, fenced, readOnly, promoted }, clock { refusing }, sync }`. For roles other than OWNER and MANAGER, `sync` is `{ state, entriesWaiting }` only, and `NOT_SYNCED` reads as `WAITING` |
+| `GET /network/status` | OWNER, MANAGER | `self` plus `box` (the server's WiFi: `ssid`, `signalPercent`, `signal { bars, word }`, `wired`, `addresses`, `canChange`), `boxUrl`, `localNameUrl`, `staffWifi { ssid, password }`, `devices [{ deviceId, name, userName, role, address, bars, word, medianMs, jitterMs, lossPercent, connected, secondsSinceSeen }]` |
+| `GET /network/wifi/networks` | OWNER, box only | `{ networks: [{ ssid, signalPercent, secured, inUse }] }` |
+| `POST /network/wifi/connect` | OWNER, box only | body `{ ssid (1-32), password (0-63) }`; `data { box }`. `422 WIFI_CONTROL_OFF` unless `BOX_WIFI_CONTROL=on`; `422 WIFI_CHANGE_FAILED` when the join failed (the box stays where it was). Audited `BOX_WIFI_CHANGED`, never with the password |
+| `PUT /network/staff-wifi` | OWNER, MANAGER | body as above; saved in a file on the box, never in the database |
+
+`sync.state`: `SYNCED`, `WAITING` (entries waiting, under 3 hours), `NOT_SYNCED`
+(3 hours or more), `LOCAL_ONLY` (no mirror configured); on a mirror `MIRROR` or
+`GAP` with `figuresAsOf`, `ageSeconds`, `stale` (over 15 minutes).
+
+Strength (`bars`, `word`) from the median of the last 12 pings and the share
+unanswered: Excellent ≤ 40 ms and none lost; Good ≤ 100 ms and ≤ 5 %; Fair
+≤ 250 ms and ≤ 15 %; Weak otherwise; No connection when none answered.
