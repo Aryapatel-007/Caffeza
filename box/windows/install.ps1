@@ -167,12 +167,8 @@ Ensure-EnvLine 'UPDATE_AUTO' 'on'
 Ensure-EnvLine 'UPDATE_WINDOW' '04:00-05:00'
 Ensure-EnvLine 'UPDATE_REPO' 'riship-17/Cafezza-Offline'
 Ensure-EnvLine 'UPDATE_TOKEN' ''
-$tokenLine = Select-String -Path $EnvFile -Pattern '^UPDATE_TOKEN=(.+)$' | Select-Object -First 1
-if (-not $tokenLine) {
-  Write-Host 'Automatic updates need the read-only update token (from the people who set this up).'
-  $token = Read-Host 'Paste the update token, or press Enter to skip for now'
-  if ($token.Trim()) { Set-EnvLine 'UPDATE_TOKEN' $token.Trim() }
-}
+# UPDATE_TOKEN is left empty: automatic updates stay off until someone puts the
+# token in .env by hand (docs/WINDOWS-INSTALL.md section 6).
 # The version this folder holds, so the server and the updater both know it.
 $versionFile = Join-Path $Root 'VERSION.txt'
 if (Test-Path $versionFile) { Set-EnvLine 'RELEASE_VERSION' ((Get-Content -Path $versionFile -Raw).Trim()) }

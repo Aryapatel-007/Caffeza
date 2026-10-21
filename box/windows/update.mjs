@@ -437,6 +437,8 @@ export async function updateCommand({ command, root, now = new Date(), fetchImpl
   if (command === 'run') {
     if ((env.UPDATE_AUTO || 'on').toLowerCase() !== 'on') return { skipped: 'UPDATE_AUTO is off' };
     if (!inWindow(now, parseWindow(env.UPDATE_WINDOW || DEFAULT_WINDOW))) return { skipped: 'outside the update window' };
+    // No token yet: updates are simply not set up, which is not worth a log line every night.
+    if (!env.UPDATE_TOKEN) return { skipped: 'no UPDATE_TOKEN' };
   }
 
   if (!(await takeLock(path.join(updates, 'lock')))) {

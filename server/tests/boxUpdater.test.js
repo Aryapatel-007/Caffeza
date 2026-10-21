@@ -236,6 +236,14 @@ describe('updating the cafe PC', () => {
     assert.deepEqual(fetched, []);
   });
 
+  it('stays quiet at night when no token has been set yet', async () => {
+    await fs.writeFile(path.join(root, '.env'), 'PORT=80\nUPDATE_REPO=owner/repo\nUPDATE_TOKEN=\n');
+    const result = await updateCommand({ command: 'run', root, now: atHour(4, 30), fetchImpl: await publish(), steps: steps(), print: () => {} });
+    assert.deepEqual(result, { skipped: 'no UPDATE_TOKEN' });
+    assert.deepEqual(fetched, []);
+    await assert.rejects(fs.access(path.join(root, 'data', 'logs', 'update.log')));
+  });
+
   it('leaves a release marked manual, and an older one, for a person', async () => {
     const manual = await updateCommand({ command: 'run', root, now: atHour(4, 30), fetchImpl: await publish({ manual: 'Run Install Cafe POS.' }), steps: steps(), print: () => {} });
     assert.deepEqual(manual, { skipped: 'manual release' });

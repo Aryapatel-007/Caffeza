@@ -26,7 +26,6 @@ drive, or send it to yourself.
    Windows asks for permission.
 4. Answer four questions: cafe name, owner name, owner mobile number, owner
    password. Use letters and numbers in the password, no quote marks.
-   Then paste the update token if you have it (section 6), or press Enter.
 5. Say **Y** to "Load the sample Z Chaat menu and 12 starter tables?" for a
    ready-to-try system, or **N** to start empty.
 6. It ends with "All done" and the address for tablets, for example
@@ -106,8 +105,9 @@ database is MongoDB's own and is not in `C:\CafePOS` at all.
 
 - **The token.** The repository is private, so the PC needs a read-only
   GitHub token: a fine-grained token for `riship-17/Cafezza-Offline` only, with
-  Contents: Read-only. The installer asks for it; or put it in `.env` as
-  `UPDATE_TOKEN=`. Without it, updates are off and nothing else changes.
+  Contents: Read-only. Put it in `C:\CafePOS\.env` by hand, as
+  `UPDATE_TOKEN=github_pat_...` (Notepad, run as Administrator). Until then,
+  updates are off and the nightly task does nothing.
 - **The release key.** Made once with `node box/windows/release.mjs keygen`.
   The private half is `~/.cafepos/release-signing-key.pem` on the developer's
   computer. Back it up; a developer without it cannot publish. If it is lost, a
