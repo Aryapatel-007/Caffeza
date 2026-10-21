@@ -29,7 +29,8 @@
     "backup:verify": "node scripts/backupVerify.js",
     "backup:drill": "node scripts/backupDrill.js",
     "replication": "node scripts/replication.js",
-    "snapshot:local": "node scripts/localSnapshot.js"
+    "snapshot:local": "node scripts/localSnapshot.js",
+    "copy:menu": "node scripts/copyMenuFromLive.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",

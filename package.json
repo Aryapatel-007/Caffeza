@@ -39,6 +39,7 @@
     "backup:drill": "npm run backup:drill --workspace=server --",
     "replication": "npm run replication --workspace=server --",
     "snapshot:local": "npm run snapshot:local --workspace=server --",
+    "copy:menu": "npm run copy:menu --workspace=server --",
     "e2e": "playwright test --config e2e/playwright.config.js",
     "e2e:cloud": "playwright test --config e2e/cloud.config.js"
   },
