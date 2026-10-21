@@ -1733,7 +1733,8 @@ P19: when `settings.floor.requireGuestCount` is true, a `DINE_IN` order without
 `guestCount` is 400 `VALIDATION_FAILED`, with `fields.guestCount` and the message
 "How many guests? Enter the number before opening the table." Takeaway and
 delivery orders never take one. No endpoint changes `guestCount` once the order
-is open.
+is open. P59 changes both: the rule moves to the first Send, and
+`PATCH /orders/:orderId/customer` sets the count.
 
 Takeaway:
 
@@ -2824,7 +2825,8 @@ client records the print, and print "Duplicate" when it is already 1 or more.
 The counter device's "Print bills sent by captains" setting is a device setting
 (no endpoint): it polls the queue every 5 seconds, prints each bill once, calls
 `printed`, and remembers the ids it printed in the device's storage so a reload
-never prints twice.
+never prints twice. P59: it claims each request with `printed` and
+`forRequestAt` before printing, so only one device prints it.
 
 ### 16.4 Cancelling an item after the bill is made (P25 Part E)
 
@@ -3971,7 +3973,7 @@ Both default to `true`, so nothing changes for an existing restaurant. Switching
 |---|---|---|---|
 | `sectionOrder` | [String] | `[]` | Section names in the order the floor shows them. Sections not listed follow, by name. At most 40 names, each at most 40 characters. |
 | `longOpenMinutes` | Number | 90 | Integer 15 to 600. A table open longer is marked as running long. |
-| `requireGuestCount` | Boolean | false | When true, a dine-in order cannot be opened without a guest count. On for Caffeza. |
+| `requireGuestCount` | Boolean | false | When true, a dine-in order cannot be opened without a guest count. On for Caffeza. From P59: cannot be sent to the kitchen the first time without one. |
 
 `GET /auth/me` returns `floor` beside `features` and `discounts`, so every role's
 floor screen knows the section order, the long-open threshold and whether
@@ -9216,6 +9218,71 @@ With the setting on, firing is exactly as before.
 Unchanged. A screen that shows whole tickets reads them without `stationId`,
 marks them ready without it, and prints them without it (P36 sections 3 to 5).
 R13 still groups by each line's own station.
+
+## Error codes
+
+None new.
+
+# P59 A captain's bill prints once, and the guest count moves to the first Send
+
+Asked for by Rishi on 2026-10-21. `docs/prompts/P59-print-once-guests-before-kot.md`.
+No new field and no new endpoint; two endpoints take one more optional field.
+
+## 1. One print per request (changes M3 16.3)
+
+Z Chaat's live bills showed many captain bills with `printCount` 2 or 3, the
+second print recorded 1 to 4 seconds after the first. The 2026-10-19 lock stops
+two tabs of one browser profile only; a second profile (the silent-printing
+launcher's beside an everyday Chrome window) or a second till device with
+"Print bills sent by captains" on printed the same request again.
+
+`POST /bills/:billId/print-request`: while an earlier request is still waiting
+(`lastPrintedAt` is null or before `printRequestedAt`), the request changes
+nothing and answers 200 with the bill, so a second tap by the captain is not a
+second print. Otherwise as before.
+
+`POST /bills/:billId/printed` takes an optional body:
+
+```json
+{ "forRequestAt": "2026-10-20T16:38:03.539Z" }
+```
+
+With it, the print is recorded in one conditional write that matches only when
+`printRequestedAt` equals `forRequestAt` and the bill has not been printed since
+(`lastPrintedAt` null or before it). When nothing matches, another device has
+taken that request: 409 `DUPLICATE`, "Another device has printed this bill.",
+and nothing changes. Without it, as before.
+
+The counter device reads the bill's invoice data first (so the print says
+Duplicate only when it is one), then calls `printed` with `forRequestAt`, and
+prints only when that answers 200. Exactly one device prints each request,
+whatever the number of devices, profiles or tabs. If the browser then fails to
+print, the bill counts as printed; the cashier prints it from the bill screen.
+
+The captain's bill screen shows "Sent to the counter" in place of Print at
+counter while their request is waiting.
+
+## 2. The guest count is asked with the guest's details (changes 12.1, P19 and P56)
+
+Tapping a free table opens its order at once, with no guest count. A table with
+a booking soon still offers to seat the booking first.
+
+`PATCH /orders/:orderId/customer` (P56 section 2) also takes `guestCount`, an
+integer 1 to 100, on a `DINE_IN` order only; on any other order it is 400. At
+least one of `customerName`, `customerPhone` and `guestCount` is required. The
+same rules on bills and closed orders apply. A new count replaces the old one
+until the order is billed.
+
+`settings.floor.requireGuestCount` moves from opening to the first Send:
+`POST /orders` no longer refuses a dine-in order without `guestCount`, and
+`POST /orders/:orderId/fire` refuses a `DINE_IN` order whose `guestCount` is
+null and none of whose lines was ever sent, with 400 `VALIDATION_FAILED`,
+`fields.guestCount`, "How many guests? Enter the number before sending to the
+kitchen." A later Send is never refused for it.
+
+The order screen's Guest details sheet, on a table's first Send, asks "How many
+guests?" first, then the name and mobile. With `requireGuestCount` off the count
+is optional and Skip sends without anything.
 
 ## Error codes
 

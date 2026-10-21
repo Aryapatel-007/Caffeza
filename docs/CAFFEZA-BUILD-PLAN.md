@@ -128,6 +128,7 @@ Each prompt names its model at the top.
 | P56 | A note for every dish, the guest's details before the first KOT, and only whole voids in the void lists | M2, M3, M18, M19, M22 | P27, P36, P50 | Rishi | Opus, high |
 | P57 | The bill in one place: review, discount, then Save or Save & Print | M3, M2 | P29, P42, P48 | Rishi | Opus, high |
 | P58 | One kitchen ticket per Send, not per station | M18, M7 | P36, P48 | Arya | Opus, high |
+| P59 | A captain's bill prints once, and the guest count moves to the first Send | M3, M2 | P25, P56, P57 | Rishi | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.

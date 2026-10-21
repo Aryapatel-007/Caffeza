@@ -803,3 +803,14 @@ Added 2026-10-19, for the livelier sign-in screen and the account menu.
 | **Account** | The person's initials in the top bar; it opens their name, role, This device and Sign out |
 | **Hold to sign out** | Sign out is pressed and held, so a stray tap on a shared device never signs anyone out. From the keyboard it asks "Sign out now?" instead |
 | **Signed out** | Shown once on the sign-in screen after someone signs out on this device: "Abhay, you are signed out. See you next shift." |
+
+---
+
+## 43. Printing at the counter and guests at the Send
+
+Added by P59.
+
+| Term | Meaning |
+|---|---|
+| **Sent to the counter** | On a captain's bill: the request is waiting for the counter's printer. Tapping again sends nothing more |
+| **How many guests?** | On the Guest details sheet, at a table's first Send. The count becomes the order's covers |
