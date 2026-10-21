@@ -9502,5 +9502,7 @@ share the day, and only the PC closes it." Reads are unchanged.
 | `GET /sync/conflicts?seen=true|false&page&limit` | OWNER, MANAGER | paged list, newest first: `{ id, coll, documentId, kind (EDITED_BOTH, SAME_SLOT, DELETED_HERE), title, detail, fields, keptFrom (BOX or CLOUD), detectedOn, detectedAt, seenAt, seenByName, link }` |
 | `POST /sync/conflicts/:conflictId/seen` | OWNER, MANAGER | body `{}`; `data` the conflict with `seenAt` and `seenBy` |
 
-`GET /auth/me` gains `sync: { mode, conflictsUnseen }` for OWNER and MANAGER
-(`conflictsUnseen` null for other roles).
+`GET /auth/me` gains `sync: { mode, server, conflictsUnseen }`: `server` is the
+answering server's `DEPLOYMENT_ROLE` (`CLOUD` is the website; the P62 connection
+bar and banner show only off it), and `conflictsUnseen` is for OWNER and MANAGER
+(null for other roles).

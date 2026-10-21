@@ -10,9 +10,10 @@
  *   MIRROR      nothing more: it answers the box
  *
  * P63, SYNC_MODE=TWO_WAY:
- *   BOX         the clock check and the changelog writer as above, then every
- *               second, per restaurant: pull the cloud's changes, then push its
- *               own. No intake puller (the cloud takes online orders itself)
+ *   BOX         the clock check and the changelog writer as above, then per
+ *               restaurant: pull the cloud's changes, then push its own, every
+ *               SYNC_EVERY_SECONDS inside SYNC_HOURS, and outside them only with
+ *               changes waiting (sync/pacing.js). No intake puller (the cloud takes online orders itself)
  *               and no reconciliation (two writers differ for seconds by design)
  *   CLOUD       the changelog writer; it answers the box's pulls and pushes
  *
@@ -27,17 +28,20 @@ import { logger } from '../../config/logger.js';
 import { businessDateFor, nowUtc } from '../../utils/time.js';
 import { pullIntakeOnce } from '../intake/boxIntake.js';
 import { pullOnce } from '../sync/exchange.js';
+import { parseSyncHours, shouldExchange } from '../sync/pacing.js';
 import { isTwoWay } from '../sync/mode.js';
 import { ChangelogWriter } from './changelogWriter.js';
 import { CLOCK_CHECK_EVERY_MS, checkClock } from './clockGuard.js';
 import { reconcileOnce } from './reconcile.js';
-import { RETRY_DELAYS_MS, Shipper } from './shipper.js';
+import { hasUnshippedChanges, RETRY_DELAYS_MS, Shipper } from './shipper.js';
 import { loadWriterState, startWriterStateRefresh, stopWriterStateRefresh } from './writerState.js';
 
 export const WRITER_PUMP_MS = 500;
 export const SHIP_EVERY_MS = 1_000;
 export const PULL_EVERY_MS = 3_000;
 export const RECONCILE_EVERY_MS = 30 * 60_000;
+/** P63. How often the box looks whether a two-way round is due; the pace itself is SYNC_EVERY_SECONDS. */
+export const TWO_WAY_TICK_MS = 5_000;
 const PULL_BACKOFF_MS = Object.freeze([3_000, 10_000, 30_000, 60_000]);
 
 const timers = [];
@@ -76,13 +80,22 @@ async function startChangelogWriter() {
   every(WRITER_PUMP_MS, 'The changelog writer', () => writer.pump());
 }
 
-/** P63. The box's round: pull then push, for every restaurant, backing off when the cloud is away. */
+/**
+ * P63. The box's round: pull then push, for every restaurant, paced by SYNC_EVERY_SECONDS
+ * and SYNC_HOURS (sync/pacing.js) and backing off when the cloud is away.
+ */
 function startTwoWayExchange() {
   const shipper = new Shipper();
+  const everyMs = config.SYNC_EVERY_SECONDS * 1_000;
+  const hours = parseSyncHours(config.SYNC_HOURS);
   let failures = 0;
   let nextAt = 0;
-  every(SHIP_EVERY_MS, 'The two-way sync', async () => {
+  let lastAt = 0;
+  every(TWO_WAY_TICK_MS, 'The two-way sync', async () => {
     if (Date.now() < nextAt) return;
+    await writer?.pump();
+    if (!shouldExchange({ now: nowUtc(), lastAt, waiting: await hasUnshippedChanges(), everyMs, hours })) return;
+    lastAt = nowUtc().getTime();
     let failed = false;
     for (const restaurantId of await localRestaurantIds()) {
       for (let round = 0; round < 50; round += 1) {

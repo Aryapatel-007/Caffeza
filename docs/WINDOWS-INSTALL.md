@@ -176,6 +176,11 @@ section 5b first):
    double-click **Install Cafe POS** again, or restart the PC.
 4. Owner on the PC: **Sync** in the menu says "In step" within a minute.
 
+The PC syncs every `SYNC_EVERY_SECONDS` (60) inside `SYNC_HOURS` (08:30-02:30
+India time), and at night only when it has something to send, so Render's free
+server sleeps. Using the live website as the fallback, step by step, and what
+to do when the PC has a problem: `docs/DEPLOYMENT.md` section 19.
+
 To switch it off: `SYNC_MODE=ONE_WAY` on both. Website bills keep their W
 numbers, which stay valid in their own series.
 

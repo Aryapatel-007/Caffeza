@@ -365,7 +365,10 @@ changelog writer and shipper are outside the request path by construction
 
 `SYNC_MODE=TWO_WAY` on the box and on the cloud (`DEPLOYMENT_ROLE=CLOUD`): both
 write, both keep a changelog (section 3, the same writer), and the box exchanges
-them: every second it pulls the cloud's entries after `peerpull:<rid>.pulledSeq`
+them: every `SYNC_EVERY_SECONDS` (60) inside `SYNC_HOURS` (08:30 to 02:30 India
+time), and outside them only with changes waiting, at most every 15 minutes
+(`sync/pacing.js`), so Render's free server sleeps at night. Each round it pulls
+the cloud's entries after `peerpull:<rid>.pulledSeq`
 (`POST /replication/pull`) and applies them, then ships its own (section 4) with
 `seenPeerSeq`. The cloud never calls the box. The prompt is
 `docs/prompts/P63-two-way-sync.md`; the code is `server/services/sync/`.
@@ -386,6 +389,22 @@ records a `syncconflicts` document.
 `syncdocs.appliedHashes`; the changelog writer leaves out a change whose
 document has one of those hashes. A merged result is not recorded, so it goes
 back and both sides converge.
+
+**Superseded entries.** After time apart a side can hold a change it recorded,
+then take the other side's later version of the same document before its own
+change went over. Sending that older change would put the old version back. So
+an entry whose document here now holds a version that came from the other side
+(its hash is in `appliedHashes`) is sent with `superseded: true`: its seq still
+goes over, keeping the cursor gap-free, and the receiver skips it
+(`flagSuperseded` in `sync/exchange.js`, on push and on pull).
+
+**A baseline taken again** (Render waking and unable to resume its change
+stream) leaves out every document whose current version is its `syncdocs` base,
+so it records only what really changed and Atlas does not grow by every
+document each time.
+
+**One record per conflict.** A conflict still open (not marked seen) for the same
+document and kind is brought up to date, not recorded again.
 
 **Before applying**, the side pumps its own change stream, so a change made a
 moment before is in the changelog and in the base comparison.

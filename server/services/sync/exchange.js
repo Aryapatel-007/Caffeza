@@ -25,7 +25,8 @@ import { noteBoxSeen } from '../replication/receiver.js';
 import { postToMirror } from '../replication/shipper.js';
 import { fromWire, sign, signatureMatches, toWire } from '../replication/signing.js';
 import { applyPeerEntries } from './applyPeer.js';
-import { setBase } from './syncDocs.js';
+import { docHash } from './hash.js';
+import { getSyncDoc, setBase, syncDocKey } from './syncDocs.js';
 
 export const PULL_LIMIT_DEFAULT = 200;
 export const PULL_LIMIT_MAX = 500;
@@ -37,7 +38,30 @@ const wireEntry = (entry) => ({
   op: entry.op,
   doc: entry.doc,
   capturedAt: entry.capturedAt,
+  ...(entry.superseded ? { superseded: true } : {}),
 });
+
+/**
+ * Flags the entries whose document here now holds a version that came from the
+ * other side. The other side already has something newer than every such
+ * entry, so it skips them: applying one would put back an older version. It
+ * happens after time apart, when a side recorded a change, then took the
+ * other's later version of the same document before its own change went over.
+ * The seq still goes over, so the receiver's cursor stays gap-free.
+ */
+export async function flagSuperseded(db, entries) {
+  const fromPeer = new Map();
+  for (const entry of entries) {
+    const key = syncDocKey(entry.coll, entry.documentId);
+    if (fromPeer.has(key)) continue;
+    const [current, syncDoc] = await Promise.all([
+      db.collection(entry.coll).findOne({ _id: entry.documentId }),
+      getSyncDoc(db, entry.coll, entry.documentId),
+    ]);
+    fromPeer.set(key, Boolean(syncDoc?.appliedHashes?.includes(docHash(current))));
+  }
+  return entries.map((entry) => (fromPeer.get(syncDocKey(entry.coll, entry.documentId)) ? { ...entry, superseded: true } : entry));
+}
 
 /** This side's own entries have reached the other side: their versions are the base now. */
 export async function markSeenByPeer(db, restaurantId, entries) {
@@ -56,7 +80,10 @@ export async function pullEntries({ restaurantId, afterSeq = 0, limit = PULL_LIM
   const after = Math.max(Number(afterSeq) || 0, 0);
   const size = Math.min(Math.max(Number(limit) || PULL_LIMIT_DEFAULT, 1), PULL_LIMIT_MAX);
   await noteBoxSeen(restaurantId);
-  const entries = await ChangelogEntry.find({ restaurantId, seq: { $gt: after } }).sort({ seq: 1 }).limit(size).lean();
+  const entries = await flagSuperseded(
+    mongoose.connection.db,
+    await ChangelogEntry.find({ restaurantId, seq: { $gt: after } }).sort({ seq: 1 }).limit(size).lean(),
+  );
   const newest = await ChangelogEntry.findOne({ restaurantId }).sort({ seq: -1 }).select('seq').lean();
   // Exact types (an ObjectId stays one, a date stays a date), signed like a request, so
   // the box knows the answer came from the cloud that holds the same secret.
@@ -73,7 +100,10 @@ async function noteSeenPeerSeq(db, restaurantId, seenPeerSeq) {
   const previous = state?.seenPeerSeq ?? 0;
   if (seen <= previous) return;
   const passed = await ChangelogEntry.find({ restaurantId, seq: { $gt: previous, $lte: seen } }).sort({ seq: 1 }).lean();
-  await markSeenByPeer(db, restaurantId, passed);
+  // The newest of each document is what the box now holds of ours, unless ours since came from the box.
+  const latest = new Map(passed.map((entry) => [syncDocKey(entry.coll, entry.documentId), entry]));
+  const flagged = await flagSuperseded(db, [...latest.values()]);
+  await markSeenByPeer(db, restaurantId, flagged.filter((entry) => !entry.superseded));
   await ReplicationState.updateOne({ _id: id }, { $set: { seenPeerSeq: seen } }, { upsert: true });
 }
 
@@ -108,8 +138,12 @@ export async function applyPushedBatch({ restaurantId, entries, seenPeerSeq }, {
       if (applied === 0) throw new ReplicationGapError(appliedSeq + 1, entry.seq);
       break;
     }
-    const counts = await applyPeerEntries(db, restaurantId, [entry]);
-    for (const [key, value] of Object.entries(counts)) outcomes[key] = (outcomes[key] ?? 0) + value;
+    if (entry.superseded) {
+      outcomes.SUPERSEDED = (outcomes.SUPERSEDED ?? 0) + 1;
+    } else {
+      const counts = await applyPeerEntries(db, restaurantId, [entry]);
+      for (const [key, value] of Object.entries(counts)) outcomes[key] = (outcomes[key] ?? 0) + value;
+    }
     appliedSeq = entry.seq;
     applied += 1;
     await ReplicaCursor.updateOne(
@@ -173,7 +207,7 @@ export async function pullOnce(restaurantId, { db = mongoose.connection.db, pump
   let pulled = after;
   for (const entry of typed) {
     if (Number(entry.seq) !== pulled + 1) break;
-    await applyPeerEntries(db, restaurantId, [entry]);
+    if (!entry.superseded) await applyPeerEntries(db, restaurantId, [entry]);
     pulled = Number(entry.seq);
     await notePull(restaurantId, { pulledSeq: pulled, pulledAt: nowUtc(), lastError: null, lastErrorAt: null });
   }

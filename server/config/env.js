@@ -306,6 +306,20 @@ const envSchema = z
     DEPLOYMENT_ROLE: enumVar('DEPLOYMENT_ROLE', ['CLOUD', 'BOX', 'MIRROR'], 'CLOUD'),
     // P63. TWO_WAY on a BOX and a CLOUD: both write, and the box keeps them in step.
     SYNC_MODE: enumVar('SYNC_MODE', ['ONE_WAY', 'TWO_WAY'], 'ONE_WAY'),
+    /**
+     * P63. How often the cafe PC syncs with the website during SYNC_HOURS, in seconds. BOX only.
+     * Every request keeps Render's free server awake, so the hours matter more than the seconds.
+     */
+    SYNC_EVERY_SECONDS: intVar('SYNC_EVERY_SECONDS', { min: 10, max: 3600, fallback: 60 }),
+    /**
+     * P63. The hours, India time, when the PC syncs on its own pace, like 08:30-02:30 (past
+     * midnight is fine), or "always". Outside them it syncs only when it has something to send,
+     * at most every 15 minutes, so Render's free server sleeps at night. BOX only.
+     */
+    SYNC_HOURS: optionalVar('SYNC_HOURS', '08:30-02:30').refine(
+      (value) => value === 'always' || /^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/.test(value),
+      'SYNC_HOURS must be like 08:30-02:30, or always.',
+    ),
     /** P62. The mirror's replication address, as the box reaches it, e.g. https://cafe-mirror.example.com. BOX only. */
     MIRROR_URL: nullableText.refine((value) => value === null || /^https?:[/][/][^/]+$/.test(value), 'MIRROR_URL must be a bare origin with no trailing slash.'),
     /** P62. The secret the box and the mirror sign every replication request with. Both sides hold the same value. */

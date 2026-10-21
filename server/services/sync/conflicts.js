@@ -50,6 +50,16 @@ async function branchFor(db, restaurantId, docs) {
 export async function recordConflict(db, { restaurantId, coll, documentId, kind, detail = null, fields = [], keptFrom, localDoc = null, incomingDoc = null, resultDoc = null }) {
   try {
     const now = nowUtc();
+    // One open record per document and kind: a clash met again on every later change of the
+    // same document brings the record up to date instead of filling the list.
+    const open = await db.collection('syncconflicts').findOne({ restaurantId, coll, documentId, kind, seenAt: null }, { projection: { _id: 1 } });
+    if (open) {
+      await db.collection('syncconflicts').updateOne(
+        { _id: open._id },
+        { $set: { localDoc, incomingDoc, resultDoc, detectedAt: now, updatedAt: now }, $addToSet: { fields: { $each: fields.slice(0, 40) } } },
+      );
+      return;
+    }
     const titleDoc = resultDoc ?? localDoc ?? incomingDoc;
     const branchId = await branchFor(db, restaurantId, [resultDoc, localDoc, incomingDoc]);
     await db.collection('syncconflicts').insertOne({

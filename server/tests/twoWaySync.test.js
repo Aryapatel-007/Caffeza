@@ -20,6 +20,7 @@ import { APPLY_OUTCOMES, applyPeerEntry } from '../services/sync/applyPeer.js';
 import { docHash } from '../services/sync/hash.js';
 import { threeWayMerge } from '../services/sync/merge.js';
 import { setSyncModeForTest } from '../services/sync/mode.js';
+import { insideHours, parseSyncHours, QUIET_EVERY_MS, shouldExchange } from '../services/sync/pacing.js';
 import { getSyncDoc } from '../services/sync/syncDocs.js';
 import { seedTeam } from './helpers/m2Fixtures.js';
 import { startTestDatabase, stopTestDatabase } from './helpers/testDatabase.js';
@@ -253,6 +254,63 @@ describe('no echo', () => {
     await drain();
     assert.equal(await ChangelogEntry.countDocuments({ restaurantId, coll: 'orders', documentId: order._id }), 1);
     await writer.close();
+  });
+});
+
+describe('a baseline taken again (P63, Render waking from its sleep)', () => {
+  it('leaves out what both sides already hold, and keeps what changed here', async () => {
+    asCloud();
+    const team = await seedTeam();
+    const restaurantId = new ObjectId(team.restaurant.id);
+    const branchId = new ObjectId(team.branch.id);
+    const writer = new ChangelogWriter({ db });
+    await writer.start();
+    const drain = async () => {
+      let quiet = 0;
+      while (quiet < 2) quiet = (await writer.pump()) === 0 ? quiet + 1 : 0;
+    };
+    const same = orderDoc(restaurantId, branchId);
+    const changed = orderDoc(restaurantId, branchId);
+    await applyPeerEntry(db, restaurantId, entry('orders', same));
+    await applyPeerEntry(db, restaurantId, entry('orders', changed));
+    await drain();
+    await db.collection('orders').updateOne({ _id: changed._id }, { $set: { kitchenNote: 'made here', updatedAt: new Date() } });
+
+    await writer.baseline();
+    const baselined = async (doc) => ChangelogEntry.countDocuments({ restaurantId, documentId: doc._id, op: 'baseline' });
+    assert.equal(await baselined(same), 0, 'both sides hold it: not recorded again');
+    assert.equal(await baselined(changed), 1, 'changed here: recorded');
+    await writer.close();
+  });
+});
+
+describe('the PC\'s pace (P63, inside Render\'s free hours)', () => {
+  const hours = parseSyncHours('08:30-02:30');
+  // 2026-10-21 in India: 12:00 noon is 06:30 UTC, 4:00 AM is 22:30 UTC the day before.
+  const noon = new Date(Date.UTC(2026, 9, 21, 6, 30));
+  const night = new Date(Date.UTC(2026, 9, 20, 22, 30));
+  const ago = (now, ms) => now.getTime() - ms;
+
+  it('reads the hours, past midnight included', () => {
+    assert.deepEqual(hours, { from: 510, to: 150 });
+    assert.equal(parseSyncHours('always'), null);
+    assert.equal(insideHours(600, hours), true);
+    assert.equal(insideHours(60, hours), true, '1:00 AM is still open');
+    assert.equal(insideHours(240, hours), false, '4:00 AM is closed');
+  });
+
+  it('syncs every minute while open, and always once when it starts', () => {
+    assert.equal(shouldExchange({ now: noon, lastAt: 0, waiting: false, everyMs: 60_000, hours }), true);
+    assert.equal(shouldExchange({ now: night, lastAt: 0, waiting: false, everyMs: 60_000, hours }), true);
+    assert.equal(shouldExchange({ now: noon, lastAt: ago(noon, 30_000), waiting: true, everyMs: 60_000, hours }), false);
+    assert.equal(shouldExchange({ now: noon, lastAt: ago(noon, 60_000), waiting: false, everyMs: 60_000, hours }), true);
+  });
+
+  it('at night sends only what is waiting, at most every 15 minutes, so Render sleeps', () => {
+    assert.equal(shouldExchange({ now: night, lastAt: ago(night, 6 * 3_600_000), waiting: false, everyMs: 60_000, hours }), false);
+    assert.equal(shouldExchange({ now: night, lastAt: ago(night, 5 * 60_000), waiting: true, everyMs: 60_000, hours }), false);
+    assert.equal(shouldExchange({ now: night, lastAt: ago(night, QUIET_EVERY_MS), waiting: true, everyMs: 60_000, hours }), true);
+    assert.equal(shouldExchange({ now: night, lastAt: ago(night, 60_000), waiting: false, everyMs: 60_000, hours: null }), true, 'always');
   });
 });
 

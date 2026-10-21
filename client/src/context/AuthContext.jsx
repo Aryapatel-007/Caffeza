@@ -104,7 +104,7 @@ const fromMe = (me) => ({
   // P23. Online orders: whether this role hears the alert, and the page address.
   online: { ...DEFAULT_ONLINE, ...(me.online ?? {}) },
   // P63. Two-way sync, and the conflicts waiting for an owner or manager.
-  sync: { mode: me.sync?.mode ?? 'ONE_WAY', conflictsUnseen: me.sync?.conflictsUnseen ?? null },
+  sync: { mode: me.sync?.mode ?? 'ONE_WAY', server: me.sync?.server ?? 'CLOUD', conflictsUnseen: me.sync?.conflictsUnseen ?? null },
 });
 
 export function AuthProvider({ children }) {

@@ -31,6 +31,7 @@ import { REPLICATION_STATE_IDS, ReplicationState } from '../../models/Replicatio
 import { nowUtc } from '../../utils/time.js';
 import { clusterTimeNow } from '../backup/snapshotService.js';
 import { isTwoWay } from '../sync/mode.js';
+import { docHash } from '../sync/hash.js';
 import { getSyncDoc, isEcho, noteLocalVersion } from '../sync/syncDocs.js';
 import { mirrorCollectionNames, TENANT_COLLECTION } from './collections.js';
 import { writerSnapshot } from './writerState.js';
@@ -125,20 +126,33 @@ export class ChangelogWriter {
     await this.#saveToken(true);
   }
 
-  /** One `baseline` entry for every document in every MIRROR collection. */
+  /**
+   * One `baseline` entry for every document in every MIRROR collection.
+   *
+   * P63, two-way: a document both sides already hold as it is (its syncdocs base)
+   * is left out. Taken again after a restart that could not resume, such as Render
+   * waking from a night's sleep, it then records only what really changed, so the
+   * changelog on the free Atlas cluster does not grow by every document each time.
+   */
   async baseline() {
     const run = randomUUID();
+    const twoWay = isTwoWay();
     let count = 0;
+    let unchanged = 0;
     for (const coll of mirrorCollectionNames()) {
       const cursor = this.db.collection(coll).find({}, { batchSize: BASELINE_BATCH, sort: { _id: 1 } });
       for await (const doc of cursor) {
         const restaurantId = await restaurantOf(this.db, coll, doc, doc._id);
         if (!restaurantId) continue;
+        if (twoWay && (await getSyncDoc(this.db, coll, doc._id))?.baseHash === docHash(doc)) {
+          unchanged += 1;
+          continue;
+        }
         await appendEntry({ restaurantId, coll, documentId: doc._id, op: CHANGE_OPERATIONS.BASELINE, doc, eventId: `baseline:${run}:${coll}:${String(doc._id)}`, capturedAt: this.now() });
         count += 1;
       }
     }
-    logger.info({ documents: count }, 'Changelog baseline taken.');
+    logger.info({ documents: count, unchanged }, 'Changelog baseline taken.');
     return count;
   }
 

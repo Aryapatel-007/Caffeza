@@ -21,7 +21,23 @@ const MANAGERS = new Set(['OWNER', 'MANAGER']);
  *   alert, because service is fine. "Not synced for 3 hours" and a failed
  *   reconciliation are alerts for OWNER and MANAGER only.
  */
+/**
+ * P63. The website is not the cafe server: its screens keep the look they had before P62.
+ * Before /auth/me has answered, a device that has used a cafe server before is taken to be on one.
+ */
+function onWebsite(features) {
+  const server = features?.sync?.server;
+  if (server) return server === 'CLOUD';
+  return !rememberedSetup();
+}
+
 export default function ConnectionStatus() {
+  const { features } = useAuth();
+  if (onWebsite(features)) return null;
+  return <CafeConnectionStatus />;
+}
+
+function CafeConnectionStatus() {
   const { user } = useAuth();
   const link = useLink({ signedIn: Boolean(user) });
   const self = useNetworkSelf(Boolean(user) && link.status !== 'UNREACHABLE');
@@ -96,6 +112,12 @@ function Details({ link, line, onClose }) {
  * the WiFi to join and the address to open.
  */
 export function LostConnectionBanner() {
+  const { features } = useAuth();
+  if (onWebsite(features)) return null;
+  return <CafeLostConnectionBanner />;
+}
+
+function CafeLostConnectionBanner() {
   const { user } = useAuth();
   const link = useLink({ signedIn: Boolean(user) });
   if (link.status !== 'UNREACHABLE') return null;

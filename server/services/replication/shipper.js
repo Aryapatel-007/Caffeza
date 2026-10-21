@@ -39,6 +39,7 @@ const wireEntry = (entry) => ({
   op: entry.op,
   doc: entry.doc,
   capturedAt: entry.capturedAt,
+  ...(entry.superseded ? { superseded: true } : {}),
 });
 
 /** POSTs signed EJSON to the mirror. Gives back { status, body }. */
@@ -94,14 +95,20 @@ async function noteError(restaurantId, message) {
  */
 export async function shipOnce(restaurantId, options = {}) {
   const from = await shippedSeqOf(restaurantId);
-  const entries = await ChangelogEntry.find({ restaurantId, seq: { $gt: from } })
+  let entries = await ChangelogEntry.find({ restaurantId, seq: { $gt: from } })
     .sort({ seq: 1 })
     .limit(options.batchSize ?? BATCH_SIZE)
     .lean();
   if (entries.length === 0) return 'IDLE';
 
-  // P63. Two-way: say how far this box has pulled, so the cloud knows its own versions arrived.
+  // P63. Two-way: say how far this box has pulled, so the cloud knows its own versions arrived,
+  // and flag what the cloud already has newer of, so it is never put back there.
   const twoWay = isTwoWay();
+  if (twoWay) {
+    const { flagSuperseded } = await import('../sync/exchange.js');
+    const { default: mongoose } = await import('mongoose');
+    entries = await flagSuperseded(mongoose.connection.db, entries);
+  }
   const payload = { restaurantId, epoch: writerSnapshot().epoch, entries: entries.map(wireEntry) };
   if (twoWay) {
     const { seenPeerSeqFor } = await import('../sync/exchange.js');
@@ -121,7 +128,7 @@ export async function shipOnce(restaurantId, options = {}) {
       // The cloud now has these versions: they are the base for the next merge here.
       const { markSeenByPeer } = await import('../sync/exchange.js');
       const { default: mongoose } = await import('mongoose');
-      await markSeenByPeer(mongoose.connection.db, restaurantId, entries.filter((entry) => entry.seq <= body.data.appliedThrough));
+      await markSeenByPeer(mongoose.connection.db, restaurantId, entries.filter((entry) => entry.seq <= body.data.appliedThrough && !entry.superseded));
     }
     await setShipped(restaurantId, body.data.appliedThrough);
     return 'SHIPPED';
@@ -151,6 +158,15 @@ export async function shipOnce(restaurantId, options = {}) {
 /** The restaurants with a changelog on this box. */
 function restaurantsWithChangelog() {
   return ChangelogEntry.distinct('restaurantId', { restaurantId: { $exists: true } });
+}
+
+/** Whether any restaurant has changelog entries the other side has not acknowledged. P63. */
+export async function hasUnshippedChanges() {
+  for (const restaurantId of await restaurantsWithChangelog()) {
+    const newest = await ChangelogEntry.findOne({ restaurantId }).sort({ seq: -1 }).select('seq').lean();
+    if ((newest?.seq ?? 0) > (await shippedSeqOf(restaurantId))) return true;
+  }
+  return false;
 }
 
 export class Shipper {

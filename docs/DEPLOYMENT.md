@@ -865,30 +865,84 @@ online orders.
 
 ## 19. Two-way sync on the cloud (P63)
 
-The Render server the website uses becomes one of two writers; the cafe PC is
-the other and keeps them in step (`docs/REPLICATION.md` section 13,
+Rishi's plan, 2026-10-21: the cafe PC is the till; the live website
+(`zchaat-pos-api` on Render, `zchaat-pos` on Vercel, the same Atlas database) is
+the fallback when the PC has a problem. The PC keeps Atlas up to date; the
+website is used only when needed, and whatever either side did while apart is
+brought together when the PC is back (`docs/REPLICATION.md` section 13,
 `docs/WINDOWS-INSTALL.md` section 5c).
 
-| Variable | Value |
-|---|---|
-| `DEPLOYMENT_ROLE` | `CLOUD` (the default) |
-| `SYNC_MODE` | `TWO_WAY` |
-| `REPLICATION_SECRET` | the same value as the cafe PC's |
+| Where | Variable | Value |
+|---|---|---|
+| Render | `DEPLOYMENT_ROLE` | leave unset (`CLOUD`) |
+| Render | `SYNC_MODE` | `TWO_WAY` |
+| Render | `REPLICATION_SECRET` | the same value as the PC's |
+| PC | `DEPLOYMENT_ROLE` | `BOX` |
+| PC | `SYNC_MODE` | `TWO_WAY` |
+| PC | `MIRROR_URL` | the Render service's own address, like `https://zchaat-pos-api.onrender.com` |
+| PC | `REPLICATION_SECRET` | the same value as Render's |
+| PC | `SYNC_EVERY_SECONDS` | `60` (the default) |
+| PC | `SYNC_HOURS` | the cafe's hours with a margin, like `08:30-02:30` (the default) |
 
-1. Both sides start from the same data: the PC loads the exact copy of the cloud
-   (`box/export-cloud.sh`, then **Load cafe data**) before either is switched on.
-2. `npm run db:indexes` against the cloud database (two new collections,
-   `syncdocs` and `syncconflicts`).
-3. Set the variables and deploy. On start the server takes a changelog baseline
-   of every document once (about 1,500 for Z Chaat today); the PC's first pull
-   reads it and finds every document already the same.
-4. Set the PC's `.env` and restart it. The PC pulls every second, which also
-   keeps Render's free server awake while the PC is on.
+### 19.1 Staying inside the free plans
 
-The changelog on Atlas keeps every change, like the box's; on the free M0
-cluster (512 MB) watch its size in Atlas once a month.
+- **Render, 750 hours a month for every free service on the account.** Render
+  sleeps after 15 minutes without a request. The PC syncs every minute only
+  inside `SYNC_HOURS`; outside them it calls only when it has changes waiting,
+  at most every 15 minutes. With `08:30-02:30` that is about 18 hours a day,
+  about 560 hours a month, the same as the keep-awake pingers of section 14.
+  Narrow `SYNC_HOURS` to the real opening hours to use less (10:00-01:00 is
+  about 465). Keep the pingers' window no wider than `SYNC_HOURS`, or switch
+  them off: the PC now keeps the website awake while the cafe is open.
+- **Atlas M0, 512 MB.** Z Chaat's whole database was about 3 MB on 2026-10-21.
+  Two-way adds `syncdocs` (one copy of each document, about the same again) and
+  the website's changelog, which grows only when the website itself changes
+  something: what the PC pushes is not logged again, and a baseline taken again
+  after Render's night's sleep records only documents that changed. Look at the
+  size in Atlas once a month.
+- **Queries.** One round a minute is a dozen small queries: nothing against
+  M0's limits.
 
-Rollback: `SYNC_MODE=ONE_WAY` on both and deploy. The website then bills in the
-main series again, so the PC must stop billing first (section 17.5 decides who
-writes).
+### 19.2 Putting the code on the live service
 
+The live service deploys `Aryapatel-007/Caffeza` `main` on every push, and
+Vercel rebuilds the screens from the same push. This repository has merged that
+`main` (2026-10-21), so pushing it there is a fast-forward.
+
+1. Indexes first, or the production server refuses to start:
+   `MONGO_URI="<the live address>" npm run db:indexes` (it only adds).
+2. Push: `git push upstream main`. With `SYNC_MODE` unset the website behaves as
+   before; the cafe-server connection bar shows only on the PC.
+3. Check: `/api/v1/health` answers with the database connected, and the
+   website signs in and draws the floor. Never make a bill to test it.
+
+### 19.3 Switching on, at a quiet hour
+
+1. Stop billing on the website on every device.
+2. On the Mac: `bash box/export-cloud.sh` (it only reads Atlas). On the PC:
+   **Load cafe data** with that file, typing LOAD.
+3. A secret: `openssl rand -base64 48`.
+4. Render, Environment: add `SYNC_MODE=TWO_WAY` and `REPLICATION_SECRET`, Save,
+   deploy, wait for Live. It takes a changelog baseline of every document once.
+5. The PC's `C:\CafePOS\.env`: the PC rows of the table above. Restart it.
+6. The owner on the PC: **Sync** says "In step" within two minutes. From now on
+   bill on the PC.
+
+### 19.4 When the PC has a problem
+
+- If the PC still runs, wait until **Sync** on it says it synced in the last
+  minute, then move the devices to the website.
+- If the PC is down, move the devices to the website at once. At most the last
+  minute of the PC's changes is not on Atlas yet; they come over when it is back.
+- Website bills are numbered `2026-27/W00001` on; Day Close waits for the PC.
+- When the PC is back, start it: within a minute it takes the website's orders
+  and bills and sends what it had kept. Each side's newer version wins; nothing
+  is deleted; a table, bill or name taken on both is listed under **Sync** for
+  the owner. Then move the devices back to the PC.
+
+### 19.5 Rollback
+
+- The new code misbehaves: Render, Events, roll back to the previous deploy.
+- Two-way misbehaves: `SYNC_MODE=ONE_WAY` (or remove it) on Render and on the
+  PC, Save and deploy. Bill on the website only until section 17.5 decides
+  again; the PC must stop billing, or both use the main series.

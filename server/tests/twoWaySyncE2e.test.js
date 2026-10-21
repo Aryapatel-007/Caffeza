@@ -22,6 +22,7 @@ import { ALL_MODELS } from '../models/index.js';
 import { REPLICATION_STATE_IDS, ReplicationState } from '../models/ReplicationState.js';
 import { ChangelogWriter } from '../services/replication/changelogWriter.js';
 import { mirrorCollectionNames } from '../services/replication/collections.js';
+import { ensureDefaultPaymentMethods } from '../services/paymentMethodService.js';
 import { shipOnce } from '../services/replication/shipper.js';
 import { pullOnce } from '../services/sync/exchange.js';
 import { docHash } from '../services/sync/hash.js';
@@ -95,7 +96,20 @@ async function fingerprints(db) {
 
 async function assertSame() {
   const [onBox, onWebsite] = await Promise.all([fingerprints(boxDb), fingerprints(cloudDb)]);
-  for (const coll of Object.keys(onBox)) assert.deepEqual(onWebsite[coll], onBox[coll], `${coll} is the same on both`);
+  for (const coll of Object.keys(onBox)) {
+    if (process.env.TWO_WAY_DEBUG && JSON.stringify(onWebsite[coll]) !== JSON.stringify(onBox[coll])) {
+      const [a] = await boxDb.collection(coll).find({}).sort({ _id: 1 }).limit(1).toArray();
+      const b = await cloudDb.collection(coll).findOne({ _id: a._id });
+      process.stderr.write(`DEBUG ${coll}\nPC ${JSON.stringify(a)}\nWEB ${JSON.stringify(b)}\n`);
+      for (const [side, db] of [['PC', boxDb], ['WEB', cloudDb]]) {
+        const log = await db.collection('changelog').find({ documentId: a._id }).sort({ seq: 1 }).toArray();
+        process.stderr.write(`${side} log ${JSON.stringify(log.map((e) => [e.seq, e.op, e.doc?.updatedAt, e.capturedAt]))}\n`);
+        const sd = await db.collection('syncdocs').findOne({ documentId: a._id });
+        process.stderr.write(`${side} sync base ${JSON.stringify(sd?.baseDoc?.updatedAt)} known ${sd?.knownHashes?.length} applied ${sd?.appliedHashes?.length}\n`);
+      }
+    }
+    assert.deepEqual(onWebsite[coll], onBox[coll], `${coll} is the same on both`);
+  }
 }
 
 before(async () => {
@@ -109,6 +123,8 @@ before(async () => {
   floor = await seedFloor();
   restaurantId = new mongoose.Types.ObjectId(floor.restaurant.id);
   floor.table2 = (await createTable(floor.tokens.OWNER, { name: 'T2' })).body.data;
+  // A real cafe has its payment methods before sync starts (Z Chaat's come in the copy).
+  await ensureDefaultPaymentMethods(restaurantId, { branchId: new mongoose.Types.ObjectId(floor.branch.id) });
 
   // Both start from the same data, as after the exact copy of the cloud.
   cloudClient = await MongoClient.connect(testDatabaseUri(CLOUD_DB));
@@ -236,6 +252,59 @@ describe('two-way sync between the cafe PC and the website', () => {
     await exchange(3);
     assert.ok(await cloudDb.collection('tables').findOne({ nameLower: 'garden 1' }));
     assert.equal((await boxDb.collection('orders').findOne({ _id: new mongoose.Types.ObjectId(floor.order.id) })).kitchenNote, 'Less spicy');
+    await assertSame();
+  });
+  it('loses nothing when the PC went down with bills not yet sent and the website billed meanwhile', async () => {
+    // Your scenario: the PC bills, goes down before its next sync, the website takes over,
+    // then the PC comes back. Every bill ends up on both, each with its own number.
+    const { request } = await import('./helpers/testServer.js');
+    const onPc = (method, urlPath, options) => request(method, urlPath, options);
+    async function billTakeaway(call) {
+      const opened = await call('POST', '/api/v1/orders', {
+        token: floor.tokens.CASHIER,
+        body: { orderType: 'TAKEAWAY', lines: [{ menuItemId: floor.item.id, quantity: 1 }] },
+      });
+      assert.equal(opened.status, 201, JSON.stringify(opened.body));
+      const billed = await call('POST', '/api/v1/bills', {
+        token: floor.tokens.CASHIER,
+        body: { orderId: opened.body.data.id, version: opened.body.data.version, withoutKot: true },
+      });
+      assert.equal(billed.status, 201, JSON.stringify(billed.body));
+      const bill = billed.body.data;
+      const paid = await call('POST', `/api/v1/bills/${bill.id}/payments`, {
+        token: floor.tokens.CASHIER,
+        body: { method: 'CASH', amountInPaise: bill.grandTotalInPaise },
+      });
+      assert.equal(paid.status, 200, JSON.stringify(paid.body));
+      return bill;
+    }
+
+    await exchange(2);
+    const conflictsBefore = await boxDb.collection('syncconflicts').countDocuments();
+    // The PC bills; no sync runs after, as if it went down.
+    const pcBills = [await billTakeaway(onPc), await billTakeaway(onPc)];
+    await drain();
+    // The website takes three bills while the PC is away.
+    const websiteBills = [];
+    for (let i = 0; i < 3; i += 1) websiteBills.push(await billTakeaway(onCloud));
+    assert.ok(websiteBills.every((bill) => bill.billNumber.includes('/W')), 'the website bills in its own series');
+    assert.ok(pcBills.every((bill) => !bill.billNumber.includes('/W')), 'the PC carries on its series');
+
+    // The PC is back.
+    await pause(1500);
+    await exchange(4);
+    for (const db of [boxDb, cloudDb]) {
+      for (const bill of [...pcBills, ...websiteBills]) {
+        const held = await db.collection('bills').findOne({ _id: new mongoose.Types.ObjectId(bill.id) });
+        assert.ok(held, `${bill.billNumber} is on ${db === boxDb ? 'the PC' : 'the website'}`);
+        assert.equal(held.billNumber, bill.billNumber);
+        assert.equal(held.status, 'PAID');
+      }
+    }
+    const numbers = [...pcBills, ...websiteBills].map((bill) => bill.billNumber);
+    assert.equal(new Set(numbers).size, numbers.length, 'no number used twice');
+    const fresh = await boxDb.collection('syncconflicts').find({}).sort({ _id: 1 }).skip(conflictsBefore).toArray();
+    assert.equal(fresh.length, 0, `nothing to fix by hand: ${JSON.stringify(fresh.map((c) => ({ kind: c.kind, coll: c.coll, fields: c.fields, summary: c.summary ?? c.message })))}`);
     await assertSame();
   });
 });

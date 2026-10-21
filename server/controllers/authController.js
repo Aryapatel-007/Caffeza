@@ -6,6 +6,7 @@
  * authService.js owns it, so a grep of this folder for the field name comes
  * back empty and stays that way.
  */
+import { currentRole } from '../config/deployment.js';
 import { ROLES } from '../config/roles.js';
 import { syncMode } from '../services/sync/mode.js';
 import { conflictsUnseen } from '../services/sync/statusService.js';
@@ -292,6 +293,9 @@ export async function me(req, res) {
     // P63. Owners and managers see how many sync conflicts wait to be read.
     sync: {
       mode: syncMode(),
+      // Which server answered: CLOUD (the website), BOX (the cafe PC) or MIRROR. The cafe
+      // server's connection bar and banner show only off the website.
+      server: currentRole(),
       conflictsUnseen: [ROLES.OWNER, ROLES.MANAGER].includes(req.user.role) ? await conflictsUnseen(req.restaurantId) : null,
     },
     // P22. Each logo slot's hash and size, never its bytes: a device fetches a
