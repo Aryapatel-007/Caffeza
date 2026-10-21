@@ -74,6 +74,8 @@ const DEFAULTS = Object.freeze({
   kitchenSound: false,
   // How far back the kitchen's Recall looks: 30m, 1h, 3h or day.
   recallRange: '1h',
+  // 2026-10-21. The kitchen screen's tiles: BIG, or SMALL in a rush so more tickets fit.
+  kitchenTiles: 'BIG',
 });
 
 /** Same-tab listeners. The `storage` event only reaches other tabs. */

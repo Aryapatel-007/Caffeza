@@ -597,11 +597,12 @@ Asked for by Rishi. Spec first (`166361e`): `docs/prompts/P59-print-once-guests-
 2. Fix: `POST /bills/:billId/printed` takes `forRequestAt` and records the print only while that request is the one waiting (else 409 `DUPLICATE`); `CaptainBillPrinter` lays the bill out, claims, and prints only on 200 (`printBill` `forRequestAt`). `print-request` keeps a waiting request's time. The captain's bill screen shows "Sent to the counter", disabled, while it waits.
 3. Guests: a free table opens on one tap (a booking soon still asks first, `SeatTablePanel` now bookings only). The Guest details sheet asks "How many guests?" first; `PATCH /orders/:orderId/customer` takes `guestCount` on a dine-in order; `floor.requireGuestCount` is checked on the first Send (`kitchenService.fireOrder`), not on opening. Z Chaat has it off.
 4. Kitchen board (`features/kitchen/ticketColumns.js`): the grid made every row as tall as its tallest ticket, leaving gaps; now each column stacks on its own, each ticket onto the shortest column, and the number of columns comes from the board's width (at least 320 px a ticket, at most six), so names and "Hold for all ready" stay on one line.
+5. Small tiles / Big tiles on the kitchen screen's header, kept per device (`kitchenTiles`, default BIG): small is 220 px a ticket and up to eight across, tighter rows, the switch without its word (the struck-through name still shows ready), and "Hold: all ready". `TicketCard` `compact`. `kitchenUndo.spec.js` switches to small, reloads, and back.
 
 Tests: `captainBilling.test.js` gains two (a second tap keeps the time; two devices claim, one 200 and one 409, count 1); `floorPlan.test.js`'s guest count test rewritten on purpose for P59. Browser: `captainBilling.spec.js` gains two counter devices printing once (prints twice with the claim removed, tried on purpose); `customers.spec.js` and the e2e helpers (`openTable` gives the guests at the first Send) changed on purpose. Passing: captainBilling, customers, goldenDay, petpooja, recallUndoSend, kitchenUndo, liveChannel, oneTicketPerSend, kitchenBell, editSentDish. Lint and build pass; the build's 500 kB chunk warning is already on `main`. Kitchen board checked by eye on the test site at 1470 px: four columns, no gaps.
 
 Anything the other developer needs to know:
-Arya: an e2e step that seats a table no longer picks guests on the floor; `openTable` passes them to the Guest details sheet. Not pushed at the time of writing.
+Arya: an e2e step that seats a table no longer picks guests on the floor; `openTable` passes them to the Guest details sheet. Pushed and deployed 2026-10-21 at Rishi's word; no index or migration needed.
 
 ### 2026-10-19 Rishi, a livelier sign-in screen, and Sign out held in an account menu
 

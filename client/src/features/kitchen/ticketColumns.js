@@ -14,23 +14,28 @@ import { useEffect, useState } from 'react';
 const MIN_TICKET_PX = 320;
 const GAP_PX = 8;
 const MAX_COLUMNS = 6;
+// Small tiles, for a rush: 220 px a ticket and up to eight across, so more fit one screen.
+const SMALL_TICKET_PX = 220;
+const SMALL_MAX_COLUMNS = 8;
 
-function columnsFor(width) {
-  return Math.min(MAX_COLUMNS, Math.max(1, Math.floor((width + GAP_PX) / (MIN_TICKET_PX + GAP_PX))));
+function columnsFor(width, small) {
+  const ticket = small ? SMALL_TICKET_PX : MIN_TICKET_PX;
+  const most = small ? SMALL_MAX_COLUMNS : MAX_COLUMNS;
+  return Math.min(most, Math.max(1, Math.floor((width + GAP_PX) / (ticket + GAP_PX))));
 }
 
 /** `ref` is the board; the count follows its width as the window or the rail changes. */
-export function useColumnCount(ref) {
+export function useColumnCount(ref, { small = false } = {}) {
   const [count, setCount] = useState(1);
   useEffect(() => {
     const board = ref.current;
     if (!board) return undefined;
-    const update = () => setCount(columnsFor(board.clientWidth));
+    const update = () => setCount(columnsFor(board.clientWidth, small));
     update();
     const observer = new ResizeObserver(update);
     observer.observe(board);
     return () => observer.disconnect();
-  }, [ref]);
+  }, [ref, small]);
   return count;
 }
 

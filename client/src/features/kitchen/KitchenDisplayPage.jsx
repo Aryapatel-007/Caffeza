@@ -69,7 +69,8 @@ export default function KitchenDisplayPage() {
   const { user, features } = useAuth();
   const [device, updateDevice] = useDeviceSettings();
   const board = useRef(null);
-  const columnCount = useColumnCount(board);
+  const smallTiles = device.kitchenTiles === 'SMALL';
+  const columnCount = useColumnCount(board, { small: smallTiles });
   const [error, setError] = useState(null);
   // KOT ids whose print failed on this screen. Shown as "Not printed".
   const [notPrinted, setNotPrinted] = useState(() => new Set());
@@ -294,6 +295,26 @@ export default function KitchenDisplayPage() {
 
         <div className="ml-auto flex items-center gap-3 text-right">
           {/* P45. The bell for a new ticket, on or off on this device. */}
+          {/* 2026-10-21. Small tiles in a rush, so more tickets fit; kept on this device. */}
+          <div role="group" aria-label="Tile size" className="flex gap-1">
+            {[
+              ['SMALL', 'Small tiles'],
+              ['BIG', 'Big tiles'],
+            ].map(([size, label]) => (
+              <button
+                key={size}
+                type="button"
+                aria-pressed={(device.kitchenTiles ?? 'BIG') === size}
+                onClick={() => updateDevice({ kitchenTiles: size })}
+                className={[
+                  'type-button min-h-12 rounded-lg border px-3',
+                  (device.kitchenTiles ?? 'BIG') === size ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             aria-pressed={device.kitchenSound}
@@ -384,6 +405,7 @@ export default function KitchenDisplayPage() {
                     onLineReady={(lineId) => markReady.mutate({ kotId: kot.id, lineId, label: `${nameOf(kot, lineId)} marked ready.` })}
                     onLineUndo={(lineId) => undo.mutate({ kotId: kot.id, lineId })}
                     onAllReady={() => markReady.mutate({ kotId: kot.id, label: `KOT ${kot.kotNumber} marked ready.` })}
+                    compact={smallTiles}
                   />
                 </li>
               ))}
