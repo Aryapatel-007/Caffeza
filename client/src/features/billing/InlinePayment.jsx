@@ -26,7 +26,17 @@ import MethodButtons from './MethodButtons.jsx';
 /** P43. Used only before /auth/me carries the restaurant's own list (P47). Anything else is typed. */
 const FALLBACK_OTHER_MODES = ['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Cheque', 'Bank transfer', 'Coupon'];
 
-export default function InlinePayment({ billId, methods, outstandingInPaise, isBusy, error, onConfirm, onTerminalFinished }) {
+/**
+ * Part payment (2026-11-01): half of what is owed, in whole rupees, so two halves
+ * of ₹795.00 are ₹397.00 now and ₹398.00 next. Null when there is no whole
+ * rupee to split.
+ */
+export function halfOf(outstandingInPaise) {
+  const half = Math.floor(outstandingInPaise / 200) * 100;
+  return half > 0 ? half : null;
+}
+
+export default function InlinePayment({ billId, methods, outstandingInPaise, paidSoFarInPaise = 0, isBusy, error, onConfirm, onTerminalFinished }) {
   // Until one is picked, the first allowed method is selected. Derived, because
   // the methods may still be loading when this mounts.
   const [picked, setMethod] = useState(null);
@@ -48,7 +58,16 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
   const [counts, setCounts] = useState({});
   const [counting, setCounting] = useState(false);
   const [typed, setTyped] = useState(null);
-  const amountInPaise = typed === null ? outstandingInPaise : parseRupeesToPaise(typed);
+  // Part payment: Full or Half sets the keypad; any other part is typed on it.
+  const [preset, setPreset] = useState('FULL');
+  const halfInPaise = halfOf(outstandingInPaise);
+  const startInPaise = preset === 'HALF' && halfInPaise ? halfInPaise : outstandingInPaise;
+  const amountInPaise = typed === null ? startInPaise : parseRupeesToPaise(typed);
+  const leftAfterInPaise = amountInPaise === null ? null : outstandingInPaise - amountInPaise;
+  const choosePart = (next) => {
+    setPreset(next);
+    setTyped(null);
+  };
   const isCash = method?.code === 'CASH';
   const isOther = method?.code === 'OTHER';
   // P47. The owner's list, from Settings, Payment methods.
@@ -63,10 +82,29 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="type-heading">Payment method</h2>
           <span className="type-label text-muted">
+            {paidSoFarInPaise > 0 && (
+              <>
+                Paid so far <Money paise={paidSoFarInPaise} size="num" className="text-ink" />
+                {' · '}
+              </>
+            )}
             {LABELS.outstanding} <Money paise={outstandingInPaise} size="num" className="text-ink" />
           </span>
         </div>
-        <MethodButtons methods={methods} selected={method?.code} onPick={setMethod} />
+        {paidSoFarInPaise > 0 && (
+          <p className="type-body mb-3 rounded-lg border-l-[3px] border-l-accent bg-sunken p-3">
+            Part paid. Pick the method for the remaining <Money paise={outstandingInPaise} />.
+          </p>
+        )}
+        <MethodButtons
+          methods={methods}
+          selected={method?.code}
+          onPick={(next) => {
+            // A new method starts its keypad again, so the typed part starts again too.
+            setMethod(next);
+            setTyped(null);
+          }}
+        />
       </div>
 
       {method && (
@@ -228,12 +266,46 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
               )}
             </div>
           )}
+          {/* Part payment: pay some by this method, the rest by another. */}
+          <fieldset className="mb-3">
+            <legend className="mb-1 type-label text-muted">Pay by {method.name}</legend>
+            <div className="flex flex-wrap gap-2">
+              {[
+                ['FULL', 'Full', outstandingInPaise],
+                ...(halfInPaise ? [['HALF', 'Half', halfInPaise]] : []),
+              ].map(([key, label, paise]) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={preset === key && typed === null}
+                  onClick={() => choosePart(key)}
+                  className={[
+                    'type-label flex min-h-12 items-center gap-2 rounded-lg border px-4',
+                    preset === key && typed === null ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
+                  ].join(' ')}
+                >
+                  {label} <Money paise={paise} />
+                </button>
+              ))}
+            </div>
+            <p className="type-caption mt-1 text-muted">Paying part now? Type the part on the keypad, then record the rest with another method.</p>
+          </fieldset>
+          {leftAfterInPaise !== null && leftAfterInPaise > 0 && amountInPaise > 0 && (
+            <p aria-live="polite" className="type-body mb-3">
+              Part payment. <Money paise={leftAfterInPaise} /> stays outstanding for the next method.
+            </p>
+          )}
+          {leftAfterInPaise !== null && leftAfterInPaise < 0 && (
+            <p aria-live="polite" className="type-body mb-3 text-alert">
+              More than the outstanding <Money paise={outstandingInPaise} />. For cash, tap the notes under Guest gave instead.
+            </p>
+          )}
           <NumericKeypad
-            key={`${method.code}-${outstandingInPaise}`}
+            key={`${method.code}-${outstandingInPaise}-${preset}`}
             title={`${LABELS.amountReceived} · ${method.name}`}
             prefix="₹"
             allowDecimal
-            initialValue={paiseToInput(outstandingInPaise)}
+            initialValue={paiseToInput(startInPaise)}
             onChange={setTyped}
             confirmLabel={method.terminalProvider && !byHand ? 'Send to machine' : <Bilingual k="recordPayment" align="center" />}
             cancelLabel="Reset"
@@ -246,7 +318,7 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, isB
             }}
             onConfirm={(raw) => {
               const amount = parseRupeesToPaise(raw);
-              if (amount === null || amount <= 0) return;
+              if (amount === null || amount <= 0 || amount > outstandingInPaise) return;
               // P43. The server refuses Other with no mode; say so here instead of sending it.
               if (isOther && !reference.trim()) return;
               if (method.terminalProvider && !byHand) {

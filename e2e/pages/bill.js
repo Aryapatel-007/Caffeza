@@ -37,7 +37,8 @@ export async function pay(page, payments) {
     const keypad = area.getByText(/^Amount received/).locator('xpath=..');
     await typeOnKeypad(keypad, amount);
     await keypad.getByRole('button', { name: /^Record payment/ }).click();
-    await expect(page.getByText(/^Payment recorded/)).toBeVisible();
+    // A part payment says so; the last one says the bill is paid.
+    await expect(page.getByText(/^(Part payment|Payment) recorded/).first()).toBeVisible();
   }
 }
 

@@ -934,3 +934,17 @@ Added 2026-10-25.
 | **At the counter** | The bill goes to the counter's printer, as a captain's does. Automatic on the cafe PC for every device but the till |
 | **Print at counter instead** | On the bill: send it to the counter this once |
 | **Print on this device instead** | On the bill: print it on this device this once |
+
+---
+
+## 51. Part payment
+
+Added 2026-11-01. A split payment (section 6) taken one method at a time.
+
+| Term | Meaning |
+|---|---|
+| **Part payment** | A payment for less than the outstanding. The bill stays unpaid until the rest is recorded with another method |
+| **Full** | On the payment panel: the whole outstanding by this method |
+| **Half** | On the payment panel: half the outstanding in whole rupees, so ₹795.00 is ₹397.00 now and ₹398.00 next |
+| **Paid so far** | What the bill's payments add up to, shown once a part is paid |
+| **Part paid** | The note above the methods after a part payment, asking for the method for the rest |

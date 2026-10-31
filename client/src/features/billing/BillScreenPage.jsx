@@ -128,7 +128,10 @@ export default function BillScreenPage() {
       if (updated.status === 'PAID') setJustPaid(true);
       setToast({
         tone: 'success',
-        message: updated.status === 'PAID' ? 'Payment recorded. Bill paid in full.' : 'Payment recorded.',
+        message:
+          updated.status === 'PAID'
+            ? 'Payment recorded. Bill paid in full.'
+            : `Part payment recorded. ${moneyText(updated.grandTotalInPaise - updated.amountPaidInPaise)} still outstanding.`,
       });
     },
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
@@ -647,7 +650,10 @@ export default function BillScreenPage() {
               </div>
             ) : isSettleable && canTakePayment ? (
               <InlinePayment
+                // A fresh panel after each part payment: no method, reference or notes carried to the next one.
+                key={bill.amountPaidInPaise}
                 billId={bill.id}
+                paidSoFarInPaise={bill.amountPaidInPaise}
                 onTerminalFinished={(transaction) => {
                   queryClient.invalidateQueries({ queryKey: ['bill', billId] });
                   if (transaction.status === 'APPROVED') setToast({ tone: 'success', message: 'Approved on the card machine.' });
