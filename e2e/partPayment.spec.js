@@ -1,8 +1,7 @@
 /**
- * Part payment through the screens (2026-11-01): a cashier takes half of a
- * bill in cash with one tap on Half, the screen says what stays outstanding,
- * then the rest by UPI, which the keypad already holds. The bill is paid with
- * two payments that add up to its bill total.
+ * Part payment through the screens (2026-11-03): on its own panel, the
+ * cashier types the cash part, puts the rest on UPI with one tap, and records
+ * both at once. The bill is paid with two payments that add up to its total.
  */
 import { expect, test } from '@playwright/test';
 
@@ -25,7 +24,7 @@ async function api(method, path, token, body) {
 const tokenOf = async (golden, name) => (await api('POST', '/auth/login', null, { phone: golden.phones[name], password: golden.password })).accessToken;
 const rupees = (paise) => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
-test('a cashier takes half in cash and the rest by UPI', async ({ browser }) => {
+test('a cashier records part in cash and the rest by UPI at once', async ({ browser }) => {
   const golden = await resetGolden();
   await at('15:05', DAY);
   const [manager, captain, cashier] = await Promise.all(['Manager', 'Budha Singh', 'Counter'].map((name) => tokenOf(golden, name)));
@@ -52,20 +51,16 @@ test('a cashier takes half in cash and the rest by UPI', async ({ browser }) => 
   await page.goto(`/bills/${bill.id}`);
   const area = page.getByRole('region', { name: 'Take payment' });
 
-  // Half, in cash.
-  await area.getByRole('button', { name: /^Cash/ }).click();
-  await area.getByRole('button', { name: /^Half/ }).click();
-  await expect(area.getByText(`${rupees(total - half)} stays outstanding for the next method`, { exact: false })).toBeVisible();
-  await area.getByRole('button', { name: /^Record payment/ }).click();
-  await expect(page.getByText(`Part payment recorded. ${rupees(total - half)} still outstanding.`)).toBeVisible();
-
-  // The panel starts again: Paid so far, and the rest ready for the next method.
-  await expect(area.getByText('Paid so far', { exact: false })).toBeVisible();
-  await expect(area.getByText('Part paid. Pick the method for the remaining', { exact: false })).toBeVisible();
+  // Part payment: its own panel, one amount per method, recorded together.
+  await area.getByRole('button', { name: /^Part payment/ }).click();
+  const parts = page.getByRole('region', { name: 'Part payment' });
+  await parts.getByRole('textbox', { name: 'Amount by Cash' }).fill(String(half / 100));
+  await expect(parts.getByText('Still to collect')).toBeVisible();
+  await parts.getByRole('listitem').filter({ has: page.getByRole('textbox', { name: 'Amount by UPI' }) }).getByRole('button', { name: 'Rest' }).click();
+  await expect(parts.getByText('Matches the bill.', { exact: false })).toBeVisible();
   await page.screenshot({ path: 'e2e/screenshots/part-payment.png', fullPage: true });
-  await area.getByRole('button', { name: /^UPI/ }).click();
-  await area.getByRole('button', { name: /^Record payment/ }).click();
-  await expect(page.getByText('Payment recorded. Bill paid in full.')).toBeVisible();
+  await parts.getByRole('button', { name: 'Record 2 payments' }).click();
+  await expect(page.getByText('Bill paid in full.', { exact: false })).toBeVisible();
 
   const paid = await api('GET', `/bills/${bill.id}`, cashier);
   expect(paid.status).toBe('PAID');

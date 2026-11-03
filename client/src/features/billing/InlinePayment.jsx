@@ -26,17 +26,17 @@ import MethodButtons from './MethodButtons.jsx';
 /** P43. Used only before /auth/me carries the restaurant's own list (P47). Anything else is typed. */
 const FALLBACK_OTHER_MODES = ['Swiggy Dineout', 'Zomato Dineout', 'EazyDiner', 'Cheque', 'Bank transfer', 'Coupon'];
 
-/**
- * Part payment (2026-11-01): half of what is owed, in whole rupees, so two halves
- * of ₹795.00 are ₹397.00 now and ₹398.00 next. Null when there is no whole
- * rupee to split.
- */
-export function halfOf(outstandingInPaise) {
-  const half = Math.floor(outstandingInPaise / 200) * 100;
-  return half > 0 ? half : null;
-}
-
-export default function InlinePayment({ billId, methods, outstandingInPaise, paidSoFarInPaise = 0, isBusy, error, onConfirm, onTerminalFinished }) {
+export default function InlinePayment({
+  billId,
+  methods,
+  outstandingInPaise,
+  paidSoFarInPaise = 0,
+  isBusy,
+  error,
+  onConfirm,
+  onTerminalFinished,
+  onPartPayment = null,
+}) {
   // Until one is picked, the first allowed method is selected. Derived, because
   // the methods may still be loading when this mounts.
   const [picked, setMethod] = useState(null);
@@ -58,16 +58,8 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, pai
   const [counts, setCounts] = useState({});
   const [counting, setCounting] = useState(false);
   const [typed, setTyped] = useState(null);
-  // Part payment: Full or Half sets the keypad; any other part is typed on it.
-  const [preset, setPreset] = useState('FULL');
-  const halfInPaise = halfOf(outstandingInPaise);
-  const startInPaise = preset === 'HALF' && halfInPaise ? halfInPaise : outstandingInPaise;
-  const amountInPaise = typed === null ? startInPaise : parseRupeesToPaise(typed);
+  const amountInPaise = typed === null ? outstandingInPaise : parseRupeesToPaise(typed);
   const leftAfterInPaise = amountInPaise === null ? null : outstandingInPaise - amountInPaise;
-  const choosePart = (next) => {
-    setPreset(next);
-    setTyped(null);
-  };
   const isCash = method?.code === 'CASH';
   const isOther = method?.code === 'OTHER';
   // P47. The owner's list, from Settings, Payment methods.
@@ -95,6 +87,16 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, pai
           <p className="type-body mb-3 rounded-lg border-l-[3px] border-l-accent bg-sunken p-3">
             Part paid. Pick the method for the remaining <Money paise={outstandingInPaise} />.
           </p>
+        )}
+        {/* 2026-11-03. Several methods at once, each with its own amount, on its own panel. */}
+        {onPartPayment && (
+          <button
+            type="button"
+            onClick={onPartPayment}
+            className="type-button mb-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-surface px-4 hover:bg-sunken"
+          >
+            Part payment · Cash + UPI + …
+          </button>
         )}
         <MethodButtons
           methods={methods}
@@ -266,30 +268,6 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, pai
               )}
             </div>
           )}
-          {/* Part payment: pay some by this method, the rest by another. */}
-          <fieldset className="mb-3">
-            <legend className="mb-1 type-label text-muted">Pay by {method.name}</legend>
-            <div className="flex flex-wrap gap-2">
-              {[
-                ['FULL', 'Full', outstandingInPaise],
-                ...(halfInPaise ? [['HALF', 'Half', halfInPaise]] : []),
-              ].map(([key, label, paise]) => (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={preset === key && typed === null}
-                  onClick={() => choosePart(key)}
-                  className={[
-                    'type-label flex min-h-12 items-center gap-2 rounded-lg border px-4',
-                    preset === key && typed === null ? 'border-2 border-ink bg-sunken' : 'border-line bg-surface hover:bg-sunken',
-                  ].join(' ')}
-                >
-                  {label} <Money paise={paise} />
-                </button>
-              ))}
-            </div>
-            <p className="type-caption mt-1 text-muted">Paying part now? Type the part on the keypad, then record the rest with another method.</p>
-          </fieldset>
           {leftAfterInPaise !== null && leftAfterInPaise > 0 && amountInPaise > 0 && (
             <p aria-live="polite" className="type-body mb-3">
               Part payment. <Money paise={leftAfterInPaise} /> stays outstanding for the next method.
@@ -301,11 +279,11 @@ export default function InlinePayment({ billId, methods, outstandingInPaise, pai
             </p>
           )}
           <NumericKeypad
-            key={`${method.code}-${outstandingInPaise}-${preset}`}
+            key={`${method.code}-${outstandingInPaise}`}
             title={`${LABELS.amountReceived} · ${method.name}`}
             prefix="₹"
             allowDecimal
-            initialValue={paiseToInput(startInPaise)}
+            initialValue={paiseToInput(outstandingInPaise)}
             onChange={setTyped}
             confirmLabel={method.terminalProvider && !byHand ? 'Send to machine' : <Bilingual k="recordPayment" align="center" />}
             cancelLabel="Reset"

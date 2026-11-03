@@ -641,6 +641,25 @@ Things not yet decided. Move them to the decision log once settled.
 
 Newest entry at the top. Keep the last ten or so, delete older ones.
 
+### 2026-11-03 Arya with Claude Code, part payment on its own panel (live website only)
+
+- The payment panel has a **Part payment** button. It opens a panel with every
+  method the bill may use as a row: type how much came by each (₹400 Cash,
+  ₹600 UPI), **Rest** puts the remainder on a row, and **Record N payments**
+  records them together. `client/src/features/billing/PartPaymentPanel.jsx`.
+- Each part is one ordinary `POST /bills/:id/payments`, sent one after another,
+  so the server checks every part as before. Whatever happens the panel closes
+  and the bill is read again, so a part already recorded is never sent twice; a
+  failure says how many were recorded. Card-machine methods stay on the main
+  panel. Other asks for its mode on its row.
+- Rishi's Full / Half buttons from 2026-11-01 (`c892a1f`) are removed: Arya
+  found them confusing. Paid so far and Part paid stay. GLOSSARY section 51 and
+  `e2e/partPayment.spec.js` follow the new panel.
+- Client only: no server, model or sync change, so the cafe PC and two-way sync
+  are untouched. Pushed with `[skip render]`, so Render was not restarted. Not
+  in Cafezza-Offline yet; the PC can already take a part by typing a smaller
+  amount on the keypad.
+
 ### 2026-10-25 Rishi with Claude Code, a manager's or cashier's phone on the cafe PC prints at the counter
 
 Rishi, from the cafe: on the offline version the owner and captains could print a bill, but managers and cashiers could not from their phones. Cause: a captain's Print at counter sends the bill to the queue the till window prints (P25 Part D, P59), but a manager or cashier got Print bill, which prints on the device itself, and a phone has no bill printer. Client only; `POST /bills/:billId/print-request` was already open to all six roles (API-CONTRACT 16.3, a note added).

@@ -939,12 +939,14 @@ Added 2026-10-25.
 
 ## 51. Part payment
 
-Added 2026-11-01. A split payment (section 6) taken one method at a time.
+Added 2026-11-01, changed 2026-11-03. A split payment (section 6) taken on its own panel.
 
 | Term | Meaning |
 |---|---|
-| **Part payment** | A payment for less than the outstanding. The bill stays unpaid until the rest is recorded with another method |
-| **Full** | On the payment panel: the whole outstanding by this method |
-| **Half** | On the payment panel: half the outstanding in whole rupees, so ₹795.00 is ₹397.00 now and ₹398.00 next |
+| **Part payment** | The button on the payment panel, and its panel: one bill paid with several methods at once, an amount typed for each, recorded together. Each amount is one payment |
+| **Rest** | On the part payment panel: put whatever is not yet entered on this method |
+| **Entered** | The amounts typed on the part payment panel, added up |
+| **Still to collect** | The outstanding less what is entered; it stays outstanding after recording |
+| **Back to one method** | Leave the part payment panel without recording anything |
 | **Paid so far** | What the bill's payments add up to, shown once a part is paid |
 | **Part paid** | The note above the methods after a part payment, asking for the method for the rest |

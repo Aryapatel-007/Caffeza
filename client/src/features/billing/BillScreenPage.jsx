@@ -30,6 +30,7 @@ import DiscountPanel from './DiscountPanel.jsx';
 import { discountReasonLabel } from './discountReasons.js';
 import { errorMessage } from './errorCopy.js';
 import InlinePayment from './InlinePayment.jsx';
+import PartPaymentPanel from './PartPaymentPanel.jsx';
 import { methodsForBill, paymentMethodName } from './paymentMethodsForBill.js';
 import { printBill } from '../printing/printBill.js';
 import { useTheme } from '../../context/ThemeProvider.jsx';
@@ -135,6 +136,49 @@ export default function BillScreenPage() {
       });
     },
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
+  });
+
+  /**
+   * 2026-11-03. Part payment: several methods at once. Each part is one ordinary
+   * payment, sent one after another. Whatever happens, the panel closes and the
+   * bill is read again, so a part already recorded is never sent twice.
+   */
+  const [partMode, setPartMode] = useState(false);
+  const partsMutation = useMutation({
+    mutationFn: async (parts) => {
+      let updated = null;
+      for (const [index, part] of parts.entries()) {
+        try {
+          updated = await recordPayment(billId, part);
+        } catch (error) {
+          error.partsRecorded = index;
+          error.partsTotal = parts.length;
+          error.partName = part.methodName;
+          throw error;
+        }
+      }
+      return updated;
+    },
+    onSuccess: (updated, parts) => {
+      invalidate(updated);
+      setPartMode(false);
+      if (updated.status === 'PAID') setJustPaid(true);
+      const list = parts.map((part) => `${part.methodName} ${moneyText(part.amountInPaise)}`).join(', ');
+      setToast({
+        tone: 'success',
+        message:
+          updated.status === 'PAID'
+            ? `Part payment recorded: ${list}. Bill paid in full.`
+            : `Part payment recorded: ${list}. ${moneyText(updated.grandTotalInPaise - updated.amountPaidInPaise)} still outstanding.`,
+      });
+    },
+    onError: (error) => {
+      setPartMode(false);
+      queryClient.invalidateQueries({ queryKey: ['bill', billId] });
+      queryClient.invalidateQueries({ queryKey: ['bills'] });
+      const done = error.partsRecorded > 0 ? `${error.partsRecorded} of ${error.partsTotal} payments recorded. ` : '';
+      setToast({ tone: 'error', message: `${done}${error.partName ?? 'Payment'} not recorded: ${errorMessage(error)}` });
+    },
   });
 
   // P24. The advance paid online goes on the bill first, with one tap.
@@ -648,8 +692,18 @@ export default function BillScreenPage() {
                   Apply {moneyText(Math.min(bill.advance.available, outstandingInPaise))} paid online
                 </Button>
               </div>
+            ) : isSettleable && canTakePayment && partMode ? (
+              <PartPaymentPanel
+                methods={allowedMethods}
+                outstandingInPaise={outstandingInPaise}
+                isBusy={partsMutation.isPending}
+                error={null}
+                onCancel={() => setPartMode(false)}
+                onConfirm={(parts) => partsMutation.mutate(parts)}
+              />
             ) : isSettleable && canTakePayment ? (
               <InlinePayment
+                onPartPayment={allowedMethods.filter((method) => !method.terminalProvider).length > 1 ? () => setPartMode(true) : null}
                 // A fresh panel after each part payment: no method, reference or notes carried to the next one.
                 key={bill.amountPaidInPaise}
                 billId={bill.id}
