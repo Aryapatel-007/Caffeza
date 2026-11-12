@@ -9782,3 +9782,91 @@ personal data.
 ## Error codes
 
 None new. `DAY_NOT_CLOSED` takes the sentence for its purpose.
+
+---
+
+# P66 Part payment, Edit bill, and Price includes GST
+
+Spec 2026-11-12, `docs/prompts/P66-part-payment-edit-bill-gst-included.md`.
+Additive: three endpoints, one new field on `POST /bills`. No error code added;
+refusals are `BUSINESS_RULE_VIOLATED` (422), `FORBIDDEN` (403), `DAY_CLOSED`
+(409) and `TERMINAL_REQUIRED` (422).
+
+## 1. `POST /api/v1/bills/:billId/payments/split`
+
+Roles: as `POST /bills/:billId/payments` (the till; a captain when
+`billing.captainsMayTakePayment`).
+
+```json
+{ "payments": [
+  { "method": "UPI", "amountInPaise": 40000, "reference": "T1234" },
+  { "method": "CASH", "amountInPaise": 39500 }
+] }
+```
+
+2 to 6 rows, each method once, each more than zero, together no more than the
+outstanding. `reference` as 14.5; required on `OTHER`. One transaction: every
+row through 14.5's rules in order, or nothing. A method linked to a card machine
+while `payments.requireTerminalForLinkedMethods` is on is `TERMINAL_REQUIRED`;
+`ONLINE` is refused as in 14.5. 200, the bill.
+
+## 2. `POST /api/v1/bills/:billId/payments/change`
+
+Roles: OWNER, MANAGER.
+
+```json
+{ "payments": [ { "method": "UPI", "amountInPaise": 40000 }, { "method": "CASH", "amountInPaise": 39500 } ],
+  "reason": "Guest paid half by UPI" }
+```
+
+1 to 6 rows, each method once, adding up exactly to the bill's
+`amountPaidInPaise`; `reason` 1 to 200 characters. Refused 422 when the bill is
+voided or has no payments, a payment has `terminal` set or method `ONLINE`, the
+payments are on different business dates, or a payment or new row of kind
+`PLATFORM` falls inside a live `platformpayouts` period for its method. 409
+`DAY_CLOSED` when the bill's day, the payments' day or today is closed. Each new
+payment freezes its method (P08), keeps the old payments' `businessDate`, the
+earliest `receivedAt` and its `receivedBy`, and has no `tender`. The old
+payments go into `paymentChanges` (DB-SCHEMA section 62). Audit
+`PAYMENTS_CHANGED`, entity BILL, `amountInPaise` the total, details `before`
+and `after` as `[{ method, amountInPaise }]`. 200, the bill.
+
+## 3. `POST /api/v1/bills/:billId/reprice`
+
+Roles: OWNER, MANAGER.
+
+```json
+{ "discount": { "kind": "PERCENT", "rateBps": 1000, "reasonCode": "REGULAR" },
+  "pricesIncludeGst": true, "reason": "Owner's guest", "preview": false }
+```
+
+`discount`: 14.4's body, `null` to remove, absent to keep. `pricesIncludeGst`:
+absent to keep. At least one of the two present. `reason` 1 to 200 characters.
+Refused 422 for a voided bill and a platform delivery bill; 409 `DAY_CLOSED`
+for the bill's day or today. One transaction: void the bill
+(`voidReasonCode: DISCOUNT_CHANGED`, `isVoidedToChangeItems: true`, the note
+"Discount or GST changed after billing: <reason>"), set
+`orders.pricesIncludeGst`, create the new bill (number reserved as 14.1) with the
+discount, carry the payments as 16.4 (P25 Part E). Audit `BILL_REPRICED` on the
+voided bill, details `newBillNumber`, `discountBefore`, `discountAfter`,
+`pricesIncludeGstBefore`, `pricesIncludeGstAfter`. 200:
+
+```json
+{ "bill": { }, "voidedBillId": "…", "voidedBillNumber": "2026-27/000190",
+  "cashToGiveBackInPaise": 7900, "refundsOwed": [] }
+```
+
+`preview: true` answers `{ preview: true, voidedBillTotalInPaise,
+newBillTotalInPaise, cashToGiveBackInPaise, refundsOwed }` and rolls back.
+
+## 4. `POST /api/v1/bills` gains `pricesIncludeGst`
+
+Optional boolean. True from anyone but OWNER or MANAGER is 403. True sets
+`orders.pricesIncludeGst` inside the bill's transaction (rolled back with a
+preview) and bills the lines as including GST: each line's unit price, add-ons
+included, becomes `exclusiveOfGst(unit, taxRateBps)`, its line total that times
+the quantity, with the menu's unit price in `lines[].menuUnitPriceInPaise`. The
+bill carries `pricesIncludeGst: true`. Audit `GST_INCLUDED_IN_PRICE`, entity
+BILL. Every later bill of the order (P25, P26, P29 revisions, reprice) bills it
+the same way. An order reopened from a bill keeps its flag; sending true on it
+is refused like a discount (P57).

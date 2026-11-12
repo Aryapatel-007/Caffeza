@@ -3209,3 +3209,20 @@ plus `W` for website bills; `billSequence` is 900,000,000 plus the number.
 
 Rollback: `SYNC_MODE=ONE_WAY` on both. Nothing reads `syncdocs` then; website
 bills already made keep their W numbers, which stay valid in their series.
+
+## 62. Part payment, Edit bill, Price includes GST (P66)
+
+Spec 2026-11-12. Additive, every field with a default; no index.
+
+| Collection | Field | Type | Default | Meaning |
+|---|---|---|---|---|
+| `orders` | `pricesIncludeGst` | Boolean | false | Bill this order's prices as including GST |
+| `bills` | `pricesIncludeGst` | Boolean | false | Copied from the order when billed |
+| `bills` | `lines[].menuUnitPriceInPaise` | Number or null | null | With prices including GST, the menu's unit price (add-ons included) the line was billed from |
+| `bills` | `paymentChanges` | array | [] | One per Change payments: `at`, `by`, `reason`, `before` and `after` as `[{ method, methodName, amountInPaise, reference }]` |
+
+`auditlogs.action` gains `PAYMENTS_CHANGED`, `BILL_REPRICED` and
+`GST_INCLUDED_IN_PRICE` (entity BILL, OWNER only to read).
+
+Rollback: nothing reads the fields with the code reverted; bills already made
+keep their frozen figures.

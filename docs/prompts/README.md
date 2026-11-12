@@ -72,5 +72,6 @@ The full table, with dependencies and owners, is in
 | P61 | A simple Day Close | Built 2026-10-21. Arya's read outstanding. |
 | P64 | Invoice themes, and what prints on a bill | Built 2026-10-25, not deployed. Arya's read outstanding. |
 | P65 | The CA's month, sent by itself | Built 2026-10-25, not deployed. Arya's read outstanding. |
+| P66 | Part payment, Edit bill, and Price includes GST | Built 2026-11-12. Arya's read outstanding. |
 
 Prompt files that do not exist yet are added as they are written.

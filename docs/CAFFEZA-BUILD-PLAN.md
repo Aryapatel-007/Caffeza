@@ -135,6 +135,7 @@ Each prompt names its model at the top.
 | P63 | Two-way sync: the cafe PC and the website both take bills | Hosting, M3, M16 | P62 | Rishi | Opus, high |
 | P64 | Invoice themes, and what prints on a bill | M3, M7, M20 | P57, P59, P60 | Rishi | Opus, high |
 | P65 | The CA's month, sent by itself | M19, M7 | P64 | Rishi | Opus, high |
+| P66 | Part payment, Edit bill, and Price includes GST | M3, M10 | P57, P59 | Rishi | Opus, high |
 
 P04, P05 and P19 do not depend on the billing chain, so they can run in parallel with it.
 The owners follow the rule "one module, one owner". Change any of them, and record the change in the decision log.
@@ -190,6 +191,9 @@ M8 reads them all.
 | `BRAND_LOGO_SET` | `SETTINGS` | M20, from P22 | The restaurant's logo changed |
 | `BRAND_LOGO_REMOVED` | `SETTINGS` | M20, from P22 | The restaurant's logo was removed |
 | `CA_PACK_SENT` | `REPORT` | M19, from P65 | The month's figures left the restaurant for its CA |
+| `PAYMENTS_CHANGED` | `BILL` | M10, from P66 | A paid bill's payment modes or split changed |
+| `BILL_REPRICED` | `BILL` | M3, from P66 | A bill's discount or GST changed after billing |
+| `GST_INCLUDED_IN_PRICE` | `BILL` | M3, from P66 | A bill made with prices including GST |
 
 ---
 

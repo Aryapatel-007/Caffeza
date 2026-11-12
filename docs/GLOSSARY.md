@@ -950,3 +950,21 @@ Added 2026-11-01, changed 2026-11-03. A split payment (section 6) taken on its o
 | **Back to one method** | Leave the part payment panel without recording anything |
 | **Paid so far** | What the bill's payments add up to, shown once a part is paid |
 | **Part paid** | The note above the methods after a part payment, asking for the method for the rest |
+
+---
+
+## 52. Part payment, Edit bill and Price includes GST
+
+Added by P66.
+
+| Term | Meaning |
+|---|---|
+| **Part payment** | From P66 also the button that splits a bill across methods at once, like UPI ₹400 and Cash ₹395 |
+| **(rest)** | On a part payment row: this row takes whatever is left |
+| **Left** | On the part payment screen: the outstanding not yet on a row |
+| **Record part payment** | Records every row together, or none |
+| **Edit bill** | On a paid or part-paid bill, for owner and manager: change payments, change the discount or GST, add items or cancel an item |
+| **Change payments** | Say how a bill was really paid. The total stays what was paid; the old payments are kept on the bill |
+| **Change discount or GST** | Make the bill again with another discount, or with prices including GST or not. The old number stays in the invoice register |
+| **Price includes GST** | The menu price is what the guest pays, with the GST worked out inside it. ₹100 at 5% is net sales ₹95.24 and GST ₹4.76. Still a tax invoice |
+| **Prices include GST** | Under a bill's totals: it was billed with Price includes GST |
