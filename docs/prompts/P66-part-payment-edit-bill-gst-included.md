@@ -29,12 +29,14 @@ exact amount (no notes counted). A method on the card machine is still sent to
 the machine on its own, so with `requireTerminalForLinkedMethods` on it is
 refused here as `TERMINAL_REQUIRED`.
 
-Screen: **Part payment** on the payment panel opens the split. Two rows to start
-(the first method picked, then the next), **+ Add another method** up to six,
-each row's ✕ to remove it, the last row shows "(rest)" and fills itself with what
-is left until it is typed. Other asks its mode on the row. Total and Left are
-shown; **Record part payment** is on only when every row has an amount and Other
-rows a mode.
+Screen: Arya's part payment panel of 2026-11-03 (`PartPaymentPanel.jsx`, a row
+for every method, Rest, Record N payments), live before P66 was merged, is the
+screen. Built differently from the first draft of this prompt, which had its own
+split sheet: the two were met on the merge, and Arya's was kept because staff
+already use it and it is the same design. With two or more parts it now sends
+this endpoint, so the parts are recorded together or none; one part is an
+ordinary payment as before. The rows sheet built for P66
+(`PaymentRowsPanel.jsx`, "(rest)", Left) is used by Change payments only.
 
 ## 2. Edit bill
 

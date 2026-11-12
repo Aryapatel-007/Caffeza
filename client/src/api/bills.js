@@ -28,7 +28,7 @@ function toQuery(params = {}) {
  * Creates the bill for an order. The order's current version, from the order screen.
  * P57: with the discount chosen before Save, and `preview` for the totals shown before it.
  */
-export function createBill({ orderId, version, discount, preview, withoutKot }) {
+export function createBill({ orderId, version, discount, preview, withoutKot, pricesIncludeGst }) {
   return api.post('/bills', {
     orderId,
     version,
@@ -36,6 +36,31 @@ export function createBill({ orderId, version, discount, preview, withoutKot }) 
     ...(preview ? { preview: true } : {}),
     // P60. The counter bills dishes not yet sent, without a KOT.
     ...(withoutKot ? { withoutKot: true } : {}),
+    // P66. Owner and manager: the menu prices include GST.
+    ...(pricesIncludeGst ? { pricesIncludeGst: true } : {}),
+  });
+}
+
+/** P66. Part payment: two to six methods at once, all recorded or none. */
+export function splitPayment(billId, payments) {
+  return api.post(`/bills/${billId}/payments/split`, { payments });
+}
+
+/** P66. OWNER and MANAGER. Say how a bill was really paid; the rows add up to what was paid. */
+export function changePayments(billId, { payments, reason }) {
+  return api.post(`/bills/${billId}/payments/change`, { payments, reason });
+}
+
+/**
+ * P66. OWNER and MANAGER. Bill again with another discount (null takes it off,
+ * undefined keeps it) or prices including GST or not. `preview` writes nothing.
+ */
+export function repriceBill(billId, { discount, pricesIncludeGst, reason, preview }) {
+  return api.post(`/bills/${billId}/reprice`, {
+    ...(discount !== undefined ? { discount } : {}),
+    ...(pricesIncludeGst !== undefined ? { pricesIncludeGst } : {}),
+    reason,
+    ...(preview ? { preview: true } : {}),
   });
 }
 

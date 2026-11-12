@@ -64,7 +64,7 @@ import {
 } from '../utils/errors.js';
 import { sumPaise } from '../utils/money.js';
 import { scoped } from '../utils/scopedQuery.js';
-import { allocateLineShares, computeBillTotals, resolveDiscountAmount } from '../utils/tax.js';
+import { allocateLineShares, computeBillTotals, exclusiveOfGst, resolveDiscountAmount } from '../utils/tax.js';
 import { businessDateFor, nowUtc } from '../utils/time.js';
 import { withOptionalTransaction } from '../utils/transaction.js';
 
@@ -79,7 +79,18 @@ const DUPLICATE_KEY = 11000;
  * and the add-on prices separately and derives the line total; a bill freezes
  * the number that was printed, because it must still print the same in a year.
  */
-export function toBillLine(line) {
+export function toBillLine(line, { pricesIncludeGst = false } = {}) {
+  /**
+   * P66. With prices including GST, the menu price of one (add-ons included)
+   * is taken back to its price before GST in tax.js, and the line is that
+   * times the quantity, so Rate times Qty is always the Amount printed. The
+   * GST is then added by computeBillTotals like on any bill.
+   */
+  if (pricesIncludeGst) {
+    const menuUnitPriceInPaise = sumPaise(line.unitPriceInPaise, ...(line.addOns ?? []).map((addOn) => addOn.priceInPaise));
+    const unitPriceInPaise = exclusiveOfGst(menuUnitPriceInPaise, line.taxRateBps);
+    return { ...toBillLine(line), unitPriceInPaise, lineTotalInPaise: unitPriceInPaise * line.quantity, menuUnitPriceInPaise };
+  }
   const lineTotalInPaise = computeLineTotalInPaise(line);
 
   /**
@@ -166,7 +177,7 @@ function scopedToRestaurant(req) {
  * degraded version of it worth shipping. See utils/errors.js
  * TransactionRequiredError.
  */
-export async function createBill(req, { orderId, version, discount = null, preview = false, withoutKot = false }) {
+export async function createBill(req, { orderId, version, discount = null, preview = false, withoutKot = false, pricesIncludeGst }) {
   const session = await mongoose.startSession();
   let previewed = null;
 
@@ -185,6 +196,13 @@ export async function createBill(req, { orderId, version, discount = null, previ
       // P57. Its discount is the voided bill's; a new one is given on the new bill.
       if (discount && order?.reopenedFromBillId) {
         throw new BusinessRuleError("This order carries its last bill's discount. Change it on the new bill.");
+      }
+      // P66. The same for the GST tick: the reopened order keeps its own; Change discount or GST changes it after.
+      if (pricesIncludeGst !== undefined && order?.reopenedFromBillId) {
+        throw new BusinessRuleError("This order keeps its last bill's GST setting. Change it with Edit bill on the new bill.");
+      }
+      if (pricesIncludeGst !== undefined) {
+        await Order.updateOne({ ...scoped(req), _id: orderId }, { $set: { pricesIncludeGst } }, { session });
       }
       const voided = order?.reopenedFromBillId ? await Bill.findOne({ ...scoped(req), _id: order.reopenedFromBillId }).session(session) : null;
       // P60. The counter's dishes not sent become served without a KOT, in this same transaction.
@@ -224,6 +242,18 @@ export async function createBill(req, { orderId, version, discount = null, previ
 
     // P57. The discount given with the bill is audited as one given on it.
     if (discount) await auditDiscount(req, created, created.discount);
+    // P66. A bill made with prices including GST is on the activity log.
+    if (pricesIncludeGst === true) {
+      await recordAudit(req, {
+        action: AUDIT_ACTIONS.GST_INCLUDED_IN_PRICE,
+        entityType: AUDIT_ENTITY_TYPES.BILL,
+        entityId: created._id,
+        entityLabel: created.billNumber,
+        reason: 'Prices include GST',
+        amountInPaise: created.grandTotalInPaise,
+        details: { totalTaxInPaise: created.totalTaxInPaise },
+      });
+    }
 
     return carriedSummary ? { ...created.toJSON(), carried: carriedSummary } : created;
   } catch (error) {
@@ -269,7 +299,7 @@ export async function createBillInSession(req, { orderId, version, discount = nu
 
   const lines = order.lines
     .filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED)
-    .map(toBillLine);
+    .map((line) => toBillLine(line, { pricesIncludeGst: order.pricesIncludeGst === true }));
 
   assertBillHasLines(lines);
 
@@ -320,6 +350,8 @@ export async function createBillInSession(req, { orderId, version, discount = nu
     captainName,
     guestCount: order.guestCount ?? null,
     orderOpenedAt: order.openedAt ?? null,
+    // P66.
+    pricesIncludeGst: order.pricesIncludeGst === true,
   };
   applyTotals(draft, lines, totals);
 

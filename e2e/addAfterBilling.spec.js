@@ -47,7 +47,9 @@ test('a paid table orders one more dish', async ({ browser }) => {
   const counter = await signIn(browser, { name: 'Manager', phone: golden.phones.Manager, password: golden.password, device: 'computer' });
   const page = counter.page;
   await page.goto(`/bills/${bill.id}`);
-  await page.getByRole('button', { name: 'Add items', exact: true }).click();
+  // P66. A manager finds Add items under Edit bill.
+  await page.getByRole('button', { name: 'Edit bill' }).click();
+  await page.getByRole('dialog', { name: 'Edit bill' }).getByRole('button', { name: /^Add items/ }).click();
   const sheet = page.getByRole('dialog', { name: 'Add items' });
   await expect(sheet.getByText(/already paid moves onto the new bill/)).toBeVisible();
   await sheet.getByRole('button', { name: 'Void and add items' }).click();

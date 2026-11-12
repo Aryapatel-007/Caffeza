@@ -383,6 +383,8 @@ const orderSchema = new mongoose.Schema({
   readyToBillAt: { type: Date, default: null },
   /** P26. The bill voided by POST /bills/:billId/reopen; the next bill carries its discount and payments. */
   reopenedFromBillId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bill', default: null },
+  /** P66. Bill this order's prices as including GST. Every bill of the order reads it. */
+  pricesIncludeGst: { type: Boolean, default: false },
 
   /** Reserved for M3. Null until billed. M2 never sets it. */
   billId: { type: mongoose.Schema.Types.ObjectId, default: null },

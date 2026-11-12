@@ -94,6 +94,8 @@ export const createBillSchema = z.object({
       preview: z.boolean({ error: 'Must be true or false.' }).optional(),
       // P60. The counter bills dishes not yet sent, without a KOT.
       withoutKot: z.boolean({ error: 'Must be true or false.' }).optional(),
+      // P66. Bill the prices as including GST. Owner and manager, checked in the controller.
+      pricesIncludeGst: z.boolean({ error: 'Must be true or false.' }).optional(),
     })
     .strict('Is not a field you can set here. The server bills from the order.'),
 });
@@ -197,6 +199,62 @@ export const correctPaymentSchema = z.object({
   body: z
     .object({ method: methodCode, reason })
     .strict('Is not a field you can set here. Only the method of a payment can change.'),
+});
+
+/**
+ * P66. One row of a part payment or a changed set of payments: a method, an
+ * amount and the optional reference (required on Other, checked in the service).
+ */
+const paymentRow = z
+  .object({
+    method: methodCode,
+    amountInPaise: paise.refine((value) => value > 0, 'Must be more than zero.'),
+    reference: z.union([z.string().trim().max(100, 'Cannot be longer than 100 characters.'), z.null()]).optional(),
+  })
+  .strict('Is not a field you can set here.');
+
+const distinctMethods = (rows) => new Set(rows.map((row) => row.method)).size === rows.length;
+
+/** POST /bills/:billId/payments/split. P66. */
+export const splitPaymentSchema = z.object({
+  params: billIdParam,
+  body: z
+    .object({
+      payments: z
+        .array(paymentRow)
+        .min(2, 'A part payment needs at least two methods.')
+        .max(6, 'At most six methods.')
+        .refine(distinctMethods, 'Use each method once.'),
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+/** POST /bills/:billId/payments/change. P66. */
+export const changePaymentsSchema = z.object({
+  params: billIdParam,
+  body: z
+    .object({
+      payments: z.array(paymentRow).min(1, 'Give at least one payment.').max(6, 'At most six methods.').refine(distinctMethods, 'Use each method once.'),
+      reason,
+    })
+    .strict('Is not a field you can set here.'),
+});
+
+/** POST /bills/:billId/reprice. P66. */
+export const repriceBillSchema = z.object({
+  params: billIdParam,
+  body: z
+    .object({
+      discount: z.lazy(() => discountBody.nullable()).optional(),
+      pricesIncludeGst: z.boolean({ error: 'Must be true or false.' }).optional(),
+      reason,
+      preview: z.boolean({ error: 'Must be true or false.' }).optional(),
+    })
+    .strict('Is not a field you can set here.')
+    .refine((body) => body.discount !== undefined || body.pricesIncludeGst !== undefined, {
+      message: 'Choose a discount or the GST setting to change.',
+      path: ['discount'],
+    }),
 });
 
 /** POST /bills/:billId/void */

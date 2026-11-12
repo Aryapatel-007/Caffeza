@@ -36,6 +36,9 @@ import {
   listBills,
   postBill,
   postCorrectPayment,
+  postChangePayments,
+  postReprice,
+  postSplitPayment,
   postDiscount,
   postPayment,
   postVoid,
@@ -48,6 +51,9 @@ import {
   applyDiscountSchema,
   billSummarySchema,
   correctPaymentSchema,
+  changePaymentsSchema,
+  repriceBillSchema,
+  splitPaymentSchema,
   createBillSchema,
   listBillsSchema,
   readBillSchema,
@@ -108,6 +114,10 @@ router.get('/bills/:billId/receipt', ...anySignedIn, validate(receiptSchema), ge
 router.get('/bills/:billId/invoice', ...anySignedIn, validate(invoiceSchema), getInvoice);
 
 router.post('/bills/:billId/payments', ...tillAndCaptains, validate(recordPaymentSchema), postPayment);
+// P66. Part payment across methods, in one request; changing a bill's payments; its discount or GST after billing.
+router.post('/bills/:billId/payments/split', ...tillAndCaptains, validate(splitPaymentSchema), postSplitPayment);
+router.post('/bills/:billId/payments/change', ...managers, validate(changePaymentsSchema), postChangePayments);
+router.post('/bills/:billId/reprice', ...managers, validate(repriceBillSchema), postReprice);
 router.post('/bills/:billId/print-request', ...anySignedIn, validate(billOnlySchema), postPrintRequest);
 router.post('/bills/:billId/printed', ...anySignedIn, validate(markPrintedSchema), postPrinted);
 

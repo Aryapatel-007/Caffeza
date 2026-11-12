@@ -88,7 +88,9 @@ function reappliedDiscount(discount, lines) {
  */
 async function reviseInSession(req, { bill, order, kind, changedLines, reasonCode = null, note = null, approvedBy = null }, session) {
   const previousGrandTotalInPaise = bill.grandTotalInPaise;
-  const lines = order.lines.filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED).map(toBillLine);
+  const lines = order.lines
+    .filter((line) => line.status !== ORDER_LINE_STATUSES.CANCELLED)
+    .map((line) => toBillLine(line, { pricesIncludeGst: order.pricesIncludeGst === true }));
   const { request, stored } = reappliedDiscount(bill.discount, lines);
   const totals = computeBillTotals({ lines, discount: request });
 

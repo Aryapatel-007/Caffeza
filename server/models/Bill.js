@@ -145,6 +145,8 @@ const billLineSchema = new mongoose.Schema(
     hsnCode: { type: String, trim: true, default: null },
     // P60. Copied from the order line: billed without a KOT.
     billedWithoutKot: { type: Boolean, default: false },
+    // P66. With prices including GST, the menu's unit price (add-ons included) this line was billed from.
+    menuUnitPriceInPaise: { type: Number, min: 0, max: MAX_PAISE, default: null, validate: wholeNumberOrEmpty },
 
     /**
      * This line's share of the bill discount, its net sales, and its share of
@@ -241,6 +243,29 @@ const paymentCorrectionSchema = new mongoose.Schema(
     by: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
     at: { type: Date, required: true },
     reason: { type: String, required: true, trim: true, minlength: 1, maxlength: 200 },
+  },
+  { _id: false },
+);
+
+/** P66. One payment as it stood before or after a Change payments. */
+const changedPaymentSchema = new mongoose.Schema(
+  {
+    method: { type: String, required: true },
+    methodName: { type: String, default: null },
+    amountInPaise: { type: Number, required: true, min: 1, max: MAX_PAISE, validate: wholeNumber },
+    reference: { type: String, default: null },
+  },
+  { _id: false },
+);
+
+/** P66. One per Change payments: what the bill's payments were, and what they became. */
+const paymentChangeSchema = new mongoose.Schema(
+  {
+    at: { type: Date, required: true },
+    by: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
+    reason: { type: String, required: true, trim: true, minlength: 1, maxlength: 200 },
+    before: { type: [changedPaymentSchema], default: [] },
+    after: { type: [changedPaymentSchema], default: [] },
   },
   { _id: false },
 );
@@ -514,6 +539,11 @@ const billSchema = new mongoose.Schema({
 
   /** P29 Part D. A payment was recorded while the bill had never been printed. */
   paymentBeforePrint: { type: Boolean, default: false },
+
+  /** P66. Copied from the order: its prices were billed as including GST. */
+  pricesIncludeGst: { type: Boolean, default: false },
+  /** P66. Every Change payments on this bill, oldest first. */
+  paymentChanges: { type: [paymentChangeSchema], default: [] },
 });
 
 billSchema.plugin(baseSchemaPlugin);

@@ -35,6 +35,8 @@ export default function BillComposer({ order, onStale, withoutKot = false, onBac
   const [discount, setDiscount] = useState(null);
   const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState(null);
+  // P66. Owner and manager: the menu prices include GST, for this bill.
+  const [gstIncluded, setGstIncluded] = useState(false);
 
   const isCaptain = user?.role === ROLES.WAITER;
   // 2026-10-25. A manager's or cashier's phone on the cafe PC sends the print to the counter too.
@@ -44,11 +46,13 @@ export default function BillComposer({ order, onStale, withoutKot = false, onBac
   const cashierPlatformOnly = user?.role === ROLES.CASHIER && Boolean(features?.cashierMayApplyPlatformDiscounts);
   // A reopened order carries its last bill's discount (P26); a new one is given on the new bill.
   const canDiscount = (isManager || cashierPlatformOnly) && !order.reopenedFromBillId;
+  const canTickGst = isManager && !order.reopenedFromBillId;
+  const pricesIncludeGst = canTickGst && gstIncluded;
 
   const previewQuery = useQuery({
-    queryKey: ['bill-preview', order.id, order.version, discount, withoutKot],
+    queryKey: ['bill-preview', order.id, order.version, discount, withoutKot, pricesIncludeGst],
     // P60. Without a KOT, the preview serves the dishes not sent and rolls it all back, as the bill would.
-    queryFn: () => createBill({ orderId: order.id, version: order.version, discount, preview: true, ...(withoutKot ? { withoutKot } : {}) }),
+    queryFn: () => createBill({ orderId: order.id, version: order.version, discount, pricesIncludeGst, preview: true, ...(withoutKot ? { withoutKot } : {}) }),
     placeholderData: keepPreviousData,
     // 2026-10-22. A preview that failed (the website's free server waking up) is asked again,
     // and never holds Save back: Save makes the bill on the server, which checks everything again.
@@ -60,7 +64,7 @@ export default function BillComposer({ order, onStale, withoutKot = false, onBac
 
   const save = useMutation({
     mutationFn: async ({ andPrint }) => {
-      const bill = await createBill({ orderId: order.id, version: order.version, discount, ...(withoutKot ? { withoutKot } : {}) });
+      const bill = await createBill({ orderId: order.id, version: order.version, discount, pricesIncludeGst, ...(withoutKot ? { withoutKot } : {}) });
       // P25 Part D. A captain's print goes to the counter's printer. A failed request leaves Print at counter on the bill.
       if (andPrint && atCounter) await requestBillPrint(bill.id).catch(() => null);
       return bill;
@@ -117,6 +121,13 @@ export default function BillComposer({ order, onStale, withoutKot = false, onBac
             </button>
           </div>
         </div>
+      )}
+
+      {canTickGst && (
+        <label className="flex min-h-12 items-center gap-3 rounded-lg border border-line px-3 hover:bg-sunken">
+          <input type="checkbox" checked={gstIncluded} disabled={busy} onChange={(event) => setGstIncluded(event.target.checked)} />
+          <span className="type-body">Price includes GST</span>
+        </label>
       )}
 
       {preview ? (

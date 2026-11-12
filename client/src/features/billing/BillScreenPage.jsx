@@ -14,6 +14,8 @@ import {
   requestBillPrint,
   recordPayment,
   applyAdvance,
+  changePayments,
+  splitPayment,
   voidBill,
 } from '../../api/bills.js';
 import { chargeToAccount, createAccount } from '../../api/accounts.js';
@@ -40,6 +42,9 @@ import AddItemsPanel from './AddItemsPanel.jsx';
 import CancelItemsPanel from './CancelItemsPanel.jsx';
 import RemoveItemPanel from './RemoveItemPanel.jsx';
 import RevisionTimeline from './RevisionTimeline.jsx';
+import EditBillSheet from './EditBillSheet.jsx';
+import PaymentRowsPanel from './PaymentRowsPanel.jsx';
+import RepricePanel from './RepricePanel.jsx';
 import { getOrder } from '../../api/orders.js';
 import { BILL_VOID_REASONS, describeReason } from '../orders/cancelReasons.js';
 import { placeLabel } from '../orders/orderLabel.js';
@@ -139,13 +144,27 @@ export default function BillScreenPage() {
   });
 
   /**
-   * 2026-11-03. Part payment: several methods at once. Each part is one ordinary
-   * payment, sent one after another. Whatever happens, the panel closes and the
-   * bill is read again, so a part already recorded is never sent twice.
+   * 2026-11-03. Part payment: several methods at once. Whatever happens, the
+   * panel closes and the bill is read again, so a part already recorded is
+   * never sent twice. P66: two or more parts go in one request, recorded
+   * together or not at all, so a refused part never leaves the rest half done.
    */
   const [partMode, setPartMode] = useState(false);
   const partsMutation = useMutation({
     mutationFn: async (parts) => {
+      if (parts.length > 1) {
+        try {
+          return await splitPayment(
+            billId,
+            parts.map(({ method, amountInPaise, reference }) => ({ method, amountInPaise, reference })),
+          );
+        } catch (error) {
+          error.partsRecorded = 0;
+          error.partsTotal = parts.length;
+          error.partName = 'Part payment';
+          throw error;
+        }
+      }
       let updated = null;
       for (const [index, part] of parts.entries()) {
         try {
@@ -205,6 +224,16 @@ export default function BillScreenPage() {
       setToast({ tone: 'success', message: 'Payment method changed.' });
     },
     onError: (error) => setToast({ tone: 'error', message: errorMessage(error) }),
+  });
+
+  // P66. A manager says how the bill was really paid.
+  const changePaymentsMutation = useMutation({
+    mutationFn: (body) => changePayments(billId, body),
+    onSuccess: (updated) => {
+      invalidate(updated);
+      setPanel(null);
+      setToast({ tone: 'success', message: 'Payments changed.' });
+    },
   });
 
   const chargeMutation = useMutation({
@@ -339,6 +368,14 @@ export default function BillScreenPage() {
     bill.status === 'UNPAID' &&
     bill.amountPaidInPaise === 0;
   const canCorrect = canManage && !bill.isVoided && bill.status === 'PAID';
+  /**
+   * P66. Edit bill: an owner or manager changes a bill already paid, part paid
+   * or On Hold from one place. Payments taken on the card machine or online
+   * stay as they were, so Change payments is offered only without them.
+   */
+  const isPlatformBill = bill.orderType === 'DELIVERY' && Boolean(bill.platform?.code);
+  const canEdit = canManage && !bill.isVoided && (bill.amountPaidInPaise > 0 || bill.status !== 'UNPAID');
+  const canChangePayments = bill.payments.length > 0 && bill.payments.every((payment) => !payment.terminal && payment.method !== 'ONLINE');
   // P28. A cashier may void with an owner's or manager's PIN, when the owner allows it.
   const canVoid = (canManage || (user?.role === ROLES.CASHIER && (features.approvals?.managerTasks ?? true))) && !bill.isVoided;
   // P25 Part E. The till, and a captain when captains may bill; a cashier or captain needs a manager's PIN.
@@ -447,7 +484,16 @@ export default function BillScreenPage() {
             {captainLockedOut && !bill.isVoided && (
               <p className="type-caption flex min-h-12 items-center px-3 text-muted">This bill has been printed. Only the counter or a manager can change it now.</p>
             )}
-            {canCancelItems && (
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setPanel('edit')}
+                className="type-button flex min-h-12 items-center rounded-lg border border-ink bg-surface px-4 hover:bg-sunken"
+              >
+                Edit bill
+              </button>
+            )}
+            {canCancelItems && !canEdit && (
               <button
                 type="button"
                 onClick={() => (revisable ? navigate(`/orders/${bill.orderId}?add=1`) : setPanel('add-items'))}
@@ -456,7 +502,7 @@ export default function BillScreenPage() {
                 {revisable ? 'Add to this bill' : 'Add items'}
               </button>
             )}
-            {canCancelItems && !revisable && (
+            {canCancelItems && !revisable && !canEdit && (
               <button
                 type="button"
                 onClick={() => setPanel('cancel-items')}
@@ -583,6 +629,9 @@ export default function BillScreenPage() {
 
             <RevisionTimeline revisions={bill.revisions ?? []} />
 
+            {/* P66. */}
+            {bill.pricesIncludeGst && <p className="type-caption mt-2 text-muted">Prices include GST</p>}
+
             {bill.payments.length > 0 && (
               <div className="mt-4">
                 <p className="type-label mb-2 text-muted">Payments</p>
@@ -616,6 +665,12 @@ export default function BillScreenPage() {
                     </li>
                   ))}
                 </ul>
+                {/* P66. What the payments were before a manager changed them. */}
+                {(bill.paymentChanges ?? []).map((change) => (
+                  <p key={change.at} className="type-caption mt-2 text-muted">
+                    Payments changed from {change.before.map((payment) => `${payment.methodName ?? payment.method} ${moneyText(payment.amountInPaise)}`).join(', ')}: {change.reason}
+                  </p>
+                ))}
               </div>
             )}
           </article>
@@ -745,6 +800,53 @@ export default function BillScreenPage() {
           error={discountMutation.isError ? errorMessage(discountMutation.error) : null}
           onCancel={() => setPanel(null)}
           onConfirm={(body) => discountMutation.mutate(body)}
+        />
+      )}
+
+      {panel === 'edit' && (
+        <EditBillSheet
+          bill={bill}
+          canChangePayments={canChangePayments}
+          canReprice={!isPlatformBill}
+          canChangeItems={canCancelItems}
+          onCancel={() => setPanel(null)}
+          onPick={(next) => setPanel(next)}
+        />
+      )}
+
+      {panel === 'change-payments' && (
+        <PaymentRowsPanel
+          title="Change payments"
+          subtitle={`Bill ${bill.billNumber} · Paid ${moneyText(bill.amountPaidInPaise)}`}
+          methods={allowedMethods.filter((method) => !method.terminalProvider)}
+          targetInPaise={bill.amountPaidInPaise}
+          initialRows={bill.payments}
+          otherModes={features?.payments?.otherModes ?? []}
+          exact
+          askReason
+          minRows={1}
+          confirmLabel="Save payments"
+          isBusy={changePaymentsMutation.isPending}
+          error={changePaymentsMutation.isError ? errorMessage(changePaymentsMutation.error) : null}
+          onCancel={() => setPanel(null)}
+          onConfirm={(rows, reason) => changePaymentsMutation.mutate({ payments: rows, reason })}
+        />
+      )}
+
+      {panel === 'reprice' && (
+        <RepricePanel
+          bill={bill}
+          onCancel={() => setPanel(null)}
+          onDone={(result) => {
+            setPanel(null);
+            const parts = [];
+            if (result.cashToGiveBackInPaise > 0) parts.push(`Give back ${moneyText(result.cashToGiveBackInPaise)} in cash.`);
+            for (const refund of result.refundsOwed) parts.push(`${moneyText(refund.amountInPaise)} is owed back on ${refund.methodName}.`);
+            setToast({ tone: 'success', message: [`New bill ${result.bill.billNumber} made.`, ...parts].join(' ') });
+            queryClient.invalidateQueries({ queryKey: ['bill'] });
+            queryClient.invalidateQueries({ queryKey: ['bills'] });
+            navigate(`/bills/${result.bill.id}`);
+          }}
         />
       )}
 

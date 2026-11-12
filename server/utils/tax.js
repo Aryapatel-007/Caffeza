@@ -145,6 +145,22 @@ function apportionDiscount(slabSubtotals, discountAmountInPaise, subtotalInPaise
 }
 
 /**
+ * P66. A price that includes GST, as the price before GST:
+ * round_half_away_from_zero(amount * 10000 / (10000 + rate)), in exact integer
+ * maths. ₹100.00 at 5% is ₹95.24. Used only to bill a line whose menu price
+ * includes GST; the GST on it is then worked out by computeBillTotals as on any
+ * other bill, so every identity of GLOSSARY section 2 still holds.
+ */
+export function exclusiveOfGst(amountInPaise, taxRateBps) {
+  assertInteger(amountInPaise, 'exclusiveOfGst amount');
+  assertInteger(taxRateBps, 'exclusiveOfGst rate');
+  if (amountInPaise < 0) throw new RangeError('A price cannot be negative.');
+  if (taxRateBps < 0) throw new RangeError('A tax rate cannot be negative.');
+  if (taxRateBps === 0) return amountInPaise;
+  return proportionalShare(amountInPaise, 10000, 10000 + taxRateBps);
+}
+
+/**
  * Rounds a bill total to the nearest whole rupee.
  *
  * Returns the signed adjustment, which is what the bill stores and prints.
@@ -456,6 +472,7 @@ export function splitBillAcrossPayments(bill) {
 export default {
   allocateLineShares,
   computeBillTotals,
+  exclusiveOfGst,
   largestRemainderSplit,
   proportionalShare,
   resolveDiscountAmount,

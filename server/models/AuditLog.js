@@ -97,6 +97,10 @@ export const AUDIT_ACTIONS = Object.freeze({
   BOX_WIFI_CHANGED: 'BOX_WIFI_CHANGED',
   // P65. A month's CA pack emailed. Details name the period and the files, never the address.
   CA_PACK_SENT: 'CA_PACK_SENT',
+  // P66. A bill's payments changed after the fact; its discount or GST changed by a re-bill; a bill made with prices including GST.
+  PAYMENTS_CHANGED: 'PAYMENTS_CHANGED',
+  BILL_REPRICED: 'BILL_REPRICED',
+  GST_INCLUDED_IN_PRICE: 'GST_INCLUDED_IN_PRICE',
 });
 export const AUDIT_ACTION_VALUES = Object.freeze(Object.values(AUDIT_ACTIONS));
 

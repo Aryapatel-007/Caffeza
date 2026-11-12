@@ -42,6 +42,8 @@ import { businessDateFor, nowUtc } from '../utils/time.js';
 import { reopenBill } from '../services/billReopenService.js';
 import { removeLines, revisability } from '../services/billRevisionService.js';
 import { approverForManagerTask } from '../services/approvalService.js';
+import { changePayments, repriceBill, splitPayment } from '../services/billPaymentEditService.js';
+import { ForbiddenError } from '../utils/errors.js';
 
 /**
  * The business-date range a list or summary covers.
@@ -77,6 +79,10 @@ export async function postBill(req, res) {
   if (req.body.discount) {
     const cashierMayApplyPlatformDiscounts = await getSetting(req.restaurantId, 'discounts.cashierMayApplyPlatformDiscounts', { req });
     assertCanDiscount(req.user, { reasonCode: req.body.discount.reasonCode, cashierMayApplyPlatformDiscounts });
+  }
+  // P66. Only an owner or a manager bills prices as including GST.
+  if (req.body.pricesIncludeGst === true && ![ROLES.OWNER, ROLES.MANAGER].includes(req.user.role)) {
+    throw new ForbiddenError('Only an owner or a manager can bill prices as including GST.');
   }
   const bill = await createBill(req, req.body);
   return sendSuccess(res, bill, req.body.preview ? 200 : 201);
@@ -201,6 +207,26 @@ export async function postPayment(req, res) {
     assertCanTakePayment(req.user, await readBill(req, req.params.billId), await getSettingsGroup(req, 'billing'));
   }
   return sendSuccess(res, await recordPayment(req, req.params.billId, req.body));
+}
+
+/** POST /bills/:billId/payments/split. P66. The same people as a payment. */
+export async function postSplitPayment(req, res) {
+  if (req.user.role === ROLES.WAITER) {
+    assertCanTakePayment(req.user, await readBill(req, req.params.billId), await getSettingsGroup(req, 'billing'));
+  }
+  return sendSuccess(res, await splitPayment(req, req.params.billId, req.body));
+}
+
+/** POST /bills/:billId/payments/change. P66. Owner and manager. */
+export async function postChangePayments(req, res) {
+  assertCanCorrectPayment(req.user);
+  return sendSuccess(res, await changePayments(req, req.params.billId, req.body));
+}
+
+/** POST /bills/:billId/reprice. P66. Owner and manager. */
+export async function postReprice(req, res) {
+  assertCanCorrectPayment(req.user);
+  return sendSuccess(res, await repriceBill(req, req.params.billId, req.body));
 }
 
 /** POST /bills/:billId/payments/:paymentId/correct. P08. */

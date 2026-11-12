@@ -959,10 +959,9 @@ Added by P66.
 
 | Term | Meaning |
 |---|---|
-| **Part payment** | From P66 also the button that splits a bill across methods at once, like UPI ₹400 and Cash ₹395 |
-| **(rest)** | On a part payment row: this row takes whatever is left |
-| **Left** | On the part payment screen: the outstanding not yet on a row |
-| **Record part payment** | Records every row together, or none |
+| **Part payment** | From P66, two or more parts on the part payment panel (section 51) are recorded together, or none |
+| **(rest)** | On Change payments: this row takes whatever is left |
+| **Left** | On Change payments: what was paid, not yet on a row |
 | **Edit bill** | On a paid or part-paid bill, for owner and manager: change payments, change the discount or GST, add items or cancel an item |
 | **Change payments** | Say how a bill was really paid. The total stays what was paid; the old payments are kept on the bill |
 | **Change discount or GST** | Make the bill again with another discount, or with prices including GST or not. The old number stays in the invoice register |
